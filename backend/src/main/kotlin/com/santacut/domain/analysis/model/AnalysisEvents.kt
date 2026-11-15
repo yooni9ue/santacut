@@ -22,8 +22,10 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     fun <T> mapNumbered(transform: (Int, AnalysisEvent) -> T): List<T> =
         values.mapIndexed { index, event -> transform(index + FIRST_NUMBER, event) }
 
-    /** 전체 텍스트 길이와 이벤트 시각 범위를 확인한다. */
+    /** 이벤트 수, 전체 텍스트 길이, 이벤트 시각 범위를 확인한다. */
     fun verifyAcceptableAt(now: Instant) {
+        if (values.size < MIN_EVENTS) throw SantaCutException(ErrorCode.INSUFFICIENT_EVENTS)
+        if (values.size > MAX_EVENTS) throw SantaCutException(ErrorCode.TOO_MANY_EVENTS)
         if (totalTextLength() > MAX_TOTAL_TEXT_LENGTH || values.any { it.isOutsideWindow(now) }) {
             throw SantaCutException(ErrorCode.INVALID_EVENT_RANGE)
         }
@@ -32,6 +34,9 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     private fun totalTextLength(): Int = values.sumOf { it.text.length }
 
     companion object {
+        /** 한 번에 받는 이벤트 수의 하한과 상한. */
+        const val MIN_EVENTS = 20
+        const val MAX_EVENTS = 2000
         private const val MAX_TOTAL_TEXT_LENGTH = 200_000
         private const val FIRST_NUMBER = 1
     }

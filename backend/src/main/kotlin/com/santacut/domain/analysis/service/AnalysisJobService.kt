@@ -53,9 +53,11 @@ class AnalysisJobService(
         payload: AnalysisPayload,
         now: Instant,
     ): AnalysisJob {
+        val userId = participantId.toString()
         val windowStart = AnalysisJob.submissionWindowStart(now)
         AnalysisJob.verifyWithinDailyLimit(
-            analysisJobRepository.countByUserIdAndCreatedAtAfter(participantId.toString(), windowStart),
+            analysisJobRepository.countByUserIdAndCreatedAtAfter(userId, windowStart),
+            analysisJobRepository.findFirstByUserIdAndCreatedAtAfterOrderByCreatedAtAsc(userId, windowStart)?.createdAt,
         )
         return analysisJobRepository.save(AnalysisJob.enqueue(participantId, key, submission, payload, now))
     }

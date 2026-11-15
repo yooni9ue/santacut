@@ -203,9 +203,13 @@ class AnalysisJob(
         /** 제출 한도를 셀 기간의 시작 시각. 이 시각 이후 만든 작업만 센다. */
         fun submissionWindowStart(now: Instant): Instant = now.minus(SUBMISSION_WINDOW)
 
-        /** 기간 안에 이미 낸 작업 수가 한도에 닿았으면 더 받지 않는다. */
-        fun verifyWithinDailyLimit(recentSubmissions: Long) {
-            if (recentSubmissions >= MAX_DAILY_SUBMISSIONS) throw SantaCutException(ErrorCode.DAILY_USER_LIMIT)
+        /**
+         * 기간 안에 이미 낸 작업 수가 한도에 닿았으면 더 받지 않는다.
+         * 기간 안 가장 오래된 제출([oldestSubmittedAt])이 기간 밖으로 빠지는 시각을 다시 낼 수 있는 시각으로 알린다.
+         */
+        fun verifyWithinDailyLimit(recentSubmissions: Long, oldestSubmittedAt: Instant?) {
+            if (recentSubmissions < MAX_DAILY_SUBMISSIONS) return
+            throw SantaCutException(ErrorCode.DAILY_USER_LIMIT, retryAt = oldestSubmittedAt?.plus(SUBMISSION_WINDOW))
         }
 
         fun enqueue(

@@ -1,6 +1,7 @@
 package com.santacut.presentation.participant.controller
 
 import com.santacut.IntegrationTest
+import com.santacut.TestCsrf.withCsrf
 import com.santacut.TestParticipants.REGION_CODE
 import com.santacut.TestParticipants.uniqueNickname
 import jakarta.servlet.http.Cookie
@@ -8,7 +9,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
-import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -45,14 +45,14 @@ class ParticipantApiTest @Autowired constructor(
     fun `이미 쓰는 닉네임으로 등록하면 409와 NICKNAME_TAKEN이다`() {
         val nickname = uniqueNickname()
         registerAndReadSessionToken(nickname)
-        mockMvc.perform(registerRequest(nickname.uppercase()).with(csrf()))
+        mockMvc.perform(withCsrf(mockMvc, registerRequest(nickname.uppercase())))
             .andExpect(status().isConflict)
             .andExpect(jsonPath("$.code").value("NICKNAME_TAKEN"))
     }
 
     /** 등록 응답의 Set-Cookie 속성을 확인하고 세션 토큰 원문을 꺼낸다. */
     private fun registerAndReadSessionToken(nickname: String): String {
-        val setCookie = mockMvc.perform(registerRequest(nickname).with(csrf()))
+        val setCookie = mockMvc.perform(withCsrf(mockMvc, registerRequest(nickname)))
             .andExpect(status().isCreated)
             .andExpect(jsonPath("$.nickname").value(nickname))
             .andExpect(jsonPath("$.regionCode").value(REGION_CODE))
@@ -92,7 +92,7 @@ class ParticipantApiTest @Autowired constructor(
 
     @Test
     fun `비즈니스 오류는 기존 필드에 오류 코드와 한국어 메시지를 더해 돌려준다`() {
-        mockMvc.perform(registerRequest("!").with(csrf()))
+        mockMvc.perform(withCsrf(mockMvc, registerRequest("!")))
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.status").value(400))
             .andExpect(jsonPath("$.error").value("Bad Request"))

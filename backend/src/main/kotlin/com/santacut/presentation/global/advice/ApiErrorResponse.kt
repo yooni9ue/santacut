@@ -1,5 +1,7 @@
 package com.santacut.presentation.global.advice
 
+import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.annotation.JsonProperty
 import io.swagger.v3.oas.annotations.media.Schema
 
 data class ApiErrorResponse(
@@ -11,8 +13,17 @@ data class ApiErrorResponse(
     val error: String,
     @field:Schema(description = "요청 경로", example = "/v1/analyses")
     val path: String,
-    @field:Schema(description = "기계가 읽는 오류 코드. 프레임워크가 만든 오류에는 없습니다.", example = "SEASON_FROZEN")
+    @field:Schema(description = "기계가 읽는 오류 코드. CSRF 오류(403)나 없는 경로처럼 프레임워크가 만든 오류에는 없습니다.", example = "SEASON_FROZEN")
     val code: String? = null,
-    @field:Schema(description = "사람이 읽는 한국어 오류 메시지. 프레임워크가 만든 오류에는 없습니다.", example = "시즌이 마감되어 더 이상 분석을 받을 수 없습니다.")
+    @field:Schema(description = "사람이 읽는 한국어 오류 메시지. CSRF 오류(403)나 없는 경로처럼 프레임워크가 만든 오류에는 없습니다.", example = "시즌이 마감되어 더 이상 분석을 받을 수 없습니다.")
     val message: String? = null,
+    @field:JsonProperty("retry_at")
+    @field:JsonInclude(JsonInclude.Include.NON_NULL)
+    @field:Schema(
+        description = "다시 시도할 수 있는 시각(UTC). 요청 한도 초과(DAILY_USER_LIMIT)에만 있고 Retry-After 헤더(초)와 같은 시점입니다.",
+        format = "date-time",
+        example = "2026-11-16T12:00:00Z",
+        nullable = true,
+    )
+    val retryAt: String? = null,
 )

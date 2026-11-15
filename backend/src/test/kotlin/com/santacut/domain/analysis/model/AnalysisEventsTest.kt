@@ -1,5 +1,8 @@
 package com.santacut.domain.analysis.model
 
+import com.santacut.ErrorCodeAssertions.assertErrorCode
+import com.santacut.domain.analysis.model.AnalysisEvents.Companion.MAX_EVENTS
+import com.santacut.domain.analysis.model.AnalysisEvents.Companion.MIN_EVENTS
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import org.junit.jupiter.api.Test
@@ -14,25 +17,25 @@ class AnalysisEventsTest {
 
     @Test
     fun `최근 90일 안이고 5분 뒤까지의 이벤트는 받아들인다`() {
-        val events = AnalysisEvents(
+        val events = padded(
             listOf(
                 AnalysisEvent(now.minus(Duration.ofDays(90)), "가장 오래된 이벤트"),
                 AnalysisEvent(now.plusSeconds(300), "가장 늦은 이벤트"),
             ),
         )
         events.verifyAcceptableAt(now)
-        assertEquals(2, events.size())
+        assertEquals(MIN_EVENTS, events.size())
     }
 
     @Test
     fun `5분 넘게 미래인 이벤트가 있으면 범위 오류다`() {
-        assertRejected(AnalysisEvents(listOf(AnalysisEvent(now.plusSeconds(301), "미래 이벤트"))))
+        assertRejected(padded(listOf(AnalysisEvent(now.plusSeconds(301), "미래 이벤트"))))
     }
 
     @Test
     fun `90일보다 오래된 이벤트가 있으면 범위 오류다`() {
         val tooOld = now.minus(Duration.ofDays(90)).minusMillis(1)
-        assertRejected(AnalysisEvents(listOf(AnalysisEvent(tooOld, "오래된 이벤트"))))
+        assertRejected(padded(listOf(AnalysisEvent(tooOld, "오래된 이벤트"))))
     }
 
     @Test
@@ -57,6 +60,21 @@ class AnalysisEventsTest {
         val events = AnalysisEvents(listOf(AnalysisEvent(now, "첫째"), AnalysisEvent(now, "둘째")))
         assertEquals(listOf("1:첫째", "2:둘째"), events.mapNumbered { number, event -> "$number:${event.text}" })
     }
+
+    @Test
+    fun `이벤트가 20개보다 적으면 INSUFFICIENT_EVENTS, 2,000개보다 많으면 TOO_MANY_EVENTS다`() {
+        val event = AnalysisEvent(now, "고마워")
+        AnalysisEvents(List(MIN_EVENTS) { event }).verifyAcceptableAt(now)
+        AnalysisEvents(List(MAX_EVENTS) { event }).verifyAcceptableAt(now)
+        val tooFew = AnalysisEvents(List(MIN_EVENTS - 1) { event })
+        val tooMany = AnalysisEvents(List(MAX_EVENTS + 1) { event })
+        assertErrorCode(ErrorCode.INSUFFICIENT_EVENTS) { tooFew.verifyAcceptableAt(now) }
+        assertErrorCode(ErrorCode.TOO_MANY_EVENTS) { tooMany.verifyAcceptableAt(now) }
+    }
+
+    /** 이벤트 수 하한을 채우도록 정상 이벤트를 뒤에 붙인다. */
+    private fun padded(events: List<AnalysisEvent>): AnalysisEvents =
+        AnalysisEvents(events + List(MIN_EVENTS - events.size) { AnalysisEvent(now, "채움") })
 
     private fun assertRejected(events: AnalysisEvents) {
         val exception = assertFailsWith<SantaCutException> { events.verifyAcceptableAt(now) }

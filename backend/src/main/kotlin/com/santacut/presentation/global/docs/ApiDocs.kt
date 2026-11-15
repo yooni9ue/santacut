@@ -9,7 +9,7 @@ object ApiDocs {
     const val CSRF_HEADER = "X-XSRF-TOKEN"
     const val CSRF_HEADER_DESCRIPTION = "GET /v1/csrf가 돌려준 토큰"
     const val SHARE_TOKEN_DESCRIPTION = "43자 base64url 공유 토큰"
-    const val UNAUTHORIZED_DESCRIPTION = "세션이 없거나, 잘못됐거나, 만료됨"
+    const val UNAUTHORIZED_DESCRIPTION = "세션이 없거나, 잘못됐거나, 만료됨(NOT_AUTHENTICATED)"
     const val FORBIDDEN_DESCRIPTION = "CSRF 토큰이 없거나 잘못됨"
     const val SERVER_ERROR_DESCRIPTION = "예상하지 못한 서버 오류"
 }
