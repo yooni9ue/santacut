@@ -122,6 +122,11 @@ jobs:
           docker run --rm -e DOMAIN=santacut.example.com -e ACME_EMAIL=operator@example.com -e FRONTEND_UPSTREAM=frontend:3000 \
             -v "$PWD/backend/ci-cd/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
             caddy:2.10.2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+          container_id=$(docker create caddy:2.10.2-alpine)
+          docker cp "$container_id:/usr/bin/caddy" /tmp/caddy
+          docker rm "$container_id"
+          chmod +x /tmp/caddy
+          python3 frontend/ci-cd/scripts/test-routing.py --caddy /tmp/caddy
 
   publish:
     needs: [test, container]

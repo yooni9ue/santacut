@@ -6,7 +6,7 @@
 
 | 시점 | 동작 |
 | --- | --- |
-| frontend 관련 PR | Node.js 24·pnpm 고정 설치 → 린트·타입·단위 테스트 → standalone 빌드 → 모바일 Chromium/WebKit E2E → Docker 이미지 빌드·상태 확인 |
+| frontend 관련 PR | Node.js 24·pnpm 고정 설치 → 린트·타입·단위 테스트 → standalone 빌드 → 모바일 Chromium/WebKit E2E → Docker 이미지 빌드·상태 확인·Caddy HTTP 경로 검사 |
 | main 반영 | 위 검증 성공 후 GHCR에 frontend 이미지를 게시 |
 | 수동 실행, deploy=true | 선택한 dev/main 환경 승인·OIDC 인증 → 러너 IP의 임시 SSH 허용 → 테스트된 이미지 digest 배포 → SSH 허용 규칙 제거 |
 
@@ -74,4 +74,4 @@ bash -n ci-cd/scripts/*.sh
 bash ci-cd/scripts/test-deploy.sh
 ```
 
-배포 스크립트 테스트는 가짜 Docker·HTTP 응답으로 첫 배포 실패, 정상 배포, 실패한 업그레이드의 복구를 검증한다. 실제 Docker 실행·SSH·TLS·AWS 권한 검증을 대체하지 않는다. GitHub Actions에서는 Linux Docker 이미지 빌드와 컨테이너 상태 검사까지 수행한다.
+배포 스크립트 테스트는 가짜 Docker·HTTP 응답으로 첫 배포 실패, 정상 배포, 실패한 업그레이드의 복구를 검증한다. Caddy HTTP 테스트는 프론트 비활성/활성 상태에서 API·공유·내부 경로를 확인한다. 모의 배포 테스트는 실제 Docker 실행·SSH·TLS·AWS 권한 검증을 대체하지 않는다. GitHub Actions에서는 Linux Docker 이미지 빌드와 컨테이너 상태 검사까지 수행한다.
