@@ -45,12 +45,12 @@ class SecurityConfiguration(private val sessions: SessionRepository, @Value("\${
             .csrf { it.csrfTokenRepository(csrf) }
             .authorizeHttpRequests {
                 it.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-                    .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/error", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/v1/csrf", "/v1/regions", "/v1/participants", "/v1/participants/**", "/s/**").permitAll()
+                    .requestMatchers("/error", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/v1/csrf", "/v1/regions", "/v1/participants", "/v1/participants/**", "/s/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(SessionFilter(sessions, if (secure) "__Host-sc_session" else "sc_session"), AnonymousAuthenticationFilter::class.java)
             .exceptionHandling { it.authenticationEntryPoint { _, response, _ -> response.sendError(401) } }
-            .headers { it.contentSecurityPolicy { policy -> policy.policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'") } }
+            .headers { it.contentSecurityPolicy { policy -> policy.policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'") } }
         return http.build()
     }
 }

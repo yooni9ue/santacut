@@ -7,11 +7,10 @@
 - 런타임은 Java 25, Kotlin, Spring Boot 4, SQLite 파일 DB, Hibernate `ddl-auto: update`와 `schema.sql` 초기화를 사용한다. Flyway는 사용하지 않는다.
 - 저장소 코드는 Spring Data JPA Repository만 사용한다. 분석 큐, 예산, 점수, 순위 스냅샷, 공유도 JPA 엔티티로 관리한다.
 - Swagger UI와 OpenAPI 3 명세는 `/swagger-ui.html`과 `/v3/api-docs`에서 제공한다. 각 API의 설명은 endpoint 전용 `@Operation` 메타 애노테이션에 두고, 요청·응답 모델에는 필드별 스키마 설명을 둔다.
-- 저장소는 `backend/`와 `frontend/` 앱을 나누는 모노레포다. 각 앱은 자체 빌드·실행 경계를 가지며 GitHub Actions는 양쪽 모두 검사한다.
-- React 프론트엔드는 OpenAPI에서 생성한 타입을 사용하고 same-origin Vite proxy로 API를 호출한다. 운영 이미지는 프론트 빌드 산출물을 Spring Boot jar의 정적 리소스로 포함하므로 Caddy 뒤의 같은 도메인에서 화면과 API가 함께 제공된다.
+- 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
 - AI 호출은 Spring AI와 Ollama 로컬 모델을 사용한다. 서버 배포는 비공개 Ollama endpoint가 준비되어야 한다.
 - 카카오톡·인스타그램 원본 파일 파서와 내보내기 안내 UI, 전국 지역 좌표, 실제 도메인과 서버는 아직 출시 전 작업이다. 현재 분석 API는 정규화된 이벤트 JSON만 받는다.
-- 현재 Spring 코드는 `backend/src/main/kotlin` 아래 controller, service, persistence 책임을 두고 전통적인 layered 구조를 따른다. 프론트엔드는 기능별 `frontend/src/features`와 공통 `frontend/src/shared`로 구성한다.
+- 백엔드 코드는 계층별 패키지(controller, facade, service, domain, repository, dto)로 나눈 전통적인 레이어드 아키텍처를 따른다. 규칙은 [백엔드 코드 컨벤션](backend-conventions.md)에 정의한다.
 
 ## 1. 결정 요약
 
@@ -26,7 +25,7 @@ Kotlin + Spring Boot 모듈형 모놀리스 한 개와 SQLite 파일 DB를 단�
 ```mermaid
 flowchart LR
   U[브라우저 / 공유 링크 크롤러] -->|HTTPS 443| C[Caddy]
-  C -->|내부 네트워크| A[Kotlin Spring Boot<br/>API + React 정적 파일]
+  C -->|내부 네트워크| A[Kotlin Spring Boot API]
   A --> P[(SQLite 파일 DB)]
   A --> V[비공개 업로드 볼륨]
   A --> G[공유 HTML / PNG]
@@ -77,19 +76,16 @@ flowchart LR
 
 로컬 저장소를 쓰는 첫 버전에서는 `/uploads`를 앱이 직접 받는다. 기존 기획의 서명 업로드 URL은 이후 객체 저장소 어댑터를 도입할 때 사용한다. 최대 파일 20MB와 요청 body 제한은 Caddy와 Spring 모두에 적용한다. 여러 20MB JSON을 한꺼번에 전체 메모리로 로드하지 않는다. 출처별 allowlist 스키마, 깊이·문자열 길이·이벤트 수 제한과 streaming parsing을 적용한다.
 
-프론트엔드 소스는 이 저장소의 `frontend/`에 둔다. 운영 Docker 빌드는 `frontend/dist`를 `backend/src/main/resources/static`에 복사해 Spring Boot jar에 포함한다. Caddy는 모든 요청을 앱으로 proxy하고 `/actuator`만 외부에 404로 막는다. 별도 API 서브도메인과 CORS 설정은 초기에는 필요하지 않다. 로컬 개발에서는 Vite가 `/v1`, `/s`, `/swagger-ui`, `/v3`를 `http://localhost:8080`으로 proxy한다.
+프론트엔드는 같은 도메인에서 API를 호출해 세션 쿠키와 CSRF 쿠키를 그대로 사용한다. Caddy는 모든 요청을 앱으로 proxy하고 `/actuator`만 외부에 404로 막는다. 별도 API 서브도메인과 CORS 설정은 초기에는 필요하지 않다. 프론트엔드 배포 방식(같은 Caddy 아래 정적 파일 또는 별도 호스팅)은 프론트엔드 팀이 `frontend/`를 구성할 때 정한다.
 
-### 모노레포 개발 명령
+### 백엔드 개발 명령
 
 | 작업 | 디렉터리 | 명령 |
 | --- | --- | --- |
-| 백엔드 실행 | `backend/` | `./gradlew bootRun` 또는 Windows `./gradlew.bat bootRun` |
-| 백엔드 검증 | `backend/` | `./gradlew check` |
-| 프론트엔드 개발 | 저장소 루트 | `npm ci` 후 `npm run dev` |
-| 프론트엔드 검증 | 저장소 루트 | `npm run check && npm run build` |
-| OpenAPI 타입 생성 | 저장소 루트, 백엔드 실행 중 | `npm run api:types` |
+| 실행 | `backend/` | `./gradlew bootRun` 또는 Windows `./gradlew.bat bootRun` |
+| 검증 | `backend/` | `./gradlew check` |
 
-API 모델을 변경할 때는 Swagger 스키마와 생성된 `frontend/src/shared/api/schema.d.ts`를 같은 변경에 포함한다. 화면은 endpoint를 직접 fetch하지 않고 기능별 `features/*/api.ts`와 공통 typed client를 사용한다.
+API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테이션과 DTO 스키마 설명을 같은 변경에 포함한다.
 
 ## 5. 지속성 있는 분석 작업과 비용 제어
 
