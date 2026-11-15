@@ -3,6 +3,7 @@ package com.santacut.application.analysis.facade
 import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.LatestAnalysisCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
+import com.santacut.application.analysis.command.UploadAnalysisCommand
 import com.santacut.application.analysis.result.AnalysisStatusResult
 import com.santacut.application.analysis.result.AnalysisSubmissionResult
 import com.santacut.application.global.Facade
@@ -11,6 +12,7 @@ import com.santacut.domain.analysis.model.AnalysisProgress
 import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AnalysisScoringService
+import com.santacut.domain.analysis.service.AnalysisUploadService
 import com.santacut.domain.participant.service.ParticipantService
 import com.santacut.domain.ranking.service.RankingService
 import org.springframework.transaction.annotation.Transactional
@@ -22,6 +24,7 @@ class AnalysisFacade(
     private val analysisJobService: AnalysisJobService,
     private val participantService: ParticipantService,
     private val analysisScoringService: AnalysisScoringService,
+    private val analysisUploadService: AnalysisUploadService,
     private val rankingService: RankingService,
     private val clock: Clock,
 ) {
@@ -40,6 +43,26 @@ class AnalysisFacade(
         if (replay != null) return AnalysisSubmissionResult.from(replay, progressOf(replay, command.participantId))
         analysisScoringService.verifyEnabled()
         val job = analysisJobService.enqueue(command.participantId, idempotencyKey, submission, payload, now)
+        return AnalysisSubmissionResult.from(job, progressOf(job, command.participantId))
+    }
+
+    /**
+     * 원본 파일로 분석 작업을 받는다. 명백히 대화 파일이 아니면 바로 거절하고, 나머지 검증은 검증 작업자가 한다.
+     * 같은 키로 같은 파일·출처·본인 이름을 다시 보내면 처음 작업을 그대로 돌려준다.
+     */
+    @Transactional
+    fun upload(command: UploadAnalysisCommand): AnalysisSubmissionResult {
+        val idempotencyKey = IdempotencyKey.from(command.idempotencyKey)
+        val file = command.toRawFile().also { it.verifyReceivable() }
+        val now = clock.instant()
+        analysisJobService.verifySeasonOpen(now)
+        participantService.verifyRegistered(command.participantId)
+        val requestHash = file.requestHash(command.selfSpeaker)
+        val replay = analysisJobService.findReplayByHash(command.participantId, idempotencyKey, requestHash)
+        if (replay != null) return AnalysisSubmissionResult.from(replay, progressOf(replay, command.participantId))
+        analysisScoringService.verifyEnabled()
+        val job = analysisJobService.receiveUpload(command.participantId, idempotencyKey, file.source, requestHash, now)
+        analysisUploadService.store(job, command.selfSpeaker, file, now)
         return AnalysisSubmissionResult.from(job, progressOf(job, command.participantId))
     }
 
