@@ -14,6 +14,8 @@ interface AnalysisJobRepository : JpaRepository<AnalysisJob, String> {
 
     fun countByUserIdAndCreatedAtAfter(userId: String, createdAt: Instant): Long
 
+    fun findFirstByUserIdAndCreatedAtAfterOrderByCreatedAtAsc(userId: String, createdAt: Instant): AnalysisJob?
+
     fun findFirstByStatusOrderByCreatedAtAsc(status: AnalysisJobStatus): AnalysisJob?
 
     fun findFirstByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(

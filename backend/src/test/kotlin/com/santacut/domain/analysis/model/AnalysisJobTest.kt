@@ -159,9 +159,15 @@ class AnalysisJobTest {
     @Test
     fun `제출 한도는 지금부터 하루 전까지 낸 작업을 세고 세 번째까지만 받는다`() {
         assertEquals(createdAt.minus(Duration.ofDays(1)), AnalysisJob.submissionWindowStart(createdAt))
-        AnalysisJob.verifyWithinDailyLimit(2)
-        val exception = assertFailsWith<SantaCutException> { AnalysisJob.verifyWithinDailyLimit(3) }
+        AnalysisJob.verifyWithinDailyLimit(2, createdAt)
+        val exception = assertFailsWith<SantaCutException> { AnalysisJob.verifyWithinDailyLimit(3, createdAt) }
         assertEquals(ErrorCode.DAILY_USER_LIMIT, exception.errorCode)
+    }
+
+    @Test
+    fun `제출 한도를 넘으면 기간 안 가장 오래된 제출에서 하루 뒤를 다시 낼 수 있는 시각으로 알린다`() {
+        val exception = assertFailsWith<SantaCutException> { AnalysisJob.verifyWithinDailyLimit(3, createdAt) }
+        assertEquals(createdAt.plus(Duration.ofDays(1)), exception.retryAt)
     }
 
     @Test
