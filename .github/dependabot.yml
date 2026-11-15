@@ -5,10 +5,10 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: gradle
-    directory: /
+    directory: /backend
     schedule:
       interval: weekly
   - package-ecosystem: docker
-    directory: /
+    directory: /backend/ci-cd
     schedule:
       interval: weekly

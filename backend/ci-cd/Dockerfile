@@ -1,9 +1,10 @@
+# 빌드 컨텍스트는 backend/ 디렉터리다.
 FROM eclipse-temurin:25-jdk-jammy AS build
 WORKDIR /workspace
-COPY backend/gradlew backend/gradlew.bat backend/settings.gradle.kts backend/build.gradle.kts ./
-COPY backend/gradle gradle
+COPY gradlew gradlew.bat settings.gradle.kts build.gradle.kts ./
+COPY gradle gradle
 RUN chmod +x gradlew
-COPY backend/src src
+COPY src src
 RUN ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:25-jre-jammy
