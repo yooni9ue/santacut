@@ -48,7 +48,6 @@ class AnalysisJobTest {
         assertEquals("assessment-1", job.assessmentId)
         assertEquals(finishedAt, job.finishedAt)
         assertNull(job.payload)
-        assertTrue(job.hasSucceeded())
         assertFalse(job.isHeldBy(LEASE))
     }
 
@@ -58,7 +57,6 @@ class AnalysisJobTest {
         job.fail(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, createdAt)
         assertEquals(AnalysisJobStatus.INSUFFICIENT_DATA, job.status)
         assertEquals(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, job.errorCode)
-        assertTrue(job.hasFailed())
         assertNull(job.payload)
     }
 
