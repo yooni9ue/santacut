@@ -2,7 +2,6 @@ HELP.md
 **/.gradle/
 **/build/
 **/node_modules/
-frontend/dist/
 /data/
 /backend/data/*
 !/backend/data/.gitkeep
@@ -52,3 +51,6 @@ backup.env
 *.pem
 *.key
 /data/
+
+# 개인 Claude Code 설정
+.claude/settings.local.json

@@ -31,48 +31,14 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: gradle
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '24'
-          cache: npm
-      - name: Install frontend dependencies
-        run: npm ci
       - name: Validate deployment scripts and Compose
         run: |
           bash -n scripts/*.sh
           cp deploy/.env.example deploy/.env
           docker compose --env-file deploy/.env -f deploy/compose.yml config --quiet
-      - name: Check frontend types and build
-        run: |
-          npm run check
-          npm run build
       - name: Test and package backend
         working-directory: backend
         run: bash ./gradlew --no-daemon clean check bootJar
-      - name: Verify frontend types match the OpenAPI contract
-        env:
-          SPRING_DATASOURCE_URL: jdbc:sqlite:./backend/build/openapi.db
-          APP_SESSION_SECURE: 'false'
-          APP_PUBLIC_BASE_URL: http://localhost:8081
-        run: |
-          set -euo pipefail
-          java -jar backend/build/libs/santacut-0.0.1-SNAPSHOT.jar --server.port=8081 > backend/build/openapi-server.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
-          ready=false
-          for attempt in $(seq 1 30); do
-            if curl --silent --fail http://localhost:8081/v3/api-docs -o /dev/null; then
-              ready=true
-              break
-            fi
-            sleep 2
-          done
-          if [ "$ready" != true ]; then
-            cat backend/build/openapi-server.log
-            exit 1
-          fi
-          SANTA_API_SPEC_URL=http://localhost:8081/v3/api-docs npm run api:types
-          git diff --exit-code -- frontend/src/shared/api/schema.d.ts
       - name: Test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

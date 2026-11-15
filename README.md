@@ -6,53 +6,37 @@
 
 ## 저장소 구성
 
-이 저장소는 백엔드와 웹 프론트엔드를 함께 관리하는 모노레포입니다. 각 앱은 독립된 도구 체인과 배포 산출물을 유지하고, 프론트엔드는 백엔드의 OpenAPI 계약으로 타입을 맞춥니다.
+백엔드와 프론트엔드가 한 저장소를 함께 쓰는 모노레포입니다. 앱마다 디렉터리, 도구 체인, 빌드 경계를 따로 둡니다.
 
 ```text
-backend/       Kotlin + Spring Boot API, JPA, SQLite, SSE, Swagger
-frontend/      React + TypeScript + Vite 웹 앱
-docs/          백엔드 기획, 시스템 아키텍처, 배포 운영서
+backend/       Kotlin + Spring Boot API (레이어드 아키텍처)
+frontend/      프론트엔드 팀 작업 영역 (프론트엔드 팀이 구성)
+docs/          기획, 시스템 아키텍처, 배포 운영서, 백엔드 코드 컨벤션
 deploy/        Docker Compose, Caddy, 배포 설정
 scripts/       운영 및 배포 스크립트
 ```
 
-## 개발 환경
+프론트엔드 코드는 `frontend/` 아래에 프론트엔드 팀이 직접 구성합니다. 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않고, 프론트엔드는 아래 OpenAPI 계약만 보고 개발할 수 있습니다.
 
-- 백엔드: JDK 25 (Gradle Wrapper 사용)
-- 프론트엔드: Node.js 24 및 npm
+## 백엔드 개발 환경
+
+- JDK 25 (Gradle Wrapper 사용)
 - 선택 사항: 로컬 AI 분석용 Ollama와 `qwen2.5:3b`
-
-### 실행
-
-터미널 1에서 백엔드를 실행합니다.
 
 ```powershell
 cd backend
-./gradlew.bat bootRun
+./gradlew.bat bootRun    # 실행
+./gradlew.bat check      # 테스트와 검증
 ```
 
-터미널 2에서 프론트엔드 의존성을 설치하고 개발 서버를 시작합니다.
+API는 `http://localhost:8080`에서 실행되고 SQLite 파일은 `backend/data/santacut.db`에 생성됩니다.
 
-```powershell
-npm ci
-npm run dev
-```
+## API 계약 (프론트엔드 연동)
 
-프론트엔드는 `http://localhost:5173`, API는 `http://localhost:8080`에서 실행됩니다. Vite 개발 서버는 API 경로를 백엔드로 프록시합니다. 프록시 주소를 바꾸려면 `frontend/.env.local`에 `VITE_API_PROXY_TARGET=http://localhost:8080`을 설정합니다.
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
-백엔드 단독 실행은 `backend/`에서 `./gradlew.bat bootRun`을 사용합니다. 프론트엔드 단독 빌드는 루트에서 `npm run check`와 `npm run build`를 실행합니다.
-
-## OpenAPI와 프론트엔드 타입
-
-Swagger UI는 `http://localhost:8080/swagger-ui.html`, OpenAPI JSON은 `http://localhost:8080/v3/api-docs`에서 확인할 수 있습니다. 프론트엔드의 API 클라이언트는 `frontend/src/shared/api/schema.d.ts`의 생성 타입을 사용합니다.
-
-백엔드를 실행한 상태에서 계약 타입을 새로 생성합니다.
-
-```powershell
-npm run api:types
-```
-
-엔드포인트별 Swagger 설명은 백엔드의 전용 메타 애노테이션에 작성합니다. API 계약을 수정한 PR에는 생성된 타입 변경도 함께 포함합니다.
+엔드포인트마다 전용 Swagger 애노테이션에 요약, 설명, 요청·응답 스키마, 오류 코드를 한국어로 적습니다. 프론트엔드는 OpenAPI JSON으로 타입을 생성해 사용할 수 있습니다. 로컬 개발 서버에서 API를 호출할 때는 `/v1`, `/s`, `/swagger-ui`, `/v3` 경로를 `http://localhost:8080`으로 프록시하면 세션 쿠키와 CSRF 쿠키가 같은 출처로 동작합니다.
 
 ## 현재 구현 범위
 
@@ -60,17 +44,16 @@ npm run api:types
 - 정규화된 이벤트 JSON 분석 요청과 SSE 상태·결과 스트리밍
 - Spring AI + Ollama 점수 생성, 점수 검증, 랭킹 및 배송 ETA 저장
 - 내 결과·랭킹 조회, 공유 링크 발급·폐기, 공유 HTML 및 PNG 카드
-- 참가자 등록, 분석, 랭킹, 공유를 연결하는 React 웹 화면
 
-카카오톡·인스타그램 원본 내보내기 파일을 직접 파싱하는 기능은 아직 구현되지 않았습니다. 현재 분석 API는 서버 문서에 정의된 정규화 이벤트 JSON을 받습니다.
+카카오톡·인스타그램 원본 내보내기 파일을 직접 파싱하는 기능은 아직 구현되지 않았습니다. 현재 분석 API는 정규화된 이벤트 JSON을 받습니다.
 
 ## 기술 구성
 
 - Java 25, Kotlin, Spring Boot 4, Spring MVC, Spring Data JPA
 - SQLite 파일 DB, Hibernate `ddl-auto: update`
 - Spring AI + Ollama (`qwen2.5:3b` 기본값)
-- React 19, TypeScript, Vite, OpenAPI 기반 API 타입
-- GitHub Actions: 백엔드 테스트·패키징, 프론트엔드 타입 검사·빌드, OpenAPI 생성 타입 불일치 검사
+- springdoc-openapi (Swagger UI)
+- GitHub Actions: 백엔드 테스트·패키징, 이미지 발행, 수동 배포
 
 요청 대화 데이터는 점수 생성 후 작업 payload에서 삭제합니다. 사용자 대화 원문을 애플리케이션 로그에 남기지 않습니다.
 
@@ -79,4 +62,4 @@ npm run api:types
 - [백엔드 기획](docs/backend-design.md)
 - [시스템 아키텍처](docs/system-architecture.md)
 - [저예산 배포 운영서](docs/deployment.md)
-- [프론트엔드 구조와 개발 규칙](frontend/README.md)
+- [백엔드 코드 컨벤션](docs/backend-conventions.md)
