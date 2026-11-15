@@ -22,7 +22,7 @@ class RegionFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `앱이 뜨면 시·도마다 시·군·구가 기준일 개수만큼 이어진다`() {
+    fun `앱이 뜨면 16개 시·도마다 시·군·구가 기준일 개수만큼 이어진다`() {
         val counts = EXPECTED_CHILD_COUNTS.mapValues { (parent, _) ->
             regionFacade.listRegions(ListRegionsCommand(parent)).map { it.parentCode }.count { it == parent }
         }
@@ -66,11 +66,20 @@ class RegionFacadeTest @Autowired constructor(
         private val EXPECTED_CHILD_COUNTS = mapOf(
             SEOUL to SEOUL_DISTRICT_COUNT,
             "KR-12" to 27,
+            "KR-26" to 16,
             "KR-27" to 9,
             "KR-28" to 11,
-            "KR-41" to 47,
-            "KR-50" to 2,
+            "KR-30" to 5,
+            "KR-31" to 5,
             SEJONG to 0,
+            "KR-41" to 47,
+            "KR-43" to 14,
+            "KR-44" to 16,
+            "KR-47" to 23,
+            "KR-48" to 22,
+            "KR-50" to 2,
+            "KR-51" to 18,
+            "KR-52" to 15,
         )
     }
 }

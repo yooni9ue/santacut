@@ -107,6 +107,34 @@ class AnalysisUploadApiTest @Autowired constructor(
     }
 
     @Test
+    fun `Idempotency-Key 형식이 틀리면 400과 INVALID_IDEMPOTENCY_KEY다`() {
+        mockMvc.perform(uploadRequest(registerSession(), "short", chat))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_IDEMPOTENCY_KEY"))
+    }
+
+    @Test
+    fun `Idempotency-Key 헤더가 없으면 400과 INVALID_REQUEST다`() {
+        val withoutKey = withCsrf(mockMvc, multipart(UPLOAD_PATH).file(chatPart(chat)))
+            .cookie(registerSession())
+            .param(SOURCE_PART, SOURCE).param(SELF_SPEAKER_PART, SELF_SPEAKER)
+        mockMvc.perform(withoutKey)
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+    }
+
+    @Test
+    fun `본인 이름이 비었거나 100자를 넘으면 400과 INVALID_REQUEST다`() {
+        val session = registerSession()
+        mockMvc.perform(uploadRequest(session, newKey(), chat, selfSpeaker = ""))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+        mockMvc.perform(uploadRequest(session, newKey(), chat, selfSpeaker = "가".repeat(MAX_SELF_SPEAKER_LENGTH + 1)))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+    }
+
+    @Test
     fun `CSRF 토큰이 없으면 403, 세션이 없으면 401이다`() {
         val session = registerSession()
         mockMvc.perform(multipart(UPLOAD_PATH).file(chatPart(chat)).cookie(session).header(IDEMPOTENCY_KEY, newKey()))
@@ -160,5 +188,6 @@ class AnalysisUploadApiTest @Autowired constructor(
         private const val SOURCE = "KAKAO"
         private const val INSTAGRAM_SOURCE = "INSTAGRAM"
         private const val EVENT_COUNT = 20
+        private const val MAX_SELF_SPEAKER_LENGTH = 100
     }
 }
