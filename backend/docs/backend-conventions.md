@@ -6,31 +6,35 @@
 
 패키지는 `presentation → application → domain → infrastructure` 네 계층으로 나눈다. 의존은 위에서 아래로만 흐른다. 포트·어댑터(헥사고날), 의존성 역전용 인터페이스, UseCase 인터페이스는 쓰지 않는다. 아래 계층은 위 계층을 모른다.
 
+**`com.santacut` 바로 아래에는 이 네 패키지와 `SantaCutApplication.kt`만 둔다.** `common`, `global`, `config`, `util`, `support` 같은 계층 밖 패키지를 만들지 않는다. 설정·보안·애노테이션도 그것을 쓰는 계층 안에 둔다. 확인: `ls backend/src/main/kotlin/com/santacut` 결과가 `application domain infrastructure presentation SantaCutApplication.kt` 다섯 개뿐이어야 한다.
+
 ```text
 com.santacut
 ├─ presentation           HTTP 진입점
 │  ├─ controller          XxxController
 │  ├─ request             XxxRequest (HTTP 요청 본문)
-│  ├─ response            XxxResponse (HTTP 응답 본문)
+│  ├─ response            XxxResponse (HTTP 응답 본문), XxxResponses (응답 일급 컬렉션)
 │  ├─ docs                엔드포인트별 Swagger 메타 애노테이션, Swagger 설정
-│  └─ advice              전역 예외 처리 (@RestControllerAdvice)
+│  ├─ advice              전역 예외 처리 (@RestControllerAdvice)
+│  ├─ security            Spring Security 설정, 세션 필터, 세션 쿠키
+│  └─ config              웹 계층이 쓰는 @ConfigurationProperties·@Configuration
 ├─ application            유스케이스 조합, 트랜잭션 경계
-│  ├─ facade              XxxFacade
+│  ├─ facade              XxxFacade, @Facade 애노테이션
 │  ├─ command             XxxCommand (facade 입력)
-│  └─ result              XxxResult (facade 출력)
+│  └─ result              XxxResult (facade 출력), XxxResults (결과 일급 컬렉션)
 ├─ domain                 비즈니스 규칙
 │  ├─ service             XxxService (도메인 서비스)
 │  ├─ model               엔티티, 값 객체, 일급 컬렉션, 열거형
-│  └─ exception           ErrorCode, SantaCutException
-├─ infrastructure         데이터 접근과 외부 시스템
-│  ├─ repository          Spring Data JPA 리포지토리
-│  ├─ client              외부 시스템 호출 (AI 점수 클라이언트 등)
-│  └─ render              기술 도구 (공유 이미지 렌더링 등)
-└─ common                 계층과 무관한 설정
-   ├─ config              @Configuration, @ConfigurationProperties, Clock 빈
-   └─ security            Spring Security 설정, 세션 필터
+│  ├─ exception           ErrorCode, SantaCutException
+│  └─ config              도메인 규칙이 쓰는 @ConfigurationProperties (시즌, 일일 한도 등)
+└─ infrastructure         데이터 접근과 외부 시스템
+   ├─ repository          Spring Data JPA 리포지토리
+   ├─ client              외부 시스템 호출 (AI 점수 클라이언트 등)
+   ├─ render              기술 도구 (공유 이미지 렌더링 등)
+   └─ config              Clock·스케줄러·외부 연동 설정
 ```
 
+- 설정 클래스는 그 설정을 읽는 계층의 `config` 패키지에 둔다. 여러 계층이 같은 설정을 읽으면 가장 아래 계층에 두지 않고, 위 계층이 아래 계층 값을 Command·메서드 인자로 넘기도록 바꾼다.
 - 금지 이름: `Port`, `Adapter`, `UseCase`. 확인: `grep -rniE "\b\w*(port|adapter|usecase)\b" backend/src/main --include=*.kt | grep -viE "import|support|report|export"` 결과가 비어 있어야 한다.
 - 계층 패키지 안에서 기능별 하위 패키지를 만들지 않는다. 클래스 이름 접두사로 기능을 구분한다(`ParticipantService`, `AnalysisFacade`).
 
@@ -38,22 +42,24 @@ com.santacut
 
 ```text
 presentation ──▶ application ──▶ domain ──▶ infrastructure
-       (common은 모든 계층이 사용 가능, common은 계층을 참조하지 않음)
 ```
 
 | 계층 | 의존해도 되는 것 | 의존하면 안 되는 것 |
 | --- | --- | --- |
-| presentation | application(facade, command, result), common | domain, infrastructure |
-| application | domain(service, model, exception), common | presentation, infrastructure, **다른 facade** |
-| domain | infrastructure(repository, client, render), domain 내부, common | presentation, application, **다른 service** |
-| infrastructure | domain.model(리포지토리 제네릭과 반환 타입), common | presentation, application, domain.service |
+| presentation | application(facade, command, result), presentation 내부 | domain, infrastructure |
+| application | domain(service, model, exception), application 내부 | presentation, infrastructure, **다른 facade** |
+| domain | infrastructure(repository, client, render, config), domain 내부 | presentation, application, **다른 service** |
+| infrastructure | domain.model(repository: 엔티티 제네릭과 반환 타입, client: 값 객체·열거형 입출력), infrastructure 내부 | presentation, application, domain.service, domain.exception, domain.config |
 
 - 바로 아래 계층만 쓴다. presentation이 domain을, application이 infrastructure를 건너뛰어 쓰지 않는다.
-- infrastructure가 `domain.model`을 참조하는 것은 JPA 엔티티를 리포지토리 타입으로 쓰기 위한 유일한 예외다.
+- infrastructure가 `domain.model`을 참조하는 예외는 두 가지뿐이다.
+  - infrastructure.repository는 JPA 엔티티를 리포지토리 제네릭과 반환 타입으로 쓴다.
+  - infrastructure.client는 외부 호출의 입출력 계약으로 domain.model의 값 객체·열거형을 쓸 수 있다(엔티티는 제외).
+- 그 밖의 infrastructure(render, config)는 domain을 참조하지 않는다. render는 자기 패키지의 값 타입(`ShareCard` 등)을 입력으로 받고, 엔티티를 그 값으로 바꾸는 일은 domain service가 한다.
 - **facade는 다른 facade를 주입받지 않는다.** 두 유스케이스가 같은 로직을 쓰면 그 로직을 domain service로 내린다.
 - **service는 다른 service를 주입받지 않는다.** 여러 service를 조합하는 일은 facade가 한다.
 - 엔티티는 application 밖(presentation)으로 나가지 않는다.
-- 확인: `backend/src/test`의 ArchUnit 테스트(`LayerDependencyTest`)가 위 표, facade 간 주입 금지, service 간 주입 금지를 검사하고 `./gradlew check`에서 통과해야 한다.
+- 확인: `backend/src/test`의 ArchUnit 테스트(`LayerDependencyTest`)가 위 표, infrastructure의 domain.model 참조 예외, facade 간 주입 금지, service 간 주입 금지를 검사하고 `./gradlew check`에서 통과해야 한다.
 
 ## 3. 컴포넌트 역할 명확화
 
@@ -62,13 +68,16 @@ presentation ──▶ application ──▶ domain ──▶ infrastructure
 | 역할 | 위치 | 애노테이션 | 이름 규칙 |
 | --- | --- | --- | --- |
 | HTTP 진입점 | presentation.controller | `@RestController` | `XxxController` |
-| 유스케이스 조합 | application.facade | `@Facade` (`common.config`의 커스텀 애노테이션, `@Component` 메타) | `XxxFacade` |
+| 유스케이스 조합 | application.facade | `@Facade` (같은 패키지의 커스텀 애노테이션, `@Component` 메타) | `XxxFacade` |
 | 비즈니스 규칙 | domain.service | `@Service` | `XxxService` |
 | 데이터 접근 | infrastructure.repository | Spring Data 인터페이스 | `XxxRepository` |
 | 외부 연동·기술 도구 | infrastructure.client, infrastructure.render | `@Component` | 하는 일을 드러내는 명사 (`ScoreClient`, `ShareImageRenderer`) |
-| 설정 | common.config | `@Configuration`, `@ConfigurationProperties` | `XxxConfiguration`, `XxxProperties` |
+| 웹 보안 | presentation.security | `@Configuration`, 필터 | `XxxConfiguration`, `XxxFilter` |
+| 설정 | 각 계층의 config | `@Configuration`, `@ConfigurationProperties` | `XxxConfiguration`, `XxxProperties` |
 
+- 모든 Spring 빈은 위 표의 역할 중 정확히 하나에 속한다. 표에 없는 역할의 빈을 만들지 않는다.
 - 범용 `@Component`는 infrastructure의 client·render 패키지에서만 쓴다.
+- service가 외부 연동(AI 호출, 렌더링)을 직접 다루지 않는다. 외부 연동 코드는 infrastructure.client·render 컴포넌트에 두고, service는 그 컴포넌트를 호출해 결과를 도메인 모델로 받는다.
 - 주입은 생성자 주입만 쓴다. 필드 주입, `lateinit` 주입 금지.
 - 설정값은 `@Value` 대신 `@ConfigurationProperties` 데이터 클래스로 묶는다.
 - 현재 시각은 `Instant.now()`를 직접 부르지 않고 주입받은 `Clock`에서 얻는다. 테스트에서 시각을 고정하기 위해서다.
@@ -87,7 +96,8 @@ Response ◀──from()──── Result ◀──from()── Model
 - `XxxCommand`(application.command): facade 입력. 인증 사용자 식별자처럼 HTTP 본문 밖의 값도 여기 담는다.
 - `XxxResult`(application.result): facade 출력. 엔티티를 담지 않고 값만 담는다. 도메인 모델에서 만드는 정적 팩토리 `from()`을 둔다.
 - `XxxResponse`(presentation.response): HTTP 응답 본문과 Swagger 스키마 설명. `from(result)`로 만든다.
-- 확인: controller 메서드 반환 타입은 `XxxResponse`, `List<XxxResponse>`, `SseEmitter`, `ResponseEntity` 중 하나다. facade public 메서드 반환 타입은 `XxxResult`, `List<XxxResult>` 또는 `Unit`이다.
+- 목록은 `List<XxxResult>`, `List<XxxResponse>`로 넘기지 않고 일급 컬렉션(`XxxResults`, `XxxResponses`)으로 넘긴다. 응답 일급 컬렉션은 리스트 필드에 `@JsonValue`를 달아 JSON을 지금처럼 배열로 내보낸다. API 계약(JSON 형태)은 바꾸지 않는다.
+- 확인: controller 메서드 반환 타입은 `XxxResponse`, `XxxResponses`, `SseEmitter`, `ResponseEntity` 중 하나다. facade public 메서드 반환 타입은 `XxxResult`, `XxxResults` 또는 `Unit`이다. `grep -rnE "List<\w+(Result|Response)>" backend/src/main` 결과가 일급 컬렉션 클래스 자신의 필드 선언뿐이어야 한다.
 
 ## 5. 도메인과 일급 컬렉션
 
@@ -95,7 +105,10 @@ Response ◀──from()──── Result ◀──from()── Model
 - 엔티티 상태는 의미 있는 메서드로만 바꾼다(`job.succeed(assessmentId, finishedAt)`). 외부에서 `job.status = "FAILED"`처럼 필드를 직접 바꾸지 않는다. 엔티티 필드는 `protected set` 또는 `private set`이다.
 - 상태와 코드 값은 문자열 대신 열거형을 쓴다(`AnalysisJobStatus`, `ErrorCode`).
 - **컬렉션을 다루는 로직은 일급 컬렉션에 둔다.** 예: `Assessments`, `RankingEntries`, `AnalysisEvents`, `Regions`. 일급 컬렉션은 리스트 하나만 필드로 가지고, 그 리스트에 대한 연산을 메서드로 제공한다.
-- **service와 facade에는 반복문과 컬렉션 순회가 없다.** `for`, `while`, `forEach`, `map`, `filter`, `flatMap`, `associate*`, `sumOf`, `any`, `all`, `fold`, `sortedBy` 같은 순회 연산은 `domain.model`의 일급 컬렉션이나 request·response·result의 변환 팩토리 안에서만 쓴다. 확인: `grep -rnE "\bfor ?\(|while ?\(|\.(forEach|map|mapNotNull|filter|flatMap|associate\w*|sumOf|any|all|fold|reduce|sorted\w*)\b" backend/src/main/kotlin/com/santacut/application/facade backend/src/main/kotlin/com/santacut/domain/service` 결과가 비어 있어야 한다.
+- **반복문과 스트림·컬렉션 순회는 일급 컬렉션 안에서만 쓴다. 예외 없음.** `for`, `while`, `forEach`, `map`, `mapNotNull`, `filter`, `flatMap`, `associate*`, `groupBy`, `sumOf`, `any`, `all`, `none`, `count`, `first`/`firstOrNull`(람다), `fold`, `reduce`, `sorted*`, `distinct`, `stream()`이 대상이다. service·facade뿐 아니라 controller, request·response·command·result의 변환 메서드, 엔티티·값 객체, infrastructure(client, render, repository), security 필터에서도 쓰지 않는다.
+  - 일급 컬렉션은 컬렉션 하나만 필드로 가지는 클래스이고 이름은 복수형이다(`Assessments`, `RankingEntries`, `RegionResults`, `RankingResponses`, `ScoreDimensionNodes`). 일급 컬렉션은 그 컬렉션이 속한 계층에 둔다: 도메인은 `domain.model`, facade 출력은 `application.result`, 응답은 `presentation.response`, 요청은 `presentation.request`, 외부 응답 파싱은 `infrastructure.client`.
+  - 변환도 일급 컬렉션의 메서드로 한다. 예: `RankingResponses.from(results: RankingRowResults)`, `AnalysisEventRequests.toCommands()`.
+  - 확인: `grep -rlE "\bfor ?\(|while ?\(|\.(forEach|map|mapNotNull|filter|flatMap|associate\w*|groupBy|sumOf|any|all|none|count|first|firstOrNull|fold|reduce|sorted\w*|distinct|stream)\b *[({]" backend/src/main/kotlin | xargs -n1 basename` 결과의 모든 파일이 복수형 이름의 일급 컬렉션이어야 하고, 각 파일의 클래스 필드는 컬렉션 하나뿐이어야 한다.
 
 ## 6. 예외
 
