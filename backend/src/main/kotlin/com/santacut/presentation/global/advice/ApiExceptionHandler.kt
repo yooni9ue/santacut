@@ -1,5 +1,6 @@
 package com.santacut.presentation.global.advice
 
+import com.santacut.application.share.facade.ShareFacade
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import io.swagger.v3.oas.annotations.Hidden
@@ -22,19 +23,24 @@ import java.time.Instant
 
 /**
  * 비즈니스 오류와 요청 형식 오류를 [ApiErrorResponse] JSON으로 바꾼다. 모든 오류 본문에 code가 붙는다.
- * HTML, PNG 엔드포인트에서도 오류 본문은 JSON으로 보낸다.
+ * HTML, PNG 엔드포인트에서도 오류 본문은 JSON으로 보낸다. 다만 브라우저(Accept에 text/html)가 연 공유 페이지가
+ * 없거나 취소됐으면 JSON 대신 "더 이상 볼 수 없는 결과" HTML 페이지를 404로 보낸다(기획 §5).
  * 응답 문서는 엔드포인트별 애노테이션에 있으므로 Swagger 일반 응답으로는 노출하지 않는다.
  */
 @Hidden
 @RestControllerAdvice
 class ApiExceptionHandler(
     private val clock: Clock,
+    private val shareFacade: ShareFacade,
 ) {
     @ExceptionHandler(SantaCutException::class)
     fun handleSantaCutException(
         exception: SantaCutException,
         request: HttpServletRequest,
-    ): ResponseEntity<ApiErrorResponse> = respond(exception.errorCode, request, exception.retryAt)
+    ): ResponseEntity<*> {
+        if (isInactiveSharePageRequest(exception, request)) return inactiveSharePage()
+        return respond(exception.errorCode, request, exception.retryAt)
+    }
 
     /** 본문 검증·파싱 실패, 필수 헤더·쿼리 누락, 경로·쿼리 값 형식 오류. */
     @ExceptionHandler(
@@ -51,6 +57,16 @@ class ApiExceptionHandler(
     @ExceptionHandler(AuthenticationException::class)
     fun handleAuthentication(request: HttpServletRequest): ResponseEntity<ApiErrorResponse> =
         respond(ErrorCode.NOT_AUTHENTICATED, request, null)
+
+    private fun isInactiveSharePageRequest(exception: SantaCutException, request: HttpServletRequest): Boolean =
+        exception.errorCode == ErrorCode.SHARE_NOT_FOUND &&
+            request.requestURI.startsWith(SHARE_PAGE_PATH_PREFIX) &&
+            request.getHeader(HttpHeaders.ACCEPT)?.contains(MediaType.TEXT_HTML_VALUE) == true
+
+    private fun inactiveSharePage(): ResponseEntity<String> = ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .contentType(HTML_UTF8)
+        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
+        .body(shareFacade.getInactivePage().html)
 
     private fun respond(errorCode: ErrorCode, request: HttpServletRequest, retryAt: Instant?): ResponseEntity<ApiErrorResponse> {
         val now = clock.instant()
@@ -73,5 +89,8 @@ class ApiExceptionHandler(
 
     companion object {
         private const val MIN_RETRY_AFTER_SECONDS = 1L
+        private const val SHARE_PAGE_PATH_PREFIX = "/s/"
+        private const val NO_STORE = "no-store"
+        private val HTML_UTF8 = MediaType(MediaType.TEXT_HTML, Charsets.UTF_8)
     }
 }

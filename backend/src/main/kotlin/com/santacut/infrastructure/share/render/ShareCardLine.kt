@@ -10,6 +10,7 @@ enum class ShareCardLine(val style: Int, val size: Int, val baseline: Int) {
     NICKNAME_SCORE(Font.BOLD, 72, 220),
     RANK_VERDICT(Font.BOLD, 40, 315),
     ETA(Font.PLAIN, 34, 410),
-    COMMENT(Font.PLAIN, 25, 490),
-    FOOTER(Font.PLAIN, 25, 575),
+    COMMENT(Font.PLAIN, 25, 480),
+    META(Font.PLAIN, 22, 530),
+    FOOTER(Font.PLAIN, 25, 590),
 }

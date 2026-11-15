@@ -10,6 +10,8 @@ class SharePageView private constructor(
     private val token: String,
     private val comment: String,
     private val computedAt: String,
+    private val stage: String,
+    private val sharedAt: String,
 ) {
     /** 자리표시자 이름에 해당하는 값. 모르는 이름은 빈 문자열로 바꾼다. */
     fun valueOf(placeholder: String): String = when (placeholder) {
@@ -19,6 +21,8 @@ class SharePageView private constructor(
         TOKEN -> token
         COMMENT -> comment
         COMPUTED_AT -> computedAt
+        STAGE -> stage
+        SHARED_AT -> sharedAt
         else -> ""
     }
 
@@ -29,14 +33,22 @@ class SharePageView private constructor(
         private const val TOKEN = "token"
         private const val COMMENT = "comment"
         private const val COMPUTED_AT = "computedAt"
+        private const val STAGE = "stage"
+        private const val SHARED_AT = "sharedAt"
 
         fun of(card: ShareCard, publicOrigin: String): SharePageView = SharePageView(
             title = HtmlText.escape("${card.nickname} · 산타컷 ${card.score}점"),
-            description = HtmlText.escape("${card.rank}위 · 선물 도착 예정 ${card.eta} · ${card.verdict}"),
+            description = HtmlText.escape("${card.rank} · 선물 도착 예정 ${card.eta} · ${card.verdict}"),
             origin = HtmlText.escape(publicOrigin),
             token = card.token,
             comment = HtmlText.escape(card.comment),
             computedAt = HtmlText.escape(card.computedAt),
+            stage = HtmlText.escape(card.stage),
+            sharedAt = HtmlText.escape(card.sharedAt),
         )
+
+        /** 볼 수 없는 공유 결과 페이지용 값. 시작 링크에 쓸 공개 출처만 담는다. */
+        fun inactive(publicOrigin: String): SharePageView =
+            SharePageView("", "", HtmlText.escape(publicOrigin), "", "", "", "", "")
     }
 }

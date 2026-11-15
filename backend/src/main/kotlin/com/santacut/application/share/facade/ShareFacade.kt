@@ -17,6 +17,7 @@ import com.santacut.domain.share.model.Share
 import com.santacut.domain.share.model.ShareToken
 import com.santacut.domain.share.service.ShareService
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 import java.util.UUID
 
 @Facade
@@ -25,6 +26,7 @@ class ShareFacade(
     private val participantService: ParticipantService,
     private val assessmentService: AssessmentService,
     private val shareService: ShareService,
+    private val clock: Clock,
 ) {
     /** 최신 결과의 공유 링크를 만든다. 같은 결과로 이미 만든 링크가 있으면 다시 쓴다. */
     @Transactional
@@ -43,6 +45,9 @@ class ShareFacade(
     fun getPublicPage(command: PublicShareCommand): SharePageResult =
         SharePageResult(shareService.renderPage(ShareToken.from(command.token)))
 
+    /** 공유 링크가 없거나 취소됐을 때 브라우저에 보여 줄 페이지. DB를 읽지 않는다. */
+    fun getInactivePage(): SharePageResult = SharePageResult(shareService.renderInactivePage())
+
     @Transactional(readOnly = true)
     fun getPublicImage(command: PublicShareCommand): ShareImageResult =
         ShareImageResult(shareService.renderImage(ShareToken.from(command.token)))
@@ -50,6 +55,7 @@ class ShareFacade(
     private fun issueShare(participantId: UUID, snapshot: ResultSnapshot): Share {
         val participant = participantService.get(participantId)
         val assessment = assessmentService.get(snapshot.assessmentId)
-        return shareService.issue(participant, snapshot, assessment)
+        val now = clock.instant()
+        return shareService.issue(participant, snapshot, assessment, rankingService.stageAt(now), now)
     }
 }
