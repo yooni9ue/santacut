@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 684" width="1200" height="684" role="img" aria-label="API 지도: 도메인별 엔드포인트 12개, 메서드, 인증과 CSRF">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 684" width="1200" height="684" role="img" aria-label="API 지도: 도메인별 엔드포인트 16개 (그림은 대표 12개), 메서드, 인증과 CSRF">
   <title>API 지도</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -22,7 +22,7 @@
   </defs>
   <rect width="1200" height="684" rx="24" fill="url(#bg)"/>
   <text class="t" x="40" y="54">API 지도</text>
-  <text class="s" x="40" y="80">엔드포인트 12개 · 도메인별 · 필드는 Swagger(/swagger-ui.html)가 기준</text>
+  <text class="s" x="40" y="80">엔드포인트 16개 · 대표 12개 · 도메인별 · 필드는 Swagger(/swagger-ui.html)가 기준</text>
   <rect class="card" x="40" y="110" width="212" height="44" rx="12"/>
   <rect x="41" y="111" width="210" height="5" rx="2.5" fill="#FF5A5F"/>
   <circle cx="60" cy="135" r="5" fill="#FF5A5F"/>
@@ -94,8 +94,8 @@
   <rect x="733" y="282" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
   <text class="mt" x="755.2" y="296" text-anchor="middle" style="fill:#3E8BFF">GET</text>
   <text class="pp" x="785.5" y="298">랭킹 50명</text>
-  <text class="m path" x="735" y="325">/v1/rankings?offset=</text>
-  <rect x="733" y="338" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="751.0" y="351" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <text class="m path" x="735" y="325">/v1/rankings?cursor=</text>
+  <rect x="733" y="338" width="36" height="18" rx="5" fill="none" stroke="#3DDC97" stroke-opacity="0.8"/><text class="tg" x="751.0" y="351" text-anchor="middle" style="fill:#3DDC97">공개</text>
   <rect class="card" x="948" y="110" width="212" height="44" rx="12"/>
   <rect x="949" y="111" width="210" height="5" rx="2.5" fill="#3E8BFF"/>
   <circle cx="968" cy="135" r="5" fill="#3E8BFF"/>

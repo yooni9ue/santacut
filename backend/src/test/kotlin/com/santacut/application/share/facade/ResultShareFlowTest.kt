@@ -4,6 +4,8 @@ import com.santacut.ErrorCodeAssertions.assertErrorCode
 import com.santacut.IntegrationTest
 import com.santacut.TestParticipants.REGION_CODE
 import com.santacut.TestParticipants.uniqueNickname
+import com.santacut.application.participant.command.CurrentParticipantCommand
+import com.santacut.application.participant.command.DeleteParticipantCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.ranking.command.MyResultCommand
@@ -84,6 +86,23 @@ class ResultShareFlowTest @Autowired constructor(
 
         shareFacade.revokeShare(RevokeShareCommand(participantId, link.token))
         assertErrorCode(ErrorCode.SHARE_NOT_FOUND) { shareFacade.getPublicPage(PublicShareCommand(link.token)) }
+    }
+
+    @Test
+    fun `내 데이터를 지우면 참가 정보, 순위, 공유 링크가 함께 사라진다`() {
+        val nickname = uniqueNickname()
+        val participantId = participantFacade.register(RegisterParticipantCommand(nickname, REGION_CODE)).id
+        recordAssessmentAndRebuildRanking(participantId)
+        val link = shareFacade.createShare(CreateShareCommand(participantId))
+
+        participantFacade.deleteMyData(DeleteParticipantCommand(participantId))
+
+        assertErrorCode(ErrorCode.PARTICIPANT_NOT_FOUND) {
+            participantFacade.getCurrentParticipant(CurrentParticipantCommand(participantId))
+        }
+        assertErrorCode(ErrorCode.RESULT_NOT_FOUND) { resultFacade.getMyResult(MyResultCommand(participantId)) }
+        assertErrorCode(ErrorCode.SHARE_NOT_FOUND) { shareFacade.getPublicPage(PublicShareCommand(link.token)) }
+        assertFalse(resultFacade.getRankings(RankingPageCommand(null)).rows.map { it.nickname }.contains(nickname))
     }
 
     @Test
