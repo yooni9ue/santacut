@@ -81,6 +81,7 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | GET | `/v1/csrf` | CSRF 토큰 발급 | 공개 |
 | GET | `/v1/regions` | 지역 목록 | 공개 |
+| GET | `/v1/nicknames/availability` | 닉네임 가용성 확인 | 공개 |
 | POST | `/v1/participants` | 참가 등록 (`201`) | 공개 · CSRF |
 | GET | `/v1/me` | 내 참가 정보 | 세션 |
 | POST | `/v1/analyses` | 분석 요청 (`202`) | 세션 · CSRF · `Idempotency-Key` |

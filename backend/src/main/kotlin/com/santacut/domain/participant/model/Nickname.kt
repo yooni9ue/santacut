@@ -12,7 +12,9 @@ class Nickname private constructor(val value: String) {
     fun key(): String = value.lowercase(Locale.ROOT)
 
     companion object {
-        private val PATTERN = Regex("[가-힣A-Za-z0-9_]{2,16}")
+        const val MIN_LENGTH = 2
+        const val MAX_LENGTH = 16
+        private val PATTERN = Regex("[가-힣A-Za-z0-9_]{$MIN_LENGTH,$MAX_LENGTH}")
 
         fun from(raw: String): Nickname {
             val normalized = Normalizer.normalize(raw.trim(), Normalizer.Form.NFKC)

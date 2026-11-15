@@ -63,6 +63,23 @@ class ParticipantApiTest @Autowired constructor(
     }
 
     @Test
+    fun `닉네임 가용성은 로그인 없이 확인하고 형식 오류는 INVALID_NICKNAME이다`() {
+        val nickname = uniqueNickname()
+        mockMvc.perform(get(AVAILABILITY_PATH).param("nickname", nickname))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.available").value(true))
+        registerAndReadSessionToken(nickname)
+        mockMvc.perform(get(AVAILABILITY_PATH).param("nickname", nickname))
+            .andExpect(jsonPath("$.available").value(false))
+        mockMvc.perform(get(AVAILABILITY_PATH).param("nickname", "!"))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_NICKNAME"))
+        mockMvc.perform(get(AVAILABILITY_PATH))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_REQUEST"))
+    }
+
+    @Test
     fun `CSRF 토큰 없이 등록하면 403이다`() {
         mockMvc.perform(registerRequest(uniqueNickname())).andExpect(status().isForbidden)
     }
@@ -115,5 +132,6 @@ class ParticipantApiTest @Autowired constructor(
 
     companion object {
         private const val SESSION_COOKIE = "sc_session"
+        private const val AVAILABILITY_PATH = "/v1/nicknames/availability"
     }
 }

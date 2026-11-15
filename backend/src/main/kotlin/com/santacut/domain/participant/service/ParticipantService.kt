@@ -27,6 +27,10 @@ class ParticipantService(
         }
     }
 
+    /** 대소문자를 구분하지 않는 닉네임 키로 아직 아무도 쓰지 않는지 본다. */
+    fun isNicknameAvailable(nickname: Nickname): Boolean =
+        !participantRepository.existsByNicknameKey(nickname.key())
+
     fun get(participantId: UUID): Participant =
         participantRepository.findById(participantId.toString()).orElse(null)
             ?: throw SantaCutException(ErrorCode.PARTICIPANT_NOT_FOUND)

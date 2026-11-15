@@ -72,7 +72,8 @@ class SecurityConfiguration(
         private const val ROOT_PATH = "/"
         private val PUBLIC_PATHS = arrayOf(
             "/error", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
-            "/v1/csrf", "/v1/regions", "/v1/participants", "/v1/participants/**", "/v1/rankings", "/s/**",
+            "/v1/csrf", "/v1/regions", "/v1/nicknames/availability",
+            "/v1/participants", "/v1/participants/**", "/v1/rankings", "/s/**",
         )
         private const val CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; " +
             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; " +

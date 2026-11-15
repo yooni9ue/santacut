@@ -2,8 +2,10 @@ package com.santacut.application.participant.facade
 
 import com.santacut.application.global.Facade
 import com.santacut.application.participant.command.CurrentParticipantCommand
+import com.santacut.application.participant.command.NicknameAvailabilityCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.result.CurrentParticipantResult
+import com.santacut.application.participant.result.NicknameAvailabilityResult
 import com.santacut.application.participant.result.RegisteredParticipantResult
 import com.santacut.domain.participant.model.Nickname
 import com.santacut.domain.participant.service.ParticipantService
@@ -29,6 +31,11 @@ class ParticipantFacade(
         val sessionToken = sessionService.open(participant, now)
         return RegisteredParticipantResult.from(participant, sessionToken)
     }
+
+    /** 형식이 틀리면 INVALID_NICKNAME이다. 확인만 하고 닉네임을 예약하지 않는다. */
+    @Transactional(readOnly = true)
+    fun checkNicknameAvailability(command: NicknameAvailabilityCommand): NicknameAvailabilityResult =
+        NicknameAvailabilityResult(participantService.isNicknameAvailable(Nickname.from(command.nickname)))
 
     @Transactional(readOnly = true)
     fun getCurrentParticipant(command: CurrentParticipantCommand): CurrentParticipantResult =

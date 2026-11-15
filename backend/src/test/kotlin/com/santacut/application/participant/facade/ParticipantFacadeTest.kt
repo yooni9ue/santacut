@@ -5,6 +5,7 @@ import com.santacut.IntegrationTest
 import com.santacut.TestParticipants.REGION_CODE
 import com.santacut.TestParticipants.uniqueNickname
 import com.santacut.application.participant.command.CurrentParticipantCommand
+import com.santacut.application.participant.command.NicknameAvailabilityCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.session.command.SessionAuthenticationCommand
 import com.santacut.application.session.facade.SessionFacade
@@ -13,7 +14,9 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @IntegrationTest
 class ParticipantFacadeTest @Autowired constructor(
@@ -42,6 +45,21 @@ class ParticipantFacadeTest @Autowired constructor(
         participantFacade.register(RegisterParticipantCommand(nickname, REGION_CODE))
         assertErrorCode(ErrorCode.NICKNAME_TAKEN) {
             participantFacade.register(RegisterParticipantCommand(nickname.uppercase(), REGION_CODE))
+        }
+    }
+
+    @Test
+    fun `등록된 닉네임은 대소문자와 상관없이 쓸 수 없고 새 닉네임은 쓸 수 있다`() {
+        val nickname = uniqueNickname()
+        assertTrue(participantFacade.checkNicknameAvailability(NicknameAvailabilityCommand(nickname)).available)
+        participantFacade.register(RegisterParticipantCommand(nickname, REGION_CODE))
+        assertFalse(participantFacade.checkNicknameAvailability(NicknameAvailabilityCommand(nickname.uppercase())).available)
+    }
+
+    @Test
+    fun `형식이 틀린 닉네임은 가용성을 확인할 수 없다`() {
+        assertErrorCode(ErrorCode.INVALID_NICKNAME) {
+            participantFacade.checkNicknameAvailability(NicknameAvailabilityCommand("a"))
         }
     }
 
