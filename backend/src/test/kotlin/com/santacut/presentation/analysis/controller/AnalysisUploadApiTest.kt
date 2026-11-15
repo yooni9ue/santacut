@@ -33,7 +33,7 @@ import kotlin.test.assertEquals
 class AnalysisUploadApiTest @Autowired constructor(
     private val mockMvc: MockMvc,
     private val participantFacade: ParticipantFacade,
-    clock: Clock,
+    private val clock: Clock,
 ) {
     private val chat = TestChatFiles.kakaoIos(clock.instant(), EVENT_COUNT)
     private val occurredAt = clock.instant().minus(Duration.ofDays(1))
@@ -52,6 +52,15 @@ class AnalysisUploadApiTest @Autowired constructor(
             .andReturn().response.contentAsString
 
         assertEquals(JsonPath.read<String>(first, "$.id"), JsonPath.read<String>(replay, "$.id"))
+    }
+
+    @Test
+    fun `인스타그램 JSON 원본도 202와 VALIDATING으로 받는다`() {
+        val instagram = TestChatFiles.instagram(clock.instant(), EVENT_COUNT)
+
+        mockMvc.perform(uploadRequest(registerSession(), newKey(), instagram, source = INSTAGRAM_SOURCE))
+            .andExpect(status().isAccepted)
+            .andExpect(jsonPath("$.status").value("VALIDATING"))
     }
 
     @Test
@@ -149,6 +158,7 @@ class AnalysisUploadApiTest @Autowired constructor(
         private const val SOURCE_PART = "source"
         private const val SELF_SPEAKER_PART = "self_speaker"
         private const val SOURCE = "KAKAO"
+        private const val INSTAGRAM_SOURCE = "INSTAGRAM"
         private const val EVENT_COUNT = 20
     }
 }
