@@ -1,0 +1,115 @@
+name: 프론트엔드 CI/CD
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy this tested main revision to Vercel
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
+          cache: true
+          cache_dependency_path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint, types and unit tests
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+      - name: Production build
+        run: pnpm build
+      - name: Install mobile browser engines
+        run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Mobile E2E against production build
+        run: pnpm test:e2e
+      - name: Browser reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frontend-playwright-reports
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  deploy:
+    needs: test
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) &&
+      vars.VERCEL_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: vercel-production
+    concurrency:
+      group: vercel-production-deploy
+      cancel-in-progress: false
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
+          cache: true
+          cache_dependency_path: frontend/pnpm-lock.yaml
+      - name: Validate Vercel credentials
+        run: |
+          test -n "$VERCEL_TOKEN"
+          test -n "$VERCEL_ORG_ID"
+          test -n "$VERCEL_PROJECT_ID"
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@65.16.0
+      - name: Pull production project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build Vercel output
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy tested revision
+        run: |
+          deployment_url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          printf 'Vercel production: %s\n' "$deployment_url" >> "$GITHUB_STEP_SUMMARY"

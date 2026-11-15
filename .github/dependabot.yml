@@ -12,3 +12,7 @@ updates:
     directory: /backend/ci-cd
     schedule:
       interval: weekly
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
