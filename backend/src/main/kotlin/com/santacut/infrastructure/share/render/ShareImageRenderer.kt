@@ -33,9 +33,10 @@ class ShareImageRenderer {
         drawLine(graphics, ShareCardLine.HEADLINE, HEADLINE)
         graphics.color = TEXT_COLOR
         drawLine(graphics, ShareCardLine.NICKNAME_SCORE, "${card.nickname}  ${card.score}점")
-        drawLine(graphics, ShareCardLine.RANK_VERDICT, "${card.rank}위 · ${card.verdict}".take(MAX_VERDICT_LENGTH))
+        drawLine(graphics, ShareCardLine.RANK_VERDICT, "${card.rank} · ${card.verdict}".take(MAX_VERDICT_LENGTH))
         drawLine(graphics, ShareCardLine.ETA, "선물 도착 예정: ${card.eta}")
         drawLine(graphics, ShareCardLine.COMMENT, card.comment.take(MAX_COMMENT_LENGTH))
+        drawLine(graphics, ShareCardLine.META, "계산 ${card.computedAt} · ${card.stage}")
         drawLine(graphics, ShareCardLine.FOOTER, FOOTER)
     }
 

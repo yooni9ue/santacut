@@ -81,7 +81,8 @@ class ResultShareFlowTest @Autowired constructor(
         val link = shareFacade.createShare(CreateShareCommand(participantId))
         assertEquals("http://localhost:8080/s/${link.token}", link.url)
         assertEquals(link.token, shareFacade.createShare(CreateShareCommand(participantId)).token)
-        assertTrue(shareFacade.getPublicPage(PublicShareCommand(link.token)).html.contains(nickname))
+        val page = shareFacade.getPublicPage(PublicShareCommand(link.token)).html
+        assertTrue(page.contains(nickname) && page.contains("공유 당시 결과") && page.contains("미리보기"))
         assertTrue(shareFacade.getPublicImage(PublicShareCommand(link.token)).png.isNotEmpty())
 
         shareFacade.revokeShare(RevokeShareCommand(participantId, link.token))

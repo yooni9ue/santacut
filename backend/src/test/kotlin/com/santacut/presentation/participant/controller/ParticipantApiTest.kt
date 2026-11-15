@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delet
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import kotlin.test.assertTrue
@@ -150,6 +151,15 @@ class ParticipantApiTest @Autowired constructor(
         mockMvc.perform(get("/s/not-a-token"))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.code").value("SHARE_NOT_FOUND"))
+    }
+
+    @Test
+    fun `브라우저가 연 없는 공유 페이지는 404와 볼 수 없는 결과 HTML이다`() {
+        val html = mockMvc.perform(get("/s/not-a-token").accept(MediaType.TEXT_HTML))
+            .andExpect(status().isNotFound)
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+            .andReturn().response.getContentAsString(Charsets.UTF_8)
+        assertTrue(html.contains("더 이상 볼 수 없는 결과") && html.contains("내 산타 점수 알아보기"))
     }
 
     private fun registerRequest(nickname: String) = post("/v1/participants")
