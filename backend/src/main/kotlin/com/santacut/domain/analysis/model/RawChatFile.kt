@@ -49,6 +49,10 @@ class RawChatFile(
         return text.removePrefix(BYTE_ORDER_MARK)
     }
 
+    /** 엄격한 UTF-8로 읽은 텍스트를 출처([source])에 맞는 파서로 메시지 목록으로 바꾼다. */
+    fun readMessages(readInstagramThread: (String) -> InstagramThread): ChatMessages =
+        source.readMessages(decodeText(), readInstagramThread)
+
     private fun isZipArchive(): Boolean =
         content.size >= ZIP_MAGIC.size && content.copyOf(ZIP_MAGIC.size).contentEquals(ZIP_MAGIC)
 
