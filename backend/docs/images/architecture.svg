@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-label="SantaCut 백엔드 요청 흐름">
+  <title>SantaCut 백엔드 요청 흐름</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1426"/><stop offset="1" stop-color="#0F1F33"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8FB4D9"/>
+    </marker>
+    <marker id="arrAi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9C8CFF"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3DDC97"/>
+    </marker>
+    <style>
+      text { font-family: Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif; fill: #E6EDF7; }
+      .card { fill: #16233B; stroke: #2A3B5A; stroke-width: 1.5; }
+      .inner { fill: #1D2D49; stroke: #33476B; stroke-width: 1; }
+      .t { font-size: 24px; font-weight: 800; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #A9BAD3; }
+      .line { stroke: #8FB4D9; stroke-width: 2; fill: none; }
+      .ailine { stroke: #9C8CFF; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      .gline { stroke: #3DDC97; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+  <rect width="1200" height="660" rx="24" fill="url(#bg)"/>
+  <text class="t" x="40" y="54">요청 흐름</text>
+  <text class="s" x="40" y="80">동기 API, 분석 작업 큐, 상태 폴링, 공유 렌더링</text>
+
+  <!-- 클라이언트 -->
+  <rect class="card" x="40" y="250" width="150" height="130" rx="16"/>
+  <rect x="85" y="276" width="60" height="40" rx="6" fill="none" stroke="#3E8BFF" stroke-width="3"/>
+  <rect x="105" y="316" width="20" height="8" fill="#3E8BFF"/>
+  <text class="h" x="115" y="350" text-anchor="middle">클라이언트</text>
+  <text class="s" x="115" y="370" text-anchor="middle">웹·공유 링크</text>
+  <path class="line" d="M190,315 H232" marker-end="url(#arr)"/>
+
+  <!-- Caddy -->
+  <rect class="card" x="236" y="250" width="130" height="130" rx="16"/>
+  <rect x="283" y="282" width="36" height="28" rx="4" fill="none" stroke="#F5B83D" stroke-width="3"/>
+  <path d="M289,282 V272 a12,12 0 0 1 24,0 V282" fill="none" stroke="#F5B83D" stroke-width="3"/>
+  <text class="h" x="301" y="350" text-anchor="middle">Caddy</text>
+  <text class="s" x="301" y="370" text-anchor="middle">TLS 종료</text>
+  <path class="line" d="M366,315 H404" marker-end="url(#arr)"/>
+
+  <!-- Spring Boot -->
+  <rect class="card" x="408" y="110" width="440" height="510" rx="18"/>
+  <rect x="408" y="110" width="440" height="40" rx="18" fill="#6DB33F" fill-opacity="0.16"/>
+  <text class="h" x="428" y="137">Spring Boot 앱</text>
+  <text class="s" x="828" y="137" text-anchor="end">Lightsail 인스턴스</text>
+
+  <rect class="inner" x="428" y="166" width="400" height="70" rx="12"/>
+  <text class="h" x="446" y="194">presentation</text>
+  <text class="s" x="446" y="220">컨트롤러 · 세션 필터 · CSRF</text>
+  <path class="line" d="M628,236 V256" marker-end="url(#arr)"/>
+  <rect class="inner" x="428" y="260" width="400" height="70" rx="12"/>
+  <text class="h" x="446" y="288">application</text>
+  <text class="s" x="446" y="314">facade · 트랜잭션 경계</text>
+  <path class="line" d="M628,330 V350" marker-end="url(#arr)"/>
+  <rect class="inner" x="428" y="354" width="400" height="70" rx="12"/>
+  <text class="h" x="446" y="382">domain</text>
+  <text class="s" x="446" y="408">엔티티 · 값 객체 · 일급 컬렉션 · service</text>
+  <path class="line" d="M628,424 V444" marker-end="url(#arr)"/>
+  <rect class="inner" x="428" y="448" width="400" height="70" rx="12"/>
+  <text class="h" x="446" y="476">infrastructure</text>
+  <text class="s" x="446" y="502">JPA 리포지토리 · AI 클라이언트 · 렌더러</text>
+
+  <!-- 워커 -->
+  <rect x="428" y="534" width="400" height="70" rx="12" fill="#3DDC97" fill-opacity="0.1" stroke="#3DDC97" stroke-width="1.5"/>
+  <circle cx="460" cy="569" r="14" fill="none" stroke="#3DDC97" stroke-width="3"/>
+  <path d="M460,560 V569 H468" fill="none" stroke="#3DDC97" stroke-width="3"/>
+  <text class="h" x="488" y="563">검증 · 분석 워커</text>
+  <text class="s" x="488" y="588">@Scheduled 검증 1초 · 분석 3초 · 임대 3분</text>
+
+  <!-- SQLite -->
+  <rect class="card" x="930" y="150" width="230" height="150" rx="16"/>
+  <ellipse cx="985" cy="196" rx="26" ry="9" fill="none" stroke="#3E8BFF" stroke-width="3"/>
+  <path d="M959,196 V226 a26,9 0 0 0 52,0 V196" fill="none" stroke="#3E8BFF" stroke-width="3"/>
+  <text class="h" x="1026" y="202">SQLite</text>
+  <text class="s" x="1026" y="224">파일 DB</text>
+  <text class="s" x="950" y="262">커넥션 풀 1개</text>
+  <text class="s" x="950" y="284">테이블 9개 · 작업 큐 포함</text>
+  <path class="line" d="M828,483 H880 V225 H926" marker-end="url(#arr)"/>
+
+  <!-- AI -->
+  <rect class="card" x="930" y="340" width="230" height="150" rx="16"/>
+  <polygon points="985,368 1003,386 985,404 967,386" fill="none" stroke="#9C8CFF" stroke-width="3"/>
+  <circle cx="985" cy="386" r="4" fill="#9C8CFF"/>
+  <text class="h" x="1026" y="384">AI 채점</text>
+  <text class="s" x="1026" y="406">Spring AI</text>
+  <text class="s" x="950" y="446">현재: Ollama</text>
+  <text class="s" x="950" y="468">운영 계획: Bedrock</text>
+  <path class="ailine" d="M828,560 H900 V415 H926" marker-end="url(#arrAi)"/>
+
+  <!-- 공유 -->
+  <rect class="card" x="930" y="520" width="230" height="100" rx="16"/>
+  <rect x="954" y="544" width="34" height="26" rx="4" fill="none" stroke="#FF5A5F" stroke-width="3"/>
+  <circle cx="964" cy="553" r="3" fill="#FF5A5F"/>
+  <text class="h" x="1004" y="563">공유 페이지</text>
+  <text class="s" x="954" y="600">/s/{token} HTML · PNG</text>
+
+  <path d="M828,505 H852 V592 H926" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arr)"/>
+  <!-- 폴링 -->
+  <path class="gline" d="M428,201 H396 V420 H115 V386" marker-end="url(#arrG)"/>
+  <text class="s" x="210" y="444" fill="#3DDC97">화면이 상태를 폴링</text>
+</svg>

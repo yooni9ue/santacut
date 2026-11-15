@@ -2,3 +2,5 @@ gradlew text eol=lf
 *.sh text eol=lf
 *.bat text eol=crlf
 *.jar binary
+# 업로드 파서 픽스처는 줄바꿈(CRLF)과 BOM을 바이트 그대로 지킨다.
+src/test/resources/fixtures/** -text

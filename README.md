@@ -102,3 +102,7 @@ cd backend
 - Vercel 배포를 활성화하면 main 검증 성공 후 production에 배포
 - 브라우저의 `/v1` 요청은 Next.js rewrite가 AWS의 `BACKEND_ORIGIN`으로 프록시
 - [Vercel 배포 설정과 운영서](frontend/docs/deployment.md)
+
+## PR 작성
+
+[PR 작성 규칙](docs/pr-guide.md)과 [PR 양식](docs/pull_request_template.md)을 따릅니다. 새 프론트엔드 전용 문서는 `frontend/docs/`에 두고 기존 문서는 별도 요청 없이 이동하지 않습니다.

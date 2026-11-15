@@ -16,6 +16,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
         "spring.datasource.url=jdbc:sqlite:./build/test.db",
         "app.season-year=2099",
         "santacut.ai.poll-delay-ms=3600000",
+        "santacut.upload.poll-delay-ms=3600000",
     ],
 )
 @AutoConfigureMockMvc

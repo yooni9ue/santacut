@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="분석 흐름: 업로드, 검증, 대기, 채점, 순위 반영, 상태 폴링">
+  <title>분석 흐름</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1426"/><stop offset="1" stop-color="#0F1F33"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8FB4D9"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3DDC97"/>
+    </marker>
+    <style>
+      text { font-family: Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif; fill: #E6EDF7; }
+      .t { font-size: 24px; font-weight: 800; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #A9BAD3; }
+      .xs { font-size: 12px; fill: #A9BAD3; }
+      .m { font-family: 'JetBrains Mono', 'D2Coding', Consolas, 'Courier New', monospace; }
+      .card { fill: #16233B; stroke: #2A3B5A; stroke-width: 1.5; }
+      .cell { fill: #1D2D49; stroke: #33476B; stroke-width: 1; }
+      .n { font-size: 15px; font-weight: 800; fill: #0B1426; }
+      .line { stroke: #8FB4D9; stroke-width: 2; fill: none; }
+      .gline { stroke: #3DDC97; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      .dline { stroke: #8FB4D9; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      .rline { stroke: #FF5A5F; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      .chip { font-size: 12px; font-weight: 800; letter-spacing: .3px; }
+    </style>
+  </defs>
+  <rect width="1200" height="900" rx="24" fill="url(#bg)"/>
+  <text class="t" x="40" y="54">분석 흐름</text>
+  <text class="s" x="40" y="80">요청은 바로 202로 끝난다. 원본 검증과 채점은 작업자 둘이 따로 한다.</text>
+  <text class="s" x="40" y="122" fill="#F5B83D">요청 스레드</text>
+  <g>
+    <rect class="card" x="40" y="136" width="340" height="130" rx="16"/>
+    <circle cx="70" cy="166" r="14" fill="#F5B83D"/><text class="n" x="70" y="171" text-anchor="middle">1</text>
+    <text class="h" x="94" y="172">분석 제출</text>
+    <text class="s" x="62" y="204">POST /v1/analyses/files (원본)</text>
+    <text class="s" x="62" y="226">POST /v1/analyses (이벤트 JSON)</text>
+    <text class="s" x="62" y="248">Idempotency-Key · CSRF</text>
+  </g>
+  <g>
+    <rect class="card" x="422" y="136" width="340" height="130" rx="16"/>
+    <circle cx="452" cy="166" r="14" fill="#F5B83D"/><text class="n" x="452" y="171" text-anchor="middle">2</text>
+    <text class="h" x="476" y="172">접수 검사</text>
+    <text class="s" x="444" y="204">하루 3회 · 같은 키는 기존 작업</text>
+    <text class="s" x="444" y="226">20MB 초과 413 FILE_TOO_LARGE</text>
+    <text class="s" x="444" y="248">빈 파일·zip·바이너리 422</text>
+  </g>
+  <g>
+    <rect class="card" x="804" y="136" width="356" height="130" rx="16"/>
+    <circle cx="834" cy="166" r="14" fill="#F5B83D"/><text class="n" x="834" y="171" text-anchor="middle">3</text>
+    <text class="h" x="858" y="172">저장 후 202</text>
+    <text class="s" x="826" y="204">원본 → analysis_uploads</text>
+    <text class="s" x="826" y="226">작업 → analysis_jobs (VALIDATING)</text>
+    <text class="s" x="826" y="248">이벤트 JSON은 바로 QUEUED</text>
+  </g>
+  <path class="line" d="M380,201 H418" marker-end="url(#arr)"/>
+  <path class="line" d="M762,201 H800" marker-end="url(#arr)"/>
+  <path class="line" d="M982,266 V310 H210 V332" marker-end="url(#arr)"/>
+  <text class="s" x="40" y="322" fill="#3DDC97">검증 작업자 · 1초</text>
+  <g>
+    <rect class="card" x="40" y="336" width="340" height="130" rx="16"/>
+    <circle cx="70" cy="366" r="14" fill="#3DDC97"/><text class="n" x="70" y="371" text-anchor="middle">4</text>
+    <text class="h" x="94" y="372">원본 꺼내기</text>
+    <text class="s" x="62" y="404">가장 먼저 받은 원본 하나</text>
+    <text class="s" x="62" y="426">검증 3회 넘으면 RETRY_EXHAUSTED</text>
+    <text class="s" x="62" y="448">24시간 넘으면 EXPIRED</text>
+  </g>
+  <g>
+    <rect class="card" x="422" y="336" width="340" height="130" rx="16"/>
+    <circle cx="452" cy="366" r="14" fill="#9C8CFF"/><text class="n" x="452" y="371" text-anchor="middle">5</text>
+    <text class="h" x="476" y="372">파싱 · 정규화</text>
+    <text class="s" x="444" y="404">카톡 TXT(PC·모바일) · 인스타 JSON</text>
+    <text class="s" x="444" y="426">본인 메시지만 남긴다</text>
+    <text class="s" x="444" y="448">트랜잭션 밖에서 파싱</text>
+  </g>
+  <g>
+    <rect class="card" x="804" y="336" width="356" height="130" rx="16"/>
+    <circle cx="834" cy="366" r="14" fill="#3DDC97"/><text class="n" x="834" y="371" text-anchor="middle">6</text>
+    <text class="h" x="858" y="372">대기열로</text>
+    <text class="s" x="826" y="404">작업 QUEUED · 원본 즉시 삭제</text>
+    <text class="s" x="826" y="426">실패: UNSUPPORTED_FILE_FORMAT,</text>
+    <text class="s" x="826" y="448">SPEAKER_NOT_IDENTIFIED 등</text>
+  </g>
+  <path class="line" d="M380,401 H418" marker-end="url(#arr)"/>
+  <path class="line" d="M762,401 H800" marker-end="url(#arr)"/>
+  <path class="line" d="M982,466 V510 H210 V532" marker-end="url(#arr)"/>
+  <path class="dline" d="M1160,236 H1178 V510 H990"/>
+  <text class="xs" x="1172" y="322" text-anchor="end" style="fill:#8FB4D9">이벤트 JSON</text>
+  <text class="s" x="40" y="522" fill="#3DDC97">분석 작업자 · 3초</text>
+  <g>
+    <rect class="card" x="40" y="536" width="340" height="130" rx="16"/>
+    <circle cx="70" cy="566" r="14" fill="#3DDC97"/><text class="n" x="70" y="571" text-anchor="middle">7</text>
+    <text class="h" x="94" y="572">작업 임대</text>
+    <text class="s" x="62" y="604">하루 AI 호출 100회 예산</text>
+    <text class="s" x="62" y="626">임대 3분 · 최대 3번 시도</text>
+    <text class="s" x="62" y="648">상태 ANALYZING</text>
+  </g>
+  <g>
+    <rect class="card" x="422" y="536" width="340" height="130" rx="16"/>
+    <circle cx="452" cy="566" r="14" fill="#9C8CFF"/><text class="n" x="452" y="571" text-anchor="middle">8</text>
+    <text class="h" x="476" y="572">AI 채점</text>
+    <text class="s" x="444" y="604">Spring AI 구조화 응답</text>
+    <text class="s" x="444" y="626">차원별 점수·근거 번호 검증</text>
+    <text class="s" x="444" y="648">트랜잭션 밖에서 호출</text>
+  </g>
+  <g>
+    <rect x="804" y="536" width="356" height="130" rx="16" fill="#3DDC97" fill-opacity="0.1" stroke="#3DDC97" stroke-width="1.5"/>
+    <circle cx="834" cy="566" r="14" fill="#3DDC97"/><text class="n" x="834" y="571" text-anchor="middle">9</text>
+    <text class="h" x="858" y="572">한 트랜잭션으로 완료</text>
+    <text class="s" x="826" y="604">평가 저장 · 작업 SUCCEEDED</text>
+    <text class="s" x="826" y="626">순위 스냅숏 재계산</text>
+    <text class="s" x="826" y="648">하나라도 실패하면 롤백</text>
+  </g>
+  <path class="line" d="M380,601 H418" marker-end="url(#arr)"/>
+  <path class="line" d="M762,601 H800" marker-end="url(#arr)"/>
+  <path class="rline" d="M592,666 V698"/>
+  <text class="s" x="604" y="690" fill="#FF8A8E">실패하면 error_code 기록, 다시 하려면 새 요청</text>
+  <path class="gline" d="M982,666 V720" marker-end="url(#arrG)"/>
+  <rect class="card" x="40" y="724" width="1120" height="150" rx="16"/>
+  <circle cx="72" cy="758" r="14" fill="none" stroke="#3E8BFF" stroke-width="3"/><circle cx="72" cy="758" r="4" fill="#3E8BFF"/>
+  <text class="h" x="98" y="764">클라이언트 폴링</text>
+  <text class="s" x="250" y="764">GET /v1/analyses/{id} · 재방문은 GET /v1/me/analysis · 몇 초마다</text>
+  <rect x="62.0" y="790" width="108.0" height="26" rx="13" fill="#3DDC97" fill-opacity="0.15" stroke="#3DDC97" stroke-width="1.3"/><text class="m chip" x="116.0" y="807" text-anchor="middle" style="fill:#3DDC97">VALIDATING</text>
+  <text class="xs" x="116.0" y="836" text-anchor="middle">파일만</text>
+  <path class="line" d="M174.0,803 H196.0" marker-end="url(#arr)"/>
+  <rect x="200.0" y="790" width="74.4" height="26" rx="13" fill="#F5B83D" fill-opacity="0.15" stroke="#F5B83D" stroke-width="1.3"/><text class="m chip" x="237.2" y="807" text-anchor="middle" style="fill:#F5B83D">QUEUED</text>
+  <path class="line" d="M278.4,803 H300.4" marker-end="url(#arr)"/>
+  <rect x="304.4" y="790" width="99.6" height="26" rx="13" fill="#9C8CFF" fill-opacity="0.15" stroke="#9C8CFF" stroke-width="1.3"/><text class="m chip" x="354.2" y="807" text-anchor="middle" style="fill:#9C8CFF">ANALYZING</text>
+  <path class="line" d="M408.0,803 H430.0" marker-end="url(#arr)"/>
+  <rect x="434.0" y="790" width="150.0" height="26" rx="13" fill="#3E8BFF" fill-opacity="0.15" stroke="#3E8BFF" stroke-width="1.3"/><text class="m chip" x="509.0" y="807" text-anchor="middle" style="fill:#3E8BFF">RANKING_PENDING</text>
+  <text class="xs" x="509.0" y="836" text-anchor="middle">순위 반영 전</text>
+  <path class="line" d="M588.0,803 H610.0" marker-end="url(#arr)"/>
+  <rect x="614.0" y="790" width="99.6" height="26" rx="13" fill="#3DDC97" fill-opacity="0.15" stroke="#3DDC97" stroke-width="1.3"/><text class="m chip" x="663.8" y="807" text-anchor="middle" style="fill:#3DDC97">SUCCEEDED</text>
+  <text class="xs" x="663.8" y="836" text-anchor="middle">→ /v1/me/result</text>
+  <rect x="753.6" y="790" width="74.4" height="26" rx="13" fill="#FF5A5F" fill-opacity="0.15" stroke="#FF5A5F" stroke-width="1.3"/><text class="m chip" x="790.8" y="807" text-anchor="middle" style="fill:#FF5A5F">FAILED</text>
+  <text class="xs" x="790.8" y="836" text-anchor="middle">error_code로 구분</text>
+  <text class="xs" x="62" y="860">24시간 넘게 기다린 VALIDATING·QUEUED 작업은 AI가 꺼져 있어도 EXPIRED로 끝난다.</text>
+</svg>
