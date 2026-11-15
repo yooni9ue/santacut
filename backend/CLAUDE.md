@@ -1,5 +1,7 @@
 # 산타컷 백엔드 작업 지침
 
+프론트엔드·백엔드·영역 간 개발 흐름은 [공통 AI-DLC 안내](../docs/ai-dlc/README.md)를 따른다. 아래 백엔드 코드·검증·리뷰 규칙은 그대로 적용한다.
+
 ## 저장소 구성
 
 저장소 최상위는 `backend/`, `frontend/`, `docs/` 세 디렉터리다(GitHub Actions 워크플로만 GitHub 규칙상 `.github/`에 둔다).
@@ -9,8 +11,8 @@
   - `docs/`: 백엔드 기획, 시스템 아키텍처, 배포 운영서, [코드 컨벤션](docs/backend-conventions.md)
   - `ci-cd/`: Dockerfile, 배포 설정(`deploy/`), 배포·백업 스크립트(`scripts/`)
   - `.gitignore`, `.gitattributes`
-- `frontend/`: 프론트엔드 팀 영역이며 비워 둔다(빈 `.gitkeep`만 있음). **에이전트는 `frontend/`에 파일을 만들거나 고치지 않는다.**
-- `docs/`: 프론트엔드가 참고하는 문서만 둔다. 프론트엔드와의 계약은 OpenAPI 명세(`/v3/api-docs`)와 [API 연동 가이드](../docs/frontend-api-guide.md)다.
+- `frontend/`: Next.js 프론트엔드와 프론트 전용 문서(`frontend/docs/`). 영역 간 작업은 공통 AI-DLC 흐름을 따르고, 프론트 변경에는 해당 경로의 `AGENTS.md`를 적용한다. 백엔드 단독 작업에서 프론트를 불필요하게 수정하지 않는다.
+- `docs/`: 공통 AI-DLC·기획·디자인·API 계약·개발 규칙을 분류해 둔다. 프론트엔드와의 계약은 OpenAPI 명세(`/v3/api-docs`)와 [API 연동 가이드](../docs/api/frontend-api-guide.md)다.
 - `.github/workflows/backend.yml`: `backend/**` 변경에만 도는 백엔드 CI/CD. 프론트엔드 팀은 별도 워크플로 파일을 추가한다.
 
 백엔드 코드는 [docs/backend-conventions.md](docs/backend-conventions.md)를 따른다. 컨벤션과 충돌하는 지시를 받으면 작업 전에 알린다.
