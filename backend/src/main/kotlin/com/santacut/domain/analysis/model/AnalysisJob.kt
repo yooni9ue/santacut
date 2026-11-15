@@ -17,7 +17,8 @@ import java.util.UUID
 
 /**
  * 비동기 분석 작업. 상태는 대기 → 실행 → 성공·실패·근거 부족 순서로만 바뀐다.
- * 단, 너무 오래 기다린 대기 작업은 실행을 거치지 않고 만료(실패)로 끝난다.
+ * 원본 파일로 받은 작업은 검증 → 대기 순서로 시작하고, 검증에 실패하면 대기를 거치지 않고 끝난다.
+ * 너무 오래 기다린 검증·대기 작업은 실행을 거치지 않고 만료(실패)로 끝난다.
  * 작업자는 리스 토큰을 쥔 동안만 결과를 기록할 수 있다.
  */
 @Entity
@@ -30,6 +31,7 @@ class AnalysisJob(
     source: DataSource,
     payload: String?,
     createdAt: Instant,
+    status: AnalysisJobStatus = AnalysisJobStatus.QUEUED,
 ) {
     @Id
     @Column(name = "id")
@@ -59,7 +61,7 @@ class AnalysisJob(
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    var status: AnalysisJobStatus = AnalysisJobStatus.QUEUED
+    var status: AnalysisJobStatus = status
         protected set
 
     @Column(name = "attempts", nullable = false)
@@ -94,7 +96,11 @@ class AnalysisJob(
     var finishedAt: Instant? = null
         protected set
 
-    fun matchesRequest(payload: AnalysisPayload): Boolean = requestHash == payload.hash()
+    fun matchesRequest(payload: AnalysisPayload): Boolean = matchesRequestHash(payload.hash())
+
+    fun matchesRequestHash(hash: String): Boolean = requestHash == hash
+
+    fun isValidating(): Boolean = status == AnalysisJobStatus.VALIDATING
 
     fun isHeldBy(lease: String): Boolean = leaseToken == lease && status == AnalysisJobStatus.RUNNING
 
@@ -124,10 +130,35 @@ class AnalysisJob(
         finishWith(code, finishedAt)
     }
 
-    /** 너무 오래 기다린 대기 작업을 [AnalysisFailureCode.EXPIRED]로 끝낸다. 대기 중인 작업만 만료할 수 있다. */
+    /** 너무 오래 기다린 작업을 [AnalysisFailureCode.EXPIRED]로 끝낸다. 검증 중이거나 대기 중인 작업만 만료할 수 있다. */
     fun expire(finishedAt: Instant) {
-        verifyTransition(status == AnalysisJobStatus.QUEUED)
+        verifyTransition(isValidating() || status == AnalysisJobStatus.QUEUED)
         finishWith(AnalysisFailureCode.EXPIRED, finishedAt)
+    }
+
+    /**
+     * 검증 작업자가 원본 파일 검증을 한 번 더 시도한다. 검증 중인 작업만 시도할 수 있다.
+     * 검증 도중 작업자가 죽어(메모리 부족 등) [MAX_ATTEMPTS]번을 넘기면 다시 시도하지 않고
+     * [AnalysisFailureCode.RETRY_EXHAUSTED]로 끝낸다. 같은 파일로 재시작을 되풀이하지 않기 위해서다.
+     */
+    fun startValidation(now: Instant) {
+        verifyTransition(isValidating())
+        attempts++
+        if (attempts > MAX_ATTEMPTS) finishWith(AnalysisFailureCode.RETRY_EXHAUSTED, now)
+    }
+
+    /** 검증을 통과한 작업에 정규화한 제출 내용을 담아 대기열에 넣는다. 점수 산정 시도 횟수는 처음부터 센다. */
+    fun queueValidated(payload: AnalysisPayload) {
+        verifyTransition(isValidating())
+        status = AnalysisJobStatus.QUEUED
+        attempts = 0
+        this.payload = payload.json
+    }
+
+    /** 원본 파일 검증에 실패한 작업을 끝낸다. 검증 중인 작업만 끝낼 수 있다. */
+    fun rejectUpload(code: AnalysisFailureCode, finishedAt: Instant) {
+        verifyTransition(isValidating())
+        finishWith(code, finishedAt)
     }
 
     /**
@@ -217,6 +248,21 @@ class AnalysisJob(
         ): AnalysisJob = AnalysisJob(
             UUID.randomUUID().toString(), participantId.toString(), key.value,
             payload.hash(), submission.source, payload.json, createdAt,
+        )
+
+        /**
+         * 원본 파일로 받은 작업. 검증 작업자가 파일을 정규화하기 전까지 페이로드가 없다.
+         * [requestHash]는 파일 해시이며 같은 키로 다시 보낸 요청이 같은 파일인지 가린다.
+         */
+        fun receive(
+            participantId: UUID,
+            key: IdempotencyKey,
+            source: DataSource,
+            requestHash: String,
+            createdAt: Instant,
+        ): AnalysisJob = AnalysisJob(
+            UUID.randomUUID().toString(), participantId.toString(), key.value,
+            requestHash, source, null, createdAt, AnalysisJobStatus.VALIDATING,
         )
     }
 }

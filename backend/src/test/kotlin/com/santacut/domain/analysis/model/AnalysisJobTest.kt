@@ -186,6 +186,82 @@ class AnalysisJobTest {
         assertNull(job.errorCode)
     }
 
+    @Test
+    fun `원본 파일로 받은 작업은 페이로드 없이 검증 상태로 시작하고 파일 해시로 재전송을 가린다`() {
+        val job = newUpload()
+        assertEquals(AnalysisJobStatus.VALIDATING, job.status)
+        assertEquals(AnalysisProgress.VALIDATING, job.progress(null))
+        assertNull(job.payload)
+        assertTrue(job.matchesRequestHash(FILE_HASH))
+        assertFalse(job.matchesRequestHash("other-hash"))
+        assertFalse(job.isClaimableAt(createdAt))
+    }
+
+    @Test
+    fun `검증을 통과하면 정규화한 페이로드를 담아 대기열에 넣고 시도 횟수를 처음부터 센다`() {
+        val job = newUpload().apply { startValidation(createdAt) }
+        assertEquals(1, job.attempts)
+        job.queueValidated(payload)
+        assertEquals(AnalysisJobStatus.QUEUED, job.status)
+        assertEquals(0, job.attempts)
+        assertEquals(payload.json, job.requirePayload())
+        assertTrue(job.matchesRequestHash(FILE_HASH))
+        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.queueValidated(payload) }
+    }
+
+    @Test
+    fun `검증에 실패하면 실패 이유에 맞는 상태로 끝난다`() {
+        val unsupported = newUpload().apply { rejectUpload(AnalysisFailureCode.UNSUPPORTED_FILE_FORMAT, createdAt) }
+        assertEquals(AnalysisJobStatus.FAILED, unsupported.status)
+        assertEquals(AnalysisFailureCode.UNSUPPORTED_FILE_FORMAT, unsupported.errorCode)
+        assertEquals(createdAt, unsupported.finishedAt)
+        val insufficient = newUpload().apply { rejectUpload(AnalysisFailureCode.INSUFFICIENT_EVENTS, createdAt) }
+        assertEquals(AnalysisJobStatus.INSUFFICIENT_DATA, insufficient.status)
+        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) {
+            newJob().rejectUpload(AnalysisFailureCode.UNSUPPORTED_FILE_FORMAT, createdAt)
+        }
+    }
+
+    @Test
+    fun `검증을 세 번 넘게 시작하면 RETRY_EXHAUSTED로 끝난다`() {
+        val job = newUpload()
+        repeat(AnalysisJob.MAX_ATTEMPTS) { job.startValidation(createdAt) }
+        assertTrue(job.isValidating())
+        job.startValidation(createdAt)
+        assertEquals(AnalysisJobStatus.FAILED, job.status)
+        assertEquals(AnalysisFailureCode.RETRY_EXHAUSTED, job.errorCode)
+        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.startValidation(createdAt) }
+    }
+
+    @Test
+    fun `검증 중인 작업도 오래 기다리면 만료한다`() {
+        val job = newUpload().apply { expire(createdAt) }
+        assertEquals(AnalysisJobStatus.FAILED, job.status)
+        assertEquals(AnalysisFailureCode.EXPIRED, job.errorCode)
+    }
+
+    @Test
+    fun `검증 예외는 형식, 화자, 이벤트 부족만 따로 구분한다`() {
+        val expected = mapOf(
+            ErrorCode.UNSUPPORTED_FILE_FORMAT to AnalysisFailureCode.UNSUPPORTED_FILE_FORMAT,
+            ErrorCode.SPEAKER_NOT_IDENTIFIED to AnalysisFailureCode.SPEAKER_NOT_IDENTIFIED,
+            ErrorCode.INSUFFICIENT_EVENTS to AnalysisFailureCode.INSUFFICIENT_EVENTS,
+            ErrorCode.INVALID_EVENT_RANGE to AnalysisFailureCode.ANALYSIS_FAILED,
+        )
+        expected.forEach { (errorCode, failureCode) ->
+            assertEquals(failureCode, AnalysisFailureCode.fromValidationFailure(SantaCutException(errorCode)))
+        }
+        assertEquals(AnalysisFailureCode.ANALYSIS_FAILED, AnalysisFailureCode.fromValidationFailure(IllegalStateException()))
+    }
+
+    private fun newUpload(): AnalysisJob = AnalysisJob.receive(
+        UUID.randomUUID(),
+        IdempotencyKey.from("key-0123456789abcdef"),
+        DataSource.KAKAO,
+        FILE_HASH,
+        createdAt,
+    )
+
     private fun newJob(): AnalysisJob = AnalysisJob.enqueue(
         UUID.randomUUID(),
         IdempotencyKey.from("key-0123456789abcdef"),
@@ -196,5 +272,6 @@ class AnalysisJobTest {
 
     companion object {
         private const val LEASE = "lease-1"
+        private const val FILE_HASH = "file-hash"
     }
 }

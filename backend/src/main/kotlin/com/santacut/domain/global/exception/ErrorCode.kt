@@ -25,6 +25,8 @@ enum class ErrorCode(val status: Int, val message: String) {
     NICKNAME_TAKEN(409, "이미 사용 중인 닉네임입니다."),
     NO_RANKED_RESULT(409, "공유할 순위 결과가 아직 없습니다."),
     INSUFFICIENT_EVIDENCE(422, "점수를 매길 근거가 부족합니다."),
+    UNSUPPORTED_FILE_FORMAT(422, "지원하지 않는 파일 형식입니다. 카카오톡 대화 TXT나 인스타그램 메시지 JSON을 올려 주세요."),
+    SPEAKER_NOT_IDENTIFIED(422, "선택한 본인 이름을 이 대화에서 찾을 수 없습니다."),
     DAILY_USER_LIMIT(429, "24시간 동안 제출할 수 있는 분석 횟수를 모두 썼습니다."),
     ANALYSIS_PAYLOAD_MISSING(500, "대기 중인 분석 작업에 입력 데이터가 없습니다."),
     ANALYSIS_JOB_STATE_INVALID(500, "분석 작업의 현재 상태에서는 할 수 없는 상태 변경입니다."),

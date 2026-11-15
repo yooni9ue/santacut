@@ -31,6 +31,22 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
         }
     }
 
+    /**
+     * 원본 파일에서 뽑은 이벤트를 제출 한도에 맞춘다. 최근 90일 밖이거나 5분 넘게 미래인 이벤트는 버리고 시각순으로 놓는다.
+     * 그다음 최신 이벤트부터 [MAX_EVENTS]개, 전체 글자 수 [MAX_TOTAL_TEXT_LENGTH]자까지만 남긴다.
+     * 같은 시각 이벤트는 원래 순서를 지킨다.
+     */
+    fun recentAt(now: Instant): AnalysisEvents {
+        val newestFirst = values.filterNot { it.isOutsideWindow(now) }
+            .sortedBy { it.occurredAt }
+            .takeLast(MAX_EVENTS)
+            .asReversed()
+        val withinLength = newestFirst.runningFold(0) { total, event -> total + event.text.length }
+            .drop(1)
+            .count { it <= MAX_TOTAL_TEXT_LENGTH }
+        return AnalysisEvents(newestFirst.take(withinLength).asReversed())
+    }
+
     private fun totalTextLength(): Int = values.sumOf { it.text.length }
 
     companion object {

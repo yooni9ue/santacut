@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, user_id TEXT NOT NU
 CREATE INDEX IF NOT EXISTS assessments_user ON assessments(user_id,created_at DESC);
 CREATE TABLE IF NOT EXISTS analysis_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, idempotency_key TEXT NOT NULL, request_hash TEXT NOT NULL, source TEXT NOT NULL, payload TEXT, status TEXT NOT NULL DEFAULT 'QUEUED', attempts INTEGER NOT NULL DEFAULT 0, lease_token TEXT, lease_until TEXT, error_code TEXT, assessment_id TEXT REFERENCES assessments(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), finished_at TEXT, UNIQUE(user_id,idempotency_key));
 CREATE INDEX IF NOT EXISTS analysis_jobs_pending ON analysis_jobs(status,created_at);
+CREATE TABLE IF NOT EXISTS analysis_uploads (job_id TEXT PRIMARY KEY REFERENCES analysis_jobs(id) ON DELETE CASCADE, source TEXT NOT NULL, self_speaker TEXT NOT NULL, content BLOB NOT NULL, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS analysis_uploads_created ON analysis_uploads(created_at);
 CREATE TABLE IF NOT EXISTS ai_daily_budget (day TEXT PRIMARY KEY, calls INTEGER NOT NULL CHECK(calls>=0));
 CREATE TABLE IF NOT EXISTS result_snapshots (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, assessment_id TEXT NOT NULL REFERENCES assessments(id) ON DELETE CASCADE, rank INTEGER NOT NULL, delivery_sequence INTEGER NOT NULL, eta TEXT NOT NULL, computed_at TEXT NOT NULL, tied INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS snapshots_latest ON result_snapshots(computed_at,user_id);
