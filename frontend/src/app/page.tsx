@@ -56,6 +56,7 @@ export default function Home() {
   const [freed, setFreed] = useState(false);
   const [sampleIndex, setSampleIndex] = useState(0);
   const noticeRef = useRef<HTMLDialogElement>(null);
+  const startButtonRef = useRef<HTMLButtonElement>(null);
   const result = examples[sampleIndex];
 
   return (
@@ -98,8 +99,8 @@ export default function Home() {
         <aside className="toon-rudolph"><span className="toon-rudolph-face" aria-hidden="true">( •̀ ᴥ •́ )</span><p>“하루 6시간 넘으면<br /><strong>안 뜁니다.”</strong></p><span>— 루돌프, 워라밸 지킴이</span><div>산타는 하루 6시간, 점수 순서대로 이동해요.<br />도착 예정일이 내년이어도 계산 오류는 아닙니다.</div></aside>
       </main>
       <footer className="toon-footer"><strong>산타컷 ✳</strong><p>진지함은 내려놓고, 판정은 가볍게.<br />오락용 AI 해석과 배송 시뮬레이션입니다.<br />실제 선물은 안 옵니다. 이건 진짜임.</p><nav aria-label="이전 디자인"><Link href="/classic">우체국 버전</Link><Link href="/original">손그림 버전</Link><Link href="/post-office">심사국 버전</Link></nav><span>© 2026 SANTA CUT</span></footer>
-      <div className="toon-dock"><button className="toon-start" onClick={() => noticeRef.current?.showModal()}>그래서 나 선물 받냐?<span aria-hidden="true">↗</span></button><p>내 기록으로 AI 산타 심사 · 현재 준비 중</p></div>
-      <dialog ref={noticeRef} className="toon-dialog" aria-labelledby="toon-notice-title"><button className="toon-close" onClick={() => noticeRef.current?.close()} aria-label="안내 닫기" autoFocus>×</button><span className="toon-dialog-face" aria-hidden="true">( •_• )</span><span className="toon-section-kicker">산타에게서 답장이 왔습니다</span><h2 id="toon-notice-title">아직 굴뚝에서<br />못 나왔는데요.</h2><p>지금은 디자인 미리보기예요.<br />파일 업로드와 AI 심사는 준비 중입니다.</p><button className="toon-start" onClick={() => noticeRef.current?.close()}>일단 기다려본다 <span aria-hidden="true">↗</span></button></dialog>
+      <div className="toon-dock"><button ref={startButtonRef} className="toon-start" onClick={() => noticeRef.current?.showModal()}>그래서 나 선물 받냐?<span aria-hidden="true">↗</span></button><p>내 기록으로 AI 산타 심사 · 현재 준비 중</p></div>
+      <dialog ref={noticeRef} onClose={() => startButtonRef.current?.focus()} className="toon-dialog" aria-labelledby="toon-notice-title"><button className="toon-close" onClick={() => noticeRef.current?.close()} aria-label="안내 닫기" autoFocus>×</button><span className="toon-dialog-face" aria-hidden="true">( •_• )</span><span className="toon-section-kicker">산타에게서 답장이 왔습니다</span><h2 id="toon-notice-title">아직 굴뚝에서<br />못 나왔는데요.</h2><p>지금은 디자인 미리보기예요.<br />파일 업로드와 AI 심사는 준비 중입니다.</p><button className="toon-start" onClick={() => noticeRef.current?.close()}>일단 기다려본다 <span aria-hidden="true">↗</span></button></dialog>
     </div>
   );
 }
