@@ -3,6 +3,9 @@ package com.santacut.domain.analysis.model
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.Sha256
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
 
 /**
  * 참가자가 올린 대화 내보내기 원본 파일. 파일 이름, 확장자, Content-Type은 믿지 않고 내용만 본다.
@@ -31,6 +34,21 @@ class RawChatFile(
     fun requestHash(selfSpeaker: String): String =
         Sha256.hex(source.name.toByteArray() + SEPARATOR + selfSpeaker.toByteArray() + SEPARATOR + content)
 
+    /**
+     * 엄격한 UTF-8로 읽고 맨 앞 BOM을 뗀다. 올바른 UTF-8이 아니면(EUC-KR 등) [ErrorCode.UNSUPPORTED_FILE_FORMAT]이다.
+     */
+    fun decodeText(): String {
+        val decoder = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        val text = try {
+            decoder.decode(ByteBuffer.wrap(content)).toString()
+        } catch (exception: CharacterCodingException) {
+            throw SantaCutException(ErrorCode.UNSUPPORTED_FILE_FORMAT)
+        }
+        return text.removePrefix(BYTE_ORDER_MARK)
+    }
+
     private fun isZipArchive(): Boolean =
         content.size >= ZIP_MAGIC.size && content.copyOf(ZIP_MAGIC.size).contentEquals(ZIP_MAGIC)
 
@@ -43,6 +61,7 @@ class RawChatFile(
         /** 바이너리 파일인지 보려고 NUL 바이트를 찾는 앞부분 길이(바이트). */
         private const val BINARY_CHECK_LENGTH = 4096
 
+        private const val BYTE_ORDER_MARK = "\uFEFF"
         private const val NUL: Byte = 0
         private val SEPARATOR = byteArrayOf(NUL)
     }
