@@ -8,8 +8,7 @@
 
 ```text
 backend/     Kotlin + Spring Boot API와 백엔드 문서·CI/CD·설정 (backend/CLAUDE.md 참고)
-client/      Next.js 모바일 웹과 프론트엔드 설정
-frontend/    기존 프론트엔드 작업 영역 (비어 있음)
+frontend/    Next.js 모바일 웹과 프론트엔드 설정
 docs/        프론트엔드가 참고하는 문서
 ```
 
@@ -17,23 +16,23 @@ GitHub Actions 워크플로는 GitHub 규칙상 `.github/workflows/`에 있으�
 
 ## 프론트엔드
 
-- Node.js 24 LTS (`client/.nvmrc`)
+- Node.js 24 LTS (`frontend/.nvmrc`)
 - Next.js App Router, React, TypeScript, Tailwind CSS, ESLint
-- `client/src/` 구조 및 `@/*` 경로 별칭
+- `frontend/src/` 구조 및 `@/*` 경로 별칭
 - [API 연동 가이드](docs/frontend-api-guide.md)
 - Swagger UI: `http://localhost:8080/swagger-ui.html`, OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
-Node.js 24를 설치한 뒤 실행합니다. nvm을 사용한다면 `client/`에서 `nvm install`과 `nvm use`를 먼저 실행하세요.
+Node.js 24를 설치한 뒤 실행합니다. nvm을 사용한다면 `frontend/`에서 `nvm install`과 `nvm use`를 먼저 실행하세요.
 
 ```bash
-cd client
+cd frontend
 npm ci
 npm run dev
 ```
 
 [http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 현재 메인 디자인 미리보기에는 환경 변수가 필요하지 않습니다. 프론트엔드와 백엔드 연동은 아직 구현되지 않았습니다.
 
-`client/` 디렉터리에서 검사·빌드를 실행합니다.
+`frontend/` 디렉터리에서 검사·빌드를 실행합니다.
 
 ```bash
 npm run lint
