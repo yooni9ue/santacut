@@ -17,6 +17,11 @@ class Sha256Test {
         assertNotEquals(Sha256.hex("token-a"), Sha256.hex("token-b"))
     }
 
+    @Test
+    fun `바이트 배열 해시는 같은 내용 문자열의 해시와 같다`() {
+        assertEquals(Sha256.hex("abc"), Sha256.hex("abc".toByteArray()))
+    }
+
     companion object {
         private const val SHA256_HEX_LENGTH = 64
     }

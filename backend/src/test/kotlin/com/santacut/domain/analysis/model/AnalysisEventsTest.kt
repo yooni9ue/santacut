@@ -72,6 +72,39 @@ class AnalysisEventsTest {
         assertErrorCode(ErrorCode.TOO_MANY_EVENTS) { tooMany.verifyAcceptableAt(now) }
     }
 
+    @Test
+    fun `원본에서 뽑은 이벤트는 기간 밖을 버리고 시각순으로 놓되 같은 시각은 원래 순서를 지킨다`() {
+        val events = AnalysisEvents(
+            listOf(
+                AnalysisEvent(now.minusSeconds(60), "둘째"),
+                AnalysisEvent(now.plusSeconds(301), "미래"),
+                AnalysisEvent(now.minusSeconds(120), "첫째"),
+                AnalysisEvent(now.minus(Duration.ofDays(91)), "오래됨"),
+                AnalysisEvent(now.minusSeconds(60), "셋째"),
+            ),
+        )
+        assertEquals(listOf("첫째", "둘째", "셋째"), events.recentAt(now).toList().map { it.text })
+    }
+
+    @Test
+    fun `원본에서 뽑은 이벤트는 최신 2,000개만 남긴다`() {
+        val events = AnalysisEvents(List(MAX_EVENTS + 1) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), "e$index") })
+        val recent = events.recentAt(now).toList()
+        assertEquals(MAX_EVENTS, recent.size)
+        assertEquals("e${MAX_EVENTS - 1}", recent.first().text)
+        assertEquals("e0", recent.last().text)
+    }
+
+    @Test
+    fun `원본에서 뽑은 이벤트는 최신부터 누적 200,000자까지만 남긴다`() {
+        val longText = "가".repeat(2000)
+        val events = AnalysisEvents(List(101) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), longText) })
+        val recent = events.recentAt(now)
+        assertEquals(100, recent.size())
+        assertEquals(now.minusSeconds(99), recent.toList().first().occurredAt)
+        recent.verifyAcceptableAt(now)
+    }
+
     /** 이벤트 수 하한을 채우도록 정상 이벤트를 뒤에 붙인다. */
     private fun padded(events: List<AnalysisEvent>): AnalysisEvents =
         AnalysisEvents(events + List(MIN_EVENTS - events.size) { AnalysisEvent(now, "채움") })

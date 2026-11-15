@@ -9,8 +9,10 @@ object Sha256 {
     private const val ALGORITHM = "SHA-256"
     private const val HEX_BYTE_FORMAT = "%02x"
 
-    fun hex(value: String): String =
+    fun hex(value: String): String = hex(value.toByteArray())
+
+    fun hex(bytes: ByteArray): String =
         MessageDigest.getInstance(ALGORITHM)
-            .digest(value.toByteArray())
+            .digest(bytes)
             .joinToString("") { HEX_BYTE_FORMAT.format(it) }
 }

@@ -14,6 +14,9 @@ enum class AnalysisFailureCode(val resultingStatus: AnalysisJobStatus) {
     RETRY_EXHAUSTED(AnalysisJobStatus.FAILED),
     INSUFFICIENT_EVIDENCE(AnalysisJobStatus.INSUFFICIENT_DATA),
     ANALYSIS_FAILED(AnalysisJobStatus.FAILED),
+    UNSUPPORTED_FILE_FORMAT(AnalysisJobStatus.FAILED),
+    SPEAKER_NOT_IDENTIFIED(AnalysisJobStatus.FAILED),
+    INSUFFICIENT_EVENTS(AnalysisJobStatus.INSUFFICIENT_DATA),
     ;
 
     companion object {
@@ -23,6 +26,15 @@ enum class AnalysisFailureCode(val resultingStatus: AnalysisJobStatus) {
                 INSUFFICIENT_EVIDENCE
             } else {
                 ANALYSIS_FAILED
+            }
+
+        /** 원본 파일 검증 중 난 예외를 실패 이유로 바꾼다. 형식, 화자, 이벤트 부족 말고는 모두 분석 실패다. */
+        fun fromValidationFailure(exception: Exception): AnalysisFailureCode =
+            when ((exception as? SantaCutException)?.errorCode) {
+                ErrorCode.UNSUPPORTED_FILE_FORMAT -> UNSUPPORTED_FILE_FORMAT
+                ErrorCode.SPEAKER_NOT_IDENTIFIED -> SPEAKER_NOT_IDENTIFIED
+                ErrorCode.INSUFFICIENT_EVENTS -> INSUFFICIENT_EVENTS
+                else -> ANALYSIS_FAILED
             }
     }
 }
