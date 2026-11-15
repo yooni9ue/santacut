@@ -32,10 +32,6 @@ class AnalysisJobService(
         submission.verifyAcceptableAt(now)
     }
 
-    fun verifySeasonOpen(now: Instant) {
-        season().verifyOpenAt(now)
-    }
-
     /** 완료 시점에 시즌이 마감됐으면 작업을 시즌 마감 실패로 저장하고 참을 돌려준다. */
     fun freezeIfSeasonClosed(job: AnalysisJob, completedAt: Instant): Boolean {
         val frozen = job.freezeIfSeasonClosed(season(), completedAt)
