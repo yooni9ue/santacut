@@ -1,6 +1,9 @@
 .git
 **/.gradle
 **/build
+**/node_modules
+frontend/dist
+/data
 backend/data
 .idea
 .env

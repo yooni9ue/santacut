@@ -45,7 +45,7 @@ class SecurityConfiguration(private val sessions: SessionRepository, @Value("\${
             .csrf { it.csrfTokenRepository(csrf) }
             .authorizeHttpRequests {
                 it.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-                    .requestMatchers("/error", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/v1/csrf", "/v1/regions", "/v1/participants", "/v1/participants/**", "/s/**").permitAll()
+                    .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/error", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/v1/csrf", "/v1/regions", "/v1/participants", "/v1/participants/**", "/s/**").permitAll()
                     .anyRequest().authenticated()
             }
             .addFilterBefore(SessionFilter(sessions, if (secure) "__Host-sc_session" else "sc_session"), AnonymousAuthenticationFilter::class.java)
