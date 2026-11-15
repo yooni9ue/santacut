@@ -1,6 +1,7 @@
 .git
-.gradle
-build
+**/.gradle
+**/build
+backend/data
 .idea
 .env
 *.log

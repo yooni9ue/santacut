@@ -1,9 +1,9 @@
 ﻿FROM eclipse-temurin:25-jdk-jammy AS build
 WORKDIR /workspace
-COPY gradlew gradlew.bat settings.gradle.kts build.gradle.kts ./
-COPY gradle gradle
+COPY backend/gradlew backend/gradlew.bat backend/settings.gradle.kts backend/build.gradle.kts ./
+COPY backend/gradle gradle
 RUN chmod +x gradlew
-COPY src src
+COPY backend/src src
 RUN ./gradlew --no-daemon bootJar
 
 FROM eclipse-temurin:25-jre-jammy
