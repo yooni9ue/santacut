@@ -23,7 +23,7 @@ class SharePageView private constructor(
         COMPUTED_AT -> computedAt
         STAGE -> stage
         SHARED_AT -> sharedAt
-        else -> ""
+        else -> EMPTY
     }
 
     companion object {
@@ -35,6 +35,7 @@ class SharePageView private constructor(
         private const val COMPUTED_AT = "computedAt"
         private const val STAGE = "stage"
         private const val SHARED_AT = "sharedAt"
+        private const val EMPTY = ""
 
         fun of(card: ShareCard, publicOrigin: String): SharePageView = SharePageView(
             title = HtmlText.escape("${card.nickname} · 산타컷 ${card.score}점"),
@@ -48,7 +49,15 @@ class SharePageView private constructor(
         )
 
         /** 볼 수 없는 공유 결과 페이지용 값. 시작 링크에 쓸 공개 출처만 담는다. */
-        fun inactive(publicOrigin: String): SharePageView =
-            SharePageView("", "", HtmlText.escape(publicOrigin), "", "", "", "", "")
+        fun inactive(publicOrigin: String): SharePageView = SharePageView(
+            title = EMPTY,
+            description = EMPTY,
+            origin = HtmlText.escape(publicOrigin),
+            token = EMPTY,
+            comment = EMPTY,
+            computedAt = EMPTY,
+            stage = EMPTY,
+            sharedAt = EMPTY,
+        )
     }
 }
