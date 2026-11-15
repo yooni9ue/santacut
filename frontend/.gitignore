@@ -43,3 +43,6 @@ next-env.d.ts
 # browser test artifacts
 /playwright-report/
 /test-results/
+
+# Vercel project metadata and pulled environment files
+/.vercel/

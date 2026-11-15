@@ -65,7 +65,7 @@ pnpm exec playwright install chromium webkit  # 브라우저 최초 설치
 pnpm test:e2e             # 모바일 Chromium + WebKit
 ```
 
-E2E는 3100번 포트에서 서버를 자동 실행합니다. 로컬은 개발 서버, CI는 정적 자산을 포함한 standalone 프로덕션 빌드를 사용합니다. CI 방식으로 로컬 검증하려면 `pnpm build` 후 `CI=true pnpm test:e2e`를 실행합니다. 현재 테스트는 실제 백엔드 없이 공통 API 코드와 메인 미리보기 동작을 검증합니다.
+E2E는 3100번 포트에서 서버를 자동 실행합니다. 로컬은 개발 서버, CI는 Next.js 프로덕션 빌드를 사용합니다. CI 방식으로 로컬 검증하려면 `pnpm build` 후 `CI=true pnpm test:e2e`를 실행합니다. 현재 테스트는 실제 백엔드 없이 공통 API 코드와 메인 미리보기 동작을 검증합니다.
 
 ## UI·UX 기획
 
@@ -97,7 +97,8 @@ cd backend
 
 ## 프론트엔드 CI/CD
 
-- PR·main 변경: 린트, 타입 검사, 단위·컴포넌트 테스트, 모바일 Chromium/WebKit, Docker 상태 검사
-- main 검증 후: `ghcr.io/yooni9ue/santacut-frontend`에 커밋 이미지 게시
-- 서버 배포: 수동 실행에서 `deploy=true`, `environment=dev` 또는 `main` 선택
-- [프론트 배포 운영서](frontend/docs/deployment.md)
+- PR·main 변경: 린트, 타입 검사, 단위·컴포넌트 테스트, 모바일 Chromium/WebKit, 프로덕션 빌드
+- 프론트엔드: Vercel / 백엔드: AWS
+- Vercel 배포를 활성화하면 main 검증 성공 후 production에 배포
+- 브라우저의 `/v1` 요청은 Next.js rewrite가 AWS의 `BACKEND_ORIGIN`으로 프록시
+- [Vercel 배포 설정과 운영서](frontend/docs/deployment.md)

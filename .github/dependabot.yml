@@ -16,7 +16,3 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
-  - package-ecosystem: docker
-    directory: /frontend/ci-cd
-    schedule:
-      interval: weekly

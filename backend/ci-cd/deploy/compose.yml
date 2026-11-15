@@ -48,7 +48,6 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?Set DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
-      FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM:-app:8080}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

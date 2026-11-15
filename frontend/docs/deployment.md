@@ -1,66 +1,58 @@
-# 프론트엔드 CI/CD와 같은 서버 배포
+# 프론트엔드 Vercel 배포
 
-프론트 빌드·이미지 배포는 이 앱 저장소에서 관리한다. AWS 서버·도메인·OIDC 역할·방화벽은 [santacut-infra](https://github.com/yooni9ue/santacut-infra)가 관리한다. 이 PR은 인프라 생성이나 실제 서버 배포를 실행하지 않는다.
+프론트는 Vercel, 백엔드는 AWS에 배포한다. AWS 서버·도메인·권한은 [santacut-infra](https://github.com/yooni9ue/santacut-infra)가 관리하며, 이 프론트 파이프라인은 백엔드 서버에 SSH로 접속하거나 컨테이너·Caddy 설정을 바꾸지 않는다.
 
-## 실행 흐름
+## CI/CD 흐름
 
 | 시점 | 동작 |
 | --- | --- |
-| frontend 관련 PR | Node.js 24·pnpm 고정 설치 → 린트·타입·단위 테스트 → standalone 빌드 → 모바일 Chromium/WebKit E2E → Docker 이미지 빌드·상태 확인·Caddy HTTP 경로 검사 |
-| main 반영 | 위 검증 성공 후 GHCR에 frontend 이미지를 게시 |
-| 수동 실행, deploy=true | 선택한 dev/main 환경 승인·OIDC 인증 → 러너 IP의 임시 SSH 허용 → 테스트된 이미지 digest 배포 → SSH 허용 규칙 제거 |
+| frontend 관련 PR | 고정 Node.js 24·pnpm 설치 → 린트·타입·단위 테스트 → 프로덕션 빌드 → 모바일 Chromium/WebKit E2E |
+| main 반영 | 위 검증 통과 후, 배포 활성화 상태면 Vercel production 설정으로 빌드·배포 |
+| 수동 실행 | main에서 deploy=true를 선택하면 동일 검증·배포. 활성화 변수도 true여야 함 |
 
-운영 배포는 자동으로 실행되지 않는다. GitHub Actions `프론트엔드 CI/CD`에서 **main 브랜치**와 대상 환경을 고른다. 환경 기본값은 `dev`다. 운영(main) Environment에는 승인자를 설정한다.
+배포는 GitHub Actions가 담당한다. `frontend/vercel.json`의 `git.deploymentEnabled=false`는 Vercel Git 자동 배포를 꺼서 CI 전에 배포되거나 이중 배포되는 것을 방지한다. PR preview 배포는 현재 파이프라인에 포함하지 않는다.
 
-## 요청 경로
+## 최초 Vercel 설정
+
+1. Vercel에서 이 저장소의 Next.js 프로젝트를 생성한다.
+2. 프로젝트 **Root Directory를 frontend**로 지정하고 Node.js 24를 선택한다. CLI는 저장소 루트에서 연결된 프로젝트의 Root Directory 설정을 사용한다.
+3. Production 환경 변수 `BACKEND_ORIGIN`에 AWS 백엔드의 공개 HTTPS origin을 넣는다. 예시: `https://api.example.com`. 경로·쿼리·사용자 인증 정보를 넣지 않는다. Preview를 별도로 만들 경우 해당 환경에도 맞는 AWS 주소가 필요하다.
+4. GitHub의 `vercel-production` Environment에 아래 비밀값을 등록한다. 운영 승인자와 main 브랜치 제한을 설정할 수 있다.
+5. GitHub 저장소 Variable `VERCEL_DEPLOY_ENABLED=true`로 배포를 활성화한다. 활성화 전에는 CI만 실행한다.
+6. main의 수동 실행으로 최초 배포를 검증한다. 이후 main push는 검증 성공 후 자동 배포한다.
+
+| Secret | 값 |
+| --- | --- |
+| VERCEL_TOKEN | 해당 프로젝트 배포 권한이 있는 Vercel 토큰 |
+| VERCEL_ORG_ID | Vercel 팀·계정 ID |
+| VERCEL_PROJECT_ID | Root Directory가 frontend인 프로젝트 ID |
+
+토큰과 실제 환경 파일은 커밋하지 않는다. `.vercel/`은 Git에서 제외한다. 프로젝트 ID는 Vercel 설정 또는 로컬 `vercel link`의 `.vercel/project.json`에서 확인한다.
+
+## API·쿠키·CSRF
 
 ```text
-브라우저 → 같은 HTTPS 도메인의 Caddy
-             ├─ /v1/**, /s/**, Swagger → app:8080 (Spring Boot)
-             ├─ /actuator/** → 404
-             └─ 그 외 → frontend:3000 (Next.js)
+브라우저 → Vercel 프론트 도메인
+             ├─ 화면 → Next.js
+             └─ /v1/**, /s/**, Swagger
+                  → Next.js 외부 rewrite → AWS HTTPS 백엔드
 ```
 
-프론트 컨테이너는 기존 `santacut_default` 네트워크에 참여한다. 호스트 3000번은 127.0.0.1에만 바인딩한다. Caddy는 컨테이너 네트워크로 직접 접근한다. 같은 origin을 유지하므로 세션 쿠키와 CSRF 요청에 별도 CORS 설정이 필요 없다.
+Axios는 상대 경로 `/v1`을 사용한다. 브라우저가 AWS API 도메인으로 직접 요청하지 않으므로 기존 쿠키·CSRF 흐름을 유지할 수 있다. 백엔드의 세션 쿠키는 Domain을 고정하지 않는 현재 설정을 유지하고, HTTPS 운영에서는 Secure를 사용한다.
 
-프론트 배포 전에는 `FRONTEND_UPSTREAM=app:8080`으로 기존 백엔드 전용 동작을 유지한다. 프론트가 정상일 때만 배포 스크립트가 `/opt/santacut/.env`의 값을 `frontend:3000`으로 변경하고 Caddy를 재생성한다. 다른 백엔드 설정은 유지한다.
+`BACKEND_ORIGIN`은 서버 빌드 설정이며 `NEXT_PUBLIC_` 접두사를 사용하지 않는다. 변경하면 재배포한다. Vercel 빌드에서 값이 없거나 HTTPS가 아니면 빌드를 중단한다. 로컬 개발·백엔드 없는 CI 테스트에서는 `http://127.0.0.1:8080`이 기본값이다.
 
-## 최초 준비 순서
+공유 링크의 대표 공개 도메인을 프론트 도메인으로 사용할 경우 백엔드의 `APP_PUBLIC_BASE_URL`도 그 도메인에 맞춘다. Vercel production 배포 후 실제 AWS와 참가 등록·세션 유지·CSRF 쓰기·공유 페이지·분석 SSE 재연결을 확인한다. 현재 모의 단위 테스트와 UI E2E는 이 실배포 통합 검증을 대체하지 않는다.
 
-1. 인프라 저장소의 `docs/operations.md`에 따라 dev 서버, 도메인, Docker, GitHub OIDC 역할을 준비한다.
-2. **이 PR의 Caddy 경로 분기와 FRONTEND_UPSTREAM 설정을 포함한 백엔드 릴리스를 먼저 배포한다.** 기존 백엔드만 설치된 상태면 프론트 배포 스크립트가 중단한다. `/opt/santacut/current`, `current-image`, `.env`와 `santacut_default` 네트워크가 있어야 한다.
-3. 아래 환경 변수·비밀값과 GHCR 이미지 pull 권한을 준비한다. GHCR 이미지가 비공개면 서버에서 별도의 읽기 전용 인증이 필요하다.
-4. `dev`에 먼저 프론트를 배포하고 루트 화면, `/v1/regions`, 세션·CSRF, 공유 경로를 확인한다.
-5. 임시 SSH 포트 규칙을 열고 닫은 후 운영자 CIDR 규칙이 보존되는지 확인한다. 이 확인은 인프라 운영서의 최초 배포 체크 항목이다.
-6. 같은 순서로 `main` 환경에 배포한다.
+## 운영
 
-### GitHub Environment 설정
+- 배포 단계는 `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` 순서다.
+- `vercel-production` Environment와 동일 배포 concurrency 그룹을 사용해 production 배포가 겹치지 않도록 한다.
+- 실패한 배포는 Vercel에서 로그를 확인하고, 서비스 복구가 필요하면 이전 정상 deployment로 rollback한다.
+- AWS 백엔드 파이프라인·Terraform 설정·DB는 프론트 배포에서 변경하지 않는다.
+- 실제 배포에는 Vercel 프로젝트·토큰·AWS HTTPS 백엔드가 필요하다. 이 PR에서 실제 계정 설정이나 배포는 수행하지 않았다.
 
-앱 저장소의 Environment 이름을 인프라와 동일한 **dev**, **main**으로 만든다. 배포 브랜치를 main으로 제한하고 운영(main)에 승인자를 둔다.
-
-| 종류 | 이름 | 용도 |
-| --- | --- | --- |
-| Variable | AWS_DEPLOY_ROLE_ARN | 인프라 bootstrap의 환경별 앱 배포 OIDC 역할 |
-| Secret | DEPLOY_HOST | 해당 환경 Lightsail의 고정 IP 또는 SSH 호스트 |
-| Secret | DEPLOY_USER | 서버 SSH 계정(인프라 기본값은 ubuntu) |
-| Secret | DEPLOY_SSH_KEY | 해당 환경 배포 SSH 개인키 |
-| Secret | DEPLOY_KNOWN_HOSTS | 신뢰할 수 있는 경로로 확인한 SSH 호스트 키 |
-
-이전 백엔드 워크플로는 `production` Environment·직접 SSH·Ollama 설정을 사용한다. 인프라 저장소는 `dev/main`·OIDC·Bedrock 구성을 전제로 하므로, **백엔드 운영 배포 설정의 별도 정합성 작업이 남아 있다.** 프론트 워크플로가 백엔드 모델·DB·백업 설정을 자동 변환하지 않는다.
-
-## 상태 확인과 복구
-
-- 이미지: `ghcr.io/yooni9ue/santacut-frontend:<commit>`와 불변 digest를 사용한다.
-- 서버 릴리스: `/opt/santacut/frontend/releases/<commit>`.
-- 활성 상태: `/opt/santacut/frontend/current`, `/opt/santacut/frontend/current-image`.
-- 배포는 백엔드와 같은 `/opt/santacut/deploy.lock`을 잡는다. 동시에 배포하면 한쪽이 중단되어 Caddy·환경 파일 갱신이 겹치지 않는다.
-- 새 컨테이너 상태, 로컬 HTTP, 공개 HTTPS를 확인한 뒤 활성 릴리스 정보를 기록한다.
-- 실패하면 기존 프론트 이미지를 다시 띄우고 이전 Caddy 환경 설정으로 복구를 시도한다. 첫 배포 실패면 새 프론트 컨테이너를 내리고 기존 백엔드 라우팅을 복구한다.
-- SQLite·백엔드 앱 이미지는 프론트 배포 중 교체하지 않는다. Caddy 재생성 중 짧은 연결 끊김이 발생할 수 있어 무중단 배포가 아니다.
-- 프론트 컨테이너 메모리 상한은 384MB다. 2GB 서버에서 백엔드·Caddy와 함께 운영하므로 실제 사용량을 관찰한다.
-- 이전 프론트 릴리스 정리는 운영자가 현재 릴리스·롤백 버전을 보존하며 수행한다. 인프라의 기존 정리 cron은 백엔드 릴리스 디렉터리만 처리한다.
-
-## 로컬 검증
+## 검증
 
 ```bash
 cd frontend
@@ -70,8 +62,6 @@ pnpm typecheck
 pnpm test
 pnpm build
 CI=true pnpm test:e2e
-bash -n ci-cd/scripts/*.sh
-bash ci-cd/scripts/test-deploy.sh
 ```
 
-배포 스크립트 테스트는 가짜 Docker·HTTP 응답으로 첫 배포 실패, 정상 배포, 실패한 업그레이드의 복구를 검증한다. Caddy HTTP 테스트는 프론트 비활성/활성 상태에서 API·공유·내부 경로를 확인한다. 모의 배포 테스트는 실제 Docker 실행·SSH·TLS·AWS 권한 검증을 대체하지 않는다. GitHub Actions에서는 Linux Docker 이미지 빌드와 컨테이너 상태 검사까지 수행한다.
+[공식 Vercel GitHub Actions 가이드](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel)와 [외부 rewrite 문서](https://vercel.com/docs/routing/rewrites)를 따른다.
