@@ -162,6 +162,16 @@ class ParticipantApiTest @Autowired constructor(
         assertTrue(html.contains("더 이상 볼 수 없는 결과") && html.contains("내 산타 점수 알아보기"))
     }
 
+    @Test
+    fun `없는 공유 이미지도 Accept에 text-html이 있으면 404 HTML이고 없으면 404 JSON이다`() {
+        mockMvc.perform(get(MISSING_SHARE_IMAGE_PATH).accept(MediaType.TEXT_HTML, MediaType.ALL))
+            .andExpect(status().isNotFound)
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
+        mockMvc.perform(get(MISSING_SHARE_IMAGE_PATH).accept(MediaType.IMAGE_PNG, MediaType.ALL))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.code").value("SHARE_NOT_FOUND"))
+    }
+
     private fun registerRequest(nickname: String) = post("/v1/participants")
         .contentType(MediaType.APPLICATION_JSON)
         .content("{\"nickname\":\"$nickname\",\"regionCode\":\"$REGION_CODE\"}")
@@ -172,5 +182,6 @@ class ParticipantApiTest @Autowired constructor(
         private const val REGION_PATH = "/v1/me/region"
         private const val ME_PATH = "/v1/me"
         private const val OTHER_REGION_CODE = "KR-11-650"
+        private const val MISSING_SHARE_IMAGE_PATH = "/s/not-a-token/image.png"
     }
 }
