@@ -1,5 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./chaos.css";
+import "./sketch.css";
+import "./toon.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#f7f4e9",
+};
 
 export const metadata: Metadata = {
   title: "산타컷 | SantaCut",

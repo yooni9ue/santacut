@@ -1,0 +1,92 @@
+@font-face {
+  font-family: "Santa Pen";
+  src: url("/fonts/NanumPenScript-Regular.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+.sketch-theme {
+  --paper: #faf6e9;
+  --green: #3c5543;
+  --red: #bd5b45;
+  --ink: #3c5543;
+  --muted: #737665;
+  --line: #d3d1ba;
+  background-color: var(--paper);
+  background-size: 140px 140px;
+}
+.sketch-theme .airmail-border { height: 7px; opacity: .75; }
+.sketch-theme .site-header { border-bottom: 1px dashed #b9bba6; }
+.sketch-theme .wordmark { font-family: "Santa Pen", cursive; font-size: 35px; font-weight: 400; letter-spacing: -1px; }
+.sketch-theme .wordmark-en { font-family: Arial, sans-serif; letter-spacing: 1px; }
+.sketch-theme .brand-star { font-size: 29px; transform: rotate(-12deg); }
+.sketch-theme .hero { padding-top: 25px; padding-bottom: 39px; }
+.sketch-theme .eyebrow { color: #68735c; }
+.sketch-theme .invitation { font-family: "Santa Pen", cursive; font-size: 22px; font-weight: 400; margin: 24px 0 13px; transform: rotate(-2deg); display: flex; align-items: center; gap: 8px; }
+.sketch-theme .invitation > span { font: 22px Georgia, serif; color: var(--red); }
+.sketch-theme h1 { font-family: "Santa Pen", cursive; font-weight: 400; font-size: clamp(67px, 19vw, 88px); letter-spacing: -3px; line-height: .92; }
+.sketch-theme .title-red { position: relative; display: inline-block; transform: rotate(-2deg); }
+.sketch-theme .title-red::after { content: ""; position: absolute; left: -3%; bottom: -1px; width: 105%; height: 7px; border-top: 2px solid #bd5b4570; border-bottom: 1px solid #bd5b4550; border-radius: 40% 60% 50% 30%; transform: rotate(-3deg); }
+.sketch-theme .title-outline { -webkit-text-stroke: 0; color: var(--green); }
+.sketch-theme .question-mark { display: inline-block; transform: rotate(9deg); }
+.sketch-theme .sketch-star { width: 48px; height: 48px; left: 200px; bottom: 6px; color: var(--red); }
+.sketch-theme .hero-description { font-size: 14px; line-height: 1.8; margin-top: 22px; color: #68715f; }
+.sketch-theme .hero-art { margin-top: 33px; height: 402px; }
+.sketch-doodles { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sketch-theme .result-ticket { background: #fffdf4; border: 1.4px solid #7c8b70; border-radius: 2px 5px 4px 3px / 4px 2px 6px 3px; box-shadow: 2px 5px 9px #3b473216; transform: rotate(-4deg); }
+.sketch-theme .result-ticket::after { content: ""; position: absolute; inset: 3px; border: 1px solid #7c8b7028; border-radius: 3px 5px 2px 6px; pointer-events: none; }
+.sketch-tape { position: absolute; top: -13px; left: 36%; width: 84px; height: 25px; background: #dfcfae9c; transform: rotate(3deg); clip-path: polygon(2% 3%,98% 0,96% 15%,100% 29%,97% 44%,100% 62%,96% 78%,99% 99%,1% 96%,3% 80%,0 64%,3% 48%,0 32%,4% 17%); z-index: 2; }
+.sketch-theme .ticket-top { letter-spacing: .7px; border-bottom-style: dashed; }
+.sketch-theme .example-label { background: #f2ead4; border: none; border-radius: 3px 6px 2px 5px; }
+.sketch-theme .ticket-heading p { color: #6e785f; }
+.sketch-theme .ticket-heading h2 { font-family: "Santa Pen", cursive; font-size: 32px; font-weight: 400; letter-spacing: -1.1px; }
+.sketch-theme .santa-icon { width: 65px; height: 65px; transform: rotate(6deg); }
+.sketch-theme .ticket-score > span:first-child { font-family: "Santa Pen", cursive; font-size: 79px; line-height: .98; letter-spacing: -2px; font-weight: 400; transform: rotate(-2deg); }
+.sketch-theme .score-unit { color: #738168; }
+.sketch-theme .passed-stamp { border-width: 1.5px; border-radius: 46% 54% 49% 51% / 54% 46% 56% 44%; transform: rotate(12deg); outline-style: dashed; outline-offset: -5px; opacity: .85; top: 8px; }
+.sketch-theme .passed-stamp b { font-family: "Santa Pen", cursive; font-size: 25px; font-weight: 400; }
+.sketch-theme .verdict { font-family: "Santa Pen", cursive; font-size: 17px; line-height: 1.25; margin-top: 9px; margin-bottom: 17px; }
+.sketch-theme .ticket-perforation { border-top-color: #abb49b; }
+.sketch-theme .ticket-delivery strong { font-family: "Santa Pen", cursive; font-size: 25px; letter-spacing: -.5px; font-weight: 400; }
+.sketch-theme .ticket-delivery strong span { font-family: Arial, sans-serif; font-size: 11px; }
+.sketch-theme .gift-icon { font-family: "Santa Pen", cursive; transform: rotate(13deg); font-size: 35px; }
+.sketch-theme .postmark { border-radius: 49% 51% 46% 54% / 52% 47% 53% 48%; border-style: dashed; opacity: .65; }
+.sketch-theme .envelope { border-radius: 4px 2px 5px 2px; background: #ddd7bd; border-color: #aeb396; height: 240px; }
+.sketch-theme .envelope::before { background: #e9e2cd; }
+.sketch-theme .envelope::after { background: #e7dfc7; border-bottom-color: #d8d0b7; }
+.sketch-theme .envelope-label { font-family: "Santa Pen", cursive; font-size: 15px; letter-spacing: -.5px; bottom: 16px; }
+.sketch-theme .art-caption { display: flex; align-items: center; gap: 9px; bottom: -1px; left: 43px; font-family: "Santa Pen", cursive; font-size: 23px; font-weight: 400; transform: rotate(-4deg); }
+.sketch-theme .art-caption svg { width: 38px; height: 36px; margin-top: -22px; }
+.sketch-theme .north-pole-tag { bottom: -22px; color: #879078; }
+.sketch-theme .ticker { background: #e5e9d8; color: var(--green); border-top: 1px dashed #94a087; border-bottom: 1px dashed #94a087; transform: rotate(-1deg); padding: 13px 0; margin-top: 7px; }
+.sketch-theme .ticker > div { font-family: "Santa Pen", cursive; font-weight: 400; font-size: 19px; gap: 24px; }
+.sketch-theme .ticker span { color: var(--red); font-size: 20px; }
+.sketch-theme .how-section { padding-top: 46px; }
+.sketch-theme .section-intro h2 { font-family: "Santa Pen", cursive; font-size: 36px; font-weight: 400; letter-spacing: -1px; }
+.sketch-theme .step { border-top-style: dashed; }
+.sketch-theme .step-number { font-family: "Santa Pen", cursive; font-size: 37px; font-style: normal; transform: rotate(-8deg); top: 16px; }
+.sketch-theme .step h3 { font-family: "Santa Pen", cursive; font-size: 25px; font-weight: 400; letter-spacing: -.5px; }
+.sketch-theme .step p { color: #70785f; font-size: 13px; }
+.sketch-theme .delivery-note { border: 1px solid #99a487; border-radius: 4px 9px 3px 7px / 8px 4px 10px 5px; background: #f1eedc; transform: rotate(-.5deg); }
+.sketch-theme .delivery-note h2 { font-family: "Santa Pen", cursive; font-size: 31px; font-weight: 400; line-height: 1.1; letter-spacing: -.5px; }
+.sketch-theme .note-star { font-weight: 400; font-size: 31px; }
+.sketch-theme .start-dock { background: #faf6e9f5; border-top: 1px dashed #b9bba6; }
+.sketch-theme .primary-button { background: #496447; border: 1px solid #344c36; border-radius: 5px 9px 4px 7px / 8px 5px 9px 4px; font-family: "Santa Pen", cursive; font-size: 25px; font-weight: 400; box-shadow: 2px 3px 0 #49644725; }
+.sketch-theme .primary-button:hover { background: #3d583c; }
+.sketch-theme .primary-button > span { font-size: 29px; }
+.sketch-theme .button-note { font-size: 10px; color: #737665; }
+.sketch-theme .footer-brand { font-family: "Santa Pen", cursive; font-size: 27px; font-weight: 400; }
+.sketch-theme .launch-notice { background: var(--paper); border-radius: 5px 10px 4px 8px; border-color: #9aa78a; }
+.sketch-theme .launch-notice h2 { font-family: "Santa Pen", cursive; font-weight: 400; font-size: 36px; line-height: 1.1; }
+@media (max-width: 360px) {
+  .sketch-theme h1 { font-size: 66px; }
+  .sketch-theme .sketch-star { left: 180px; width: 42px; height: 42px; }
+  .sketch-theme .invitation { font-size: 20px; }
+  .sketch-theme .ticket-heading h2 { font-size: 29px; }
+  .sketch-theme .ticket-score > span:first-child { font-size: 72px; }
+  .sketch-theme .verdict { font-size: 16px; }
+  .sketch-theme .ticket-delivery strong { font-size: 23px; }
+  .sketch-theme .santa-icon { width: 52px; height: 58px; }
+  .sketch-theme .art-caption { font-size: 21px; left: 26px; }
+}

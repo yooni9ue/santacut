@@ -31,7 +31,7 @@ npm ci
 npm run dev
 ```
 
-[http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 현재 기본 화면에는 환경 변수가 필요하지 않습니다. 프론트엔드와 백엔드 연동은 아직 구현되지 않았습니다.
+[http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 현재 메인 디자인 미리보기에는 환경 변수가 필요하지 않습니다. 프론트엔드와 백엔드 연동은 아직 구현되지 않았습니다.
 
 `client/` 디렉터리에서 검사·빌드를 실행합니다.
 
@@ -60,3 +60,13 @@ cd backend
 - [시스템 아키텍처](backend/docs/system-architecture.md)
 - [저예산 배포 운영서](backend/docs/deployment.md)
 - [백엔드 코드 컨벤션](backend/docs/backend-conventions.md)
+
+
+## 디자인 미리보기
+
+- `/`: 화이트 배경, 손글씨 메인 제목, 굴뚝 산타와 판정 예시
+- `/classic`: 초기 우체국 시안
+- `/original`: 순한맛 손그림 시안
+- `/post-office`: 북극 심사국 시안
+
+메인 시작 버튼은 준비 중 안내를 표시합니다. 산타 꺼내기와 판정 예시 전환은 브라우저에서 동작하며 실제 AI 분석을 수행하지 않습니다.
