@@ -1,4 +1,4 @@
-package com.santacut.infrastructure.render
+package com.santacut.infrastructure.share.render
 
 import org.springframework.stereotype.Component
 import java.awt.Color

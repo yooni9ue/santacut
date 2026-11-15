@@ -1,7 +1,7 @@
-package com.santacut.infrastructure.repository
+package com.santacut.infrastructure.analysis.repository
 
-import com.santacut.domain.model.AnalysisJob
-import com.santacut.domain.model.AnalysisJobStatus
+import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisJobStatus
 import org.springframework.data.jpa.repository.JpaRepository
 import java.time.Instant
 

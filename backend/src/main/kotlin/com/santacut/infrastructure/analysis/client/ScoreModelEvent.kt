@@ -1,4 +1,4 @@
-package com.santacut.infrastructure.client
+package com.santacut.infrastructure.analysis.client
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder
 import java.time.Instant
