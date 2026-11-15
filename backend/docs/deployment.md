@@ -34,6 +34,37 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 
 현재 기본 세션 쿠키 보안은 로컬 HTTP 실행에 맞춰 꺼져 있다. Compose는 HTTPS 도메인 사용을 전제로 `APP_SESSION_SECURE=true`로 설정한다.
 
+### 운영 설정 키
+
+| 키(환경 변수) | 기본값 | 뜻 |
+| --- | --- | --- |
+| `app.public-base-url` (`APP_PUBLIC_BASE_URL`) | `http://localhost:8080` | 공유 링크·Open Graph에 쓰는 공개 출처. 경로 없는 URL이어야 한다 |
+| `app.session-secure` (`APP_SESSION_SECURE`) | `false` | 세션 쿠키 Secure·`__Host-` 이름 사용 |
+| `app.season-year` (`APP_SEASON_YEAR`) | `2026` | 시즌 연도. 그해 12월 25일 0시(KST)에 마감한다 |
+| `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
+| `santacut.ai.daily-call-limit` (`SANTACUT_AI_DAILY_CALL_LIMIT`) | `100` | 서울 날짜 기준 하루 AI 호출 상한 |
+| `santacut.ai.poll-delay-ms` | `3000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |
+| `santacut.upload.poll-delay-ms` | `1000` | 원본 파일 검증 작업자가 다음 원본을 찾기 전에 쉬는 시간 |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | `http://localhost:11434`, `qwen2.5:3b` | Spring AI Ollama 연결 |
+
+`poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
+
+### 업로드 크기 제한
+
+원본 파일은 20MB까지 받는다. 앞단과 앱이 함께 막는다.
+
+| 위치 | 설정 | 값 |
+| --- | --- | --- |
+| `ci-cd/deploy/Caddyfile` | `request_body max_size` | 21MB |
+| `application.yml` | `spring.servlet.multipart.max-file-size` / `max-request-size` | 20MB / 21MB |
+| `application.yml` | `server.tomcat.max-swallow-size` | 21MB |
+
+Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보다 1MB 크다. Tomcat `max-swallow-size`는 업로드를 거절한 뒤에도 남은 본문을 읽어, 연결을 끊지 않고 `413 FILE_TOO_LARGE` JSON을 보내게 한다. Caddy가 먼저 막으면 `code` 없는 `413`이 간다. 한도를 바꿀 때는 세 곳을 함께 바꾼다. 업로드 원본은 `analysis_uploads` 테이블에 잠깐 머물다 검증이 끝나면 지워지므로 별도 볼륨은 필요 없다.
+
+### 지역 시드
+
+지역 데이터는 앱이 뜰 때마다 들어간다. `schema.sql`이 테이블과 서울 26행을 만들고, 이어서 `spring.sql.init.data-locations: classpath:regions.sql`이 나머지 시·도와 시·군·구를 넣는다(모두 271개). 둘 다 `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어간다. `regions.parent_code`는 앱 시작 때 `RegionFacade`가 채운다. 별도 마이그레이션 단계는 없다. 이미 있는 지역의 이름·좌표를 바꾸려면 시드만으로는 안 되고 DB를 직접 고쳐야 한다.
+
 ## SQLite 백업과 복구
 
 `backend/ci-cd/scripts/backup.sh`는 실행 중인 앱 컨테이너의 `sqlite3 .backup`으로 일관된 파일 복사본을 만들고, age로 암호화한 다음 rclone remote에 전송한다. `/opt/santacut/backup.env`에 `BACKUP_AGE_RECIPIENT`와 `BACKUP_REMOTE`를 설정한다. 이 파일은 git에 넣지 않는다. 서버 밖 백업이 확인되기 전에는 백업 성공으로 처리하지 않는다.
@@ -53,4 +84,4 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 - 사설 네트워크를 통한 Ollama 주소 또는 예산에 맞는 AI 제공 방식
 - 배포용 GitHub secrets와 production environment
 - 암호화 백업 remote 및 복구 리허설
-- 전국 시·군·구 좌표와 카카오톡·인스타그램 내보내기 원본 파서
+- 카카오톡·인스타그램 실제 내보내기 샘플로 원본 파서 검증(지금 파서는 공개 예시로 만들었다)

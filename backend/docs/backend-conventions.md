@@ -6,39 +6,56 @@
 
 패키지는 `presentation → application → domain → infrastructure` 네 계층으로 나눈다. 의존은 위에서 아래로만 흐른다. 포트·어댑터(헥사고날), 의존성 역전용 인터페이스, UseCase 인터페이스는 쓰지 않는다. 아래 계층은 위 계층을 모른다.
 
-**`com.santacut` 바로 아래에는 이 네 패키지와 `SantaCutApplication.kt`만 둔다.** `common`, `global`, `config`, `util`, `support` 같은 계층 밖 패키지를 만들지 않는다. 설정·보안·애노테이션도 그것을 쓰는 계층 안에 둔다. 확인: `ls backend/src/main/kotlin/com/santacut` 결과가 `application domain infrastructure presentation SantaCutApplication.kt` 다섯 개뿐이어야 한다.
+**`com.santacut` 바로 아래에는 이 네 패키지와 `SantaCutApplication.kt`만 둔다.** `common`, `global`, `config`, `util`, `support` 같은 계층 밖 패키지를 만들지 않는다. 확인: `ls backend/src/main/kotlin/com/santacut` 결과가 `application domain infrastructure presentation SantaCutApplication.kt` 다섯 개뿐이어야 한다.
+
+**각 계층 아래는 도메인 이름 패키지로 나누고, 도메인 패키지 아래를 역할 패키지로 나눈다(계층 → 도메인 → 역할).** 도메인은 `participant`(참가자·지역), `session`(세션), `analysis`(분석 작업·점수), `ranking`(순위·결과·배송), `share`(공유)다. 여러 도메인이 함께 쓰는 것(보안, 예외 처리, Swagger, ErrorCode, Clock 같은 설정, 커스텀 애노테이션)은 그 계층의 `global` 패키지에 둔다. `global`은 계층 안에서만 만들 수 있다.
 
 ```text
 com.santacut
-├─ presentation           HTTP 진입점
-│  ├─ controller          XxxController
-│  ├─ request             XxxRequest (HTTP 요청 본문)
-│  ├─ response            XxxResponse (HTTP 응답 본문), XxxResponses (응답 일급 컬렉션)
-│  ├─ docs                엔드포인트별 Swagger 메타 애노테이션, Swagger 설정
-│  ├─ advice              전역 예외 처리 (@RestControllerAdvice)
-│  ├─ security            Spring Security 설정, 세션 필터, 세션 쿠키
-│  └─ config              웹 계층이 쓰는 @ConfigurationProperties·@Configuration
-├─ application            유스케이스 조합, 트랜잭션 경계
-│  ├─ facade              XxxFacade, @Facade 애노테이션
-│  ├─ command             XxxCommand (facade 입력)
-│  └─ result              XxxResult (facade 출력), XxxResults (결과 일급 컬렉션)
-├─ domain                 비즈니스 규칙
-│  ├─ service             XxxService (도메인 서비스)
-│  ├─ model               엔티티, 값 객체, 일급 컬렉션, 열거형
-│  ├─ exception           ErrorCode, SantaCutException
-│  └─ config              도메인 규칙이 쓰는 @ConfigurationProperties (시즌, 일일 한도 등)
-└─ infrastructure         데이터 접근과 외부 시스템
-   ├─ repository          Spring Data JPA 리포지토리
-   ├─ client              외부 시스템 호출 (AI 점수 클라이언트 등)
-   ├─ render              기술 도구 (공유 이미지 렌더링 등)
-   └─ config              Clock·스케줄러·외부 연동 설정
+├─ presentation                   HTTP 진입점
+│  ├─ <도메인>
+│  │  ├─ controller               XxxController
+│  │  ├─ request                  XxxRequest, XxxRequests (요청 일급 컬렉션)
+│  │  ├─ response                 XxxResponse, XxxResponses (응답 일급 컬렉션)
+│  │  └─ docs                     엔드포인트별 Swagger 메타 애노테이션
+│  └─ global
+│     ├─ advice                   전역 예외 처리 (@RestControllerAdvice), ApiErrorResponse
+│     ├─ security                 Spring Security 설정, 세션 필터, 세션 쿠키
+│     ├─ docs                     Swagger 설정, 공통 문서 상수
+│     └─ config                   웹 계층이 쓰는 @ConfigurationProperties·@Configuration
+├─ application                    유스케이스 조합, 트랜잭션 경계
+│  ├─ <도메인>
+│  │  ├─ facade                   XxxFacade
+│  │  ├─ command                  XxxCommand, XxxCommands
+│  │  └─ result                   XxxResult, XxxResults
+│  └─ global                      @Facade 애노테이션
+├─ domain                         비즈니스 규칙
+│  ├─ <도메인>
+│  │  ├─ model                    엔티티, 값 객체, 일급 컬렉션, 열거형
+│  │  └─ service                  XxxService
+│  └─ global
+│     ├─ exception                ErrorCode, SantaCutException
+│     ├─ model                    여러 도메인이 쓰는 값(시각 변환 등)
+│     └─ config                   도메인 규칙이 쓰는 @ConfigurationProperties
+└─ infrastructure                 데이터 접근과 외부 시스템
+   ├─ <도메인>
+   │  ├─ repository               Spring Data JPA 리포지토리
+   │  ├─ client                   외부 시스템 호출 (AI 점수 클라이언트 등)
+   │  └─ render                   기술 도구 (공유 이미지 렌더링 등)
+   └─ global
+      └─ config                   Clock·스케줄러·외부 연동 설정
 ```
 
-- 설정 클래스는 그 설정을 읽는 계층의 `config` 패키지에 둔다. 여러 계층이 같은 설정을 읽으면 가장 아래 계층에 두지 않고, 위 계층이 아래 계층 값을 Command·메서드 인자로 넘기도록 바꾼다.
+- 역할 패키지는 그 도메인에 해당 파일이 있을 때만 만든다(빈 패키지 금지).
+- 한 클래스는 정확히 한 도메인에 속한다. 어느 도메인 것인지 애매하면 그 클래스를 가장 많이 쓰는 유스케이스의 도메인에 둔다. 두 도메인 이상이 같은 비중으로 쓰면 `global`에 둔다.
+- 다른 도메인의 같은 계층 타입을 참조해도 된다(예: `domain.ranking.model`이 `domain.analysis.model.Assessment`를 씀). 계층 간 의존 방향(2장)과 facade·service 주입 금지는 도메인과 상관없이 지킨다.
+- 설정 클래스는 그 설정을 읽는 계층의 `global.config`에 둔다. 여러 계층이 같은 설정을 읽으면 위 계층이 아래 계층 값을 Command·메서드 인자로 넘기도록 바꾼다.
+- 확인: `find backend/src/main/kotlin/com/santacut -mindepth 2 -maxdepth 2 -type d | sort`의 결과가 각 계층 아래 도메인 이름과 `global`뿐이어야 한다. 테스트 코드도 같은 구조를 따른다.
 - 금지 이름: `Port`, `Adapter`, `UseCase`. 확인: `grep -rniE "\b\w*(port|adapter|usecase)\b" backend/src/main --include=*.kt | grep -viE "import|support|report|export"` 결과가 비어 있어야 한다.
-- 계층 패키지 안에서 기능별 하위 패키지를 만들지 않는다. 클래스 이름 접두사로 기능을 구분한다(`ParticipantService`, `AnalysisFacade`).
 
 ## 2. 의존 방향
+
+이 문서에서 `domain.model`, `presentation.request`처럼 계층과 역할만 쓴 이름은 `domain.<도메인>.model`, `presentation.<도메인>.request`를 함께 뜻한다(도메인 생략 표기).
 
 ```text
 presentation ──▶ application ──▶ domain ──▶ infrastructure
@@ -67,13 +84,13 @@ presentation ──▶ application ──▶ domain ──▶ infrastructure
 
 | 역할 | 위치 | 애노테이션 | 이름 규칙 |
 | --- | --- | --- | --- |
-| HTTP 진입점 | presentation.controller | `@RestController` | `XxxController` |
-| 유스케이스 조합 | application.facade | `@Facade` (같은 패키지의 커스텀 애노테이션, `@Component` 메타) | `XxxFacade` |
-| 비즈니스 규칙 | domain.service | `@Service` | `XxxService` |
-| 데이터 접근 | infrastructure.repository | Spring Data 인터페이스 | `XxxRepository` |
-| 외부 연동·기술 도구 | infrastructure.client, infrastructure.render | `@Component` | 하는 일을 드러내는 명사 (`ScoreClient`, `ShareImageRenderer`) |
-| 웹 보안 | presentation.security | `@Configuration`, 필터 | `XxxConfiguration`, `XxxFilter` |
-| 설정 | 각 계층의 config | `@Configuration`, `@ConfigurationProperties` | `XxxConfiguration`, `XxxProperties` |
+| HTTP 진입점 | presentation.<도메인>.controller | `@RestController` | `XxxController` |
+| 유스케이스 조합 | application.<도메인>.facade | `@Facade` (application.global의 커스텀 애노테이션, `@Component` 메타) | `XxxFacade` |
+| 비즈니스 규칙 | domain.<도메인>.service | `@Service` | `XxxService` |
+| 데이터 접근 | infrastructure.<도메인>.repository | Spring Data 인터페이스 | `XxxRepository` |
+| 외부 연동·기술 도구 | infrastructure.<도메인>.client, infrastructure.<도메인>.render | `@Component` | 하는 일을 드러내는 명사 (`ScoreClient`, `ShareImageRenderer`) |
+| 웹 보안 | presentation.global.security | `@Configuration`, 필터 | `XxxConfiguration`, `XxxFilter` |
+| 설정 | 각 계층의 global.config | `@Configuration`, `@ConfigurationProperties` | `XxxConfiguration`, `XxxProperties` |
 
 - 모든 Spring 빈은 위 표의 역할 중 정확히 하나에 속한다. 표에 없는 역할의 빈을 만들지 않는다.
 - 범용 `@Component`는 infrastructure의 client·render 패키지에서만 쓴다.
@@ -97,7 +114,7 @@ Response ◀──from()──── Result ◀──from()── Model
 - `XxxResult`(application.result): facade 출력. 엔티티를 담지 않고 값만 담는다. 도메인 모델에서 만드는 정적 팩토리 `from()`을 둔다.
 - `XxxResponse`(presentation.response): HTTP 응답 본문과 Swagger 스키마 설명. `from(result)`로 만든다.
 - 목록은 `List<XxxResult>`, `List<XxxResponse>`로 넘기지 않고 일급 컬렉션(`XxxResults`, `XxxResponses`)으로 넘긴다. 응답 일급 컬렉션은 리스트 필드에 `@JsonValue`를 달아 JSON을 지금처럼 배열로 내보낸다. API 계약(JSON 형태)은 바꾸지 않는다.
-- 확인: controller 메서드 반환 타입은 `XxxResponse`, `XxxResponses`, `SseEmitter`, `ResponseEntity` 중 하나다. facade public 메서드 반환 타입은 `XxxResult`, `XxxResults` 또는 `Unit`이다. `grep -rnE "List<\w+(Result|Response)>" backend/src/main` 결과가 일급 컬렉션 클래스 자신의 필드 선언뿐이어야 한다.
+- 확인: controller 메서드 반환 타입은 `XxxResponse`, `XxxResponses`, `ResponseEntity` 중 하나다. facade public 메서드 반환 타입은 `XxxResult`, `XxxResults` 또는 `Unit`이다. `grep -rnE "List<\w+(Result|Response)>" backend/src/main` 결과가 일급 컬렉션 클래스 자신의 필드 선언뿐이어야 한다.
 
 ## 5. 도메인과 일급 컬렉션
 
@@ -112,8 +129,8 @@ Response ◀──from()──── Result ◀──from()── Model
 
 ## 6. 예외
 
-- 오류는 `domain.exception`의 `ErrorCode` 열거형(HTTP 상태, 한국어 메시지)과 `SantaCutException` 하나로 표현한다. `ResponseStatusException`, `error()`, `check()`로 비즈니스 오류를 던지지 않는다.
-- `presentation.advice`의 `@RestControllerAdvice`가 예외를 오류 응답으로 바꾼다. 오류 응답 형식은 Swagger `ApiErrorResponse`에 정의한 필드와 같아야 한다.
+- 오류는 `domain.global.exception`의 `ErrorCode` 열거형(HTTP 상태, 한국어 메시지)과 `SantaCutException` 하나로 표현한다. `ResponseStatusException`, `error()`, `check()`로 비즈니스 오류를 던지지 않는다.
+- `presentation.global.advice`의 `@RestControllerAdvice`가 예외를 오류 응답으로 바꾼다. 오류 응답 형식은 Swagger `ApiErrorResponse`에 정의한 필드와 같아야 한다.
 - 오류 코드 문자열(`SEASON_FROZEN` 등)은 API 계약이므로 기존 값을 유지한다.
 
 ## 7. 트랜잭션과 JPA
@@ -142,7 +159,7 @@ Response ◀──from()──── Result ◀──from()── Model
 
 ## 10. Swagger 문서
 
-- 엔드포인트마다 `presentation.docs` 패키지의 전용 메타 애노테이션 하나(`@SubmitAnalysisApi` 등)를 붙인다. controller 메서드에 `@Operation`을 직접 쓰지 않는다.
+- 엔드포인트마다 그 도메인의 `presentation.<도메인>.docs` 패키지에 있는 전용 메타 애노테이션 하나(`@SubmitAnalysisApi` 등)를 붙인다. controller 메서드에 `@Operation`을 직접 쓰지 않는다.
 - 전용 애노테이션에는 요약, 설명, 필요한 헤더, 발생 가능한 모든 상태 코드를 한국어로 적는다.
 - Request·Response의 모든 필드에 `@field:Schema(description = ...)`을 단다.
 

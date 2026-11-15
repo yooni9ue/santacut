@@ -43,7 +43,7 @@ JDK 25가 필요하다. 커밋 전에 위 명령이 통과해야 한다.
 | 객체지향 2 | 객체지향 설계 전문가 | 캡슐화와 일급 컬렉션: 엔티티 필드 직접 변경, 문자열 상태값, service·facade 안의 순회 |
 | 객체지향 3 | 객체지향 설계 전문가 | 의존성과 SOLID: facade→facade, service→service 의존, 계층 역참조, 엔티티 노출, Map·Pair 전달 |
 | Spring 1 | Spring Boot 전문가 | 4계층 패키지와 의존 방향(ArchUnit), 스테레오타입, 생성자 주입, `@ConfigurationProperties`, `Clock`, 포트·어댑터 금지 |
-| Spring 2 | Spring Boot 전문가 | 트랜잭션 경계와 readOnly, 지연 로딩·N+1, 엔티티 설계, 리포지토리 쿼리, 스케줄러·SSE 동시성 |
+| Spring 2 | Spring Boot 전문가 | 트랜잭션 경계와 readOnly, 지연 로딩·N+1, 엔티티 설계, 리포지토리 쿼리, 스케줄러 동시성 |
 | Spring 3 | Spring Boot 전문가 | 요청 검증, 예외 처리와 오류 응답, CSRF·세션·CSP, API별 Swagger 애노테이션과 스키마 설명 |
 
 ### 리뷰어 공통 판정 방법

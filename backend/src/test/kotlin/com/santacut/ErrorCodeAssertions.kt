@@ -1,7 +1,7 @@
 package com.santacut
 
-import com.santacut.domain.exception.ErrorCode
-import com.santacut.domain.exception.SantaCutException
+import com.santacut.domain.global.exception.ErrorCode
+import com.santacut.domain.global.exception.SantaCutException
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 

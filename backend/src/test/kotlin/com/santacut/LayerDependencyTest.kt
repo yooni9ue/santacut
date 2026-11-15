@@ -1,6 +1,6 @@
 package com.santacut
 
-import com.santacut.application.facade.Facade
+import com.santacut.application.global.Facade
 import com.tngtech.archunit.core.domain.JavaClass
 import com.tngtech.archunit.core.domain.JavaClasses
 import com.tngtech.archunit.core.importer.ClassFileImporter
@@ -38,18 +38,25 @@ class LayerDependencyTest {
     }
 
     @Test
+    fun `계층 아래는 도메인 이름과 global로 나누고 그 아래 역할 패키지에만 클래스를 둔다`() {
+        classes().that().resideOutsideOfPackage(ROOT)
+            .should(resideInDomainRolePackage())
+            .check(classes)
+    }
+
+    @Test
     fun `presentation은 advice를 빼면 application만 쓰고 domain과 infrastructure를 건너뛰어 쓰지 않는다`() {
         noClasses().that().resideInAPackage("$PRESENTATION..")
-            .and().resideOutsideOfPackage("$PRESENTATION.advice..")
+            .and().resideOutsideOfPackage("$PRESENTATION.global.advice..")
             .should().dependOnClassesThat().resideInAnyPackage("$DOMAIN..", "$INFRASTRUCTURE..")
             .check(classes)
     }
 
     @Test
     fun `presentation advice는 domain 중 예외만 참조한다`() {
-        noClasses().that().resideInAPackage("$PRESENTATION.advice..")
+        noClasses().that().resideInAPackage("$PRESENTATION.global.advice..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("$DOMAIN.model..", "$DOMAIN.service..", "$INFRASTRUCTURE..")
+            .resideInAnyPackage("$DOMAIN.*.model..", "$DOMAIN.*.service..", "$INFRASTRUCTURE..")
             .check(classes)
     }
 
@@ -57,7 +64,7 @@ class LayerDependencyTest {
     fun `application은 presentation, infrastructure, domain 설정을 참조하지 않는다`() {
         noClasses().that().resideInAPackage("$APPLICATION..")
             .should().dependOnClassesThat()
-            .resideInAnyPackage("$PRESENTATION..", "$INFRASTRUCTURE..", "$DOMAIN.config..")
+            .resideInAnyPackage("$PRESENTATION..", "$INFRASTRUCTURE..", "$DOMAIN.*.config..")
             .check(classes)
     }
 
@@ -70,8 +77,8 @@ class LayerDependencyTest {
 
     @Test
     fun `domain model은 service와 infrastructure를 참조하지 않는다`() {
-        noClasses().that().resideInAPackage("$DOMAIN.model..")
-            .should().dependOnClassesThat().resideInAnyPackage("$DOMAIN.service..", "$INFRASTRUCTURE..")
+        noClasses().that().resideInAPackage("$DOMAIN.*.model..")
+            .should().dependOnClassesThat().resideInAnyPackage("$DOMAIN.*.service..", "$INFRASTRUCTURE..")
             .check(classes)
     }
 
@@ -79,21 +86,21 @@ class LayerDependencyTest {
     fun `infrastructure는 domain 중 model만 참조한다`() {
         noClasses().that().resideInAPackage("$INFRASTRUCTURE..")
             .should().dependOnClassesThat().resideInAnyPackage(
-                "$PRESENTATION..", "$APPLICATION..", "$DOMAIN.service..", "$DOMAIN.exception..", "$DOMAIN.config..",
+                "$PRESENTATION..", "$APPLICATION..", "$DOMAIN.*.service..", "$DOMAIN.*.exception..", "$DOMAIN.*.config..",
             )
             .check(classes)
     }
 
     @Test
     fun `infrastructure의 render와 config는 domain을 참조하지 않는다`() {
-        noClasses().that().resideInAnyPackage("$INFRASTRUCTURE.render..", "$INFRASTRUCTURE.config..")
+        noClasses().that().resideInAnyPackage("$INFRASTRUCTURE.*.render..", "$INFRASTRUCTURE.*.config..")
             .should().dependOnClassesThat().resideInAPackage("$DOMAIN..")
             .check(classes)
     }
 
     @Test
     fun `infrastructure client는 domain model 중 엔티티를 참조하지 않는다`() {
-        noClasses().that().resideInAPackage("$INFRASTRUCTURE.client..")
+        noClasses().that().resideInAPackage("$INFRASTRUCTURE.*.client..")
             .should().dependOnClassesThat().areAnnotatedWith(Entity::class.java)
             .check(classes)
     }
@@ -115,30 +122,30 @@ class LayerDependencyTest {
     @Test
     fun `HTTP 진입점은 presentation의 controller와 advice 패키지에 있다`() {
         classes().that().areAnnotatedWith(RestController::class.java)
-            .should().resideInAPackage("$PRESENTATION.controller").andShould().haveSimpleNameEndingWith("Controller")
+            .should().resideInAPackage("$PRESENTATION.*.controller").andShould().haveSimpleNameEndingWith("Controller")
             .check(classes)
         classes().that().areAnnotatedWith(RestControllerAdvice::class.java)
-            .should().resideInAPackage("$PRESENTATION.advice")
+            .should().resideInAPackage("$PRESENTATION.global.advice")
             .check(classes)
     }
 
     @Test
     fun `facade, service, 엔티티는 정해진 패키지에 있고 이름 규칙을 따른다`() {
         classes().that().areAnnotatedWith(Facade::class.java)
-            .should().resideInAPackage("$APPLICATION.facade").andShould().haveSimpleNameEndingWith("Facade")
+            .should().resideInAPackage("$APPLICATION.*.facade").andShould().haveSimpleNameEndingWith("Facade")
             .check(classes)
         classes().that().areAnnotatedWith(Service::class.java)
-            .should().resideInAPackage("$DOMAIN.service").andShould().haveSimpleNameEndingWith("Service")
+            .should().resideInAPackage("$DOMAIN.*.service").andShould().haveSimpleNameEndingWith("Service")
             .check(classes)
         classes().that().areAnnotatedWith(Entity::class.java)
-            .should().resideInAPackage("$DOMAIN.model")
+            .should().resideInAPackage("$DOMAIN.*.model")
             .check(classes)
     }
 
     @Test
     fun `범용 Component는 infrastructure의 client와 render에만 있다`() {
         classes().that().areAnnotatedWith(Component::class.java).and().areNotAnnotations()
-            .should().resideInAnyPackage("$INFRASTRUCTURE.client", "$INFRASTRUCTURE.render")
+            .should().resideInAnyPackage("$INFRASTRUCTURE.*.client", "$INFRASTRUCTURE.*.render")
             .check(classes)
     }
 
@@ -146,13 +153,13 @@ class LayerDependencyTest {
     fun `설정 클래스는 각 계층의 config와 웹 보안, Swagger 문서 패키지에만 있다`() {
         classes().that().areAnnotatedWith(Configuration::class.java)
             .should().resideInAnyPackage(
-                "$PRESENTATION.config", "$PRESENTATION.security", "$PRESENTATION.docs",
-                "$DOMAIN.config", "$INFRASTRUCTURE.config",
+                "$PRESENTATION.global.config", "$PRESENTATION.global.security", "$PRESENTATION.global.docs",
+                "$DOMAIN.global.config", "$INFRASTRUCTURE.global.config",
             )
             .andShould().haveSimpleNameEndingWith("Configuration")
             .check(classes)
         classes().that().areAnnotatedWith(ConfigurationProperties::class.java)
-            .should().resideInAnyPackage("$PRESENTATION.config", "$DOMAIN.config", "$INFRASTRUCTURE.config")
+            .should().resideInAnyPackage("$PRESENTATION.global.config", "$DOMAIN.global.config", "$INFRASTRUCTURE.global.config")
             .andShould().haveSimpleNameEndingWith("Properties")
             .check(classes)
     }
@@ -160,7 +167,7 @@ class LayerDependencyTest {
     @Test
     fun `리포지토리는 infrastructure repository 패키지의 인터페이스다`() {
         classes().that().haveSimpleNameEndingWith("Repository")
-            .should().resideInAPackage("$INFRASTRUCTURE.repository").andShould().beInterfaces()
+            .should().resideInAPackage("$INFRASTRUCTURE.*.repository").andShould().beInterfaces()
             .check(classes)
     }
 
@@ -182,6 +189,25 @@ class LayerDependencyTest {
             }
         }
 
+    /** 계층 → 도메인(또는 global) → 역할 순서의 패키지에 있어야 한다. `application.global`만 역할 없이 둔다. */
+    private fun resideInDomainRolePackage(): ArchCondition<JavaClass> =
+        object : ArchCondition<JavaClass>("계층.도메인.역할 패키지에 있다") {
+            override fun check(item: JavaClass, events: ConditionEvents) {
+                val segments = item.packageName.removePrefix("$ROOT.").split(".")
+                val layer = segments[0]
+                val domain = segments.getOrNull(1)
+                val allowedRoles = if (domain == GLOBAL) GLOBAL_ROLES[layer] else DOMAIN_ROLES[layer]
+                val valid = domain in DOMAINS + GLOBAL && when {
+                    segments.size == 2 -> layer == "application" && domain == GLOBAL
+                    segments.size == 3 -> allowedRoles.orEmpty().contains(segments[2])
+                    else -> false
+                }
+                if (!valid) {
+                    events.add(SimpleConditionEvent.violated(item, "${item.name}이(가) ${item.packageName}에 있다"))
+                }
+            }
+        }
+
     private fun injectedTypesOf(item: JavaClass): Set<JavaClass> =
         item.constructors.flatMap { it.rawParameterTypes }.toSet() + item.fields.map { it.rawType }
 
@@ -192,5 +218,19 @@ class LayerDependencyTest {
         private const val DOMAIN = "$ROOT.domain"
         private const val INFRASTRUCTURE = "$ROOT.infrastructure"
         private const val APPLICATION_CLASS_NAME = "SantaCutApplication"
+        private const val GLOBAL = "global"
+        private val DOMAINS = setOf("participant", "session", "analysis", "ranking", "share")
+        private val DOMAIN_ROLES = mapOf(
+            "presentation" to setOf("controller", "request", "response", "docs"),
+            "application" to setOf("facade", "command", "result"),
+            "domain" to setOf("model", "service"),
+            "infrastructure" to setOf("repository", "client", "render"),
+        )
+        private val GLOBAL_ROLES = mapOf(
+            "presentation" to setOf("advice", "security", "docs", "config"),
+            "application" to emptySet(),
+            "domain" to setOf("exception", "model", "config"),
+            "infrastructure" to setOf("config"),
+        )
     }
 }
