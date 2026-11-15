@@ -1,0 +1,229 @@
+name: 프론트엔드 CI/CD
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/ci-cd/deploy/compose.yml'
+      - 'backend/ci-cd/deploy/Caddyfile'
+      - '.github/workflows/frontend.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'backend/ci-cd/deploy/compose.yml'
+      - 'backend/ci-cd/deploy/Caddyfile'
+      - '.github/workflows/frontend.yml'
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy this tested main revision to the backend server
+        type: boolean
+        default: false
+      environment:
+        description: Infra deployment environment
+        type: choice
+        options: [dev, main]
+        default: dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
+          cache: true
+          cache_dependency_path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint, types and unit tests
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+      - name: Production build
+        run: pnpm build
+      - name: Install mobile browser engines
+        run: pnpm exec playwright install --with-deps chromium webkit
+      - name: Mobile E2E against production build
+        run: pnpm test:e2e
+      - name: Validate deployment configuration
+        env:
+          FRONTEND_IMAGE: ghcr.io/example/santacut-frontend@sha256:0000000000000000000000000000000000000000000000000000000000000000
+        run: |
+          bash -n ci-cd/scripts/*.sh
+          bash ci-cd/scripts/test-deploy.sh
+          docker compose -f ci-cd/deploy/compose.yml config --quiet
+      - name: Browser reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frontend-playwright-reports
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  container:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Build frontend image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: frontend
+          file: frontend/ci-cd/Dockerfile
+          load: true
+          tags: santacut-frontend:test
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - name: Container health check
+        run: |
+          set -euo pipefail
+          docker run -d --name frontend-smoke -p 127.0.0.1:3200:3000 santacut-frontend:test
+          trap 'docker logs frontend-smoke; docker rm -f frontend-smoke' EXIT
+          for attempt in $(seq 1 30); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' frontend-smoke)" = healthy ]; then
+              curl --fail --silent http://127.0.0.1:3200/ > /dev/null
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Validate shared Caddy routing
+        run: |
+          docker run --rm -e DOMAIN=santacut.example.com -e ACME_EMAIL=operator@example.com -e FRONTEND_UPSTREAM=frontend:3000 \
+            -v "$PWD/backend/ci-cd/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.10.2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+  publish:
+    needs: [test, container]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - id: image
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "name=ghcr.io/${REPOSITORY,,}-frontend" >> "$GITHUB_OUTPUT"
+      - name: Login to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: frontend
+          file: frontend/ci-cd/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          provenance: true
+          sbom: true
+      - name: Release reference
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf 'Frontend image `%s@%s`\n' "$IMAGE" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    needs: publish
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: santacut-deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Assume infra deployment role
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-2
+      - name: Allow this runner to SSH temporarily
+        id: ssh
+        env:
+          INSTANCE: santacut-${{ inputs.environment }}-app
+        run: |
+          set -euo pipefail
+          runner_ip=$(curl --fail --silent --show-error https://checkip.amazonaws.com)
+          [[ "$runner_ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "cidr=${runner_ip}/32" >> "$GITHUB_OUTPUT"
+          aws lightsail open-instance-public-ports --instance-name "$INSTANCE" \
+            --port-info "fromPort=22,toPort=22,protocol=TCP,cidrs=${runner_ip}/32"
+      - name: Deploy verified frontend digest
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          IMAGE: ${{ needs.publish.outputs.image }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p /opt/santacut/frontend/releases'
+          tar -czf frontend-release.tgz -C frontend/ci-cd deploy/compose.yml scripts/deploy.sh
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes frontend-release.tgz "$DEPLOY_USER@$DEPLOY_HOST:/opt/santacut/frontend/releases/${GITHUB_SHA}.tgz"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /opt/santacut/frontend/releases/${GITHUB_SHA} && tar -xzf /opt/santacut/frontend/releases/${GITHUB_SHA}.tgz -C /opt/santacut/frontend/releases/${GITHUB_SHA} && bash /opt/santacut/frontend/releases/${GITHUB_SHA}/scripts/deploy.sh '${IMAGE}@${DIGEST}' '/opt/santacut/frontend/releases/${GITHUB_SHA}'"
+      - name: Close temporary SSH access
+        if: ${{ always() && steps.ssh.outputs.cidr != '' }}
+        env:
+          INSTANCE: santacut-${{ inputs.environment }}-app
+          RUNNER_CIDR: ${{ steps.ssh.outputs.cidr }}
+        run: |
+          aws lightsail close-instance-public-ports --instance-name "$INSTANCE" \
+            --port-info "fromPort=22,toPort=22,protocol=TCP,cidrs=${RUNNER_CIDR}"
