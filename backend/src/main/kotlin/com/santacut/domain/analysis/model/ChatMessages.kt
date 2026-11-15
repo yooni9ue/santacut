@@ -7,8 +7,6 @@ import com.santacut.domain.global.exception.SantaCutException
  * 원본 파일에서 읽은 메시지 목록. 다른 참여자의 메시지도 들어 있으므로 본인 메시지만 이벤트로 바꿔 내보낸다.
  */
 class ChatMessages(private val values: List<ChatMessage>) {
-    fun size(): Int = values.size
-
     fun toList(): List<ChatMessage> = values.toList()
 
     /** 메시지를 하나도 읽지 못했으면 지원하지 않는 형식이다. */
