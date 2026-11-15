@@ -20,13 +20,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
     tags = ["Public sharing"],
     parameters = [Parameter(name = "token", `in` = ParameterIn.PATH, required = true, description = ApiDocs.SHARE_TOKEN_DESCRIPTION)],
     responses = [
-        ApiResponse(responseCode = "200", description = "공유 미리보기 메타데이터(Open Graph)가 있는 웹 페이지(HTML)", content = [Content(mediaType = "text/html", schema = Schema(type = "string"))]),
+        ApiResponse(responseCode = "200", description = "공유 미리보기 메타데이터(Open Graph)가 있는 웹 페이지(HTML)", content = [Content(mediaType = ApiDocs.HTML, schema = Schema(type = "string"))]),
         ApiResponse(
             responseCode = "404",
             description = "공유 토큰이 잘못됐거나, 취소됐거나, 없음(SHARE_NOT_FOUND). 브라우저 요청에는 시작 링크가 있는 HTML 안내 페이지입니다.",
             content = [
                 Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class)),
-                Content(mediaType = "text/html", schema = Schema(type = "string")),
+                Content(mediaType = ApiDocs.HTML, schema = Schema(type = "string")),
             ],
         ),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),

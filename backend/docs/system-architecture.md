@@ -30,7 +30,7 @@ flowchart LR
   U[브라우저 / 공유 링크 크롤러] -->|HTTPS 443| C[Caddy]
   C -->|내부 네트워크| A[Kotlin Spring Boot API]
   A --> P[(SQLite 파일 DB)]
-  A --> V[비공개 업로드 볼륨]
+  A --> V[(원본 파일: analysis_uploads BLOB)]
   A --> G[공유 HTML / PNG]
   W[제한된 분석 Worker] --> P
   W -->|HTTPS / 고정 공급자 URL| AI[AI API]
@@ -41,7 +41,7 @@ flowchart LR
   R -->|검증된 digest 배포| A
 ```
 
-앱·worker는 처음에는 같은 JVM이다. worker만 분리할 때는 동일 이미지의 실행 모드와 큐 소비자 수를 변경한다. SQLite 파일, 업로드 디렉터리, 내부 actuator는 인터넷에 publish하지 않는다. 공개 포트는 80/443, 관리용 SSH는 운영자 IP 또는 안전한 관리 경로로 제한한다.
+앱·worker는 처음에는 같은 JVM이다. worker만 분리할 때는 동일 이미지의 실행 모드와 큐 소비자 수를 변경한다. SQLite 파일(원본 파일을 담는 `analysis_uploads` 포함), 내부 actuator는 인터넷에 publish하지 않는다. 공개 포트는 80/443, 관리용 SSH는 운영자 IP 또는 안전한 관리 경로로 제한한다.
 
 ## 3. 기술 구성과 모듈 경계
 
@@ -153,7 +153,7 @@ season current_snapshot_id는 계산 완료 후 짧은 트랜잭션으로 교체
 
 세션은 추측 불가능한 난수 token과 서버 hash 저장 방식으로 관리한다. 쿠키는 HttpOnly, Secure(운영), SameSite=Lax이며 전체 상태 변경 API에 CSRF를 적용한다. JSON content type 검증과 Origin 확인을 보조적으로 사용한다. CORS wildcard+credentials를 허용하지 않는다.
 
-원본 파일 디렉터리는 container의 비공개 writable volume이며 사용자 파일명을 path로 사용하지 않는다. UUID 파일명·권한 제한·24시간 TTL과 종료 후 삭제를 적용한다. 원문은 access log·exception·AI 에러 응답에 남기지 않는다. 처리 전에 외부 AI 전송에 대한 사용자 안내·동의와 삭제 정책을 제공한다.
+원본 파일은 디스크 디렉터리가 아니라 SQLite `analysis_uploads` 테이블의 BLOB 컬럼에 작업 ID를 키로 둔다. 사용자 파일명은 저장하지 않는다. 검증이 끝나는 트랜잭션에서 지우고, 남은 원본도 24시간 TTL이 지나면 지운다. 원문은 access log·exception·AI 에러 응답에 남기지 않는다. 처리 전에 외부 AI 전송에 대한 사용자 안내·동의와 삭제 정책을 제공한다.
 
 공유 페이지·PNG 문구에는 서버 측 escaping과 길이 제한을 적용한다. 브라우저가 보내는 Host 헤더로 og:url을 만들지 않고 운영 PUBLIC_BASE_URL만 사용한다. forwarded 헤더는 신뢰하는 reverse proxy 경로에서만 해석한다.
 

@@ -25,7 +25,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
             description = "공유 토큰이 잘못됐거나, 취소됐거나, 없음(SHARE_NOT_FOUND). Accept에 text/html이 있는 요청에는 시작 링크가 있는 HTML 안내 페이지입니다.",
             content = [
                 Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class)),
-                Content(mediaType = "text/html", schema = Schema(type = "string")),
+                Content(mediaType = ApiDocs.HTML, schema = Schema(type = "string")),
             ],
         ),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
