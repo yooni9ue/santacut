@@ -2,9 +2,9 @@
 
 > 너 올해 산타컷 통과 가능?
 
-문서 버전: 0.1 / 작성일: 2026-11-15
+문서 버전: 0.2 / 작성일: 2026-11-15 / 구현 반영: 2026-11-16
 
-이 문서는 구현 전 설계다. 사용자 요구사항과 아래 MVP 기본안을 기준으로 개발하며, 미확정 항목은 마지막 절에 구분한다.
+이 문서는 구현 전 설계에서 출발했다. 0.2부터는 현재 코드(`backend/src`)에 맞췄다. 구현과 달라진 설계는 지우지 않고 **[대체됨]** 표시를 붙여 남긴다. 그때 그렇게 정한 까닭도 기록으로 두기 위해서다. 현재 동작은 각 절의 "현재 구현"과 §9·§10·§14를 따르고, 필드 정의는 OpenAPI 명세(`/v3/api-docs`)를 따른다. 미확정 항목은 §12에 모았다.
 
 ## 1. 서비스 정의와 범위
 
@@ -53,6 +53,15 @@
 - 관련 없는 개인정보를 줄이고 원문은 공개 응답·로그·공유 카드에 포함하지 않는다.
 - 샘플 부족과 미지원 스키마는 명시적 오류로 돌려준다. 빈 데이터를 낮은 점수로 채점하지 않는다.
 - 판정 가능한 최소 데이터 기준은 출처별 샘플 검증 후 확정한다.
+
+현재 구현:
+
+- 입력 경로는 둘이다. 원본 파일 업로드(`POST /v1/analyses/files`, multipart)와, 브라우저가 정규화한 이벤트 JSON(`POST /v1/analyses`)이다.
+- 원본 파일은 카카오톡 TXT(PC 형식, iOS·Android 모바일 형식)와 인스타그램 `message_1.json`만 받는다. ZIP, CSV, EUC-KR은 받지 않는다. 파일 이름·확장자·Content-Type은 보지 않고 내용만 본다.
+- 접수 단계에서는 빈 파일, ZIP(첫 4바이트 `PK\x03\x04`), 앞 4,096바이트에 NUL이 있는 바이너리만 바로 `422 UNSUPPORTED_FILE_FORMAT`으로 거절한다. 엄격한 UTF-8 디코딩과 파싱은 검증 작업자 몫이다.
+- 크기 한도는 20MB다. Spring multipart `max-file-size: 20MB`·`max-request-size: 21MB`, Tomcat `max-swallow-size: 21MB`, Caddy `request_body max_size 21MB`가 함께 막는다. 서버가 막으면 `413 FILE_TOO_LARGE`, 프록시가 막으면 `code` 없는 `413`이 간다.
+- 정규화하면 본인 메시지만 담은 이벤트(`occurredAt`, `text`) 목록이 나온다. 최근 90일, 최신 2,000개, 누적 200,000자까지 쓰고 메시지 하나는 2,000자에서 자른다. 20개가 안 되면 `INSUFFICIENT_EVENTS`다.
+- **[대체됨]** 위의 "내부 공통 이벤트: source, occurred_at, actor_role, event_type, text, context"는 구현하지 않았다. 다른 참여자 메시지를 버리기로 하면서(§3.1 결정) `actor_role`과 `context`가 쓸모없어졌다. `source`는 작업마다 한 번만 저장한다.
 
 ## 4. AI 점수와 유쾌한 결과
 
@@ -107,6 +116,13 @@
 
 공개 rank와 고유 delivery_sequence를 분리한다. 참가자가 늘어도 기존 참가자의 점수 자체를 백분위로 바꾸지 않는다. 랭킹은 cursor 페이지네이션으로 제공하고 별도로 내 순위를 조회한다.
 
+현재 구현:
+
+- `GET /v1/rankings`는 로그인 없이 보는 공개 API다. 응답은 `{ stage, rows[], season_year, participant_count, computed_at, next_cursor }` 봉투이고, 한 페이지에 50줄이 온다.
+- `next_cursor`는 직전 페이지 마지막 줄의 `delivery_sequence`를 담은 불투명 문자열이다. 이전 응답이 준 값이 아니면 `400 INVALID_CURSOR`다.
+- 같은 순위인 참가자가 또 있으면 행과 내 결과에 `tied: true`가 붙는다. 화면에는 `공동 N위`로 쓴다. 값은 `result_snapshots.tied`에 저장한다.
+- `stage`는 `PREVIEW`(시즌 마감 전 미리보기)나 `FINAL`(마감 뒤 확정)이다.
+
 ## 6. 지역과 비공개 출발지
 
 **운영 출발지는 서울 여의도 IFC몰이다.** 사용자 요청에 따라 이 문서에는 명시한다. 다만 서비스 화면·클라이언트 번들·공개 API·공유 카드에는 출발지와 정확한 좌표를 포함하지 않는다.
@@ -116,6 +132,16 @@
 정확한 출발 좌표는 구현 시 검증하여 서버 운영 설정 SANTA_ORIGIN_LAT/SANTA_ORIGIN_LON으로 주입한다. 클라이언트 공개 환경변수 접두사를 사용하지 않는다. 운영 API 응답에는 설정을 직렬화하지 않는다. 도착 시간 자체로 위치를 추정할 가능성까지 차단한다고 보장하지 않는다.
 
 지역은 자유 입력 대신 행정구역 코드로 선택한다. regions 테이블에는 시·도, 시·군·구, 대표 좌표, 좌표 출처·버전을 보관한다. 대표 좌표는 시·군·구청 소재지를 기본안으로 하고, 없는 지역의 대체 기준을 명시한다. 상세 집 주소는 받지 않는다.
+
+**[대체됨]** 대표 좌표는 청사 소재지가 아니라 행정동 경계의 면적 중심이다. 좌표 출처·버전은 컬럼이 아니라 `regions.sql` 머리 주석에 적는다. 결정 이유는 §14.2에 있다.
+
+현재 구현:
+
+- `regions` 컬럼은 `code`, `name`, `latitude`, `longitude`, `parent_code`다. 시·도 16개와 시·군·구 255개, 합쳐서 271개다.
+- 코드는 `KR-{시·도}`와 `KR-{시·도}-{시·군·구 뒤 3자리}`다. 서울 코드만 비공식 번호이고, 서울 26행은 `schema.sql`에 있다. 나머지는 `regions.sql`이 넣는다.
+- 일반구는 시·도 바로 아래에 두고 `수원시 장안구`처럼 이름을 붙인다. 하위 지역이 없는 세종특별자치시(`KR-36`)는 시·도를 그대로 고른다.
+- `GET /v1/regions`는 시·도를, `GET /v1/regions?parent={code}`는 그 하위 지역을 준다. 등록과 변경에는 `selectable: true`인 코드만 쓴다. 하위 지역이 있는 시·도를 보내면 `400 UNSUPPORTED_REGION`이다.
+- 시즌 마감 전에는 `PATCH /v1/me/region`으로 지역을 바꿀 수 있다. 순위와 ETA는 같은 요청 안에서 다시 계산한다. 마감 뒤에는 `409 SEASON_FROZEN`이다.
 
 ## 7. 배송 시뮬레이션
 
@@ -185,7 +211,11 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 
 출발 이후 가입자와 재심사 결과는 다음 시즌 대기 또는 랭킹 외 체험으로 처리하는 정책을 출시 전에 확정한다. 도착일이 다음 해로 넘어가도 기존 시즌의 배송 계획에 속한다.
 
-## 8. 저장 구조 제안
+## 8. 저장 구조
+
+### 8.1 구현 전 제안 [대체됨]
+
+아래는 구현 전에 낸 제안이다. 실제로는 SQLite 파일 DB 하나, DB 테이블 작업 큐, 같은 JVM 안의 작업자 둘로 줄였다(§8.2). 시즌·스냅숏 테이블은 따로 두지 않고 `result_snapshots.computed_at`으로 최신 계산을 고른다.
 
 관계형 DB(PostgreSQL 권장), 비공개 객체 저장소, 비동기 작업 큐, AI 작업자, 배송 계산 작업자로 구성한다. 특정 웹 프레임워크·AI 공급자는 아직 확정하지 않는다.
 
@@ -203,15 +233,33 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | ranking_entries | snapshot_id, user_id, rank, delivery_sequence, score_hundredths, region_id, eta; UNIQUE(snapshot_id,user_id) |
 | share_cards | public_token UNIQUE, user_id, snapshot_id, asset_key, created_at, revoked_at |
 
-현재 구현(SQLite)은 원본을 객체 저장소 대신 `analysis_uploads` 테이블에 둔다. 상태 폴링이 `analysis_jobs` 행을 자주 읽으므로 원본을 작업 행에 넣지 않는다.
+### 8.2 현재 구현
+
+[`schema.sql`](../src/main/resources/schema.sql)과 JPA 엔티티가 기준이다. SQLite 테이블은 9개이고, Hibernate `ddl-auto: update`가 엔티티에 맞춰 컬럼을 더한다. 시각은 모두 UTC 텍스트로 저장한다.
 
 | 테이블 | 필드·제약 |
 | --- | --- |
-| analysis_uploads | job_id PK REFERENCES analysis_jobs ON DELETE CASCADE, source, self_speaker, content BLOB, created_at; created_at 색인 |
+| regions | code PK, name, latitude, longitude, parent_code FK→regions(code) NULL |
+| participants | id PK, nickname, nickname_key UNIQUE, region_code FK→regions, created_at |
+| sessions | token_hash PK, user_id FK→participants CASCADE, expires_at; 원본 세션 토큰은 저장하지 않음 |
+| analysis_jobs | id PK, user_id FK CASCADE, idempotency_key, request_hash, source, payload NULL, status, attempts, lease_token, lease_until, error_code, assessment_id FK→assessments SET NULL, created_at, finished_at; UNIQUE(user_id, idempotency_key) |
+| analysis_uploads | job_id PK FK→analysis_jobs CASCADE, source, self_speaker, content BLOB, created_at; created_at 색인 |
+| assessments | id PK, user_id FK CASCADE, source CHECK(KAKAO, INSTAGRAM), score_hundredths CHECK 0..10000, verdict, comment, components, created_at |
+| ai_daily_budget | day PK, calls CHECK ≥ 0 |
+| result_snapshots | id PK, user_id FK CASCADE, assessment_id FK CASCADE, rank, delivery_sequence, eta, computed_at, tied |
+| shares | token PK, user_id FK CASCADE, snapshot_id FK→result_snapshots CASCADE, nickname, score_hundredths, rank, eta, verdict, comment, computed_at, revoked_at NULL, tied, stage, created_at NULL; 활성 링크는 (user_id, snapshot_id)당 하나 |
+
+- 원본은 객체 저장소가 아니라 `analysis_uploads`에 둔다. 상태 폴링이 `analysis_jobs` 행을 자주 읽으므로 원본을 작업 행에 넣지 않는다.
+- `regions.parent_code`는 앱이 뜰 때 `RegionFacade`가 코드 접두어를 보고 채운다. 기존 DB에서는 Hibernate가 `schema.sql`보다 늦게 컬럼을 더하기 때문이다.
+- `shares`는 링크를 만든 순간의 닉네임·점수·순위·공동 순위·확정 상태·계산 시각을 복사해 둔다. 나중에 순위가 바뀌어도 링크 내용은 그대로다.
 
 닉네임은 NFKC 정규화·앞뒤 공백 제거·영문 대소문자 통일 후 nickname_key를 만든다. 기본안은 2~16자, 한글·영문·숫자·밑줄 허용이다. 정규화 후 검증하며 보이지 않는 문자와 중간 공백은 거부한다. 가용성 조회는 참고용이고 최종 등록은 UNIQUE 제약으로 동시 요청을 처리한다. 중복 충돌은 409를 반환한다.
 
-## 9. API 초안
+## 9. API
+
+### 9.1 구현 전 초안 [대체됨]
+
+아래 초안의 `GET /v1/data-guides/{source}`와 `POST /v1/uploads`(서명 업로드 URL)는 만들지 않았다. 내보내기 안내는 프론트엔드가 맡고, 업로드는 앱이 `POST /v1/analyses/files`로 직접 받는다. `DELETE /v1/shares/{id}`는 `{token}`으로 바뀌었다.
 
 | 메서드·경로 | 역할 |
 | --- | --- |
@@ -231,31 +279,131 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | DELETE /v1/shares/{id} | 소유자의 공유 링크 비활성화 |
 | DELETE /v1/me | 계정·원본·공유 결과 삭제 요청 |
 
+### 9.2 현재 API (17개)
+
+OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-TOKEN` 헤더로 보낸다.
+
+| 메서드 | 경로 | 역할 | 인증 |
+| --- | --- | --- | --- |
+| GET | `/v1/csrf` | CSRF 토큰 발급 | 공개 |
+| GET | `/v1/regions` | 지역 목록(`?parent=`로 하위 지역) | 공개 |
+| GET | `/v1/nicknames/availability` | 닉네임 가용성 확인(예약 아님) | 공개 |
+| POST | `/v1/participants` | 참가 등록, 세션 발급 (`201`) | 공개 · CSRF |
+| GET | `/v1/me` | 내 참가 정보 | 세션 |
+| PATCH | `/v1/me/region` | 시즌 마감 전 지역 변경, 순위 재계산 | 세션 · CSRF |
+| DELETE | `/v1/me` | 내 데이터 삭제, 세션 쿠키 만료 (`204`) | 세션 · CSRF |
+| POST | `/v1/analyses` | 정규화한 이벤트로 분석 제출 (`202`) | 세션 · CSRF · `Idempotency-Key` |
+| POST | `/v1/analyses/files` | 원본 파일로 분석 제출 (`202`, multipart) | 세션 · CSRF · `Idempotency-Key` |
+| GET | `/v1/analyses/{id}` | 분석 작업 진행 단계(소유자만) | 세션 |
+| GET | `/v1/me/analysis` | 내 가장 최근 작업의 진행 단계 | 세션 |
+| GET | `/v1/me/result` | 내 점수·순위·공동 순위·ETA·확정 상태 | 세션 |
+| GET | `/v1/rankings` | 순위표 50줄씩(cursor) | 공개 |
+| POST | `/v1/shares` | 공유 링크 생성·재사용 | 세션 · CSRF |
+| DELETE | `/v1/shares/{token}` | 공유 링크 취소 (`204`) | 세션 · CSRF |
+| GET | `/s/{token}` | 공개 공유 HTML(Open Graph) | 공개 |
+| GET | `/s/{token}/image.png` | 공개 공유 PNG(1200×630) | 공개 |
+
+- 진행 상태는 폴링으로 읽는다. 상태 응답에는 결과가 없고, 결과는 `GET /v1/me/result` 하나로만 읽는다.
+- 없거나 취소된 공유 링크를 `Accept: text/html`로 열면 `/s/{token}`과 `/s/{token}/image.png` 모두 `404`와 함께 시작 링크가 있는 안내 HTML을 준다. 그 밖의 요청에는 `404` JSON(`SHARE_NOT_FOUND`)을 준다.
+- `{id}`가 UUID 형식이 아니면 `400 INVALID_REQUEST`다.
+
 분석 시작에는 Idempotency-Key를 사용한다. 사용자별 원본·분석 상태에 소유권 검사를 적용하고 쿠키 인증 변경 요청에는 CSRF 방어를 적용한다. 랭킹과 공유에는 닉네임·점수·순위·ETA·유쾌한 판정만 기본 공개한다. 원본과 출발 좌표는 반환하지 않는다.
 
 공유 카드는 생성 당시 스냅샷을 고정하고 계산 시각을 표시한다. 최신 결과와 달라질 수 있음을 안내하며 링크 페이지에서 최신 결과를 따로 조회할 수 있다. 실제 출발지·앞사람의 지역을 드러내는 카피는 공개하지 않는다.
 
 ## 10. 작업 처리·보관·장애 대응
 
-분석 상태: uploaded → validating → queued → analyzing → succeeded / insufficient_data / failed.
+분석 상태 초안: uploaded → validating → queued → analyzing → succeeded / insufficient_data / failed. **[대체됨]** `uploaded`는 따로 두지 않는다. 접수하는 순간 `VALIDATING`이다.
+
+### 10.1 상태 기계
+
+저장하는 상태(`analysis_jobs.status`)와 응답하는 진행 단계(`status` 필드)는 이름이 다르다. 저장 상태는 작업 규칙에 맞춘 이름이고, 응답 단계는 화면 문구(기획 §4.7)에 맞춘 이름이다.
+
+```mermaid
+stateDiagram-v2
+    [*] --> VALIDATING: POST /v1/analyses/files
+    [*] --> QUEUED: POST /v1/analyses
+    VALIDATING --> QUEUED: 검증 통과
+    VALIDATING --> FAILED: 형식·화자 오류, 검증 3회 초과, 24시간 만료
+    VALIDATING --> INSUFFICIENT_DATA: 본인 메시지 20개 미만
+    QUEUED --> RUNNING: 작업 임대(3분)
+    QUEUED --> FAILED: 24시간 만료(EXPIRED)
+    RUNNING --> RUNNING: 임대 만료 뒤 재시도(최대 3회)
+    RUNNING --> SUCCEEDED: 평가 저장 + 순위 재계산
+    RUNNING --> FAILED: AI 오류, 재시도 소진, 시즌 마감
+    RUNNING --> INSUFFICIENT_DATA: 근거 부족
+```
+
+| 저장 상태 | 응답 진행 단계 |
+| --- | --- |
+| `VALIDATING` | `VALIDATING` |
+| `QUEUED` | `QUEUED` |
+| `RUNNING` | `ANALYZING` |
+| `SUCCEEDED`(참가자의 최신 순위 계산이 완료 시각 이후) | `SUCCEEDED` |
+| `SUCCEEDED`(아직 순위에 반영되지 않음) | `RANKING_PENDING` |
+| `FAILED`, `INSUFFICIENT_DATA` | `FAILED`(이유는 `error_code`) |
 
 현재 구현의 작업 상태(`analysis_jobs.status`):
 
 - 원본 파일 제출(`POST /v1/analyses/files`): `VALIDATING` → `QUEUED` → `RUNNING` → `SUCCEEDED` / `INSUFFICIENT_DATA` / `FAILED`. 검증 실패는 `VALIDATING`에서 바로 끝난다.
 - 이벤트 제출(`POST /v1/analyses`): `QUEUED`부터 시작한다.
+- 작업자는 둘이고 같은 JVM에서 `@Scheduled`로 돈다. 검증 작업자(`santacut.upload.poll-delay-ms`, 기본 1초)와 분석 작업자(`santacut.ai.poll-delay-ms`, 기본 3초)다.
+- 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 `EXPIRED`로 끝낸다. 분석 작업자는 AI 모델이 꺼져 있어도 만료 정리부터 하고 쉰다. 검증 작업자도 돌 때마다 같은 정리를 한다.
+- 참가자 한 명은 최근 24시간 동안 3번까지 제출할 수 있다. 두 제출 API를 합쳐서 센다. 넘으면 `429 DAILY_USER_LIMIT`이고, 본문 `retry_at`과 `Retry-After` 헤더로 다시 낼 수 있는 시각을 알린다.
+- AI 호출은 서울 날짜로 하루 `santacut.ai.daily-call-limit`(기본 100)번까지다. 다 쓰면 작업을 꺼내지 않고 기다린다.
 - 검증 작업자는 원본 꺼내기, 파싱, 결과 기록을 트랜잭션 셋으로 나눈다. 파싱 중에는 DB 커넥션을 쥐지 않는다.
 - 검증을 세 번 넘게 시작하면 `RETRY_EXHAUSTED`로 끝낸다. 통과하면 점수 산정 시도 횟수를 0부터 센다.
 - 원본과 본인 이름은 검증이 끝나는 트랜잭션에서 지운다. 24시간 넘게 남은 원본은 지우고 그 작업은 `EXPIRED`로 끝낸다.
 - 검증 실패 코드: `UNSUPPORTED_FILE_FORMAT`, `SPEAKER_NOT_IDENTIFIED`(`FAILED`), `INSUFFICIENT_EVENTS`(`INSUFFICIENT_DATA`).
 - 참여자 이름은 응답, 로그, 예외 detail에 넣지 않는다. 로그에는 작업 ID와 오류 코드만 남긴다.
 
+### 10.2 오류 코드
+
+HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at }`이다. `code`는 [`ErrorCode.kt`](../src/main/kotlin/com/santacut/domain/global/exception/ErrorCode.kt)의 상수 이름이고 API 계약이다. CSRF 오류(`403`)나 없는 경로처럼 프레임워크가 만든 오류에는 `code`가 없다. `retry_at`은 `DAILY_USER_LIMIT`에만 붙는다.
+
+| 코드 | 상태 | 뜻 |
+| --- | --- | --- |
+| `INVALID_REQUEST` | 400 | 본문·필드·헤더·ID 형식 오류 |
+| `INVALID_IDEMPOTENCY_KEY` | 400 | Idempotency-Key가 영문·숫자·`_`·`-` 16~100자가 아님 |
+| `INVALID_EVENT_RANGE` | 400 | 이벤트 시각이 최근 90일~5분 뒤 범위를 벗어나거나 전체가 200,000자 초과 |
+| `INSUFFICIENT_EVENTS` | 400 | 이벤트 20개 미만 |
+| `TOO_MANY_EVENTS` | 400 | 이벤트 2,000개 초과 |
+| `INVALID_NICKNAME` | 400 | 닉네임 형식 오류 |
+| `UNSUPPORTED_REGION` | 400 | 없는 지역이거나 하위 지역을 골라야 하는 시·도 |
+| `INVALID_CURSOR` | 400 | 이전 응답이 준 값이 아닌 cursor |
+| `NOT_AUTHENTICATED` | 401 | 세션이 없거나 만료됨 |
+| `NOT_FOUND` | 404 | 분석 작업이 없거나 다른 참가자의 작업 |
+| `PARTICIPANT_NOT_FOUND` | 404 | 세션의 참가자가 더 이상 없음 |
+| `RESULT_NOT_FOUND` | 404 | 점수가 나온 결과가 없음 |
+| `SHARE_NOT_FOUND` | 404 | 공유 링크가 없거나 취소됨 |
+| `SEASON_FROZEN` | 409 | 시즌 마감 뒤 제출·지역 변경 |
+| `IDEMPOTENCY_CONFLICT` | 409 | 같은 Idempotency-Key로 다른 요청 |
+| `NICKNAME_TAKEN` | 409 | 이미 쓰는 닉네임 |
+| `NO_RANKED_RESULT` | 409 | 공유할 순위 결과가 없음 |
+| `FILE_TOO_LARGE` | 413 | 파일 20MB 초과 |
+| `INSUFFICIENT_EVIDENCE` | 422 | 점수를 매길 근거 부족(작업자 내부, 응답에는 `error_code`로) |
+| `UNSUPPORTED_FILE_FORMAT` | 422 | 지원하지 않는 파일 형식 |
+| `SPEAKER_NOT_IDENTIFIED` | 422 | 고른 본인 이름이 대화에 없음(작업자 내부, 응답에는 `error_code`로) |
+| `DAILY_USER_LIMIT` | 429 | 24시간 제출 한도 초과 |
+| `ANALYSIS_PAYLOAD_MISSING` | 500 | 대기 작업에 입력이 없음(내부) |
+| `ANALYSIS_JOB_STATE_INVALID` | 500 | 허용하지 않는 상태 변경(내부) |
+| `AI_RESPONSE_INVALID` | 502 | AI 응답이 비었거나 너무 김(작업자 내부) |
+| `AI_RESPONSE_SCHEMA_INVALID` | 502 | AI 응답 형식 오류(작업자 내부) |
+| `AI_EVIDENCE_INVALID` | 502 | AI 근거 번호가 입력 범위 밖(작업자 내부) |
+| `AI_SCORE_OUT_OF_RANGE` | 502 | AI 점수가 0~100 밖이거나 소수 셋째 자리 이하 값이 있음(작업자 내부) |
+| `AI_NOT_CONFIGURED` | 503 | AI 모델이 설정되지 않아 제출을 받지 않음 |
+
+작업이 실패하면 상태 조회의 `error_code`가 이유를 알려 준다. 값은 [`AnalysisFailureCode`](../src/main/kotlin/com/santacut/domain/analysis/model/AnalysisFailureCode.kt)의 8개다. `SEASON_FROZEN`, `EXPIRED`, `RETRY_EXHAUSTED`, `ANALYSIS_FAILED`, `UNSUPPORTED_FILE_FORMAT`, `SPEAKER_NOT_IDENTIFIED`는 `FAILED`로, `INSUFFICIENT_EVIDENCE`와 `INSUFFICIENT_EVENTS`는 `INSUFFICIENT_DATA`로 저장한다. 작업자 내부 오류(`AI_*` 등)는 `ANALYSIS_FAILED`로 바꿔 기록한다.
+
+### 10.3 보관·장애 대응 원칙
+
 - AI 구조화 응답 스키마·값 범위를 검증한다. 모델이 반환한 최종 합계나 도착 시각을 신뢰하지 않는다.
 - 일시적 실패는 지수 백오프로 최대 3회 시도하고, 형식 오류·근거 부족은 무한 재시도하지 않는다.
 - 사용자·IP별 업로드/분석 제한과 동시 실행 제한을 두어 비용을 제어한다.
-- 객체 저장소는 비공개이며 짧은 수명의 서명 URL만 사용한다.
+- 객체 저장소는 비공개이며 짧은 수명의 서명 URL만 사용한다. **[대체됨]** 객체 저장소는 쓰지 않는다. 원본은 `analysis_uploads` BLOB으로 받고 검증이 끝나면 지운다.
 - 원본은 성공·실패 종료 후 삭제하고, 중단 작업의 원본도 업로드 후 최대 24시간 TTL로 정리하는 기본안을 적용한다.
 - 공개 심사평에는 원문 발췌를 저장하지 않는다. 분석 로그는 작업 ID·시간·오류 코드·토큰 사용량 중심으로 남긴다.
-- 삭제 시 세션·공유 링크를 무효화하고 개인 결과를 제거한다. 이미 출발한 배송의 타인 ETA를 바꾸지 않도록 동결 일정에는 비식별 작업 슬롯만 남기는 정책을 검토한다.
+- 삭제 시 세션·공유 링크를 무효화하고 개인 결과를 제거한다. 지금 `DELETE /v1/me`는 참가자 행을 지우고 CASCADE로 세션·작업·원본·평가·스냅숏·공유를 함께 지운다. 시즌 마감 전이면 남은 참가자로 순위를 다시 계산한다. 이미 출발한 배송의 타인 ETA를 바꾸지 않도록 동결 일정에는 비식별 작업 슬롯만 남기는 정책을 검토한다.
 - 사용자가 편집한 파일의 진위를 완전히 보증할 수는 없다. 중복·비정상 형식 제한은 제공하되 공식 플랫폼 인증 데이터라고 표현하지 않는다.
 
 ## 11. 구현 시 필수 검증
@@ -284,7 +432,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 - 실제 인스타 JSON에서 평가에 사용할 수 있는 필드와 근거 부족 기준.
 - 점수 항목·가중치·판정 구간, 출처 간 검증 결과.
 - AI 모델·인프라·분석 단가와 요청 한도.
-- 정확한 운영 출발 좌표와 전국 지역 대표 좌표 데이터 출처.
+- 정확한 운영 출발 좌표. 전국 지역 대표 좌표 데이터 출처는 정했다(§14.2).
 - 익명 세션 복구, 닉네임 변경·재사용, 시즌 동결 후 참가 정책.
 
 ## 13. 참고 자료와 설정의 구분
@@ -295,3 +443,32 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 - [Meta 정보 다운로드 안내](https://about.fb.com/news/2023/10/manage-your-information-across-apps/): 계정 센터에서 정보 다운로드 제공.
 
 연구 속 속도를 적용하면 국내 지역 간 차이가 거의 사라지므로 산타컷은 시속 100km·인당 3분·하루 6시간을 별도로 설정한다. 연구가 이 서비스 수치를 입증했다고 표현하지 않는다.
+
+## 14. 구현 결정 기록
+
+### 14.1 진행 상태: SSE에서 폴링으로 (2026-11-16)
+
+- 기록: 처음 구현은 `GET /v1/analyses/{id}/events` SSE 스트림이었다. 1초마다 상태를 보내고, 성공하면 결과를 실은 뒤 스트림을 닫았다. 스트림은 최대 150초까지 열렸다.
+- 지금은 `GET /v1/analyses/{id}`와 `GET /v1/me/analysis`를 폴링한다(커밋 `9bb9c39`). 화면 기획(`docs/ui-ux-plan.md`)이 상태 폴링을 전제로 하고, 창을 닫았다 다시 와도 같은 API로 상태를 읽을 수 있다. 스트림용 스케줄러 스레드와 재연결 규칙도 함께 없어졌다.
+- 응답 단계 이름을 기획 §4.7의 어휘로 바꿨다. 성공했지만 아직 순위가 없으면 오류 대신 `RANKING_PENDING`을 준다.
+- 상태 응답에는 결과를 넣지 않는다. 점수와 순위는 `GET /v1/me/result` 한 곳에서만 읽어서 두 곳 값이 어긋날 일을 없앤다.
+
+### 14.2 지역 계층과 좌표 (2026-11-16)
+
+- 서울 25개 자치구만 있던 목록을 전국 시·도 16개, 시·군·구 255개로 넓혔다. 두 단계 선택은 `regions.parent_code`로 만든다.
+- 좌표 출처는 vuski/admdongkor `ver20261001` 행정동 경계다(통계청 SGIS 공공누리 제1유형을 가공, CC BY 4.0). 행정동 폴리곤의 면적 중심을 시·군·구와 시·도 단위로 면적 가중 평균했다.
+- 청사 좌표 대신 면적 중심을 쓴 까닭: 공개 라이선스 데이터 하나로 전국을 만들 수 있고, 생성 스크립트(`scripts/regions/generate_regions.py`)로 언제든 다시 만들 수 있다. 섬 지역은 좌표가 바다 위에 찍힐 수 있다.
+- 시드는 `spring.sql.init.data-locations: classpath:regions.sql`로 앱이 뜰 때마다 돈다. `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어간다.
+
+### 14.3 원본 파일 업로드 (2026-11-16)
+
+- 브라우저 정규화만 믿지 않고 서버가 원본을 받아 직접 파싱한다. 파서를 서버 한 곳에 두면 출처별 규칙과 테스트가 한데 모인다.
+- 원본은 작업 행이 아니라 `analysis_uploads` 테이블에 둔다. 폴링이 작업 행을 자주 읽는데, 같은 행에 20MB BLOB을 둘 수는 없다.
+- 검증 작업자는 원본 꺼내기, 파싱, 결과 기록을 트랜잭션 셋으로 나눈다. 커넥션 풀이 1개라서, 파싱하는 동안 DB 커넥션과 SQLite 쓰기 잠금을 쥐면 안 된다.
+- 원본과 본인 이름은 검증이 끝나는 트랜잭션에서 지운다. 남아 있는 원본도 24시간 뒤에는 지운다. 파일 이름은 저장하지 않는다.
+- 하루 제출 한도와 Idempotency-Key는 이벤트 제출과 함께 쓴다. 같은 키를 두 API에 쓰면 `409 IDEMPOTENCY_CONFLICT`다.
+
+### 14.4 공유 카드와 비활성 링크 (2026-11-16)
+
+- 공유 행에 `tied`, `stage`, `created_at`을 더했다. 카드와 페이지에 `공동 N위`, `미리보기`·`시즌 확정`, 계산 시각, 공유 시각이 나온다.
+- 취소됐거나 없는 링크를 브라우저로 열면 JSON 대신 시작 링크가 있는 안내 HTML(`share-inactive.html`)을 준다.
