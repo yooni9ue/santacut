@@ -1,4 +1,4 @@
-package com.santacut.infrastructure.render
+package com.santacut.infrastructure.share.render
 
 /**
  * 공유 페이지 템플릿 자리표시자에 넣을 값. 모든 값은 이미 HTML 이스케이프를 마쳤다.

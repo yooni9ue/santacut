@@ -1,8 +1,8 @@
-package com.santacut.infrastructure.client
+package com.santacut.infrastructure.analysis.client
 
-import com.santacut.domain.model.AnalysisSubmission
-import com.santacut.domain.model.ScoreAnswer
-import com.santacut.infrastructure.config.ScoreModelProperties
+import com.santacut.domain.analysis.model.AnalysisSubmission
+import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.core.io.ClassPathResource
 import org.springframework.stereotype.Component

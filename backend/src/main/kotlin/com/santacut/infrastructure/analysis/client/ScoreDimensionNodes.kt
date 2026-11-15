@@ -1,6 +1,6 @@
-package com.santacut.infrastructure.client
+package com.santacut.infrastructure.analysis.client
 
-import com.santacut.domain.model.ScoreDimension
+import com.santacut.domain.analysis.model.ScoreDimension
 import tools.jackson.databind.JsonNode
 import java.math.BigDecimal
 

@@ -1,8 +1,8 @@
-package com.santacut.infrastructure.client
+package com.santacut.infrastructure.analysis.client
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder
-import com.santacut.domain.model.AnalysisSubmission
-import com.santacut.domain.model.DataSource
+import com.santacut.domain.analysis.model.AnalysisSubmission
+import com.santacut.domain.analysis.model.DataSource
 
 /**
  * AI 모델에 보내는 사용자 메시지 본문. 이벤트마다 1부터 시작하는 번호를 붙인다.

@@ -1,4 +1,4 @@
-package com.santacut.infrastructure.config
+package com.santacut.infrastructure.global.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

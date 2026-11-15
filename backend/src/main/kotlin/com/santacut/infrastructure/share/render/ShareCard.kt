@@ -1,4 +1,4 @@
-package com.santacut.infrastructure.render
+package com.santacut.infrastructure.share.render
 
 /**
  * 공유 페이지와 공유 카드 PNG에 그릴 값. 표시 형식은 이미 맞춘 문자열이고, HTML 이스케이프는 하기 전이다.

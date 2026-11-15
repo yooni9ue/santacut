@@ -1,6 +1,6 @@
-package com.santacut.infrastructure.repository
+package com.santacut.infrastructure.share.repository
 
-import com.santacut.domain.model.Share
+import com.santacut.domain.share.model.Share
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface ShareRepository : JpaRepository<Share, String> {

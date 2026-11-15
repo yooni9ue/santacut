@@ -1,6 +1,6 @@
-package com.santacut.infrastructure.repository
+package com.santacut.infrastructure.analysis.repository
 
-import com.santacut.domain.model.Assessment
+import com.santacut.domain.analysis.model.Assessment
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 
