@@ -82,6 +82,19 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `인스타그램 파일이 올바른 JSON이 아니면 UNSUPPORTED_FILE_FORMAT으로 끝내고 원본을 지운다`() {
+        assertRejected(upload("{\"messages\": [".toByteArray(), source = DataSource.INSTAGRAM), "FAILED", "UNSUPPORTED_FILE_FORMAT")
+    }
+
+    @Test
+    fun `인스타그램 JSON이 null이거나 대화방 모양이 아니면 UNSUPPORTED_FILE_FORMAT으로 끝낸다`() {
+        assertRejected(upload("null".toByteArray(), source = DataSource.INSTAGRAM), "FAILED", "UNSUPPORTED_FILE_FORMAT")
+        assertRejected(upload("[]".toByteArray(), source = DataSource.INSTAGRAM), "FAILED", "UNSUPPORTED_FILE_FORMAT")
+        assertRejected(upload("{\"messages\":{}}".toByteArray(), source = DataSource.INSTAGRAM), "FAILED", "UNSUPPORTED_FILE_FORMAT")
+        assertRejected(upload("{\"messages\":[null]}".toByteArray(), source = DataSource.INSTAGRAM), "FAILED", "UNSUPPORTED_FILE_FORMAT")
+    }
+
+    @Test
     fun `본인 이름의 메시지가 없으면 SPEAKER_NOT_IDENTIFIED로 끝낸다`() {
         assertRejected(upload(TestChatFiles.kakaoIos(OPEN_TIME, EVENT_COUNT), "없는 사람"), "FAILED", "SPEAKER_NOT_IDENTIFIED")
     }
@@ -113,9 +126,13 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         assertRejected(job, "FAILED", "RETRY_EXHAUSTED")
     }
 
-    private fun upload(content: ByteArray, selfSpeaker: String = SELF_SPEAKER): AnalysisJobCommand {
+    private fun upload(
+        content: ByteArray,
+        selfSpeaker: String = SELF_SPEAKER,
+        source: DataSource = DataSource.KAKAO,
+    ): AnalysisJobCommand {
         val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
-        val command = UploadAnalysisCommand(participantId, "key-" + UUID.randomUUID(), DataSource.KAKAO.name, selfSpeaker, content)
+        val command = UploadAnalysisCommand(participantId, "key-" + UUID.randomUUID(), source.name, selfSpeaker, content)
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.upload(command).id))
     }
 
