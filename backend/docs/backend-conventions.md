@@ -119,7 +119,7 @@ Response ◀──from()──── Result ◀──from()── Model
 
 ## 9. 클린 코드
 
-- 파일 하나에 최상위 클래스 하나, 파일 이름은 클래스 이름과 같다.
+- **파일 하나에 최상위 타입 하나**, 파일 이름은 타입 이름과 같다. 클래스, 데이터 클래스, 열거형, 인터페이스, object, 애노테이션 클래스(엔드포인트별 Swagger 애노테이션 포함), DTO, 예외 모두 각자 파일을 가진다. `private` 보조 클래스도 예외가 아니다. 확인: 테스트 `OneTopLevelTypePerFileTest`가 `src/main`과 `src/test`의 모든 `.kt` 파일을 검사하고 `./gradlew check`에서 통과해야 한다.
 - 함수는 한 가지 일만 하고 15줄을 넘기지 않는다. 들여쓰기 깊이는 2단계까지다.
 - 매직 넘버와 매직 문자열은 이름 있는 상수나 설정으로 뺀다(`MAX_DAILY_SUBMISSIONS = 3`).
 - 와일드카드 import와 본문 안의 완전 수식 이름(`java.time.LocalDate.of(...)`)을 쓰지 않는다.

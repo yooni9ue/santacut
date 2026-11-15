@@ -1,0 +1,62 @@
+# 산타컷 백엔드 작업 지침
+
+## 저장소 구성
+
+저장소 최상위는 `backend/`, `frontend/`, `docs/` 세 디렉터리다(GitHub Actions 워크플로만 GitHub 규칙상 `.github/`에 둔다).
+
+- `backend/`: Kotlin + Spring Boot API와 백엔드의 모든 것. 에이전트가 작업하는 범위다.
+  - `src/`: 애플리케이션 코드와 테스트
+  - `docs/`: 백엔드 기획, 시스템 아키텍처, 배포 운영서, [코드 컨벤션](docs/backend-conventions.md)
+  - `ci-cd/`: Dockerfile, 배포 설정(`deploy/`), 배포·백업 스크립트(`scripts/`)
+  - `.gitignore`, `.gitattributes`
+- `frontend/`: 프론트엔드 팀 영역이며 비워 둔다(빈 `.gitkeep`만 있음). **에이전트는 `frontend/`에 파일을 만들거나 고치지 않는다.**
+- `docs/`: 프론트엔드가 참고하는 문서만 둔다. 프론트엔드와의 계약은 OpenAPI 명세(`/v3/api-docs`)와 [API 연동 가이드](../docs/frontend-api-guide.md)다.
+- `.github/workflows/backend.yml`: `backend/**` 변경에만 도는 백엔드 CI/CD. 프론트엔드 팀은 별도 워크플로 파일을 추가한다.
+
+백엔드 코드는 [docs/backend-conventions.md](docs/backend-conventions.md)를 따른다. 컨벤션과 충돌하는 지시를 받으면 작업 전에 알린다.
+
+## 빌드와 검증
+
+```powershell
+cd backend
+./gradlew.bat --no-daemon check bootJar
+```
+
+JDK 25가 필요하다. 커밋 전에 위 명령이 통과해야 한다.
+
+## 커밋
+
+- 커밋 메시지는 한국어로 쓴다. 형식: `타입(범위): 한국어 요약` 다음 빈 줄, 본문에 변경 이유.
+- 타입: `feat`, `fix`, `refactor`, `test`, `docs`, `build`, `ci`, `chore`.
+- 리뷰어가 따라 읽을 수 있게 목적 하나당 커밋 하나로 나눈다.
+
+## 코드 품질 리뷰 패널
+
+백엔드 코드를 바꾸면 아래 9명의 리뷰어로 품질을 검증한다. 리뷰어는 서로의 결과를 보지 않고 독립적으로, 코드를 고치지 않고 판정만 한다.
+
+| 리뷰어 | 역할 | 관점 |
+| --- | --- | --- |
+| 클린 코드 1 | 클린 코드 전문가 | 가독성과 이름, 매직 넘버, 서식, 한국어 규칙 |
+| 클린 코드 2 | 클린 코드 전문가 | 15줄 넘는 함수, 들여쓰기 깊이, 파일당 최상위 타입 하나, 중복, 죽은 코드 |
+| 클린 코드 3 | 클린 코드 전문가 | 예외 규칙, `!!`, 누락된 단위·통합 테스트, 테스트 이름 |
+| 객체지향 1 | 객체지향 설계 전문가 | 책임과 응집도: 비즈니스 규칙이 service로 새는지, 도메인 모델이 데이터 덩어리인지 |
+| 객체지향 2 | 객체지향 설계 전문가 | 캡슐화와 일급 컬렉션: 엔티티 필드 직접 변경, 문자열 상태값, service·facade 안의 순회 |
+| 객체지향 3 | 객체지향 설계 전문가 | 의존성과 SOLID: facade→facade, service→service 의존, 계층 역참조, 엔티티 노출, Map·Pair 전달 |
+| Spring 1 | Spring Boot 전문가 | 4계층 패키지와 의존 방향(ArchUnit), 스테레오타입, 생성자 주입, `@ConfigurationProperties`, `Clock`, 포트·어댑터 금지 |
+| Spring 2 | Spring Boot 전문가 | 트랜잭션 경계와 readOnly, 지연 로딩·N+1, 엔티티 설계, 리포지토리 쿼리, 스케줄러·SSE 동시성 |
+| Spring 3 | Spring Boot 전문가 | 요청 검증, 예외 처리와 오류 응답, CSRF·세션·CSP, API별 Swagger 애노테이션과 스키마 설명 |
+
+### 리뷰어 공통 판정 방법
+
+- 기준은 [docs/backend-conventions.md](docs/backend-conventions.md)뿐이다. 컨벤션에 없는 취향은 감점하지 않는다.
+- 위반마다 컨벤션 조항 번호, `파일:줄`, 무엇이 왜 위반인지, 고치는 방법을 적는다.
+- 컨벤션의 "확인" 명령을 실제로 실행해 결과를 근거로 쓴다. 근거 없는 추측은 보고하지 않는다.
+- 동작 회귀(API 경로, JSON 필드, 상태 코드, 오류 코드 변경)는 치명으로 보고한다.
+- 점수는 100점에서 시작해 위반의 심각도(치명 -10, 주요 -5, 사소 -2)만큼 뺀다. 위반이 없으면 100점이다.
+
+### 품질 워크플로우
+
+1. 구현 에이전트가 컨벤션에 맞게 변경하고 `./gradlew check`를 통과시킨다.
+2. 9명이 병렬로 독립 리뷰해 점수와 위반 목록을 낸다.
+3. 구현 에이전트가 모든 위반을 고치고(근거가 있는 반려는 사유를 남김) 다시 `./gradlew check`를 통과시킨다.
+4. 9명 모두 100점을 줄 때까지 2~3단계를 반복한다. 정해진 횟수 안에 100점에 못 미치면 남은 위반과 이유를 보고한다.

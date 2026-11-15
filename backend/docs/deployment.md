@@ -2,7 +2,7 @@
 
 ## 배포 구조와 전제
 
-도메인은 가비아에서 별도 구매하고 서버는 월 20,000원 이내를 목표로 한다. `ci-cd/deploy/compose.yml`은 Caddy, Spring Boot 앱, SQLite 파일 저장소로 구성된다. PostgreSQL 컨테이너는 사용하지 않는다. SQLite 파일은 Docker named volume에 보관한다.
+도메인은 가비아에서 별도 구매하고 서버는 월 20,000원 이내를 목표로 한다. `backend/ci-cd/deploy/compose.yml`은 Caddy, Spring Boot 앱, SQLite 파일 저장소로 구성된다. PostgreSQL 컨테이너는 사용하지 않는다. SQLite 파일은 Docker named volume에 보관한다.
 
 앱은 Spring AI를 통해 Ollama에 연결한다. 2GB급 저가 서버에서 앱과 `qwen2.5:3b`를 동시에 운영하기에는 메모리가 부족하므로, 운영 전용 사설 Ollama 주소를 준비해 `OLLAMA_BASE_URL`에 넣거나 서버 예산을 다시 산정해야 한다. Ollama 포트를 인터넷에 직접 공개하지 않는다. 로컬 개발은 `http://localhost:11434` 기본값을 사용한다.
 
@@ -24,7 +24,7 @@ sudo install -d -o deploy -g deploy -m 750 /opt/santacut /opt/santacut/releases
 
 ## 환경 설정과 배포
 
-`ci-cd/deploy/.env.example`을 `/opt/santacut/.env`로 복사해 도메인, 이메일, Ollama 사설 주소, 모델을 설정하고 권한을 제한한다.
+`backend/ci-cd/deploy/.env.example`을 `/opt/santacut/.env`로 복사해 도메인, 이메일, Ollama 사설 주소, 모델을 설정하고 권한을 제한한다.
 
 ```bash
 chmod 600 /opt/santacut/.env
@@ -36,7 +36,7 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 
 ## SQLite 백업과 복구
 
-`ci-cd/scripts/backup.sh`는 실행 중인 앱 컨테이너의 `sqlite3 .backup`으로 일관된 파일 복사본을 만들고, age로 암호화한 다음 rclone remote에 전송한다. `/opt/santacut/backup.env`에 `BACKUP_AGE_RECIPIENT`와 `BACKUP_REMOTE`를 설정한다. 이 파일은 git에 넣지 않는다. 서버 밖 백업이 확인되기 전에는 백업 성공으로 처리하지 않는다.
+`backend/ci-cd/scripts/backup.sh`는 실행 중인 앱 컨테이너의 `sqlite3 .backup`으로 일관된 파일 복사본을 만들고, age로 암호화한 다음 rclone remote에 전송한다. `/opt/santacut/backup.env`에 `BACKUP_AGE_RECIPIENT`와 `BACKUP_REMOTE`를 설정한다. 이 파일은 git에 넣지 않는다. 서버 밖 백업이 확인되기 전에는 백업 성공으로 처리하지 않는다.
 
 복구는 운영 볼륨에 바로 덮어쓰지 않고 격리된 디렉터리에서 수행한다.
 

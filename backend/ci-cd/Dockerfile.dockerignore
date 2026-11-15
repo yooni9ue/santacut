@@ -1,0 +1,11 @@
+.gradle
+build
+.kotlin
+data
+docs
+ci-cd
+.omc
+.claude
+.idea
+.env
+*.log
