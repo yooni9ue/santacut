@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" role="img" aria-label="4계층과 도메인 패키지 격자">
+  <title>계층 → 도메인 → 역할</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1426"/><stop offset="1" stop-color="#0F1F33"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8FB4D9"/>
+    </marker>
+    <style>
+      text { font-family: Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif; fill: #E6EDF7; }
+      .t { font-size: 24px; font-weight: 800; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #A9BAD3; }
+      .col { font-size: 15px; font-weight: 700; fill: #E6EDF7; }
+      .cell { fill: #1D2D49; stroke: #33476B; stroke-width: 1; }
+      .off { fill: none; stroke: #2A3B5A; stroke-width: 1; stroke-dasharray: 4 4; }
+      .card { fill: #16233B; stroke: #2A3B5A; stroke-width: 1.5; }
+      .line { stroke: #8FB4D9; stroke-width: 2; fill: none; }
+    </style>
+  </defs>
+  <rect width="1200" height="640" rx="24" fill="url(#bg)"/>
+  <text class="t" x="40" y="54">계층 → 도메인 → 역할</text>
+  <text class="s" x="40" y="80">4계층 × 5도메인 + global · 의존은 아래로만</text>
+
+  <!-- 열 머리 -->
+  <g text-anchor="middle">
+    <text class="col" x="318" y="124">participant</text>
+    <text class="col" x="436" y="124">session</text>
+    <text class="col" x="554" y="124">analysis</text>
+    <text class="col" x="672" y="124">ranking</text>
+    <text class="col" x="790" y="124">share</text>
+    <text class="col" x="908" y="124" fill="#F5B83D">global</text>
+  </g>
+
+  <!-- 행: presentation -->
+  <rect class="card" x="40" y="140" width="936" height="96" rx="14"/>
+  <rect x="40" y="140" width="8" height="96" rx="4" fill="#FF5A5F"/>
+  <text class="h" x="64" y="178">presentation</text>
+  <text class="s" x="64" y="202">controller · request</text>
+  <text class="s" x="64" y="222">response · docs</text>
+  <rect class="cell" x="264" y="156" width="108" height="64" rx="10"/>
+  <rect class="cell" x="382" y="156" width="108" height="64" rx="10"/>
+  <rect class="cell" x="500" y="156" width="108" height="64" rx="10"/>
+  <rect class="cell" x="618" y="156" width="108" height="64" rx="10"/>
+  <rect class="cell" x="736" y="156" width="108" height="64" rx="10"/>
+  <rect class="cell" x="854" y="156" width="108" height="64" rx="10" stroke="#F5B83D"/>
+  <g class="s" text-anchor="middle">
+    <text x="318" y="194">참가 · 지역</text><text x="436" y="194">CSRF</text>
+    <text x="554" y="194">제출 · SSE</text><text x="672" y="194">결과 · 랭킹</text>
+    <text x="790" y="194">링크 · 공개</text><text x="908" y="194">보안 · 오류</text>
+  </g>
+
+  <!-- 행: application -->
+  <rect class="card" x="40" y="256" width="936" height="96" rx="14"/>
+  <rect x="40" y="256" width="8" height="96" rx="4" fill="#F5B83D"/>
+  <text class="h" x="64" y="294">application</text>
+  <text class="s" x="64" y="318">facade · command</text>
+  <text class="s" x="64" y="338">result</text>
+  <rect class="cell" x="264" y="272" width="108" height="64" rx="10"/>
+  <rect class="cell" x="382" y="272" width="108" height="64" rx="10"/>
+  <rect class="cell" x="500" y="272" width="108" height="64" rx="10"/>
+  <rect class="cell" x="618" y="272" width="108" height="64" rx="10"/>
+  <rect class="cell" x="736" y="272" width="108" height="64" rx="10"/>
+  <rect class="cell" x="854" y="272" width="108" height="64" rx="10" stroke="#F5B83D"/>
+  <g class="s" text-anchor="middle">
+    <text x="318" y="310">facade 2</text><text x="436" y="310">facade 1</text>
+    <text x="554" y="310">facade 2</text><text x="672" y="310">facade 1</text>
+    <text x="790" y="310">facade 1</text><text x="908" y="310">@Facade</text>
+  </g>
+
+  <!-- 행: domain -->
+  <rect class="card" x="40" y="372" width="936" height="96" rx="14"/>
+  <rect x="40" y="372" width="8" height="96" rx="4" fill="#3DDC97"/>
+  <text class="h" x="64" y="410">domain</text>
+  <text class="s" x="64" y="434">model · service</text>
+  <rect class="cell" x="264" y="388" width="108" height="64" rx="10"/>
+  <rect class="cell" x="382" y="388" width="108" height="64" rx="10"/>
+  <rect class="cell" x="500" y="388" width="108" height="64" rx="10"/>
+  <rect class="cell" x="618" y="388" width="108" height="64" rx="10"/>
+  <rect class="cell" x="736" y="388" width="108" height="64" rx="10"/>
+  <rect class="cell" x="854" y="388" width="108" height="64" rx="10" stroke="#F5B83D"/>
+  <g class="s" text-anchor="middle">
+    <text x="318" y="426">닉네임 · 지역</text><text x="436" y="426">세션</text>
+    <text x="554" y="426">작업 · 점수</text><text x="672" y="426">순위 · 시즌</text>
+    <text x="790" y="426">공유 토큰</text><text x="908" y="426">예외 · 시각</text>
+  </g>
+
+  <!-- 행: infrastructure -->
+  <rect class="card" x="40" y="488" width="936" height="96" rx="14"/>
+  <rect x="40" y="488" width="8" height="96" rx="4" fill="#3E8BFF"/>
+  <text class="h" x="64" y="526">infrastructure</text>
+  <text class="s" x="64" y="550">repository · client</text>
+  <text class="s" x="64" y="570">render</text>
+  <rect class="cell" x="264" y="504" width="108" height="64" rx="10"/>
+  <rect class="cell" x="382" y="504" width="108" height="64" rx="10"/>
+  <rect class="cell" x="500" y="504" width="108" height="64" rx="10"/>
+  <rect class="cell" x="618" y="504" width="108" height="64" rx="10"/>
+  <rect class="cell" x="736" y="504" width="108" height="64" rx="10"/>
+  <rect class="cell" x="854" y="504" width="108" height="64" rx="10" stroke="#F5B83D"/>
+  <g class="s" text-anchor="middle">
+    <text x="318" y="542">repository</text><text x="436" y="542">repository</text>
+    <text x="554" y="542">repo · client</text><text x="672" y="542">repository</text>
+    <text x="790" y="542">repo · render</text><text x="908" y="542">Clock · 스케줄러</text>
+  </g>
+
+  <!-- 의존 화살표 -->
+  <path class="line" d="M1010,160 V570" marker-end="url(#arr)"/>
+  <text class="s" x="1030" y="370" text-anchor="middle" transform="rotate(-90 1030 370)">의존 방향</text>
+
+  <!-- 규칙 -->
+  <g transform="translate(1046,150)">
+    <rect class="card" x="0" y="0" width="130" height="200" rx="12"/>
+    <text class="h" x="16" y="30">규칙</text>
+    <text class="s" x="16" y="62">facade ↛</text>
+    <text class="s" x="16" y="82">facade</text>
+    <text class="s" x="16" y="114">service ↛</text>
+    <text class="s" x="16" y="134">service</text>
+    <text class="s" x="16" y="166">역참조 금지</text>
+    <rect class="card" x="0" y="220" width="130" height="200" rx="12"/>
+    <text class="h" x="16" y="250">일급 컬렉션</text>
+    <text class="s" x="16" y="282">Xxxs 타입이</text>
+    <text class="s" x="16" y="302">순회를 맡는다</text>
+    <text class="s" x="16" y="334">Port·Adapter</text>
+    <text class="s" x="16" y="354">UseCase 이름</text>
+    <text class="s" x="16" y="374">금지</text>
+  </g>
+  <text class="s" x="40" y="614">각 칸은 계층.도메인.역할 패키지다. 빈 역할 패키지는 만들지 않는다.</text>
+</svg>

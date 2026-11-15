@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="SantaCut Backend 배너">
+  <title>SantaCut Backend</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1426"/><stop offset="1" stop-color="#0F1F33"/>
+    </linearGradient>
+    <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FF5A5F"/><stop offset="1" stop-color="#F5B83D"/>
+    </linearGradient>
+    <style>
+      text { font-family: Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif; fill: #E6EDF7; }
+      .title { font-size: 58px; font-weight: 800; letter-spacing: -1px; }
+      .tag { font-size: 22px; fill: #A9BAD3; }
+      .chip { fill: #16233B; stroke: #2A3B5A; stroke-width: 1.5; }
+      .chipt { font-size: 16px; font-weight: 600; }
+      .snow { fill: #E6EDF7; }
+    </style>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
+  <!-- 눈송이 점 -->
+  <g class="snow" opacity="0.35">
+    <circle cx="70" cy="50" r="2.5"/><circle cx="180" cy="300" r="2"/><circle cx="420" cy="36" r="2"/>
+    <circle cx="620" cy="320" r="2.5"/><circle cx="760" cy="44" r="2"/><circle cx="1150" cy="320" r="2"/>
+    <circle cx="1120" cy="40" r="3"/><circle cx="980" cy="330" r="2"/><circle cx="300" cy="330" r="2"/>
+  </g>
+  <!-- 상단 리본 -->
+  <rect x="0" y="0" width="1200" height="8" rx="4" fill="url(#ribbon)"/>
+  <!-- 트리 아이콘 -->
+  <g transform="translate(960,70)">
+    <polygon points="90,0 150,90 30,90" fill="#3DDC97" fill-opacity="0.9"/>
+    <polygon points="90,50 170,160 10,160" fill="#3DDC97" fill-opacity="0.7"/>
+    <polygon points="90,110 190,230 -10,230" fill="#3DDC97" fill-opacity="0.5"/>
+    <rect x="76" y="230" width="28" height="26" rx="4" fill="#8A5A3B"/>
+    <polygon points="90,-22 96,-6 112,-6 99,4 104,20 90,10 76,20 81,4 68,-6 84,-6" fill="#F5B83D"/>
+    <circle cx="70" cy="80" r="7" fill="#FF5A5F"/><circle cx="118" cy="132" r="7" fill="#F5B83D"/>
+    <circle cx="56" cy="186" r="7" fill="#3E8BFF"/><circle cx="132" cy="206" r="7" fill="#FF5A5F"/>
+  </g>
+  <!-- 텍스트 -->
+  <text x="64" y="104" font-size="18" font-weight="700" fill="#FF5A5F" letter-spacing="3">SANTACUT · BACKEND</text>
+  <text class="title" x="60" y="172">SantaCut Backend</text>
+  <text class="tag" x="64" y="216">대화·활동을 AI가 채점하고 순위를 매기는 시즌 API</text>
+  <!-- 칩 -->
+  <g transform="translate(64,250)">
+    <rect class="chip" x="0" y="0" width="120" height="44" rx="22"/>
+    <circle cx="22" cy="22" r="6" fill="#7F52FF"/>
+    <text class="chipt" x="36" y="28">Kotlin 2.3</text>
+    <rect class="chip" x="134" y="0" width="172" height="44" rx="22"/>
+    <circle cx="156" cy="22" r="6" fill="#6DB33F"/>
+    <text class="chipt" x="170" y="28">Spring Boot 4.1</text>
+    <rect class="chip" x="320" y="0" width="114" height="44" rx="22"/>
+    <circle cx="342" cy="22" r="6" fill="#F5B83D"/>
+    <text class="chipt" x="356" y="28">Java 25</text>
+    <rect class="chip" x="448" y="0" width="108" height="44" rx="22"/>
+    <circle cx="470" cy="22" r="6" fill="#3E8BFF"/>
+    <text class="chipt" x="484" y="28">SQLite</text>
+    <rect class="chip" x="570" y="0" width="128" height="44" rx="22"/>
+    <circle cx="592" cy="22" r="6" fill="#3DDC97"/>
+    <text class="chipt" x="606" y="28">Spring AI</text>
+    <rect class="chip" x="712" y="0" width="162" height="44" rx="22" stroke-dasharray="5 4"/>
+    <circle cx="734" cy="22" r="6" fill="#9C8CFF"/>
+    <text class="chipt" x="748" y="28">Bedrock 예정</text>
+  </g>
+</svg>

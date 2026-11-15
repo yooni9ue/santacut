@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 684" width="1200" height="684" role="img" aria-label="API 지도: 도메인별 엔드포인트 12개, 메서드, 인증과 CSRF">
+  <title>API 지도</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1426"/><stop offset="1" stop-color="#0F1F33"/>
+    </linearGradient>
+    <style>
+      text { font-family: Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif; fill: #E6EDF7; }
+      .t { font-size: 24px; font-weight: 800; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #A9BAD3; }
+      .xs { font-size: 12px; fill: #A9BAD3; }
+      .m { font-family: 'JetBrains Mono', 'D2Coding', Consolas, 'Courier New', monospace; }
+      .card { fill: #16233B; stroke: #2A3B5A; stroke-width: 1.5; }
+      .cell { fill: #1D2D49; stroke: #33476B; stroke-width: 1; }
+      .mt { font-size: 11px; font-weight: 800; letter-spacing: .5px; }
+      .pp { font-size: 15px; font-weight: 700; }
+      .path { font-size: 12.5px; fill: #CFDBEC; }
+      .tg { font-size: 11px; font-weight: 700; }
+      .st { font-size: 12px; font-weight: 800; fill: #A9BAD3; }
+    </style>
+  </defs>
+  <rect width="1200" height="684" rx="24" fill="url(#bg)"/>
+  <text class="t" x="40" y="54">API 지도</text>
+  <text class="s" x="40" y="80">엔드포인트 12개 · 도메인별 · 필드는 Swagger(/swagger-ui.html)가 기준</text>
+  <rect class="card" x="40" y="110" width="212" height="44" rx="12"/>
+  <rect x="41" y="111" width="210" height="5" rx="2.5" fill="#FF5A5F"/>
+  <circle cx="60" cy="135" r="5" fill="#FF5A5F"/>
+  <text class="h" x="74" y="141" style="font-size:16px">participant</text>
+  <text class="st" x="238" y="140" text-anchor="end">3</text>
+  <rect class="card" x="40" y="164" width="212" height="96" rx="12"/>
+  <rect x="52" y="176" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="74.2" y="190" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="104.5" y="192">지역 목록</text>
+  <text class="m path" x="54" y="219">/v1/regions</text>
+  <rect x="52" y="232" width="36" height="18" rx="5" fill="none" stroke="#3DDC97" stroke-opacity="0.8"/><text class="tg" x="70.0" y="245" text-anchor="middle" style="fill:#3DDC97">공개</text>
+  <rect class="card" x="40" y="270" width="212" height="96" rx="12"/>
+  <rect x="52" y="282" width="52" height="20" rx="10" fill="#3DDC97" fill-opacity="0.18" stroke="#3DDC97" stroke-width="1.2"/>
+  <text class="mt" x="78.0" y="296" text-anchor="middle" style="fill:#3DDC97">POST</text>
+  <text class="pp" x="112.0" y="298">참가 등록</text>
+  <text class="st" x="240" y="297" text-anchor="end">201</text>
+  <text class="m path" x="54" y="325">/v1/participants</text>
+  <rect x="52" y="338" width="36" height="18" rx="5" fill="none" stroke="#3DDC97" stroke-opacity="0.8"/><text class="tg" x="70.0" y="351" text-anchor="middle" style="fill:#3DDC97">공개</text>
+  <rect x="94" y="338" width="41" height="18" rx="5" fill="none" stroke="#FF5A5F" stroke-opacity="0.8"/><text class="tg" x="114.4" y="351" text-anchor="middle" style="fill:#FF5A5F">CSRF</text>
+  <rect class="card" x="40" y="376" width="212" height="96" rx="12"/>
+  <rect x="52" y="388" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="74.2" y="402" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="104.5" y="404">내 정보</text>
+  <text class="m path" x="54" y="431">/v1/me</text>
+  <rect x="52" y="444" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="70.0" y="457" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <rect class="card" x="267" y="110" width="212" height="44" rx="12"/>
+  <rect x="268" y="111" width="210" height="5" rx="2.5" fill="#7F52FF"/>
+  <circle cx="287" cy="135" r="5" fill="#7F52FF"/>
+  <text class="h" x="301" y="141" style="font-size:16px">session</text>
+  <text class="st" x="465" y="140" text-anchor="end">1</text>
+  <rect class="card" x="267" y="164" width="212" height="96" rx="12"/>
+  <rect x="279" y="176" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="301.2" y="190" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="331.5" y="192">토큰 발급</text>
+  <text class="m path" x="281" y="219">/v1/csrf</text>
+  <rect x="279" y="232" width="36" height="18" rx="5" fill="none" stroke="#3DDC97" stroke-opacity="0.8"/><text class="tg" x="297.0" y="245" text-anchor="middle" style="fill:#3DDC97">공개</text>
+  <rect class="card" x="494" y="110" width="212" height="44" rx="12"/>
+  <rect x="495" y="111" width="210" height="5" rx="2.5" fill="#F5B83D"/>
+  <circle cx="514" cy="135" r="5" fill="#F5B83D"/>
+  <text class="h" x="528" y="141" style="font-size:16px">analysis</text>
+  <text class="st" x="692" y="140" text-anchor="end">2</text>
+  <rect class="card" x="494" y="164" width="212" height="96" rx="12"/>
+  <rect x="506" y="176" width="52" height="20" rx="10" fill="#3DDC97" fill-opacity="0.18" stroke="#3DDC97" stroke-width="1.2"/>
+  <text class="mt" x="532.0" y="190" text-anchor="middle" style="fill:#3DDC97">POST</text>
+  <text class="pp" x="566.0" y="192">분석 요청</text>
+  <text class="st" x="694" y="191" text-anchor="end">202</text>
+  <text class="m path" x="508" y="219">/v1/analyses</text>
+  <rect x="506" y="232" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="524.0" y="245" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <rect x="548" y="232" width="41" height="18" rx="5" fill="none" stroke="#FF5A5F" stroke-opacity="0.8"/><text class="tg" x="568.4" y="245" text-anchor="middle" style="fill:#FF5A5F">CSRF</text>
+  <rect x="594.8" y="232" width="47" height="18" rx="5" fill="none" stroke="#8FB4D9" stroke-opacity="0.8"/><text class="tg" x="618.3" y="245" text-anchor="middle" style="fill:#8FB4D9">멱등키</text>
+  <rect class="card" x="494" y="270" width="212" height="96" rx="12"/>
+  <rect x="506" y="282" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="528.2" y="296" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="558.5" y="298">진행 SSE</text>
+  <text class="m path" x="508" y="325">/v1/analyses/{id}/events</text>
+  <rect x="506" y="338" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="524.0" y="351" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <rect class="card" x="721" y="110" width="212" height="44" rx="12"/>
+  <rect x="722" y="111" width="210" height="5" rx="2.5" fill="#3DDC97"/>
+  <circle cx="741" cy="135" r="5" fill="#3DDC97"/>
+  <text class="h" x="755" y="141" style="font-size:16px">ranking</text>
+  <text class="st" x="919" y="140" text-anchor="end">2</text>
+  <rect class="card" x="721" y="164" width="212" height="96" rx="12"/>
+  <rect x="733" y="176" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="755.2" y="190" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="785.5" y="192">내 결과</text>
+  <text class="m path" x="735" y="219">/v1/me/result</text>
+  <rect x="733" y="232" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="751.0" y="245" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <rect class="card" x="721" y="270" width="212" height="96" rx="12"/>
+  <rect x="733" y="282" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="755.2" y="296" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="785.5" y="298">랭킹 50명</text>
+  <text class="m path" x="735" y="325">/v1/rankings?offset=</text>
+  <rect x="733" y="338" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="751.0" y="351" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <rect class="card" x="948" y="110" width="212" height="44" rx="12"/>
+  <rect x="949" y="111" width="210" height="5" rx="2.5" fill="#3E8BFF"/>
+  <circle cx="968" cy="135" r="5" fill="#3E8BFF"/>
+  <text class="h" x="982" y="141" style="font-size:16px">share</text>
+  <text class="st" x="1146" y="140" text-anchor="end">4</text>
+  <rect class="card" x="948" y="164" width="212" height="96" rx="12"/>
+  <rect x="960" y="176" width="52" height="20" rx="10" fill="#3DDC97" fill-opacity="0.18" stroke="#3DDC97" stroke-width="1.2"/>
+  <text class="mt" x="986.0" y="190" text-anchor="middle" style="fill:#3DDC97">POST</text>
+  <text class="pp" x="1020.0" y="192">링크 생성</text>
+  <text class="m path" x="962" y="219">/v1/shares</text>
+  <rect x="960" y="232" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="978.0" y="245" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <rect x="1002" y="232" width="41" height="18" rx="5" fill="none" stroke="#FF5A5F" stroke-opacity="0.8"/><text class="tg" x="1022.4" y="245" text-anchor="middle" style="fill:#FF5A5F">CSRF</text>
+  <rect class="card" x="948" y="270" width="212" height="96" rx="12"/>
+  <rect x="960" y="282" width="67" height="20" rx="10" fill="#FF5A5F" fill-opacity="0.18" stroke="#FF5A5F" stroke-width="1.2"/>
+  <text class="mt" x="993.5" y="296" text-anchor="middle" style="fill:#FF5A5F">DELETE</text>
+  <text class="pp" x="1035.0" y="298">링크 폐기</text>
+  <text class="st" x="1148" y="297" text-anchor="end">204</text>
+  <text class="m path" x="962" y="325">/v1/shares/{token}</text>
+  <rect x="960" y="338" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="978.0" y="351" text-anchor="middle" style="fill:#F5B83D">세션</text>
+  <rect x="1002" y="338" width="41" height="18" rx="5" fill="none" stroke="#FF5A5F" stroke-opacity="0.8"/><text class="tg" x="1022.4" y="351" text-anchor="middle" style="fill:#FF5A5F">CSRF</text>
+  <rect class="card" x="948" y="376" width="212" height="96" rx="12"/>
+  <rect x="960" y="388" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="982.2" y="402" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="1012.5" y="404">공개 HTML</text>
+  <text class="m path" x="962" y="431">/s/{token}</text>
+  <rect x="960" y="444" width="36" height="18" rx="5" fill="none" stroke="#3DDC97" stroke-opacity="0.8"/><text class="tg" x="978.0" y="457" text-anchor="middle" style="fill:#3DDC97">공개</text>
+  <rect class="card" x="948" y="482" width="212" height="96" rx="12"/>
+  <rect x="960" y="494" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
+  <text class="mt" x="982.2" y="508" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <text class="pp" x="1012.5" y="510">공개 PNG</text>
+  <text class="m path" x="962" y="537">/s/{token}/image.png</text>
+  <rect x="960" y="550" width="36" height="18" rx="5" fill="none" stroke="#3DDC97" stroke-opacity="0.8"/><text class="tg" x="978.0" y="563" text-anchor="middle" style="fill:#3DDC97">공개</text>
+  <rect class="card" x="40" y="602" width="1120" height="52" rx="14"/>
+  <rect x="62" y="618" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/><text class="mt" x="84.2" y="632" text-anchor="middle" style="fill:#3E8BFF">GET</text>
+  <rect x="118.5" y="618" width="52" height="20" rx="10" fill="#3DDC97" fill-opacity="0.18" stroke="#3DDC97" stroke-width="1.2"/><text class="mt" x="144.5" y="632" text-anchor="middle" style="fill:#3DDC97">POST</text>
+  <rect x="182.5" y="618" width="67" height="20" rx="10" fill="#FF5A5F" fill-opacity="0.18" stroke="#FF5A5F" stroke-width="1.2"/><text class="mt" x="216.0" y="632" text-anchor="middle" style="fill:#FF5A5F">DELETE</text>
+  <rect x="281.5" y="619" width="36" height="18" rx="5" fill="none" stroke="#3DDC97"/><text class="tg" x="299.5" y="632" text-anchor="middle" style="fill:#3DDC97">공개</text><text class="xs" x="325.5" y="632">로그인 불필요</text>
+  <rect x="407.92" y="619" width="36" height="18" rx="5" fill="none" stroke="#F5B83D"/><text class="tg" x="425.9" y="632" text-anchor="middle" style="fill:#F5B83D">세션</text><text class="xs" x="451.9" y="632">세션 쿠키 필요</text>
+  <rect x="542.4000000000001" y="619" width="41" height="18" rx="5" fill="none" stroke="#FF5A5F"/><text class="tg" x="562.8" y="632" text-anchor="middle" style="fill:#FF5A5F">CSRF</text><text class="xs" x="591.2" y="632">X-XSRF-TOKEN 헤더</text>
+  <rect x="738.1000000000001" y="619" width="47" height="18" rx="5" fill="none" stroke="#8FB4D9"/><text class="tg" x="761.6" y="632" text-anchor="middle" style="fill:#8FB4D9">멱등키</text><text class="xs" x="793.1" y="632">Idempotency-Key 헤더</text>
+</svg>
