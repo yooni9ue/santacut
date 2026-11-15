@@ -37,6 +37,7 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+	testImplementation("com.tngtech.archunit:archunit-junit5:1.5.1")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -48,6 +49,9 @@ kotlin {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	// 통합 테스트가 매번 빈 데이터베이스에서 시작하도록 이전 테스트 DB 파일을 지운다.
+	val testDatabase = layout.buildDirectory.file("test.db")
+	doFirst { testDatabase.get().asFile.delete() }
 }
 
 
