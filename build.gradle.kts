@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
 	kotlin("jvm") version "2.3.21"
 	kotlin("plugin.spring") version "2.3.21"
 	kotlin("plugin.jpa") version "2.3.21"
@@ -20,7 +20,7 @@ repositories {
 }
 
 dependencies {
-	implementation(platform("org.springframework.ai:spring-ai-bom:2.0.0"))
+	implementation(platform("org.springframework.ai:spring-ai-bom:2.0.2"))
 	implementation("org.springframework.ai:spring-ai-starter-model-ollama")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
