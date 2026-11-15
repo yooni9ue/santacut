@@ -20,7 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
         "next_cursor가 null이면 마지막 페이지입니다. 아직 순위가 없으면 participant_count는 0, computed_at은 null, rows는 빈 배열입니다. " +
         "score_hundredths는 100분의 1점 단위 정수입니다(예: 8250은 82.50점). eta와 computed_at은 ISO-8601 UTC 시각이며 " +
         "화면에는 Asia/Seoul로 표시합니다. 배송 시뮬레이션은 12월 25일 0시(Asia/Seoul)에 출발해 배송 순서대로 " +
-        "각 자치구 대표 좌표를 방문하며, 시속 100km 이동, 정거장마다 3분, 하루 6시간 작업을 가정합니다. " +
+        "각 지역 대표 좌표를 방문하며, 시속 100km 이동, 정거장마다 3분, 하루 6시간 작업을 가정합니다. " +
         "실제 배송 약속이 아닌 게임 시뮬레이션입니다.",
     tags = ["Results"],
     parameters = [

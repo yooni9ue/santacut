@@ -34,7 +34,7 @@
   <text class="xs" x="347" y="244">schema.sql 하나</text>
   <rect class="card" x="610" y="110" width="265" height="150" rx="16"/>
   <rect x="632" y="132" width="34" height="5" rx="2.5" fill="#7F52FF"/>
-  <text class="big" x="632" y="194" style="fill:#7F52FF">265<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="632" y="194" style="fill:#7F52FF">275<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="632" y="224">자동 테스트</text>
   <text class="xs" x="632" y="244">gradlew check 통과</text>
   <rect class="card" x="895" y="110" width="265" height="150" rx="16"/>
