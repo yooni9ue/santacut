@@ -14,7 +14,7 @@ export default defineConfig({
   ],
   webServer: {
     command: process.env.CI
-      ? "pnpm start"
+      ? "pnpm start --hostname 127.0.0.1 --port 3100"
       : "pnpm dev --hostname 127.0.0.1 --port 3100",
     env: { HOSTNAME: "127.0.0.1", PORT: "3100" },
     url: "http://127.0.0.1:3100",
