@@ -9,7 +9,7 @@
 백엔드와 프론트엔드가 한 저장소를 함께 쓰는 모노레포입니다. 앱마다 디렉터리, 도구 체인, 빌드 경계를 따로 둡니다.
 
 ```text
-backend/       Kotlin + Spring Boot API (레이어드 아키텍처)
+backend/       Kotlin + Spring Boot API (presentation → application → domain → infrastructure)
 frontend/      프론트엔드 팀 작업 영역 (프론트엔드 팀이 구성)
 docs/          기획, 시스템 아키텍처, 배포 운영서, 백엔드 코드 컨벤션
 deploy/        Docker Compose, Caddy, 배포 설정
