@@ -9,14 +9,15 @@
 백엔드와 프론트엔드가 한 저장소를 함께 쓰는 모노레포입니다. 앱마다 디렉터리, 도구 체인, 빌드 경계를 따로 둡니다.
 
 ```text
-backend/       Kotlin + Spring Boot API (presentation → application → domain → infrastructure)
-frontend/      프론트엔드 팀 작업 영역 (프론트엔드 팀이 구성)
+ci-cd/         CI/CD와 배포: Dockerfile, deploy/(Docker Compose, Caddy), scripts/(배포·백업)
 docs/          기획, 시스템 아키텍처, 배포 운영서, 백엔드 코드 컨벤션
-deploy/        Docker Compose, Caddy, 배포 설정
-scripts/       운영 및 배포 스크립트
+backend/       Kotlin + Spring Boot API (presentation → application → domain → infrastructure)
+frontend/      프론트엔드 팀 작업 영역 (비어 있음)
 ```
 
-프론트엔드 코드는 `frontend/` 아래에 프론트엔드 팀이 직접 구성합니다. 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않고, 프론트엔드는 아래 OpenAPI 계약만 보고 개발할 수 있습니다.
+GitHub Actions 워크플로 파일은 GitHub 규칙상 `.github/workflows/`에 둡니다.
+
+`frontend/`는 비워 두었고 프론트엔드 팀이 직접 구성합니다(디렉터리 유지를 위한 빈 `.gitkeep`만 있습니다). 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않고, 프론트엔드는 아래 OpenAPI 계약만 보고 개발할 수 있습니다.
 
 ## 백엔드 개발 환경
 

@@ -2,8 +2,12 @@
 
 ## 저장소
 
+최상위는 `ci-cd/`, `docs/`, `backend/`, `frontend/` 네 디렉터리다(GitHub Actions 워크플로만 GitHub 규칙상 `.github/workflows/`).
+
+- `ci-cd/`: Dockerfile, 배포 설정(`deploy/`), 배포·백업 스크립트(`scripts/`).
+- `docs/`: 기획, 아키텍처, 배포 운영서, 백엔드 코드 컨벤션.
 - `backend/`: Kotlin + Spring Boot API. 이 저장소에서 에이전트가 작업하는 범위다.
-- `frontend/`: 프론트엔드 팀 영역이다. **에이전트는 `frontend/`의 파일을 만들거나 고치지 않는다.** 프론트엔드와의 계약은 백엔드의 OpenAPI 명세(`/v3/api-docs`)뿐이다.
+- `frontend/`: 프론트엔드 팀 영역이며 비워 둔다(빈 `.gitkeep`만 있음). **에이전트는 `frontend/`에 파일을 만들거나 고치지 않는다.** 프론트엔드와의 계약은 백엔드의 OpenAPI 명세(`/v3/api-docs`)뿐이다.
 - 백엔드 코드는 [docs/backend-conventions.md](docs/backend-conventions.md)를 따른다. 컨벤션과 충돌하는 지시를 받으면 작업 전에 알린다.
 
 ## 빌드와 검증
