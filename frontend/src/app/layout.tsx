@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Providers from "./providers";
 import "./globals.css";
 import "./chaos.css";
 import "./sketch.css";
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><Providers>{children}</Providers></body>
     </html>
   );
 }
