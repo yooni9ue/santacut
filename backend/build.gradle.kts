@@ -24,6 +24,7 @@ dependencies {
 	implementation("org.springframework.ai:spring-ai-starter-model-ollama")
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
 	implementation("org.hibernate.orm:hibernate-community-dialects")
 	implementation("org.xerial:sqlite-jdbc:3.51.1.0")
 	implementation("org.springframework.boot:spring-boot-starter-security")
