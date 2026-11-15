@@ -37,13 +37,14 @@ jobs:
           cp deploy/.env.example deploy/.env
           docker compose --env-file deploy/.env -f deploy/compose.yml config --quiet
       - name: Test and package
+        working-directory: backend
         run: bash ./gradlew --no-daemon clean check bootJar
       - name: Test reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: test-reports
-          path: build/reports/tests/
+          path: backend/build/reports/tests/
           retention-days: 7
           if-no-files-found: warn
 
