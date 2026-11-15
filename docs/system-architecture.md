@@ -10,7 +10,7 @@
 - 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
 - AI 호출은 Spring AI와 Ollama 로컬 모델을 사용한다. 서버 배포는 비공개 Ollama endpoint가 준비되어야 한다.
 - 카카오톡·인스타그램 원본 파일 파서와 내보내기 안내 UI, 전국 지역 좌표, 실제 도메인과 서버는 아직 출시 전 작업이다. 현재 분석 API는 정규화된 이벤트 JSON만 받는다.
-- 백엔드 코드는 계층별 패키지(controller, facade, service, domain, repository, dto)로 나눈 전통적인 레이어드 아키텍처를 따른다. 규칙은 [백엔드 코드 컨벤션](backend-conventions.md)에 정의한다.
+- 백엔드 코드는 `presentation → application → domain → infrastructure` 4계층 레이어드 아키텍처를 따른다. 의존은 위에서 아래로만 흐르고 포트·어댑터는 쓰지 않는다. 규칙은 [백엔드 코드 컨벤션](backend-conventions.md)에 정의한다.
 
 ## 1. 결정 요약
 
@@ -44,7 +44,7 @@ flowchart LR
 
 - JVM: Java 25를 기준으로 Gradle toolchain과 CI를 일치시킨다.
 - Kotlin/Spring Boot/Gradle: 선택한 Boot BOM과 호환되는 패치 버전을 build 파일·Wrapper에 고정한다. 업그레이드는 테스트·취약점 검증 후 PR로 수행한다.
-- Spring MVC + Spring Data JPA: 도메인 계층에서 SQL·Spring 의존성을 분리한다. SQLite 작업 큐의 단일 worker는 짧은 트랜잭션과 DB 호환 쿼리만 사용한다.
+- Spring MVC + Spring Data JPA: 데이터 접근은 infrastructure 계층의 리포지토리에 모은다. SQLite 작업 큐의 단일 worker는 짧은 트랜잭션과 DB 호환 쿼리만 사용한다.
 - SQLite: 한 파일에 사용자·세션·작업·분석·랭킹·공유를 저장하고 파일 백업을 외부로 전송한다. 현재 구현은 `schema.sql` 초기화와 Hibernate `ddl-auto: update`를 사용하며, 프로덕션 데이터 변경 전 백업과 복원 검증이 필요하다.
 - HTML 공유 페이지: 서버 렌더링으로 Open Graph 메타 태그를 첫 응답에 포함한다. JavaScript를 실행하지 않는 카카오톡·SNS 크롤러도 읽을 수 있어야 한다.
 - PNG: Java2D/ImageIO 등 JVM 안에서 그리는 1200×630 이미지. headless 브라우저는 메모리 때문에 기본 배제한다. 한글 폰트를 이미지에 포함하고 라이선스를 보관한다.
