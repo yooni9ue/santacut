@@ -11,18 +11,23 @@ import com.santacut.application.analysis.command.UploadAnalysisCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisUpload
 import com.santacut.domain.analysis.model.DataSource
+import com.santacut.domain.analysis.service.AnalysisUploadService
 import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AnalysisUploadRepository
 import com.santacut.infrastructure.analysis.repository.DailyBudgetRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.any
 import org.mockito.BDDMockito.given
+import org.mockito.BDDMockito.willThrow
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -31,7 +36,8 @@ import kotlin.test.assertTrue
 
 /**
  * 원본 파일 검증 작업자가 성공·실패·만료·시도 소진을 처리하고 어느 쪽이든 원본을 지우는지 확인한다.
- * 분석 작업자 테스트와 같은 설정을 써서 컨텍스트와 `build/worker-test.db`를 함께 쓰고, 테스트마다 비운다.
+ * 분석 작업자 테스트와 같은 `build/worker-test.db`를 쓰고 테스트마다 비운다. 예상하지 못한 예외를 내려고
+ * 원본 서비스를 스파이로 바꾸므로 컨텍스트는 따로 뜬다.
  */
 @SpringBootTest(
     properties = [
@@ -44,6 +50,7 @@ import kotlin.test.assertTrue
 )
 @Import(WorkerTestClockConfiguration::class)
 @MockitoBean(types = [ScoreClient::class])
+@MockitoSpyBean(types = [AnalysisUploadService::class])
 class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     private val analysisUploadWorkerFacade: AnalysisUploadWorkerFacade,
     private val analysisFacade: AnalysisFacade,
@@ -53,6 +60,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     private val analysisJobRepository: AnalysisJobRepository,
     private val analysisUploadRepository: AnalysisUploadRepository,
     private val dailyBudgetRepository: DailyBudgetRepository,
+    private val analysisUploadService: AnalysisUploadService,
 ) {
     @BeforeEach
     fun setUp() {
@@ -74,6 +82,27 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         assertTrue(payload.contains("고마워 0"))
         assertFalse(payload.contains(OTHER_TEXT))
         assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
+    }
+
+    @Test
+    fun `인스타그램 JSON도 검증을 통과하면 본인 메시지만 담아 대기열에 넣고 원본을 지운다`() {
+        val job = upload(TestChatFiles.instagram(OPEN_TIME, EVENT_COUNT), source = DataSource.INSTAGRAM)
+
+        analysisUploadWorkerFacade.validateNextUpload()
+
+        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        val payload = analysisJobRepository.findById(job.jobId.toString()).orElseThrow().requirePayload()
+        assertTrue(payload.contains("고마워 0"))
+        assertTrue(payload.contains("INSTAGRAM"))
+        assertFalse(payload.contains(OTHER_TEXT))
+        assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
+    }
+
+    @Test
+    fun `검증 중 예상하지 못한 예외가 나면 ANALYSIS_FAILED로 끝내고 원본을 지운다`() {
+        willThrow(IllegalStateException("예상하지 못한 오류")).given(analysisUploadService).normalize(anyUpload(), anyInstant())
+
+        assertRejected(upload(TestChatFiles.kakaoIos(OPEN_TIME, EVENT_COUNT)), "FAILED", "ANALYSIS_FAILED")
     }
 
     @Test
@@ -135,6 +164,12 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         val command = UploadAnalysisCommand(participantId, "key-" + UUID.randomUUID(), source.name, selfSpeaker, content)
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.upload(command).id))
     }
+
+    /** Kotlin의 null 불가 매개변수에도 쓸 수 있도록 매처를 등록한 뒤 null 대신 빈 원본을 돌려준다. */
+    private fun anyUpload(): AnalysisUpload =
+        any(AnalysisUpload::class.java) ?: AnalysisUpload("", DataSource.KAKAO, SELF_SPEAKER, ByteArray(0), OPEN_TIME)
+
+    private fun anyInstant(): Instant = any(Instant::class.java) ?: OPEN_TIME
 
     /** 검증 작업자를 한 번 돌린 뒤(이미 돌렸으면 남은 원본이 없어 아무 일도 없다) 상태와 원본 삭제를 확인한다. */
     private fun assertRejected(job: AnalysisJobCommand, status: String, errorCode: String) {

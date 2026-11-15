@@ -181,19 +181,22 @@ class ResultShareFlowTest @Autowired constructor(
         rebuild: Boolean,
         assessedAt: Instant = clock.instant(),
     ) {
-        val job = AnalysisJob.enqueue(
+        val score = Score.weighted(scores.map { BigDecimal(it) })
+        transactionTemplate.executeWithoutResult {
+            assessmentService.record(emptyJob(participantId, assessedAt), score, assessedAt)
+            if (rebuild) rankingService.rebuild(assessedAt, shareService.findAll())
+        }
+    }
+
+    /** 평가 저장에 필요한 작업. 이벤트와 본문은 비워 둔다. */
+    private fun emptyJob(participantId: UUID, enqueuedAt: Instant): AnalysisJob =
+        AnalysisJob.enqueue(
             participantId,
             IdempotencyKey.from("key-" + UUID.randomUUID()),
             AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())),
             AnalysisPayload("{}"),
-            assessedAt,
+            enqueuedAt,
         )
-        val score = Score.weighted(scores.map { BigDecimal(it) })
-        transactionTemplate.executeWithoutResult {
-            assessmentService.record(job, score, assessedAt)
-            if (rebuild) rankingService.rebuild(assessedAt, shareService.findAll())
-        }
-    }
 
     companion object {
         private const val EXPECTED_SCORE = 7600

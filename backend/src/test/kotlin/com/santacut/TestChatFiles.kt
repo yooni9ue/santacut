@@ -5,7 +5,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 /**
- * 통합 테스트가 올릴 카카오톡 iOS 형식 대화 파일. 이벤트 시각 범위(최근 90일)를 지키도록 기준 시각에서 거꾸로 만든다.
+ * 통합 테스트가 올릴 카카오톡 iOS 형식과 인스타그램 JSON 형식 대화 파일. 이벤트 시각 범위(최근 90일)를 지키도록 기준 시각에서 거꾸로 만든다.
  */
 object TestChatFiles {
     const val SELF_SPEAKER = "산타"
@@ -23,6 +23,17 @@ object TestChatFiles {
         val own = List(ownCount) { index -> line(start.plusSeconds(index * MINUTE_SECONDS), SELF_SPEAKER, "고마워 $index") }
         return (listOf(other) + own).joinToString("\n").toByteArray()
     }
+
+    /** [kakaoIos]와 같은 메시지를 담은 인스타그램 `message_1.json`. 실제 파일처럼 최신 메시지부터 적는다. */
+    fun instagram(now: Instant, ownCount: Int): ByteArray {
+        val start = now.minusSeconds(DAY_SECONDS)
+        val other = message(start.minusSeconds(MINUTE_SECONDS), OTHER_SPEAKER, OTHER_TEXT)
+        val own = List(ownCount) { index -> message(start.plusSeconds(index * MINUTE_SECONDS), SELF_SPEAKER, "고마워 $index") }
+        return ("{\"messages\":[" + (listOf(other) + own).reversed().joinToString(",") + "]}").toByteArray()
+    }
+
+    private fun message(at: Instant, speaker: String, text: String): String =
+        "{\"sender_name\":\"$speaker\",\"timestamp_ms\":${at.toEpochMilli()},\"content\":\"$text\"}"
 
     private fun line(at: Instant, speaker: String, text: String): String = "${IOS_TIME.format(at)}, $speaker : $text"
 }
