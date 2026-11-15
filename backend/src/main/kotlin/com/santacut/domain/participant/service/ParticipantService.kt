@@ -35,6 +35,9 @@ class ParticipantService(
         participantRepository.findById(participantId.toString()).orElse(null)
             ?: throw SantaCutException(ErrorCode.PARTICIPANT_NOT_FOUND)
 
+    fun changeRegion(participantId: UUID, regionCode: String): Participant =
+        get(participantId).also { it.changeRegion(regionCode) }
+
     /** 세션은 있지만 참가자가 지워졌다면 인증되지 않은 것으로 본다. */
     fun verifyRegistered(participantId: UUID) {
         if (!participantRepository.existsById(participantId.toString())) {

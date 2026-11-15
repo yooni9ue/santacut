@@ -84,6 +84,7 @@ sequenceDiagram
 | GET | `/v1/nicknames/availability` | 닉네임 가용성 확인 | 공개 |
 | POST | `/v1/participants` | 참가 등록 (`201`) | 공개 · CSRF |
 | GET | `/v1/me` | 내 참가 정보 | 세션 |
+| PATCH | `/v1/me/region` | 내 지역 변경 (시즌 마감 전) | 세션 · CSRF |
 | POST | `/v1/analyses` | 분석 요청 (`202`) | 세션 · CSRF · `Idempotency-Key` |
 | GET | `/v1/analyses/{id}` | 분석 진행 상태 | 세션 |
 | GET | `/v1/me/analysis` | 내 최근 분석 상태 | 세션 |

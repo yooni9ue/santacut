@@ -4,6 +4,7 @@ import com.santacut.ErrorCodeAssertions.assertErrorCode
 import com.santacut.IntegrationTest
 import com.santacut.TestParticipants.REGION_CODE
 import com.santacut.TestParticipants.uniqueNickname
+import com.santacut.application.participant.command.ChangeRegionCommand
 import com.santacut.application.participant.command.CurrentParticipantCommand
 import com.santacut.application.participant.command.NicknameAvailabilityCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
@@ -77,6 +78,20 @@ class ParticipantFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `시즌 마감 전에는 고를 수 있는 지역으로만 지역을 바꾼다`() {
+        val registered = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE))
+        val changed = participantFacade.changeRegion(ChangeRegionCommand(registered.id, OTHER_REGION_CODE))
+        assertEquals(OTHER_REGION_CODE, changed.regionCode)
+        assertEquals(OTHER_REGION_CODE, participantFacade.getCurrentParticipant(CurrentParticipantCommand(registered.id)).regionCode)
+        assertErrorCode(ErrorCode.UNSUPPORTED_REGION) {
+            participantFacade.changeRegion(ChangeRegionCommand(registered.id, SEOUL_WITH_DISTRICTS))
+        }
+        assertErrorCode(ErrorCode.PARTICIPANT_NOT_FOUND) {
+            participantFacade.changeRegion(ChangeRegionCommand(UUID.randomUUID(), OTHER_REGION_CODE))
+        }
+    }
+
+    @Test
     fun `모르는 세션 토큰은 인증되지 않고 없는 참가자는 조회할 수 없다`() {
         assertNull(sessionFacade.authenticate(SessionAuthenticationCommand("x".repeat(43))))
         assertErrorCode(ErrorCode.PARTICIPANT_NOT_FOUND) {
@@ -87,5 +102,8 @@ class ParticipantFacadeTest @Autowired constructor(
     companion object {
         /** 자치구가 있어 그 자체로는 고를 수 없는 서울특별시 코드. */
         private const val SEOUL_WITH_DISTRICTS = "KR-11"
+
+        /** 등록 기본 지역(종로구)과 다른 서울 자치구(영등포구). */
+        private const val OTHER_REGION_CODE = "KR-11-650"
     }
 }

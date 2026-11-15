@@ -31,7 +31,7 @@
 ## 3. 인증과 CSRF
 
 1. 페이지 로드 시 `GET /v1/me`를 호출한다. `200`이면 로그인 상태, `401`이면 미등록 상태다.
-2. 쓰기 요청(`POST`, `DELETE`) 직전에 `GET /v1/csrf`를 호출한다. 응답 `{ headerName, token }`의 `token`을 `headerName`(기본 `X-XSRF-TOKEN`) 헤더로 보낸다. 같은 응답이 `XSRF-TOKEN` 쿠키도 설정하므로 쿠키를 지우지 않는다.
+2. 쓰기 요청(`POST`, `PATCH`, `DELETE`) 직전에 `GET /v1/csrf`를 호출한다. 응답 `{ headerName, token }`의 `token`을 `headerName`(기본 `X-XSRF-TOKEN`) 헤더로 보낸다. 같은 응답이 `XSRF-TOKEN` 쿠키도 설정하므로 쿠키를 지우지 않는다.
 3. `POST /v1/participants`로 등록하면 세션이 HttpOnly 쿠키(`sc_session`, 운영은 `__Host-sc_session`)로 설정된다. 세션은 30일간 유효하며 JSON 응답에는 세션 값이 없다.
 4. 이후 요청은 쿠키가 자동으로 실려 인증된다. 세션이 없거나 만료되면 `401`이다.
 
@@ -44,6 +44,7 @@
 | GET | `/v1/nicknames/availability` | - | - | 닉네임 가용성 확인 |
 | POST | `/v1/participants` | - | 필요 | 참가 등록 (`201`) |
 | GET | `/v1/me` | 필요 | - | 내 참가 정보 |
+| PATCH | `/v1/me/region` | 필요 | 필요 | 내 지역 변경(시즌 마감 전) |
 | POST | `/v1/analyses` | 필요 | 필요 | 분석 요청 (`202`) |
 | GET | `/v1/analyses/{id}` | 필요 | - | 분석 작업 진행 상태 |
 | GET | `/v1/me/analysis` | 필요 | - | 내 최근 분석 작업 상태 |
@@ -64,6 +65,13 @@
 - 각 지역은 `{ code, name, parent_code, selectable }`이다. 최상위 지역은 `parent_code`가 `null`이다.
 - `regionCode`에는 `selectable`이 `true`인 `code`만 쓴다. 구가 없는 시·도는 그 자체로 `selectable`이 `true`다.
 - 하위 지역이 있는 시·도나 없는 코드를 보내면 `400`(`UNSUPPORTED_REGION`)이다. 시·도를 바꾸면 하위 선택을 비운다.
+
+### 지역 변경 `PATCH /v1/me/region`
+
+- 본문은 `{ regionCode }`이다. 규칙은 등록과 같다(`selectable`인 코드만).
+- 성공하면 `200`과 `GET /v1/me`와 같은 참가 정보를 준다. 서버가 같은 요청 안에서 순위와 도착 예정 시각을 다시 계산한다.
+- 시즌 마감(12월 25일 0시, 한국 시간) 뒤에는 `409`(`SEASON_FROZEN`)다. 마감 뒤에는 변경 버튼 대신 안내를 보여준다.
+- 이미 만든 공유 링크는 만든 당시 결과를 그대로 보여준다.
 
 ## 6. 분석 요청과 상태 확인
 
@@ -130,7 +138,7 @@
 | 지역 선택 오류 | `400` | `UNSUPPORTED_REGION` | 없는 코드이거나 하위 지역을 골라야 하는 시·도 |
 | 요청 한도 초과 | `429` | `DAILY_USER_LIMIT` | 본문 `retry_at`(UTC)과 `Retry-After` 헤더(초)로 다시 가능한 시점을 안내 |
 | 세션 만료·쿠키 분실 | `401` | `NOT_AUTHENTICATED` | 공개 링크 보기 / 새 참여 안내 |
-| 시즌 동결 | `409` | `SEASON_FROZEN` | 결과 보기 |
+| 시즌 동결 | `409` | `SEASON_FROZEN` | 분석 요청·지역 변경 모두. 결과 보기 |
 | 공유 비활성·존재하지 않음 | `404` | `SHARE_NOT_FOUND` | |
 | 결과 없음 | `404` | `RESULT_NOT_FOUND` | 점수가 나온 심사가 없음 |
 | 랭킹 cursor 오류 | `400` | `INVALID_CURSOR` | 받은 `next_cursor`만 보낸다 |

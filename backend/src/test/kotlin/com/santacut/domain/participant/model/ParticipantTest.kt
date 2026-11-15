@@ -21,6 +21,13 @@ class ParticipantTest {
     }
 
     @Test
+    fun `지역을 바꾸면 참가 지역 코드가 바뀐다`() {
+        val participant = Participant.register(Nickname.from("SantaKim"), "KR-11-110", registeredAt)
+        participant.changeRegion("KR-11-650")
+        assertEquals("KR-11-650", participant.regionCode)
+    }
+
+    @Test
     fun `저장 오류 메시지에 닉네임 키 유일 제약 이름이 있으면 닉네임 충돌이다`() {
         val message = "[SQLITE_CONSTRAINT_UNIQUE] UNIQUE constraint failed: participants.nickname_key"
         assertTrue(Participant.isNicknameConflict(message))

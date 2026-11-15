@@ -20,7 +20,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     PARTICIPANT_NOT_FOUND(404, "세션의 참가자가 더 이상 존재하지 않습니다."),
     RESULT_NOT_FOUND(404, "아직 점수가 나온 결과가 없습니다."),
     SHARE_NOT_FOUND(404, "공유 링크가 없거나 취소되었습니다."),
-    SEASON_FROZEN(409, "시즌이 마감되어 더 이상 분석을 받을 수 없습니다."),
+    SEASON_FROZEN(409, "시즌이 마감되어 이번 시즌 결과와 배송 계획이 확정되었습니다."),
     IDEMPOTENCY_CONFLICT(409, "같은 Idempotency-Key로 다른 요청 본문을 보냈습니다."),
     NICKNAME_TAKEN(409, "이미 사용 중인 닉네임입니다."),
     NO_RANKED_RESULT(409, "공유할 순위 결과가 아직 없습니다."),
