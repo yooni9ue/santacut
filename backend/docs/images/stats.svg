@@ -21,48 +21,51 @@
   </defs>
   <rect width="1200" height="640" rx="24" fill="url(#bg)"/>
   <text class="t" x="40" y="54">한눈에 보기</text>
-  <text class="s" x="40" y="80">코드와 설정에서 센 숫자다.</text>
+  <text class="s" x="40" y="80">코드와 설정, 테스트 결과에서 센 숫자다.</text>
   <rect class="card" x="40" y="110" width="265" height="150" rx="16"/>
   <rect x="62" y="132" width="34" height="5" rx="2.5" fill="#3E8BFF"/>
-  <text class="big" x="62" y="194" style="fill:#3E8BFF">16<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="62" y="194" style="fill:#3E8BFF">17<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="62" y="224">HTTP 엔드포인트</text>
-  <text class="xs" x="62" y="244">컨트롤러 7개</text>
+  <text class="xs" x="62" y="244">컨트롤러 7개 · OpenAPI 기준</text>
   <rect class="card" x="325" y="110" width="265" height="150" rx="16"/>
   <rect x="347" y="132" width="34" height="5" rx="2.5" fill="#3DDC97"/>
-  <text class="big" x="347" y="194" style="fill:#3DDC97">8<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="347" y="194" style="fill:#3DDC97">9<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="347" y="224">SQLite 테이블</text>
   <text class="xs" x="347" y="244">schema.sql 하나</text>
   <rect class="card" x="610" y="110" width="265" height="150" rx="16"/>
   <rect x="632" y="132" width="34" height="5" rx="2.5" fill="#7F52FF"/>
-  <text class="big" x="632" y="194" style="fill:#7F52FF">4×5<tspan class="unit" dx="6"></tspan></text>
-  <text class="lb" x="632" y="224">계층 × 도메인</text>
-  <text class="xs" x="632" y="244">+ global 패키지</text>
+  <text class="big" x="632" y="194" style="fill:#7F52FF">265<tspan class="unit" dx="6">개</tspan></text>
+  <text class="lb" x="632" y="224">자동 테스트</text>
+  <text class="xs" x="632" y="244">gradlew check 통과</text>
   <rect class="card" x="895" y="110" width="265" height="150" rx="16"/>
   <rect x="917" y="132" width="34" height="5" rx="2.5" fill="#FF5A5F"/>
-  <text class="big" x="917" y="194" style="fill:#FF5A5F">3<tspan class="unit" dx="6">회/일</tspan></text>
-  <text class="lb" x="917" y="224">참가자당 분석 요청</text>
-  <text class="xs" x="917" y="244">초과 시 거절</text>
+  <text class="big" x="917" y="194" style="fill:#FF5A5F">29<tspan class="unit" dx="6">개</tspan></text>
+  <text class="lb" x="917" y="224">오류 코드</text>
+  <text class="xs" x="917" y="244">ErrorCode.kt · 작업 실패 코드는 따로 8개</text>
   <rect class="card" x="40" y="280" width="265" height="150" rx="16"/>
   <rect x="62" y="302" width="34" height="5" rx="2.5" fill="#F5B83D"/>
-  <text class="big" x="62" y="364" style="fill:#F5B83D">100<tspan class="unit" dx="6">회/일</tspan></text>
-  <text class="lb" x="62" y="394">AI 호출 예산</text>
-  <text class="xs" x="62" y="414">기본값 · 설정 가능</text>
+  <text class="big" x="62" y="364" style="fill:#F5B83D">271<tspan class="unit" dx="6">개</tspan></text>
+  <text class="lb" x="62" y="394">지역</text>
+  <text class="xs" x="62" y="414">시·도 16 + 시·군·구 255</text>
   <rect class="card" x="325" y="280" width="265" height="150" rx="16"/>
   <rect x="347" y="302" width="34" height="5" rx="2.5" fill="#8FB4D9"/>
-  <text class="big" x="347" y="364" style="fill:#8FB4D9">9<tspan class="unit" dx="6">명</tspan></text>
-  <text class="lb" x="347" y="394">리뷰 패널</text>
-  <text class="xs" x="347" y="414">독립 판정</text>
+  <text class="big" x="347" y="364" style="fill:#8FB4D9">3<tspan class="unit" dx="6">회/일</tspan></text>
+  <text class="lb" x="347" y="394">참가자당 분석 제출</text>
+  <text class="xs" x="347" y="414">AI 호출은 하루 100회</text>
   <rect class="card" x="610" y="280" width="550" height="150" rx="16"/>
   <text class="lb" x="632" y="314">시간 설정</text>
-  <rect class="cell" x="632.0" y="330" width="160.7" height="82" rx="12"/>
-  <text class="mid" x="648.0" y="374" style="fill:#3DDC97">3<tspan class="unit" dx="4">초</tspan></text>
-  <text class="xs" x="648.0" y="398">워커 큐 확인</text>
-  <rect class="cell" x="804.7" y="330" width="160.7" height="82" rx="12"/>
-  <text class="mid" x="820.7" y="374" style="fill:#3E8BFF">24<tspan class="unit" dx="4">시간</tspan></text>
-  <text class="xs" x="820.7" y="398">대기 작업 만료</text>
-  <rect class="cell" x="977.4" y="330" width="160.7" height="82" rx="12"/>
-  <text class="mid" x="993.4" y="374" style="fill:#F5B83D">3<tspan class="unit" dx="4">분</tspan></text>
-  <text class="xs" x="993.4" y="398">작업 임대</text>
+  <rect class="cell" x="632.0" y="330" width="119.0" height="82" rx="12"/>
+  <text class="mid" x="646.0" y="374" style="fill:#3DDC97">1<tspan class="unit" dx="4">초</tspan></text>
+  <text class="xs" x="646.0" y="398">검증 작업자</text>
+  <rect class="cell" x="761.0" y="330" width="119.0" height="82" rx="12"/>
+  <text class="mid" x="775.0" y="374" style="fill:#3E8BFF">3<tspan class="unit" dx="4">초</tspan></text>
+  <text class="xs" x="775.0" y="398">분석 작업자</text>
+  <rect class="cell" x="890.0" y="330" width="119.0" height="82" rx="12"/>
+  <text class="mid" x="904.0" y="374" style="fill:#F5B83D">3<tspan class="unit" dx="4">분</tspan></text>
+  <text class="xs" x="904.0" y="398">작업 임대</text>
+  <rect class="cell" x="1019.0" y="330" width="119.0" height="82" rx="12"/>
+  <text class="mid" x="1033.0" y="374" style="fill:#FF5A5F">24<tspan class="unit" dx="4">시간</tspan></text>
+  <text class="xs" x="1033.0" y="398">대기 작업 만료</text>
   <text class="h" x="40" y="472">설계 선택</text>
   <rect class="card" x="40.0" y="488" width="173" height="80" rx="14"/>
   <circle cx="60.0" cy="515" r="5" fill="#3DDC97"/>
@@ -74,8 +77,8 @@
   <text class="xs" x="245.4" y="548">브로커가 필요 없다</text>
   <rect class="card" x="418.8" y="488" width="173" height="80" rx="14"/>
   <circle cx="438.8" cy="515" r="5" fill="#FF5A5F"/>
-  <text class="lb" x="452.8" y="520" style="font-size:14.5px">작업 임대 3분</text>
-  <text class="xs" x="434.8" y="548">워커가 죽어도 복구</text>
+  <text class="lb" x="452.8" y="520" style="font-size:14.5px">원본 따로 저장</text>
+  <text class="xs" x="434.8" y="548">검증 뒤 바로 삭제</text>
   <rect class="card" x="608.2" y="488" width="173" height="80" rx="14"/>
   <circle cx="628.2" cy="515" r="5" fill="#3E8BFF"/>
   <text class="lb" x="642.2" y="520" style="font-size:14.5px">202 + 폴링</text>

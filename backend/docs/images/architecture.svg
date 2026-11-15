@@ -71,8 +71,8 @@
   <rect x="428" y="534" width="400" height="70" rx="12" fill="#3DDC97" fill-opacity="0.1" stroke="#3DDC97" stroke-width="1.5"/>
   <circle cx="460" cy="569" r="14" fill="none" stroke="#3DDC97" stroke-width="3"/>
   <path d="M460,560 V569 H468" fill="none" stroke="#3DDC97" stroke-width="3"/>
-  <text class="h" x="488" y="563">분석 워커</text>
-  <text class="s" x="488" y="588">@Scheduled 3초 간격 · 작업 임대(3분)</text>
+  <text class="h" x="488" y="563">검증 · 분석 워커</text>
+  <text class="s" x="488" y="588">@Scheduled 검증 1초 · 분석 3초 · 임대 3분</text>
 
   <!-- SQLite -->
   <rect class="card" x="930" y="150" width="230" height="150" rx="16"/>
@@ -81,7 +81,7 @@
   <text class="h" x="1026" y="202">SQLite</text>
   <text class="s" x="1026" y="224">파일 DB</text>
   <text class="s" x="950" y="262">커넥션 풀 1개</text>
-  <text class="s" x="950" y="284">테이블 8개 · 작업 큐 포함</text>
+  <text class="s" x="950" y="284">테이블 9개 · 작업 큐 포함</text>
   <path class="line" d="M828,483 H880 V225 H926" marker-end="url(#arr)"/>
 
   <!-- AI -->
