@@ -18,30 +18,54 @@ GitHub Actions 워크플로는 GitHub 규칙상 `.github/workflows/`에 있으�
 
 - Node.js 24 LTS (`frontend/.nvmrc`)
 - Next.js App Router, React, TypeScript, Tailwind CSS, ESLint
+- pnpm 12.21.0 (`packageManager` 고정, `pnpm-lock.yaml`)
+- TanStack Query + Axios
+- Vitest + Testing Library, Playwright (모바일 Chromium/WebKit)
 - `frontend/src/` 구조 및 `@/*` 경로 별칭
 - [API 연동 가이드](docs/frontend-api-guide.md)
 - Swagger UI: `http://localhost:8080/swagger-ui.html`, OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
-Node.js 24를 설치한 뒤 실행합니다. nvm을 사용한다면 `frontend/`에서 `nvm install`과 `nvm use`를 먼저 실행하세요.
+Node.js 24와 pnpm을 설치한 뒤 실행합니다 (`npm install -g pnpm@12.21.0`). nvm을 사용한다면 `frontend/`에서 `nvm install`과 `nvm use`를 먼저 실행하세요.
 
 ```bash
 cd frontend
-npm ci
-npm run dev
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-[http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 현재 메인 디자인 미리보기에는 환경 변수가 필요하지 않습니다. 프론트엔드와 백엔드 연동은 아직 구현되지 않았습니다.
+[http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 현재 메인 디자인 미리보기에는 환경 변수가 필요하지 않습니다. 화면에서 실제 API를 호출하는 기능은 아직 구현되지 않았습니다.
+
+`/v1`, `/s`, Swagger 경로는 기본적으로 `http://127.0.0.1:8080`으로 프록시합니다. 다른 서버를 사용하려면 `frontend/.env.local`에 `BACKEND_ORIGIN`을 설정한 뒤 개발 서버를 재시작하세요. 브라우저는 같은 출처의 상대 경로로 요청합니다.
 
 `frontend/` 디렉터리에서 검사·빌드를 실행합니다.
 
 ```bash
-npm run lint
-npm run typecheck
-npm run build
-npm start
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm start
 ```
 
-`npm start`는 빌드 결과를 실행합니다.
+`pnpm start`는 빌드 결과를 실행합니다.
+
+## 프론트엔드 공통 코드와 테스트
+
+- `frontend/src/app/providers.tsx`: TanStack Query Provider
+- `frontend/src/lib/query-client.ts`: 서버 요청 간 캐시 분리, 브라우저 캐시 유지, 조회 재시도 정책
+- `frontend/src/lib/api.ts`: 브라우저용 Axios 인스턴스, 쓰기 전 CSRF 발급, 공통 오류 메시지
+- `api.get("/me")`처럼 `/v1` 이후 경로를 사용합니다. 세션 쿠키를 보내고 쓰기 요청은 자동으로 `/v1/csrf`에서 토큰을 받아 헤더에 넣습니다. 실패한 쓰기는 자동 재시도하지 않습니다.
+- Server Component에서 사용자별 API를 호출할 때는 쿠키를 명시적으로 전달하는 별도 요청 단위 클라이언트가 필요합니다.
+
+```bash
+cd frontend
+pnpm test                 # 단위·컴포넌트 테스트
+pnpm test:watch           # 변경 감지
+pnpm exec playwright install chromium webkit  # 브라우저 최초 설치
+pnpm test:e2e             # 모바일 Chromium + WebKit
+```
+
+E2E는 3100번 포트에서 개발 서버를 자동 실행합니다. 현재 테스트는 실제 백엔드 없이 공통 API 코드와 메인 미리보기 동작을 검증합니다.
 
 ## UI·UX 기획
 
