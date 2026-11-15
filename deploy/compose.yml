@@ -1,0 +1,64 @@
+name: santacut
+
+services:
+  app:
+    image: ${APP_IMAGE:?Use an immutable GHCR image digest}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      SPRING_DATASOURCE_URL: jdbc:sqlite:/app/data/santacut.db
+      APP_PUBLIC_BASE_URL: https://${DOMAIN:?Set DOMAIN}
+      APP_SESSION_SECURE: "true"
+      APP_SEASON_YEAR: ${APP_SEASON_YEAR:-2026}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:?Set a private reachable Ollama endpoint}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+      SANTACUT_AI_DAILY_CALL_LIMIT: ${SANTACUT_AI_DAILY_CALL_LIMIT:-100}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true
+    ports:
+      - '127.0.0.1:8080:8080'
+    volumes:
+      - santacut_data:/app/data
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    read_only: true
+    tmpfs:
+      - /tmp:size=96m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1024m
+    cpus: 1.5
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:8080/actuator/health/readiness]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    mem_limit: 128m
+    logging: *logging
+
+volumes:
+  santacut_data:
+  caddy_data:
+  caddy_config:
