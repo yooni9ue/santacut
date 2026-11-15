@@ -80,6 +80,9 @@ class RankingService(
         return RankingBoard.of(season, now, participantCount, computedAt, fetched, cursor)
     }
 
+    /** 시즌이 마감됐으면 [ErrorCode.SEASON_FROZEN]이다. 마감 뒤에는 순위에 영향을 주는 변경을 받지 않는다. */
+    fun verifySeasonOpenAt(now: Instant) = season().verifyOpenAt(now)
+
     /** 지금 순위가 미리보기인지 확정인지. */
     fun stageAt(now: Instant): RankingStage = season().stageAt(now)
 

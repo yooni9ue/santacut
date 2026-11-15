@@ -45,6 +45,11 @@ class Participant(
 
     fun participantId(): UUID = UUID.fromString(id)
 
+    /** 참가 지역을 바꾼다. 지역이 고를 수 있는 지역인지는 호출하는 쪽이 먼저 확인한다. */
+    fun changeRegion(regionCode: String) {
+        this.regionCode = regionCode
+    }
+
     companion object {
         /** 데이터베이스가 닉네임 키 유일 제약 위반을 알릴 때 오류 메시지에 담는 이름(테이블.컬럼). */
         private const val NICKNAME_UNIQUE_CONSTRAINT = "participants.nickname_key"

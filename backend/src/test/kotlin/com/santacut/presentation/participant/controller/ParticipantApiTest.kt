@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -80,6 +81,19 @@ class ParticipantApiTest @Autowired constructor(
     }
 
     @Test
+    fun `지역 변경은 CSRF 토큰과 세션이 있어야 하고 바뀐 참가 정보를 돌려준다`() {
+        val session = Cookie(SESSION_COOKIE, registerAndReadSessionToken(uniqueNickname()))
+        val change = patch(REGION_PATH).cookie(session).contentType(MediaType.APPLICATION_JSON)
+            .content("{\"regionCode\":\"$OTHER_REGION_CODE\"}")
+        mockMvc.perform(change).andExpect(status().isForbidden)
+        mockMvc.perform(withCsrf(mockMvc, change))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.regionCode").value(OTHER_REGION_CODE))
+        mockMvc.perform(withCsrf(mockMvc, patch(REGION_PATH).contentType(MediaType.APPLICATION_JSON).content("{}")))
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
     fun `CSRF 토큰 없이 등록하면 403이다`() {
         mockMvc.perform(registerRequest(uniqueNickname())).andExpect(status().isForbidden)
     }
@@ -133,5 +147,7 @@ class ParticipantApiTest @Autowired constructor(
     companion object {
         private const val SESSION_COOKIE = "sc_session"
         private const val AVAILABILITY_PATH = "/v1/nicknames/availability"
+        private const val REGION_PATH = "/v1/me/region"
+        private const val OTHER_REGION_CODE = "KR-11-650"
     }
 }

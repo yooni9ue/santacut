@@ -6,9 +6,11 @@ import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.participant.result.RegisteredParticipantResult
 import com.santacut.presentation.global.config.SessionCookieProperties
 import com.santacut.presentation.global.security.SessionCookie
+import com.santacut.presentation.participant.docs.ChangeRegionApi
 import com.santacut.presentation.participant.docs.CheckNicknameAvailabilityApi
 import com.santacut.presentation.participant.docs.GetCurrentParticipantApi
 import com.santacut.presentation.participant.docs.RegisterParticipantApi
+import com.santacut.presentation.participant.request.ChangeRegionRequest
 import com.santacut.presentation.participant.request.RegisterParticipantRequest
 import com.santacut.presentation.participant.response.CurrentParticipantResponse
 import com.santacut.presentation.participant.response.NicknameAvailabilityResponse
@@ -20,6 +22,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseCookie
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
@@ -36,6 +39,14 @@ class ParticipantController(
     @GetCurrentParticipantApi
     fun me(@AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID): CurrentParticipantResponse =
         CurrentParticipantResponse.from(participantFacade.getCurrentParticipant(CurrentParticipantCommand(participantId)))
+
+    @PatchMapping("/v1/me/region")
+    @ChangeRegionApi
+    fun changeRegion(
+        @RequestBody request: ChangeRegionRequest,
+        @AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID,
+    ): CurrentParticipantResponse =
+        CurrentParticipantResponse.from(participantFacade.changeRegion(request.toCommand(participantId)))
 
     @GetMapping("/v1/nicknames/availability")
     @CheckNicknameAvailabilityApi
