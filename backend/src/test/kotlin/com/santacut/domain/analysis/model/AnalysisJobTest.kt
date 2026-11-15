@@ -23,8 +23,8 @@ class AnalysisJobTest {
         val job = newJob()
         assertEquals(AnalysisJobStatus.QUEUED, job.status)
         assertEquals(0, job.attempts)
-        assertTrue(job.matchesRequest(payload))
-        assertFalse(job.matchesRequest(AnalysisPayload("{}")))
+        assertTrue(job.matchesRequestHash(payload.hash()))
+        assertFalse(job.matchesRequestHash(AnalysisPayload("{}").hash()))
         assertEquals(payload.json, job.requirePayload())
     }
 

@@ -96,8 +96,6 @@ class AnalysisJob(
     var finishedAt: Instant? = null
         protected set
 
-    fun matchesRequest(payload: AnalysisPayload): Boolean = matchesRequestHash(payload.hash())
-
     fun matchesRequestHash(hash: String): Boolean = requestHash == hash
 
     fun isValidating(): Boolean = status == AnalysisJobStatus.VALIDATING
