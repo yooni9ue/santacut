@@ -9,7 +9,10 @@
 - Swagger UI와 OpenAPI 3 명세는 `/swagger-ui.html`과 `/v3/api-docs`에서 제공한다. 각 API의 설명은 endpoint 전용 `@Operation` 메타 애노테이션에 두고, 요청·응답 모델에는 필드별 스키마 설명을 둔다.
 - 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
 - AI 호출은 Spring AI와 Ollama 로컬 모델을 사용한다. 서버 배포는 비공개 Ollama endpoint가 준비되어야 한다.
-- 카카오톡·인스타그램 원본 파일 파서와 내보내기 안내 UI, 전국 지역 좌표, 실제 도메인과 서버는 아직 출시 전 작업이다. 현재 분석 API는 정규화된 이벤트 JSON만 받는다.
+- 분석 API는 원본 파일 업로드(`POST /v1/analyses/files`)와 정규화된 이벤트 JSON(`POST /v1/analyses`)을 둘 다 받는다. 카카오톡 TXT(PC·모바일)와 인스타그램 `message_1.json` 파서가 있다. 다만 공개 내보내기 예시로 만든 것이라 실제 샘플 검증은 출시 전에 해야 한다.
+- 지역은 전국 시·도 16개와 시·군·구 255개(모두 271개)다. 서울은 `schema.sql`이, 나머지는 `regions.sql`이 앱 시작 때마다 넣는다(`INSERT OR IGNORE`).
+- 분석 진행 상태는 폴링(`GET /v1/analyses/{id}`, `GET /v1/me/analysis`)으로 읽는다. 결과는 `GET /v1/me/result`로 따로 읽는다.
+- 내보내기 안내 UI, 실제 도메인과 서버는 아직 출시 전 작업이다.
 - 백엔드 코드는 `presentation → application → domain → infrastructure` 4계층 레이어드 아키텍처를 따른다. 의존은 위에서 아래로만 흐르고 포트·어댑터는 쓰지 않는다. 규칙은 [백엔드 코드 컨벤션](backend-conventions.md)에 정의한다.
 
 ## 1. 결정 요약
@@ -68,13 +71,21 @@ flowchart LR
 1. 같은 origin에서 참가자 세션을 발급하고 CSRF 토큰을 받는다.
 2. 닉네임과 지역 코드를 등록한다. 닉네임 가용성 조회 후에도 DB UNIQUE 충돌을 처리한다.
 3. 데이터 받기 화면에서 출처를 고르고 내보내기 절차를 안내한다.
-4. 제한된 JSON을 서버에 제출하고 작업 ID를 202로 받는다. HTTP 요청에서 AI 완료를 기다리지 않는다.
+4. 원본 파일(multipart)이나 정규화한 이벤트 JSON을 서버에 제출하고 작업 ID를 202로 받는다. HTTP 요청은 검증이나 AI 완료를 기다리지 않는다. 화면은 작업 상태를 몇 초마다 폴링한다.
 5. worker가 유효한 데이터와 분석 예산을 확인해 AI를 호출한다.
 6. schema와 근거를 검증하고 점수를 서버에서 계산한다. 최신 요청만 활성 결과로 게시한다.
 7. 랭킹·ETA 스냅샷을 재계산한다. 완료 스냅샷을 한 번에 바꾼다.
 8. 결과를 조회하고 공유 링크를 생성한다. 공유는 서버가 저장한 결과만 받아들이며 클라이언트가 점수·순위·ETA를 지정하지 못한다.
 
-로컬 저장소를 쓰는 첫 버전에서는 `/uploads`를 앱이 직접 받는다. 기존 기획의 서명 업로드 URL은 이후 객체 저장소 어댑터를 도입할 때 사용한다. 최대 파일 20MB와 요청 body 제한은 Caddy와 Spring 모두에 적용한다. 여러 20MB JSON을 한꺼번에 전체 메모리로 로드하지 않는다. 출처별 allowlist 스키마, 깊이·문자열 길이·이벤트 수 제한과 streaming parsing을 적용한다.
+첫 버전에서는 앱이 `POST /v1/analyses/files`로 원본을 직접 받아 `analysis_uploads` 테이블(BLOB)에 둔다. 기존 기획의 서명 업로드 URL은 나중에 객체 저장소를 들일 때 쓴다. 크기 제한은 여러 겹으로 건다.
+
+| 위치 | 설정 | 값 |
+| --- | --- | --- |
+| Caddy | `request_body max_size` | 21MB |
+| Spring multipart | `max-file-size` / `max-request-size` | 20MB / 21MB |
+| Tomcat | `server.tomcat.max-swallow-size` | 21MB(거절한 뒤에도 남은 본문을 읽고 413을 보낸다) |
+
+서버가 막으면 `413 FILE_TOO_LARGE`, Caddy가 막으면 `code` 없는 `413`이 간다. 검증 작업자는 원본을 한 번에 하나만 꺼내 파싱하고, 파싱하는 동안 DB 커넥션을 쥐지 않는다. 출처별 형식 확인과 이벤트 수·글자 수 제한을 적용한다.
 
 프론트엔드는 같은 도메인에서 API를 호출해 세션 쿠키와 CSRF 쿠키를 그대로 사용한다. Caddy는 모든 요청을 앱으로 proxy하고 `/actuator`만 외부에 404로 막는다. 별도 API 서브도메인과 CORS 설정은 초기에는 필요하지 않다. 프론트엔드 배포 방식(같은 Caddy 아래 정적 파일 또는 별도 호스팅)은 프론트엔드 팀이 `frontend/`를 구성할 때 정한다.
 
@@ -89,9 +100,11 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 
 ## 5. 지속성 있는 분석 작업과 비용 제어
 
-작업 상태는 QUEUED → RUNNING → SUCCEEDED / INSUFFICIENT_DATA / FAILED이고 retry 가능 실패는 next_attempt_at을 둔다. DB row에는 attempts, lease_owner, lease_until, fencing_token, request_sequence, versions를 둔다.
+작업 상태(설계안)는 QUEUED → RUNNING → SUCCEEDED / INSUFFICIENT_DATA / FAILED이고 retry 가능 실패는 next_attempt_at을 둔다. DB row에는 attempts, lease_owner, lease_until, fencing_token, request_sequence, versions를 둔다.
 
-- 짧은 트랜잭션에서 `FOR UPDATE SKIP LOCKED`로 하나를 claim하고 lease와 fencing token을 갱신한다.
+현재 구현: 원본 파일 작업은 `VALIDATING`에서 시작하고, 검증 작업자(기본 1초 간격)를 거쳐 `QUEUED`가 된다. 분석 작업자(기본 3초 간격)가 `RUNNING`으로 임대(3분)하고 최대 3번 시도한다. 응답 진행 단계는 `VALIDATING`, `QUEUED`, `ANALYZING`, `RANKING_PENDING`, `SUCCEEDED`, `FAILED`다. DB row에는 `attempts`, `lease_token`, `lease_until`, `error_code`가 있고 next_attempt_at, fencing_token, request_sequence, versions는 두지 않았다. 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 AI가 꺼져 있어도 `EXPIRED`로 끝낸다. 전체 상태 전이는 [백엔드 설계 §10.1](backend-design.md)에 있다.
+
+- 짧은 트랜잭션에서 `FOR UPDATE SKIP LOCKED`로 하나를 claim하고 lease와 fencing token을 갱신한다. SQLite 구현은 커넥션 1개에 작업자도 하나라서, 가장 오래된 `QUEUED` 행을 읽고 리스 토큰을 쓴다.
 - 트랜잭션을 커밋한 뒤 AI HTTP 호출을 한다. 외부 호출 동안 DB connection/row lock을 잡지 않는다.
 - 초기 worker 동시성 1, 호출 timeout 60초, lease 120초를 기본안으로 하되 타임아웃·재시도 정책과 함께 조정한다.
 - 종료 직전 결과 저장에는 job ID + fencing token을 조건으로 사용해 기한 지난 worker가 최신 결과를 덮어쓰지 못한다.
@@ -114,21 +127,23 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 
 season current_snapshot_id는 계산 완료 후 짧은 트랜잭션으로 교체한다. pagination cursor에 snapshot ID를 넣어 순위가 변할 때 중복/누락되지 않게 한다. 새 snapshot에 기존 cursor를 그대로 적용하지 않는다.
 
+**[대체됨]** 지금 cursor에는 snapshot ID가 없고 직전 페이지 마지막 줄의 `delivery_sequence`만 들어 있다. 페이지를 넘기는 사이에 재계산이 일어나면 줄이 겹치거나 빠질 수 있다. 대신 응답의 `computed_at`으로 계산 시각을 보여 준다. 순위표 응답은 `{ stage, rows, season_year, participant_count, computed_at, next_cursor }` 봉투이고, 동점 행에는 `tied`가 붙는다.
+
 출발지는 문서상 여의도 IFC몰이며 실제 좌표는 서버 설정으로 주입한다. 사용자 응답에는 포함하지 않는다. 배송 규칙은 100km/h, 180초/명, 00:00~06:00 KST, 12/25 00:00 최초 출발이다. 대권거리와 누적 작업량으로 계산하고 06:00 정확한 완료·다음 날 재개·연도 이월을 단위 테스트한다. 전체 계산식은 [백엔드 기획](backend-design.md)을 따른다.
 
 시즌 동결은 스케줄러가 제시간에 실행됐다는 가정에 의존하지 않는다. 쓰기 트랜잭션이 DB 기준 cutoff를 확인한다. 동결 시 snapshot을 영구 고정하고 이후 가입자는 다음 시즌 대기/체험으로 분리한다. 삭제는 공개 결과를 지우되 다른 사용자 확정 ETA를 재작성하지 않는다.
 
 ## 7. JSON 결과 공유의 완성 조건
 
-`POST /api/shares`는 로그인한 세션의 완료 결과만 가져와 불변 공유 스냅샷을 만든다. 공개 token은 충분한 entropy의 난수이고 닉네임 또는 순번으로 추측할 수 없어야 한다.
+`POST /v1/shares`는 로그인한 세션의 완료 결과만 가져와 불변 공유 스냅샷을 만든다. 공개 token은 충분한 entropy의 난수이고 닉네임 또는 순번으로 추측할 수 없어야 한다.
 
-공유 payload에는 닉네임, 점수 문자열, rank, ETA, 판정문, 계산 시각, 시즌, snapshot version만 포함한다. 원본 JSON, 대화 내용, AI 프롬프트, region의 상세 좌표, 산타 출발지, 세션 ID는 제외한다.
+공유 payload에는 닉네임, 점수 문자열, rank, ETA, 판정문, 계산 시각, 시즌, snapshot version만 포함한다. 지금 `shares` 행에는 닉네임, 점수, 순위, 공동 순위(`tied`), 확정 상태(`stage`), ETA, 판정·한마디, 계산 시각, 공유 시각(`created_at`)을 복사해 둔다. 원본 JSON, 대화 내용, AI 프롬프트, region의 상세 좌표, 산타 출발지, 세션 ID는 제외한다.
 
 - `GET /s/{token}`: 서버 HTML과 `og:title`, `og:description`, 절대 HTTPS `og:url`, `og:image`, 이미지 크기, twitter card를 반환한다.
 - `GET /s/{token}/image.png`: 같은 스냅샷으로 실제 PNG 반환. Content-Type=image/png이며 한글 폰트 누락을 테스트한다.
 - 이미지가 별도 캐시라면 정해진 최대 크기와 생성 동시성 1을 둔다. 임의 문자열 길이를 제한하고 줄바꿈·HTML escaping을 적용한다.
 - 원본 데이터가 삭제돼도 저장된 비민감 공유 payload로 이미지를 재생성할 수 있어야 한다.
-- 소유자는 토큰을 폐기할 수 있고 폐기 후 HTML·이미지 모두 404/410이다. 브라우저·SNS가 이미 저장한 복사본까지 회수할 수는 없다.
+- 소유자는 토큰을 폐기할 수 있고 폐기 후 HTML·이미지 모두 404다. `Accept`에 `text/html`이 있으면 시작 링크가 있는 안내 HTML을, 없으면 JSON(`SHARE_NOT_FOUND`)을 준다. 브라우저·SNS가 이미 저장한 복사본까지 회수할 수는 없다.
 - 즉시 폐기를 우선하면 공개 응답도 `Cache-Control: no-store`로 시작한다. CDN 장기 cache를 켜려면 purge와 짧은 TTL 운영을 먼저 마련한다.
 - 공유 카드 생성 시각을 표시한다. 순위 변화 후 같은 토큰의 점수·ETA를 몰래 바꾸지 않는다.
 
