@@ -93,3 +93,8 @@ cd backend
 - `/post-office`: 북극 심사국 시안
 
 메인 시작 버튼은 준비 중 안내를 표시합니다. 산타 꺼내기와 판정 예시 전환은 브라우저에서 동작하며 실제 AI 분석을 수행하지 않습니다.
+
+
+## PR 작성
+
+[PR 작성 규칙](docs/pr-guide.md)과 [PR 양식](docs/pull_request_template.md)을 따릅니다. 새 프론트엔드 전용 문서는 `frontend/docs/`에 두고 기존 문서는 별도 요청 없이 이동하지 않습니다.
