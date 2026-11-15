@@ -17,8 +17,8 @@ class RegionService(
         if (!findAll().isSelectable(regionCode)) throw SantaCutException(ErrorCode.UNSUPPORTED_REGION)
     }
 
-    /** 상위 지역이 비어 있는 지역을 코드 체계에 따라 잇는다. 여러 번 실행해도 결과가 같다. */
+    /** 상위 지역이 비어 있는 지역을 코드 체계에 따라 잇고 저장한다. 여러 번 실행해도 결과가 같다. */
     fun linkHierarchy() {
-        regionRepository.linkParentsByCodePrefix()
+        regionRepository.saveAll(findAll().linkParents().toList())
     }
 }
