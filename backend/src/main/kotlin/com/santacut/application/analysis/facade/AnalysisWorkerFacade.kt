@@ -38,6 +38,8 @@ class AnalysisWorkerFacade(
 
     @Scheduled(fixedDelayString = "\${santacut.ai.poll-delay-ms:${DEFAULT_POLL_DELAY_MS}}")
     fun processNextJob() {
+        // AI가 꺼져 있어도 24시간 넘게 기다린 작업은 정리한다(기획 §4.6). 리스 획득과 따로 짧은 트랜잭션으로 연다.
+        transactionTemplate.executeWithoutResult { analysisJobService.expireOverdueJobs(clock.instant()) }
         if (!analysisScoringService.isEnabled()) return
         val lease = UUID.randomUUID().toString()
         val job = transactionTemplate.execute { claimNextJob(lease) } ?: return
@@ -51,10 +53,9 @@ class AnalysisWorkerFacade(
         }
     }
 
-    /** 오래된 작업을 정리하고, 오늘 AI 예산이 남았으면 다음 작업의 리스를 잡는다. */
+    /** 오늘 AI 예산이 남았으면 다음 작업의 리스를 잡는다. */
     private fun claimNextJob(lease: String): AnalysisJob? {
         val now = clock.instant()
-        analysisJobService.expireOverdueJobs(now)
         val job = analysisJobService.findClaimable(now) ?: return null
         if (!aiBudgetService.tryConsume(now)) return null
         return analysisJobService.startAttempt(job, lease, now)

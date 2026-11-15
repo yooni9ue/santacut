@@ -12,6 +12,7 @@ import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.ranking.command.MyResultCommand
 import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
+import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DailyBudget
 import com.santacut.domain.analysis.model.DataSource
@@ -109,6 +110,20 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         analysisWorkerFacade.processNextJob()
 
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        verify(scoreClient, never()).requestAnswer(anySubmission())
+    }
+
+    @Test
+    fun `AI가 꺼져 있어도 24시간 넘게 기다린 작업은 EXPIRED로 끝내고 AI는 부르지 않는다`() {
+        val job = submitAnalysis()
+        given(scoreClient.isEnabled()).willReturn(false)
+        clock.moveTo(OPEN_TIME.plus(AnalysisJob.QUEUE_EXPIRY).plusSeconds(1))
+
+        analysisWorkerFacade.processNextJob()
+
+        val status = analysisFacade.getStatus(job)
+        assertEquals("FAILED", status.status)
+        assertEquals("EXPIRED", status.errorCode)
         verify(scoreClient, never()).requestAnswer(anySubmission())
     }
 
