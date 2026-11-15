@@ -9,13 +9,26 @@
 
 ## 한눈에 보기
 
-<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 16개, 테이블 8개, 4계층 × 5도메인, 참가자당 하루 3회, AI 호출 하루 100회, 워커 3초, 대기 작업 만료 24시간, 작업 임대 3분, 리뷰어 9명. 설계 선택 6가지." width="100%"></p>
+<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 17개, 테이블 9개, 자동 테스트 265개, 오류 코드 29개, 지역 271개, 참가자당 하루 3회. 검증 작업자 1초, 분석 작업자 3초, 작업 임대 3분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
+
+## 할 수 있는 일
+
+- 닉네임으로 참가한다. 세션은 HttpOnly 쿠키다.
+- 지역은 두 단계로 고른다. 시·도 16개, 시·군·구 255개.
+- 카카오톡 TXT나 인스타그램 JSON 원본을 그대로 올린다. 20MB까지.
+- 서버가 원본을 파싱한다. 본인 메시지만 AI에 보낸다.
+- AI가 점수를 매긴다. 순위와 선물 도착 시각은 서버가 계산한다.
+- 진행 상태는 폴링으로 본다. 창을 닫아도 다시 이어 본다.
+- 순위표는 공개다. 50줄씩 cursor로 넘긴다. 동점은 `공동 N위`.
+- 공유 링크는 그 순간의 결과를 고정한다. 취소한 링크는 안내 페이지로 바뀐다.
+- 시즌 마감 전에는 지역을 바꿀 수 있다. 내 데이터는 언제든 지운다.
 
 ## 아키텍처
 
 <p align="center"><img src="docs/images/architecture.svg" alt="요청 흐름: 클라이언트, Caddy, Spring Boot 4계층, 분석 워커, SQLite, AI 채점, 공유 페이지" width="100%"></p>
 
 - 분석은 큐에 넣고, 화면은 진행 상태를 폴링으로 조회한다.
+- 작업자는 둘이다. 원본 검증 1초, AI 채점 3초 간격.
 - 지금 코드는 Spring AI + Ollama(`qwen2.5:3b`)다. 운영은 Bedrock을 계획한다.
 
 ## 계층 구조
@@ -27,16 +40,21 @@
 
 ## 데이터 모델
 
-<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, assessments, ai_daily_budget, result_snapshots, shares 8개 테이블과 외래 키 관계" width="100%"></p>
+<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, ai_daily_budget, result_snapshots, shares 9개 테이블과 외래 키 관계" width="100%"></p>
 
 - 기준은 [`schema.sql`](src/main/resources/schema.sql)이다.
+- 원본 파일은 `analysis_uploads`에 잠깐 머문다. 검증이 끝나면 지운다.
+- 지역은 `parent_code`로 시·도와 시·군·구를 잇는다.
 
 ## 분석 흐름
 
-<p align="center"><img src="docs/images/analysis-flow.svg" alt="분석 흐름: 제출, 접수 검사, 큐 저장, 작업 임대, AI 채점, 한 트랜잭션 완료, 상태 폴링" width="100%"></p>
+<p align="center"><img src="docs/images/analysis-flow.svg" alt="분석 흐름: 원본 업로드, 접수 검사, 저장, 원본 검증·정규화, 대기열, 작업 임대, AI 채점, 한 트랜잭션 완료, VALIDATING부터 SUCCEEDED까지 상태 폴링" width="100%"></p>
 
+- 원본은 접수 때 한 번, 검증 작업자가 한 번 더 본다.
+- 빈 파일·zip·바이너리는 바로 `422`. 20MB를 넘으면 `413`.
 - 평가 저장과 순위 계산은 한 트랜잭션이다.
 - 하루 예산을 넘으면 워커가 작업을 꺼내지 않는다.
+- 24시간 넘게 기다린 작업은 만료된다. AI가 꺼져 있어도.
 
 <details>
 <summary>시퀀스 다이어그램</summary>
@@ -47,11 +65,17 @@ sequenceDiagram
     actor C as 클라이언트
     participant API as AnalysisController
     participant DB as SQLite
+    participant V as 검증 워커
     participant W as 분석 워커
     participant AI as AI 모델
-    C->>API: POST /v1/analyses (Idempotency-Key)
-    API->>DB: 작업 저장 (QUEUED)
+    C->>API: POST /v1/analyses/files (multipart, Idempotency-Key)
+    API->>DB: 원본 + 작업 저장 (VALIDATING)
     API-->>C: 202 Accepted
+    loop 1초마다
+        V->>DB: 원본 꺼내기
+    end
+    V->>V: 파싱 · 본인 메시지만
+    V->>DB: 작업 QUEUED · 원본 삭제
     loop 3초마다
         W->>DB: 예산 확인 · 작업 임대
     end
@@ -61,7 +85,7 @@ sequenceDiagram
     loop 화면이 몇 초마다
         C->>API: GET /v1/analyses/{id}
         API->>DB: 상태 조회
-        API-->>C: 진행 단계 (QUEUED → ANALYZING → SUCCEEDED)
+        API-->>C: 진행 단계 (VALIDATING → QUEUED → ANALYZING → SUCCEEDED)
     end
 ```
 
@@ -69,7 +93,7 @@ sequenceDiagram
 
 ## API
 
-<p align="center"><img src="docs/images/api.svg" alt="API 지도: participant, session, analysis, ranking, share 도메인별 대표 엔드포인트 12개(전체 16개)와 메서드, 공개·세션·CSRF 표시" width="100%"></p>
+<p align="center"><img src="docs/images/api.svg" alt="API 지도: participant, session, analysis, ranking, share 도메인별 엔드포인트 17개 전부와 메서드, 공개·세션·CSRF·멱등키 표시" width="100%"></p>
 
 - 필드 정의는 Swagger(`/swagger-ui.html`)가 기준이다.
 - 호출 순서는 [API 연동 가이드](../docs/frontend-api-guide.md)에 있다.
@@ -86,7 +110,8 @@ sequenceDiagram
 | GET | `/v1/me` | 내 참가 정보 | 세션 |
 | PATCH | `/v1/me/region` | 내 지역 변경 (시즌 마감 전) | 세션 · CSRF |
 | DELETE | `/v1/me` | 내 데이터 삭제 (`204`) | 세션 · CSRF |
-| POST | `/v1/analyses` | 분석 요청 (`202`) | 세션 · CSRF · `Idempotency-Key` |
+| POST | `/v1/analyses` | 이벤트 JSON으로 분석 요청 (`202`) | 세션 · CSRF · `Idempotency-Key` |
+| POST | `/v1/analyses/files` | 원본 파일로 분석 요청 (`202`, 20MB) | 세션 · CSRF · `Idempotency-Key` |
 | GET | `/v1/analyses/{id}` | 분석 진행 상태 | 세션 |
 | GET | `/v1/me/analysis` | 내 최근 분석 상태 | 세션 |
 | GET | `/v1/me/result` | 내 점수·순위·도착 시각 | 세션 |

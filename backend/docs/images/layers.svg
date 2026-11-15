@@ -65,7 +65,7 @@
   <rect class="cell" x="854" y="272" width="108" height="64" rx="10" stroke="#F5B83D"/>
   <g class="s" text-anchor="middle">
     <text x="318" y="310">facade 2</text><text x="436" y="310">facade 1</text>
-    <text x="554" y="310">facade 2</text><text x="672" y="310">facade 1</text>
+    <text x="554" y="310">facade 3</text><text x="672" y="310">facade 1</text>
     <text x="790" y="310">facade 1</text><text x="908" y="310">@Facade</text>
   </g>
 
