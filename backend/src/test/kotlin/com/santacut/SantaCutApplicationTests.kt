@@ -1,13 +1,10 @@
 package com.santacut
 
 import org.junit.jupiter.api.Test
-import org.springframework.boot.test.context.SpringBootTest
 
-@SpringBootTest(properties = ["spring.datasource.url=jdbc:sqlite:./build/test.db"])
+@IntegrationTest
 class SantaCutApplicationTests {
-
-	@Test
-	fun contextLoads() {
-	}
-
+    @Test
+    fun `애플리케이션 컨텍스트가 뜬다`() {
+    }
 }
