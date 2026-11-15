@@ -9,18 +9,17 @@ data class RankingResponse(
     val nickname: String,
     @field:Schema(description = "경쟁 순위. 점수가 같으면 같은 순위입니다.")
     val rank: Int,
+    @field:Schema(description = "같은 순위의 다른 참가자가 있으면 true입니다(공동 N위로 표시).")
+    val tied: Boolean,
     @field:JsonProperty("score_hundredths")
     @field:Schema(description = "100분의 1점 단위 가중 점수. 100으로 나누면 점수입니다.")
     val scoreHundredths: Int,
     @field:Schema(description = "시뮬레이션한 배송 도착 예정 시각(UTC)", format = "date-time")
     val eta: String,
-    @field:JsonProperty("computed_at")
-    @field:Schema(description = "순위 스냅숏을 계산한 시각(UTC)", format = "date-time")
-    val computedAt: String,
 ) {
     companion object {
         fun from(result: RankingRowResult): RankingResponse = RankingResponse(
-            result.nickname, result.rank, result.scoreHundredths, result.eta.toString(), result.computedAt.toString(),
+            result.nickname, result.rank, result.tied, result.scoreHundredths, result.eta.toString(),
         )
     }
 }

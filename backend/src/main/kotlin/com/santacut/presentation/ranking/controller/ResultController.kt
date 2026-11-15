@@ -6,7 +6,7 @@ import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.presentation.ranking.docs.GetMyResultApi
 import com.santacut.presentation.ranking.docs.GetRankingsApi
 import com.santacut.presentation.ranking.response.MyResultResponse
-import com.santacut.presentation.ranking.response.RankingResponses
+import com.santacut.presentation.ranking.response.RankingBoardResponse
 import io.swagger.v3.oas.annotations.Parameter
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
@@ -25,6 +25,6 @@ class ResultController(
 
     @GetMapping("/v1/rankings")
     @GetRankingsApi
-    fun rankings(@RequestParam(defaultValue = "0") offset: Int): RankingResponses =
-        RankingResponses.from(resultFacade.getRankings(RankingPageCommand(offset)))
+    fun rankings(@RequestParam(required = false) cursor: String?): RankingBoardResponse =
+        RankingBoardResponse.from(resultFacade.getRankings(RankingPageCommand(cursor)))
 }

@@ -15,6 +15,9 @@ data class Season(val year: Int) {
 
     fun isClosedAt(instant: Instant): Boolean = !instant.isBefore(deliveryStart().toInstant())
 
+    /** 마감 전에는 미리보기, 마감 후에는 확정 순위다. */
+    fun stageAt(instant: Instant): RankingStage = if (isClosedAt(instant)) RankingStage.FINAL else RankingStage.PREVIEW
+
     fun verifyOpenAt(instant: Instant) {
         if (isClosedAt(instant)) throw SantaCutException(ErrorCode.SEASON_FROZEN)
     }

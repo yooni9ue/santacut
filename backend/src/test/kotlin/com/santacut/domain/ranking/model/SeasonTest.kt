@@ -19,6 +19,12 @@ class SeasonTest {
     }
 
     @Test
+    fun `마감 전에는 미리보기, 배송 시작 순간부터는 확정 순위다`() {
+        assertEquals(RankingStage.PREVIEW, season.stageAt(christmasInSeoul.minusMillis(1)))
+        assertEquals(RankingStage.FINAL, season.stageAt(christmasInSeoul))
+    }
+
+    @Test
     fun `배송 시작 순간부터 시즌이 마감된다`() {
         assertFalse(season.isClosedAt(christmasInSeoul.minusMillis(1)))
         assertTrue(season.isClosedAt(christmasInSeoul))

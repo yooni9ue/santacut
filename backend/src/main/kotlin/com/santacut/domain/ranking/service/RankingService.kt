@@ -8,8 +8,10 @@ import com.santacut.domain.global.model.Coordinate
 import com.santacut.domain.participant.model.Participants
 import com.santacut.domain.participant.model.Regions
 import com.santacut.domain.ranking.model.RankedResult
-import com.santacut.domain.ranking.model.RankingPage
+import com.santacut.domain.ranking.model.RankingBoard
+import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.model.RankingRows
+import com.santacut.domain.ranking.model.RankingStage
 import com.santacut.domain.ranking.model.ResultSnapshot
 import com.santacut.domain.ranking.model.ResultSnapshots
 import com.santacut.domain.ranking.model.Season
@@ -37,7 +39,7 @@ class RankingService(
      */
     @Synchronized
     fun rebuild(computedAt: Instant, shares: Shares) {
-        val season = Season(appProperties.seasonYear)
+        val season = season()
         if (season.isClosedAt(computedAt)) return
         val entries = Assessments(assessmentRepository.findLatestForEachUser()).toRankingEntries(
             Participants(participantRepository.findAll()),
@@ -51,18 +53,35 @@ class RankingService(
     fun findLatestSnapshot(participantId: UUID): ResultSnapshot? =
         resultSnapshotRepository.findFirstByUserIdOrderByComputedAtDesc(participantId.toString())
 
+    /**
+     * 참가자의 최신 결과. 순위 스냅숏이 있으면 그 스냅숏의 평가와 묶고, 최신 평가가 아직 반영되지 않았으면 표시한다.
+     * 스냅숏이 없으면 최신 평가만 돌려준다. 평가가 하나도 없으면 [ErrorCode.RESULT_NOT_FOUND]다.
+     */
     fun findLatestResult(participantId: UUID): RankedResult {
-        val snapshot = findLatestSnapshot(participantId) ?: throw SantaCutException(ErrorCode.RESULT_NOT_FOUND)
-        val assessment = assessmentRepository.findById(snapshot.assessmentId).orElse(null)
+        val latest = assessmentRepository.findFirstByUserIdOrderByCreatedAtDescIdDesc(participantId.toString())
             ?: throw SantaCutException(ErrorCode.RESULT_NOT_FOUND)
-        return RankedResult(snapshot, assessment)
+        val snapshot = findLatestSnapshot(participantId) ?: return RankedResult(null, latest, true)
+        if (snapshot.assessmentId == latest.id) return RankedResult(snapshot, latest, false)
+        val ranked = assessmentRepository.findById(snapshot.assessmentId).orElse(null)
+            ?: return RankedResult(null, latest, true)
+        return RankedResult(snapshot, ranked, true)
     }
 
-    /** 가장 최근 순위 계산 결과의 한 페이지. */
-    fun findRankingPage(page: RankingPage): RankingRows {
-        val latest = resultSnapshotRepository.findFirstByOrderByComputedAtDesc() ?: return RankingRows.empty()
-        return RankingRows(resultSnapshotRepository.findRankingRows(latest.computedAt, page.offset, page.size))
+    /** 가장 최근 순위 계산 결과의 한 페이지와 참가자 수, 계산 시각, 확정 상태. */
+    fun findRankingBoard(cursor: RankingCursor, now: Instant): RankingBoard {
+        val season = season()
+        val latest = resultSnapshotRepository.findFirstByOrderByComputedAtDesc()
+            ?: return RankingBoard.empty(season, now)
+        val computedAt = latest.computedAt
+        val fetched = RankingRows(
+            resultSnapshotRepository.findRankingRows(computedAt, cursor.afterSequence, cursor.fetchSize),
+        )
+        val participantCount = resultSnapshotRepository.countByComputedAt(computedAt)
+        return RankingBoard.of(season, now, participantCount, computedAt, fetched, cursor)
     }
+
+    /** 지금 순위가 미리보기인지 확정인지. */
+    fun stageAt(now: Instant): RankingStage = season().stageAt(now)
 
     /**
      * 현재 순위와 공유 링크가 붙잡은 스냅숏만 남긴다.
@@ -72,6 +91,8 @@ class RankingService(
         val stale = ResultSnapshots(resultSnapshotRepository.findAll()).excluding(shares.snapshotIds())
         if (!stale.isEmpty()) resultSnapshotRepository.deleteAllInBatch(stale.toList())
     }
+
+    private fun season(): Season = Season(appProperties.seasonYear)
 
     private fun origin(): Coordinate = Coordinate(appProperties.originLat, appProperties.originLon)
 }

@@ -58,6 +58,14 @@ class RankingEntriesTest {
         assertEquals(listOf("kept"), snapshots.toList().map { it.userId })
     }
 
+    @Test
+    fun `앞이나 뒤 참가자와 점수가 같으면 공동 순위로 표시한다`() {
+        val snapshots = RankingEntries.sorted(
+            listOf(candidate("a", 9000, 0), candidate("b", 8000, 1), candidate("c", 8000, 2), candidate("d", 7000, 3)),
+        ).toSnapshots(seoul, deliveryStart, computedAt)
+        assertEquals(listOf(false, true, true, false), snapshots.toList().map { it.tied })
+    }
+
     private fun candidate(userId: String, score: Int, assessedAfterMinutes: Long): RankingCandidate =
         RankingCandidate(assessment(userId, score, assessedAfterMinutes), participant(userId), region)
 
