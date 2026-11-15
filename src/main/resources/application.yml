@@ -1,0 +1,55 @@
+﻿spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:sqlite:./data/santacut.db}
+    hikari:
+      maximum-pool-size: 1
+      connection-init-sql: PRAGMA foreign_keys=ON
+  sql:
+    init:
+      mode: always
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
+server:
+  shutdown: graceful
+  forward-headers-strategy: none
+  tomcat:
+    threads:
+      max: 40
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+      show-details: never
+app:
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+  session-secure: ${APP_SESSION_SECURE:false}
+  season-year: ${APP_SEASON_YEAR:2026}
+  origin-lat: ${SANTA_ORIGIN_LAT:37.5252}
+  origin-lon: ${SANTA_ORIGIN_LON:126.9253}
+spring.ai:
+  model.chat: ollama
+  ollama:
+    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    chat.options:
+      model: ${OLLAMA_MODEL:qwen2.5:3b}
+      format: json
+      temperature: 0.1
+      num-predict: 500
+
+
+
