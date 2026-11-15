@@ -15,6 +15,18 @@ class Regions(private val values: List<Region>) {
     /** 목록에 있고 고를 수 있는 지역 코드인지. */
     fun isSelectable(code: String): Boolean = find(code)?.let(::isSelectable) == true
 
+    /** 코드 접두어가 맞는 지역 가운데 코드가 가장 긴, 즉 가장 가까운 상위 지역. 없으면 최상위 지역이다. */
+    fun parentOf(region: Region): Region? = values.filter { it.isParentOf(region) }.maxByOrNull { it.code.length }
+
+    /**
+     * 상위 지역이 비어 있는 지역을 [parentOf]에 잇고, 새로 이어진 지역만 돌려준다.
+     * 이미 이어진 지역은 건드리지 않으므로 여러 번 실행해도 결과가 같다.
+     */
+    fun linkParents(): Regions =
+        Regions(values.filterNot(Region::isLinked).mapNotNull { child -> parentOf(child)?.let(child::linkTo) })
+
+    fun toList(): List<Region> = values.toList()
+
     /** 목록 순서대로 각 지역을 바꾼 결과. */
     fun <T> map(transform: (Region) -> T): List<T> = values.map(transform)
 }

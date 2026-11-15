@@ -38,6 +38,29 @@ class RegionsTest {
     }
 
     @Test
+    fun `코드 접두어가 맞는 지역 가운데 가장 가까운 지역이 상위 지역이다`() {
+        val district = Region("KR-11-110", "종로구", 37.5729, 126.9794)
+        val dong = Region("KR-11-110-01", "청운동", 37.5850, 126.9700)
+        val unlinked = Regions(listOf(seoul, district, dong, sejong))
+
+        assertSame(seoul, unlinked.parentOf(district))
+        assertSame(district, unlinked.parentOf(dong))
+        assertNull(unlinked.parentOf(seoul))
+    }
+
+    @Test
+    fun `상위 지역이 빈 지역만 잇고 다시 이어도 바뀌는 지역이 없다`() {
+        val district = Region("KR-11-110", "종로구", 37.5729, 126.9794)
+        val orphan = Region("KR-99-100", "상위 없는 구", 0.0, 0.0)
+        val unlinked = Regions(listOf(seoul, district, jongno, orphan, sejong))
+
+        assertEquals(listOf("KR-11-110"), unlinked.linkParents().map { it.code })
+        assertEquals("KR-11", district.parentCode)
+        assertNull(orphan.parentCode)
+        assertTrue(unlinked.linkParents().toList().isEmpty())
+    }
+
+    @Test
     fun `목록 순서대로 각 지역을 바꾼다`() {
         assertEquals(listOf("종로구", "중구"), Regions(listOf(jongno, junggu)).map { it.name })
     }
