@@ -24,7 +24,7 @@
   <text class="s" x="40" y="80">코드와 설정에서 센 숫자다.</text>
   <rect class="card" x="40" y="110" width="265" height="150" rx="16"/>
   <rect x="62" y="132" width="34" height="5" rx="2.5" fill="#3E8BFF"/>
-  <text class="big" x="62" y="194" style="fill:#3E8BFF">12<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="62" y="194" style="fill:#3E8BFF">16<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="62" y="224">HTTP 엔드포인트</text>
   <text class="xs" x="62" y="244">컨트롤러 7개</text>
   <rect class="card" x="325" y="110" width="265" height="150" rx="16"/>

@@ -38,6 +38,15 @@ class ParticipantService(
     fun changeRegion(participantId: UUID, regionCode: String): Participant =
         get(participantId).also { it.changeRegion(regionCode) }
 
+    /**
+     * 참가자를 지운다. 세션, 분석 작업, 평가, 순위 기록, 공유 링크는 DB의 ON DELETE CASCADE로 함께 지워진다.
+     * 이어지는 순위 재계산이 지워진 행을 보도록 바로 반영한다.
+     */
+    fun delete(participantId: UUID) {
+        participantRepository.delete(get(participantId))
+        participantRepository.flush()
+    }
+
     /** 세션은 있지만 참가자가 지워졌다면 인증되지 않은 것으로 본다. */
     fun verifyRegistered(participantId: UUID) {
         if (!participantRepository.existsById(participantId.toString())) {

@@ -3,6 +3,7 @@ package com.santacut.application.participant.facade
 import com.santacut.application.global.Facade
 import com.santacut.application.participant.command.ChangeRegionCommand
 import com.santacut.application.participant.command.CurrentParticipantCommand
+import com.santacut.application.participant.command.DeleteParticipantCommand
 import com.santacut.application.participant.command.NicknameAvailabilityCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.result.CurrentParticipantResult
@@ -53,6 +54,13 @@ class ParticipantFacade(
         val participant = participantService.changeRegion(command.participantId, command.regionCode)
         rankingService.rebuild(now, shareService.findAll())
         return CurrentParticipantResult.from(participant)
+    }
+
+    /** 참가자와 그 데이터를 지우고 남은 참가자로 순위를 다시 계산한다. 시즌 마감 뒤에는 순위 계산이 스스로 건너뛴다. */
+    @Transactional
+    fun deleteMyData(command: DeleteParticipantCommand) {
+        participantService.delete(command.participantId)
+        rankingService.rebuild(clock.instant(), shareService.findAll())
     }
 
     @Transactional(readOnly = true)

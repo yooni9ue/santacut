@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -94,6 +95,17 @@ class ParticipantApiTest @Autowired constructor(
     }
 
     @Test
+    fun `내 데이터를 지우면 204와 만료된 세션 쿠키를 받고 그 세션은 더 이상 인증되지 않는다`() {
+        val session = Cookie(SESSION_COOKIE, registerAndReadSessionToken(uniqueNickname()))
+        mockMvc.perform(delete(ME_PATH).cookie(session)).andExpect(status().isForbidden)
+        val setCookie = mockMvc.perform(withCsrf(mockMvc, delete(ME_PATH).cookie(session)))
+            .andExpect(status().isNoContent)
+            .andReturn().response.getHeader(HttpHeaders.SET_COOKIE).orEmpty()
+        assertTrue(setCookie.startsWith("$SESSION_COOKIE=;") && setCookie.contains("Max-Age=0"))
+        mockMvc.perform(get(ME_PATH).cookie(session)).andExpect(status().isUnauthorized)
+    }
+
+    @Test
     fun `CSRF 토큰 없이 등록하면 403이다`() {
         mockMvc.perform(registerRequest(uniqueNickname())).andExpect(status().isForbidden)
     }
@@ -148,6 +160,7 @@ class ParticipantApiTest @Autowired constructor(
         private const val SESSION_COOKIE = "sc_session"
         private const val AVAILABILITY_PATH = "/v1/nicknames/availability"
         private const val REGION_PATH = "/v1/me/region"
+        private const val ME_PATH = "/v1/me"
         private const val OTHER_REGION_CODE = "KR-11-650"
     }
 }

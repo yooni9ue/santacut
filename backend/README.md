@@ -9,7 +9,7 @@
 
 ## 한눈에 보기
 
-<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 12개, 테이블 8개, 4계층 × 5도메인, 참가자당 하루 3회, AI 호출 하루 100회, 워커 3초, 대기 작업 만료 24시간, 작업 임대 3분, 리뷰어 9명. 설계 선택 6가지." width="100%"></p>
+<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 16개, 테이블 8개, 4계층 × 5도메인, 참가자당 하루 3회, AI 호출 하루 100회, 워커 3초, 대기 작업 만료 24시간, 작업 임대 3분, 리뷰어 9명. 설계 선택 6가지." width="100%"></p>
 
 ## 아키텍처
 
@@ -69,7 +69,7 @@ sequenceDiagram
 
 ## API
 
-<p align="center"><img src="docs/images/api.svg" alt="API 지도: participant, session, analysis, ranking, share 도메인별 엔드포인트 12개와 메서드, 공개·세션·CSRF 표시" width="100%"></p>
+<p align="center"><img src="docs/images/api.svg" alt="API 지도: participant, session, analysis, ranking, share 도메인별 대표 엔드포인트 12개(전체 16개)와 메서드, 공개·세션·CSRF 표시" width="100%"></p>
 
 - 필드 정의는 Swagger(`/swagger-ui.html`)가 기준이다.
 - 호출 순서는 [API 연동 가이드](../docs/frontend-api-guide.md)에 있다.
@@ -85,6 +85,7 @@ sequenceDiagram
 | POST | `/v1/participants` | 참가 등록 (`201`) | 공개 · CSRF |
 | GET | `/v1/me` | 내 참가 정보 | 세션 |
 | PATCH | `/v1/me/region` | 내 지역 변경 (시즌 마감 전) | 세션 · CSRF |
+| DELETE | `/v1/me` | 내 데이터 삭제 (`204`) | 세션 · CSRF |
 | POST | `/v1/analyses` | 분석 요청 (`202`) | 세션 · CSRF · `Idempotency-Key` |
 | GET | `/v1/analyses/{id}` | 분석 진행 상태 | 세션 |
 | GET | `/v1/me/analysis` | 내 최근 분석 상태 | 세션 |
