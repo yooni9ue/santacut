@@ -11,6 +11,7 @@ import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.ranking.command.MyResultCommand
 import com.santacut.application.ranking.command.RankingPageCommand
 import com.santacut.application.ranking.facade.ResultFacade
+import com.santacut.application.ranking.result.MyRankingResult
 import com.santacut.application.share.command.CreateShareCommand
 import com.santacut.application.share.command.PublicShareCommand
 import com.santacut.application.share.command.RevokeShareCommand
@@ -30,9 +31,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
 import java.time.Clock
+import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -56,18 +59,22 @@ class ResultShareFlowTest @Autowired constructor(
         val nickname = uniqueNickname()
         val participantId = participantFacade.register(RegisterParticipantCommand(nickname, REGION_CODE)).id
         recordAssessmentAndRebuildRanking(participantId)
-        assertRankedResult(participantId, nickname)
+        val myResult = assertRankedMyResult(participantId)
+        assertRankingBoardShows(myResult, nickname)
         assertShareLifecycle(participantId, nickname)
     }
 
-    private fun assertRankedResult(participantId: UUID, nickname: String) {
+    private fun assertRankedMyResult(participantId: UUID): MyRankingResult {
         val myResult = resultFacade.getMyResult(MyResultCommand(participantId))
         assertEquals(EXPECTED_SCORE, myResult.scoreHundredths)
         assertEquals("선물 배송 출발", myResult.verdict)
         assertEquals(1, myResult.deliverySequence)
         assertEquals(PREVIEW, myResult.stage)
         assertFalse(myResult.rankingPending)
+        return myResult
+    }
 
+    private fun assertRankingBoardShows(myResult: MyRankingResult, nickname: String) {
         val board = resultFacade.getRankings(RankingPageCommand(null))
         assertEquals(nickname, board.rows.map { it.nickname }.first())
         assertEquals(myResult.eta, board.rows.map { it.eta }.first())
@@ -126,6 +133,37 @@ class ResultShareFlowTest @Autowired constructor(
     }
 
     @Test
+    fun `순위 계산 뒤 새 평가가 아직 반영되지 않았으면 이전 스냅숏의 점수와 순위를 주고 반영 대기로 표시한다`() {
+        val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
+        val rankedAt = clock.instant()
+        recordAssessment(participantId, MID_SCORES, rebuild = true, assessedAt = rankedAt)
+        recordAssessment(participantId, LOW_SCORES, rebuild = false, assessedAt = rankedAt.plusSeconds(1))
+
+        val myResult = resultFacade.getMyResult(MyResultCommand(participantId))
+
+        assertEquals(MID_SCORE, myResult.scoreHundredths)
+        assertNotNull(myResult.rank)
+        assertNotNull(myResult.computedAt)
+        assertTrue(myResult.rankingPending)
+    }
+
+    @Test
+    fun `이전 페이지가 준 cursor로 그 배송 순서 다음 줄부터 읽는다`() {
+        repeat(2) {
+            val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
+            recordAssessment(participantId, MID_SCORES, rebuild = true)
+        }
+        val firstPage = resultFacade.getRankings(RankingPageCommand(null))
+
+        val secondPage = resultFacade.getRankings(RankingPageCommand(AFTER_FIRST_ROW_CURSOR))
+
+        assertEquals(firstPage.rows.map { it.nickname }.drop(1), secondPage.rows.map { it.nickname })
+        assertEquals(firstPage.participantCount, secondPage.participantCount)
+        assertEquals(firstPage.computedAt, secondPage.computedAt)
+        assertNull(secondPage.nextCursor)
+    }
+
+    @Test
     fun `이전 응답이 준 값이 아닌 cursor와 남의 공유 토큰은 거절한다`() {
         assertErrorCode(ErrorCode.INVALID_CURSOR) { resultFacade.getRankings(RankingPageCommand("-1")) }
         assertErrorCode(ErrorCode.SHARE_NOT_FOUND) {
@@ -137,19 +175,23 @@ class ResultShareFlowTest @Autowired constructor(
     private fun recordAssessmentAndRebuildRanking(participantId: UUID) =
         recordAssessment(participantId, HIGH_SCORES, rebuild = true)
 
-    private fun recordAssessment(participantId: UUID, scores: List<Int>, rebuild: Boolean) {
-        val now = clock.instant()
+    private fun recordAssessment(
+        participantId: UUID,
+        scores: List<Int>,
+        rebuild: Boolean,
+        assessedAt: Instant = clock.instant(),
+    ) {
         val job = AnalysisJob.enqueue(
             participantId,
             IdempotencyKey.from("key-" + UUID.randomUUID()),
             AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())),
             AnalysisPayload("{}"),
-            now,
+            assessedAt,
         )
         val score = Score.weighted(scores.map { BigDecimal(it) })
         transactionTemplate.executeWithoutResult {
-            assessmentService.record(job, score, now)
-            if (rebuild) rankingService.rebuild(now, shareService.findAll())
+            assessmentService.record(job, score, assessedAt)
+            if (rebuild) rankingService.rebuild(assessedAt, shareService.findAll())
         }
     }
 
@@ -160,6 +202,13 @@ class ResultShareFlowTest @Autowired constructor(
         /** 순위 계산 전 결과용 낮은 점수. 다른 테스트의 1위 참가자보다 늘 뒤에 선다. */
         private val LOW_SCORES = listOf(10, 10, 10, 10)
         private const val LOW_SCORE = 1000
+
+        /** 반영 대기·페이지 테스트용 중간 점수. 흐름 테스트의 1위 참가자보다 늘 뒤에 선다. */
+        private val MID_SCORES = listOf(50, 50, 50, 50)
+        private const val MID_SCORE = 5000
+
+        /** 배송 순서 1번 줄 다음부터 읽는 cursor. 한 페이지가 한 줄이었다면 서버가 next_cursor로 줬을 값이다. */
+        private const val AFTER_FIRST_ROW_CURSOR = "1"
         private const val PREVIEW = "PREVIEW"
     }
 }
