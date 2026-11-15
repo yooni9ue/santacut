@@ -44,6 +44,10 @@ npm start
 
 `npm start`는 빌드 결과를 실행합니다.
 
+## UI·UX 기획
+
+[UI·UX 기획서](docs/ui-ux-plan.md)에서 화면 구성, 사용자 흐름, 상태별 안내, 공유 경험과 구현 우선순위를 확인할 수 있습니다.
+
 ## 백엔드
 
 ```powershell
