@@ -18,7 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
     summary = "지역 목록",
     description = "시·도 → 시·군·구 순서로 지역을 고르게 합니다. parent 없이 부르면 최상위 지역(시·도)을, " +
         "parent에 시·도 코드를 주면 그 바로 아래 지역을 돌려줍니다. 등록에는 selectable이 true인 지역 코드만 씁니다. " +
-        "구가 없는 시·도는 그 자체로 selectable이 true입니다. 모르는 parent면 빈 배열입니다. 지금 데이터는 서울특별시와 25개 자치구입니다.",
+        "구가 없는 시·도는 그 자체로 selectable이 true입니다. 모르는 parent면 빈 배열입니다. 지금 데이터는 전국 16개 시·도와 시·군·구, 모두 271개 지역입니다.",
     tags = ["Identity"],
     parameters = [
         Parameter(
