@@ -11,3 +11,5 @@ private val databaseTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss
 fun utcDatabaseTime(instant: Instant): String = databaseTimestamp.format(instant)
 
 fun parseUtcDatabaseTime(value: String): Instant = LocalDateTime.parse(value, databaseTimestamp).toInstant(ZoneOffset.UTC)
+
+fun utcIsoTimestamp(value: String): String = parseUtcDatabaseTime(value).toString()

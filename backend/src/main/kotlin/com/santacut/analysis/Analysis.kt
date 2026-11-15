@@ -1,5 +1,9 @@
-﻿package com.santacut.analysis
+package com.santacut.analysis
 
+import com.santacut.api.docs.StreamAnalysisApi
+import com.santacut.api.docs.SubmitAnalysisApi
+import io.swagger.v3.oas.annotations.media.Schema
+import com.fasterxml.jackson.annotation.JsonProperty
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Size
 import org.springframework.beans.factory.annotation.Value
@@ -14,6 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import org.springframework.core.io.Resource
 import org.springframework.ai.chat.client.ChatClient
 import com.santacut.core.utcDatabaseTime
+import com.santacut.core.utcIsoTimestamp
 import com.santacut.core.AnalysisJobEntity
 import com.santacut.core.AnalysisJobRepository
 import com.santacut.core.AssessmentEntity
@@ -39,18 +44,57 @@ import java.util.concurrent.atomic.AtomicReference
 import org.springframework.scheduling.TaskScheduler
 
 // Canonical v1 input. Platform export adapters must map only supported fields into this contract.
+@Schema(description = "Origin of the normalized event data")
 enum class DataSource { KAKAO, INSTAGRAM }
-data class EventInput(val occurredAt: Instant, @field:Size(min=1,max=2000) val text: String)
-data class AnalysisInput(val source: DataSource, @field:Size(min=20,max=2000) val events: List<@Valid EventInput>)
+
+data class EventInput(
+    @field:Schema(description = "Event time as an ISO-8601 UTC timestamp", type = "string", format = "date-time", example = "2026-12-01T08:30:00Z") val occurredAt: Instant,
+    @field:Size(min=1,max=2000)
+    @field:Schema(description = "Message text or normalized activity description; 1–2,000 characters", example = "친구가 힘들어해서 먼저 연락하고 이야기를 들어줬어.", minLength = 1, maxLength = 2000) val text: String
+)
+
+data class AnalysisInput(
+    @field:Schema(description = "Export platform", example = "KAKAO") val source: DataSource,
+    @field:Size(min=20,max=2000)
+    @field:Schema(description = "20–2,000 normalized events, ordered by occurredAt when possible") val events: List<@Valid EventInput>
+)
+
+@Schema(description = "Analysis job state")
+enum class AnalysisJobStatus { QUEUED, RUNNING, SUCCEEDED, FAILED, INSUFFICIENT_DATA }
+
+data class AnalysisSubmissionResponse(
+    @field:Schema(description = "Analysis job UUID", format = "uuid", example = "9ef3fca1-ec60-4c43-a231-d378d246ee34") val id: String,
+    @field:Schema(description = "Initial state, or existing state for an idempotent replay", example = "QUEUED") val status: AnalysisJobStatus
+)
+
+data class AnalysisStatusResponse(
+    @field:Schema(description = "Analysis job UUID", format = "uuid") val id: String,
+    @field:Schema(description = "Current job state") val status: AnalysisJobStatus,
+    @field:JsonProperty("error_code") @field:Schema(description = "Stable machine-readable error code; null until failed") val errorCode: String?,
+    @field:JsonProperty("assessment_id") @field:Schema(description = "Assessment UUID after successful analysis") val assessmentId: String?,
+    @field:JsonProperty("created_at") @field:Schema(description = "Job creation time in UTC", format = "date-time") val createdAt: String,
+    @field:JsonProperty("finished_at") @field:Schema(description = "Terminal transition time in UTC; null while queued or running", format = "date-time") val finishedAt: String?
+)
+
+data class AnalysisResultResponse(
+    @field:JsonProperty("score_hundredths") @field:Schema(description = "Weighted score in hundredths; divide by 100 for points", example = "8245", minimum = "0", maximum = "10000") val scoreHundredths: Int,
+    @field:Schema(description = "Playful score verdict") val verdict: String,
+    @field:Schema(description = "Playful explanation") val comment: String,
+    @field:Schema(description = "Competition rank; equal scores share a rank") val rank: Int,
+    @field:JsonProperty("delivery_sequence") @field:Schema(description = "Delivery order among participants") val deliverySequence: Int,
+    @field:Schema(description = "Simulated delivery ETA in UTC", type = "string", format = "date-time", example = "2026-12-25T03:15:00.000Z") val eta: String
+)
 
 @RestController
 @RequestMapping("/v1/analyses")
 class AnalysisController(private val jobs: AnalysisJobs) {
     @PostMapping
+    @SubmitAnalysisApi
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun create(principal: Principal, @RequestHeader("Idempotency-Key") key: String,
-               @Valid @RequestBody input: AnalysisInput): Map<String, Any> = jobs.submit(UUID.fromString(principal.name), key, input)
+               @Valid @RequestBody input: AnalysisInput): AnalysisSubmissionResponse = jobs.submit(UUID.fromString(principal.name), key, input)
     @GetMapping("/{id}/events", produces=[org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE])
+    @StreamAnalysisApi
     fun events(principal: Principal, @PathVariable id: UUID): SseEmitter = jobs.stream(UUID.fromString(principal.name), id)
 }
 
@@ -72,7 +116,7 @@ class AnalysisJobs(
 ) {
     private val logger = LoggerFactory.getLogger(AnalysisJobs::class.java)
 
-    fun submit(user: UUID, key: String, input: AnalysisInput): Map<String, Any> {
+    fun submit(user: UUID, key: String, input: AnalysisInput): AnalysisSubmissionResponse {
         if (!key.matches(Regex("[A-Za-z0-9_-]{16,100}"))) fail(400,"INVALID_IDEMPOTENCY_KEY")
         val now = Instant.now()
         val cutoff = java.time.LocalDate.of(seasonYear,12,25).atStartOfDay(java.time.ZoneId.of("Asia/Seoul")).toInstant()
@@ -87,19 +131,20 @@ class AnalysisJobs(
             val existing = jobs.findByUserIdAndIdempotencyKey(user.toString(), key)
             if (existing != null) {
                 if(existing.requestHash != hash) fail(409,"IDEMPOTENCY_CONFLICT")
-                return@execute mapOf("id" to existing.id,"status" to existing.status)
+                return@execute AnalysisSubmissionResponse(existing.id, AnalysisJobStatus.valueOf(existing.status))
             }
             if (!ai.enabled()) fail(503,"AI_NOT_CONFIGURED")
             val recent = jobs.countByUserIdAndCreatedAtAfter(user.toString(),utcDatabaseTime(now.minus(Duration.ofDays(1))))
             if(recent >= 3) fail(429,"DAILY_USER_LIMIT")
             val id = UUID.randomUUID().toString()
             jobs.save(AnalysisJobEntity(id,user.toString(),key,hash,input.source.name,payload,createdAt=utcDatabaseTime(now)))
-            mapOf("id" to id,"status" to "QUEUED")
+            AnalysisSubmissionResponse(id, AnalysisJobStatus.QUEUED)
         }
     }
-    fun get(user: UUID,id: UUID): Map<String,Any?> {
+    fun get(user: UUID,id: UUID): AnalysisStatusResponse {
         val job=jobs.findByIdAndUserId(id.toString(),user.toString()) ?: fail(404,"NOT_FOUND")
-        return mapOf("id" to job.id,"status" to job.status,"error_code" to job.errorCode,"assessment_id" to job.assessmentId,"created_at" to job.createdAt,"finished_at" to job.finishedAt)
+        return AnalysisStatusResponse(job.id,AnalysisJobStatus.valueOf(job.status),job.errorCode,job.assessmentId,
+            utcIsoTimestamp(job.createdAt),job.finishedAt?.let(::utcIsoTimestamp))
     }
     fun stream(user: UUID,id: UUID): SseEmitter {
         get(user,id) // verify ownership before opening the stream
@@ -116,16 +161,16 @@ class AnalysisJobs(
             try {
                 val state=get(user,id)
                 emitter.send(SseEmitter.event().name("analysis").data(state))
-                when(state["status"]?.toString()) {
-                    "SUCCEEDED" -> {
-                        val assessmentId=state["assessment_id"]?.toString()
-                        val assessment=assessmentId?.let { assessments.findById(it).orElse(null) }
-                        val snapshot=assessmentId?.let { snapshots.findFirstByAssessmentIdOrderByComputedAtDesc(it) }
-                        val result=if(assessment!=null && snapshot!=null) mapOf("score_hundredths" to assessment.scoreHundredths,"verdict" to assessment.verdict,"comment" to assessment.comment,"rank" to snapshot.rank,"delivery_sequence" to snapshot.deliverySequence,"eta" to snapshot.eta) else emptyMap<String,Any>()
+                when(state.status) {
+                    AnalysisJobStatus.SUCCEEDED -> {
+                        val assessmentId=state.assessmentId ?: error("Successful job is missing its assessment")
+                        val assessment=assessments.findById(assessmentId).orElse(null) ?: error("Successful job assessment is missing")
+                        val snapshot=snapshots.findFirstByAssessmentIdOrderByComputedAtDesc(assessmentId) ?: error("Successful job ranking is missing")
+                        val result=AnalysisResultResponse(assessment.scoreHundredths,assessment.verdict,assessment.comment,snapshot.rank,snapshot.deliverySequence,utcIsoTimestamp(snapshot.eta))
                         emitter.send(SseEmitter.event().name("result").data(result)); stop()
                     }
-                    "FAILED", "INSUFFICIENT_DATA" -> { emitter.send(SseEmitter.event().name("error").data(state)); stop() }
-                    else -> if(polls.incrementAndGet() >= 150) stop()
+                    AnalysisJobStatus.FAILED, AnalysisJobStatus.INSUFFICIENT_DATA -> { emitter.send(SseEmitter.event().name("error").data(state)); stop() }
+                    AnalysisJobStatus.QUEUED, AnalysisJobStatus.RUNNING -> if(polls.incrementAndGet() >= 150) stop()
                 }
             } catch (_: Exception) {
                 finished.set(true)
