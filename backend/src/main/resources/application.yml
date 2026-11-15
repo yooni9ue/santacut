@@ -22,6 +22,8 @@ server:
   tomcat:
     threads:
       max: 40
+    # 20MB를 넘는 업로드를 거절한 뒤에도 연결을 끊지 않고 남은 본문을 읽어 413 응답을 보낸다.
+    max-swallow-size: 21MB
 management:
   endpoints:
     web:

@@ -24,6 +24,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     IDEMPOTENCY_CONFLICT(409, "같은 Idempotency-Key로 다른 요청 본문을 보냈습니다."),
     NICKNAME_TAKEN(409, "이미 사용 중인 닉네임입니다."),
     NO_RANKED_RESULT(409, "공유할 순위 결과가 아직 없습니다."),
+    FILE_TOO_LARGE(413, "파일이 너무 큽니다. 20MB 이하 파일만 올릴 수 있습니다."),
     INSUFFICIENT_EVIDENCE(422, "점수를 매길 근거가 부족합니다."),
     UNSUPPORTED_FILE_FORMAT(422, "지원하지 않는 파일 형식입니다. 카카오톡 대화 TXT나 인스타그램 메시지 JSON을 올려 주세요."),
     SPEAKER_NOT_IDENTIFIED(422, "선택한 본인 이름을 이 대화에서 찾을 수 없습니다."),

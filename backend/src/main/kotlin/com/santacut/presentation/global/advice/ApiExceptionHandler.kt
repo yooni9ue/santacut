@@ -17,6 +17,9 @@ import org.springframework.web.bind.ServletRequestBindingException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.HandlerMethodValidationException
+import org.springframework.web.multipart.MaxUploadSizeExceededException
+import org.springframework.web.multipart.MultipartException
+import org.springframework.web.multipart.support.MissingServletRequestPartException
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -49,9 +52,16 @@ class ApiExceptionHandler(
         HttpMessageNotReadableException::class,
         ServletRequestBindingException::class,
         TypeMismatchException::class,
+        MissingServletRequestPartException::class,
+        MultipartException::class,
     )
     fun handleInvalidRequest(request: HttpServletRequest): ResponseEntity<ApiErrorResponse> =
         respond(ErrorCode.INVALID_REQUEST, request, null)
+
+    /** multipart 파일이 `spring.servlet.multipart.max-file-size`(20MB)를 넘었다. */
+    @ExceptionHandler(MaxUploadSizeExceededException::class)
+    fun handleFileTooLarge(request: HttpServletRequest): ResponseEntity<ApiErrorResponse> =
+        respond(ErrorCode.FILE_TOO_LARGE, request, null)
 
     /** 보안 필터가 인증 실패를 이 처리기로 넘긴다. 세션이 없거나 만료된 요청이다. */
     @ExceptionHandler(AuthenticationException::class)
