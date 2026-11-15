@@ -35,4 +35,13 @@ class InstagramMessagesTest {
         assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { withoutMessages.toMessages() }
         assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { withoutContent.toMessages() }
     }
+
+    @Test
+    fun `messages 배열에 null 원소가 있으면 UNSUPPORTED_FILE_FORMAT이다`() {
+        val withNull = mapper.readValue(
+            "{\"messages\":[null,{\"sender_name\":\"a\",\"timestamp_ms\":1,\"content\":\"b\"}]}",
+            InstagramThread::class.java,
+        )
+        assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { withNull.toMessages() }
+    }
 }

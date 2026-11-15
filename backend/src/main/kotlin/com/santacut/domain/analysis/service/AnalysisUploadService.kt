@@ -55,10 +55,13 @@ class AnalysisUploadService(
         DataSource.INSTAGRAM -> readInstagramThread(file.decodeText()).toMessages()
     }
 
-    private fun readInstagramThread(text: String): InstagramThread =
-        try {
+    /** 올바른 JSON이 아니거나, 본문이 `null`이거나, 대화방 객체 모양이 아니면 [ErrorCode.UNSUPPORTED_FILE_FORMAT]이다. */
+    private fun readInstagramThread(text: String): InstagramThread {
+        val thread: InstagramThread? = try {
             objectMapper.readValue(text, InstagramThread::class.java)
         } catch (exception: JacksonException) {
-            throw SantaCutException(ErrorCode.UNSUPPORTED_FILE_FORMAT)
+            null
         }
+        return thread ?: throw SantaCutException(ErrorCode.UNSUPPORTED_FILE_FORMAT)
+    }
 }
