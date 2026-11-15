@@ -55,7 +55,7 @@ class AnalysisFacade(
         val idempotencyKey = IdempotencyKey.from(command.idempotencyKey)
         val file = command.toRawFile().also { it.verifyReceivable() }
         val now = clock.instant()
-        analysisJobService.verifySeasonOpen(now)
+        rankingService.verifySeasonOpenAt(now)
         participantService.verifyRegistered(command.participantId)
         val requestHash = file.requestHash(command.selfSpeaker)
         val replay = analysisJobService.findReplayByHash(command.participantId, idempotencyKey, requestHash)
