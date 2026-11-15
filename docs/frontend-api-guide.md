@@ -8,7 +8,7 @@
 
 ## 1. 서비스 흐름
 
-1. 닉네임과 지역(서울 25개 구)을 골라 참가 등록한다.
+1. 닉네임과 지역(시·도 → 시·군·구)을 골라 참가 등록한다. 지금 데이터는 서울특별시와 25개 자치구다.
 2. 카카오톡·인스타그램에서 추출한 대화·활동을 정규화한 이벤트 목록으로 분석을 요청한다.
 3. 분석 진행 상황을 폴링으로 확인하고, 끝나면 결과를 조회한다.
 4. 내 점수·순위·선물 도착 예정 시각과 전체 랭킹을 본다.
@@ -40,7 +40,7 @@
 | 메서드 | 경로 | 인증 | CSRF | 설명 |
 | --- | --- | --- | --- | --- |
 | GET | `/v1/csrf` | - | - | CSRF 토큰 발급 |
-| GET | `/v1/regions` | - | - | 등록 가능한 지역 목록 |
+| GET | `/v1/regions` | - | - | 지역 목록(`?parent=`로 하위 지역) |
 | GET | `/v1/nicknames/availability` | - | - | 닉네임 가용성 확인 |
 | POST | `/v1/participants` | - | 필요 | 참가 등록 (`201`) |
 | GET | `/v1/me` | 필요 | - | 내 참가 정보 |
@@ -60,7 +60,10 @@
 - 입력을 멈추면 `GET /v1/nicknames/availability?nickname=`로 확인한다. 응답은 `{ available }`이다. 로그인은 필요 없다.
 - 가용성 확인은 예약이 아니다. `available`이 `true`여도 등록 때 `NICKNAME_TAKEN`이 날 수 있다. 화면에 "예약됨"으로 쓰지 않는다.
 - 형식이 틀리면 `400`(`INVALID_NICKNAME`), `nickname` 쿼리가 없으면 `400`(`INVALID_REQUEST`)이다.
-- `regionCode`: `GET /v1/regions`가 준 `code` 값만 쓸 수 있다.
+- 지역은 두 단계로 고른다. `GET /v1/regions`로 시·도를 받고, `GET /v1/regions?parent={시·도 code}`로 그 아래 지역을 받는다.
+- 각 지역은 `{ code, name, parent_code, selectable }`이다. 최상위 지역은 `parent_code`가 `null`이다.
+- `regionCode`에는 `selectable`이 `true`인 `code`만 쓴다. 구가 없는 시·도는 그 자체로 `selectable`이 `true`다.
+- 하위 지역이 있는 시·도나 없는 코드를 보내면 `400`(`UNSUPPORTED_REGION`)이다. 시·도를 바꾸면 하위 선택을 비운다.
 
 ## 6. 분석 요청과 상태 확인
 
@@ -124,6 +127,7 @@
 | AI 일시 오류 | - | 상태 조회의 `error_code` `ANALYSIS_FAILED`, `RETRY_EXHAUSTED` | 같은 작업 상태를 다시 확인한다 |
 | 닉네임 형식 오류 | `400` | `INVALID_NICKNAME` | 등록·가용성 확인 공통. 닉네임 입력란에 표시 |
 | 닉네임 동시 등록 충돌 | `409` | `NICKNAME_TAKEN` | 닉네임만 수정 |
+| 지역 선택 오류 | `400` | `UNSUPPORTED_REGION` | 없는 코드이거나 하위 지역을 골라야 하는 시·도 |
 | 요청 한도 초과 | `429` | `DAILY_USER_LIMIT` | 본문 `retry_at`(UTC)과 `Retry-After` 헤더(초)로 다시 가능한 시점을 안내 |
 | 세션 만료·쿠키 분실 | `401` | `NOT_AUTHENTICATED` | 공개 링크 보기 / 새 참여 안내 |
 | 시즌 동결 | `409` | `SEASON_FROZEN` | 결과 보기 |

@@ -6,6 +6,15 @@ package com.santacut.domain.participant.model
 class Regions(private val values: List<Region>) {
     fun find(code: String): Region? = values.firstOrNull { it.code == code }
 
+    /** [parentCode]의 바로 아래 지역. null이면 최상위 지역(시·도)이다. */
+    fun childrenOf(parentCode: String?): Regions = Regions(values.filter { it.isChildOf(parentCode) })
+
+    /** 하위 지역이 없는 지역만 참가 지역으로 고를 수 있다. 구가 없는 시·도는 그 자체로 고른다. */
+    fun isSelectable(region: Region): Boolean = values.none { it.isChildOf(region.code) }
+
+    /** 목록에 있고 고를 수 있는 지역 코드인지. */
+    fun isSelectable(code: String): Boolean = find(code)?.let(::isSelectable) == true
+
     /** 목록 순서대로 각 지역을 바꾼 결과. */
     fun <T> map(transform: (Region) -> T): List<T> = values.map(transform)
 }

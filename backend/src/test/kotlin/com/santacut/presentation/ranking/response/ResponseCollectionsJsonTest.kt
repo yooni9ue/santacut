@@ -15,8 +15,8 @@ class ResponseCollectionsJsonTest {
 
     @Test
     fun `지역 목록 응답은 JSON 배열 하나로 나간다`() {
-        val responses = RegionResponses.from(RegionResults(listOf(RegionResult("KR-11-110", "종로구"))))
-        assertEquals("""[{"code":"KR-11-110","name":"종로구"}]""", mapper.writeValueAsString(responses))
+        val responses = RegionResponses.from(RegionResults(listOf(RegionResult("KR-11-110", "종로구", "KR-11", true))))
+        assertEquals("""[{"code":"KR-11-110","name":"종로구","parent_code":"KR-11","selectable":true}]""", mapper.writeValueAsString(responses))
     }
 
     @Test
