@@ -24,7 +24,6 @@ enum class ErrorCode(val status: Int, val message: String) {
     INSUFFICIENT_EVIDENCE(422, "점수를 매길 근거가 부족합니다."),
     DAILY_USER_LIMIT(429, "24시간 동안 제출할 수 있는 분석 횟수를 모두 썼습니다."),
     ANALYSIS_PAYLOAD_MISSING(500, "대기 중인 분석 작업에 입력 데이터가 없습니다."),
-    ANALYSIS_RESULT_MISSING(500, "성공한 분석 작업의 평가나 순위가 없습니다."),
     ANALYSIS_JOB_STATE_INVALID(500, "분석 작업의 현재 상태에서는 할 수 없는 상태 변경입니다."),
     AI_RESPONSE_INVALID(502, "AI 응답이 비어 있거나 너무 깁니다."),
     AI_RESPONSE_SCHEMA_INVALID(502, "AI 응답 형식이 올바르지 않습니다."),

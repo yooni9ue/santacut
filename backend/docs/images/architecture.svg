@@ -27,7 +27,7 @@
   </defs>
   <rect width="1200" height="660" rx="24" fill="url(#bg)"/>
   <text class="t" x="40" y="54">요청 흐름</text>
-  <text class="s" x="40" y="80">동기 API, 분석 작업 큐, SSE 진행 알림, 공유 렌더링</text>
+  <text class="s" x="40" y="80">동기 API, 분석 작업 큐, 상태 폴링, 공유 렌더링</text>
 
   <!-- 클라이언트 -->
   <rect class="card" x="40" y="250" width="150" height="130" rx="16"/>
@@ -53,7 +53,7 @@
 
   <rect class="inner" x="428" y="166" width="400" height="70" rx="12"/>
   <text class="h" x="446" y="194">presentation</text>
-  <text class="s" x="446" y="220">컨트롤러 · 세션 필터 · CSRF · SSE</text>
+  <text class="s" x="446" y="220">컨트롤러 · 세션 필터 · CSRF</text>
   <path class="line" d="M628,236 V256" marker-end="url(#arr)"/>
   <rect class="inner" x="428" y="260" width="400" height="70" rx="12"/>
   <text class="h" x="446" y="288">application</text>
@@ -102,7 +102,7 @@
   <text class="s" x="954" y="600">/s/{token} HTML · PNG</text>
 
   <path d="M828,505 H852 V592 H926" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arr)"/>
-  <!-- SSE -->
+  <!-- 폴링 -->
   <path class="gline" d="M428,201 H396 V420 H115 V386" marker-end="url(#arrG)"/>
-  <text class="s" x="210" y="444" fill="#3DDC97">SSE 1초마다 상태 전송</text>
+  <text class="s" x="210" y="444" fill="#3DDC97">화면이 상태를 폴링</text>
 </svg>

@@ -8,12 +8,17 @@ data class AnalysisStatusResponse(
     @field:Schema(description = "분석 작업 UUID", format = "uuid")
     val id: String,
     @field:Schema(
-        description = "현재 작업 상태",
-        allowableValues = ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "INSUFFICIENT_DATA"],
+        description = "현재 진행 단계. RANKING_PENDING은 심사가 끝나고 순위를 계산하는 중, " +
+            "FAILED는 실패나 근거 부족(error_code로 구분)입니다. VALIDATING은 지금 서버가 내보내지 않습니다.",
+        example = "QUEUED",
+        allowableValues = ["VALIDATING", "QUEUED", "ANALYZING", "RANKING_PENDING", "SUCCEEDED", "FAILED"],
     )
     val status: String,
     @field:JsonProperty("error_code")
-    @field:Schema(description = "기계가 읽는 실패 코드. 실패하기 전에는 null입니다.")
+    @field:Schema(
+        description = "기계가 읽는 실패 코드. 실패하기 전에는 null입니다.",
+        allowableValues = ["SEASON_FROZEN", "EXPIRED", "RETRY_EXHAUSTED", "INSUFFICIENT_EVIDENCE", "ANALYSIS_FAILED"],
+    )
     val errorCode: String?,
     @field:JsonProperty("assessment_id")
     @field:Schema(description = "분석이 성공하면 만들어지는 평가 UUID")

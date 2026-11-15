@@ -146,7 +146,16 @@ class AnalysisJob(
 
     fun requirePayload(): String = payload ?: throw SantaCutException(ErrorCode.ANALYSIS_PAYLOAD_MISSING)
 
-    fun requireAssessmentId(): String = assessmentId ?: throw SantaCutException(ErrorCode.ANALYSIS_RESULT_MISSING)
+    /**
+     * 응답용 진행 단계. 성공한 작업은 참가자의 최신 순위 계산 시각([latestRankedAt])이
+     * 완료 시각 이후일 때만 순위에 반영된 것으로 본다.
+     */
+    fun progress(latestRankedAt: Instant?): AnalysisProgress = status.toProgress(isRankedBy(latestRankedAt))
+
+    private fun isRankedBy(latestRankedAt: Instant?): Boolean {
+        val finished = finishedAt ?: return false
+        return latestRankedAt != null && !latestRankedAt.isBefore(finished)
+    }
 
     private fun isLeaseExpiredAt(now: Instant): Boolean =
         status == AnalysisJobStatus.RUNNING && leaseUntil?.isBefore(now) == true

@@ -96,8 +96,8 @@
   <circle cx="72" cy="535" r="14" fill="none" stroke="#3E8BFF" stroke-width="3"/>
   <circle cx="72" cy="535" r="4" fill="#3E8BFF"/>
   <text class="h" x="98" y="541">클라이언트</text>
-  <text class="s" x="200" y="541">GET /v1/analyses/{id}/events</text>
-  <text class="s" x="440" y="541">SSE가 1초마다 상태를 확인해 보낸다</text>
+  <text class="s" x="200" y="541">GET /v1/analyses/{id}</text>
+  <text class="s" x="440" y="541">화면이 몇 초마다 상태를 다시 조회한다</text>
   <text class="s" x="850" y="541">→ /v1/me/result → /v1/shares</text>
   <path class="gline" d="M982,452 V496" marker-end="url(#arrG)"/>
 </svg>

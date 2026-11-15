@@ -114,7 +114,7 @@ Response ◀──from()──── Result ◀──from()── Model
 - `XxxResult`(application.result): facade 출력. 엔티티를 담지 않고 값만 담는다. 도메인 모델에서 만드는 정적 팩토리 `from()`을 둔다.
 - `XxxResponse`(presentation.response): HTTP 응답 본문과 Swagger 스키마 설명. `from(result)`로 만든다.
 - 목록은 `List<XxxResult>`, `List<XxxResponse>`로 넘기지 않고 일급 컬렉션(`XxxResults`, `XxxResponses`)으로 넘긴다. 응답 일급 컬렉션은 리스트 필드에 `@JsonValue`를 달아 JSON을 지금처럼 배열로 내보낸다. API 계약(JSON 형태)은 바꾸지 않는다.
-- 확인: controller 메서드 반환 타입은 `XxxResponse`, `XxxResponses`, `SseEmitter`, `ResponseEntity` 중 하나다. facade public 메서드 반환 타입은 `XxxResult`, `XxxResults` 또는 `Unit`이다. `grep -rnE "List<\w+(Result|Response)>" backend/src/main` 결과가 일급 컬렉션 클래스 자신의 필드 선언뿐이어야 한다.
+- 확인: controller 메서드 반환 타입은 `XxxResponse`, `XxxResponses`, `ResponseEntity` 중 하나다. facade public 메서드 반환 타입은 `XxxResult`, `XxxResults` 또는 `Unit`이다. `grep -rnE "List<\w+(Result|Response)>" backend/src/main` 결과가 일급 컬렉션 클래스 자신의 필드 선언뿐이어야 한다.
 
 ## 5. 도메인과 일급 컬렉션
 

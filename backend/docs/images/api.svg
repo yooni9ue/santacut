@@ -76,8 +76,8 @@
   <rect class="card" x="494" y="270" width="212" height="96" rx="12"/>
   <rect x="506" y="282" width="44" height="20" rx="10" fill="#3E8BFF" fill-opacity="0.18" stroke="#3E8BFF" stroke-width="1.2"/>
   <text class="mt" x="528.2" y="296" text-anchor="middle" style="fill:#3E8BFF">GET</text>
-  <text class="pp" x="558.5" y="298">진행 SSE</text>
-  <text class="m path" x="508" y="325">/v1/analyses/{id}/events</text>
+  <text class="pp" x="558.5" y="298">진행 상태</text>
+  <text class="m path" x="508" y="325">/v1/analyses/{id}</text>
   <rect x="506" y="338" width="36" height="18" rx="5" fill="none" stroke="#F5B83D" stroke-opacity="0.8"/><text class="tg" x="524.0" y="351" text-anchor="middle" style="fill:#F5B83D">세션</text>
   <rect class="card" x="721" y="110" width="212" height="44" rx="12"/>
   <rect x="722" y="111" width="210" height="5" rx="2.5" fill="#3DDC97"/>

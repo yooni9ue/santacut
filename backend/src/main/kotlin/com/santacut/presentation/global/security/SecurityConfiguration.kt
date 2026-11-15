@@ -2,7 +2,6 @@ package com.santacut.presentation.global.security
 
 import com.santacut.application.session.facade.SessionFacade
 import com.santacut.presentation.global.config.SessionCookieProperties
-import jakarta.servlet.DispatcherType
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpStatus
@@ -38,12 +37,11 @@ class SecurityConfiguration(
         return http.build()
     }
 
-    /** 비동기 디스패치와 공개 경로는 열어 두고 나머지는 로그인 세션을 요구한다. */
+    /** 공개 경로는 열어 두고 나머지는 로그인 세션을 요구한다. */
     private fun authorizeRequests(
         registry: AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry,
     ) {
-        registry.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
-            .requestMatchers(*PUBLIC_PATHS).permitAll()
+        registry.requestMatchers(*PUBLIC_PATHS).permitAll()
             .anyRequest().authenticated()
     }
 

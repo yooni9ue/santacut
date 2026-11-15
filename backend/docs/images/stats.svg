@@ -58,8 +58,8 @@
   <text class="mid" x="648.0" y="374" style="fill:#3DDC97">3<tspan class="unit" dx="4">초</tspan></text>
   <text class="xs" x="648.0" y="398">워커 큐 확인</text>
   <rect class="cell" x="804.7" y="330" width="160.7" height="82" rx="12"/>
-  <text class="mid" x="820.7" y="374" style="fill:#3E8BFF">1<tspan class="unit" dx="4">초</tspan></text>
-  <text class="xs" x="820.7" y="398">SSE 상태 전송</text>
+  <text class="mid" x="820.7" y="374" style="fill:#3E8BFF">24<tspan class="unit" dx="4">시간</tspan></text>
+  <text class="xs" x="820.7" y="398">대기 작업 만료</text>
   <rect class="cell" x="977.4" y="330" width="160.7" height="82" rx="12"/>
   <text class="mid" x="993.4" y="374" style="fill:#F5B83D">3<tspan class="unit" dx="4">분</tspan></text>
   <text class="xs" x="993.4" y="398">작업 임대</text>
@@ -78,7 +78,7 @@
   <text class="xs" x="434.8" y="548">워커가 죽어도 복구</text>
   <rect class="card" x="608.2" y="488" width="173" height="80" rx="14"/>
   <circle cx="628.2" cy="515" r="5" fill="#3E8BFF"/>
-  <text class="lb" x="642.2" y="520" style="font-size:14.5px">202 + SSE</text>
+  <text class="lb" x="642.2" y="520" style="font-size:14.5px">202 + 폴링</text>
   <text class="xs" x="624.2" y="548">느린 AI가 안 막는다</text>
   <rect class="card" x="797.6" y="488" width="173" height="80" rx="14"/>
   <circle cx="817.6" cy="515" r="5" fill="#7F52FF"/>
