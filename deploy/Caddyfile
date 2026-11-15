@@ -1,0 +1,20 @@
+{
+    email {$ACME_EMAIL}
+    admin off
+}
+
+{$DOMAIN} {
+    encode zstd gzip
+    request_body {
+        max_size 21MB
+    }
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        X-Frame-Options DENY
+        -Server
+    }
+    @internal path /actuator /actuator/*
+    respond @internal 404
+    reverse_proxy app:8080
+}
