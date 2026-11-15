@@ -96,7 +96,7 @@ sequenceDiagram
 <p align="center"><img src="docs/images/api.svg" alt="API 지도: participant, session, analysis, ranking, share 도메인별 엔드포인트 17개 전부와 메서드, 공개·세션·CSRF·멱등키 표시" width="100%"></p>
 
 - 필드 정의는 Swagger(`/swagger-ui.html`)가 기준이다.
-- 호출 순서는 [API 연동 가이드](../docs/frontend-api-guide.md)에 있다.
+- 호출 순서는 [API 연동 가이드](../docs/api/frontend-api-guide.md)에 있다.
 
 <details>
 <summary>엔드포인트 표 (텍스트)</summary>
@@ -153,4 +153,4 @@ cd backend
 
 ## 더 읽기
 
-[시스템 아키텍처](docs/system-architecture.md) · [백엔드 설계](docs/backend-design.md) · [코드 컨벤션](docs/backend-conventions.md) · [배포](docs/deployment.md) · [API 연동 가이드](../docs/frontend-api-guide.md) · [작업 지침](CLAUDE.md)
+[시스템 아키텍처](docs/system-architecture.md) · [백엔드 설계](docs/backend-design.md) · [코드 컨벤션](docs/backend-conventions.md) · [배포](docs/deployment.md) · [API 연동 가이드](../docs/api/frontend-api-guide.md) · [작업 지침](CLAUDE.md)

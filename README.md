@@ -9,7 +9,7 @@
 ```text
 backend/     Kotlin + Spring Boot API와 백엔드 문서·CI/CD·설정 (backend/CLAUDE.md 참고)
 frontend/    Next.js 모바일 웹·설정·프론트 전용 문서(docs/)
-docs/        프론트엔드가 참고하는 문서
+docs/        기획·디자인·API·개발 규칙과 공통 문서
 ```
 
 GitHub Actions 워크플로는 GitHub 규칙상 `.github/workflows/`에 있으며, 백엔드 워크플로(`backend.yml`)는 `backend/` 변경에만 실행됩니다. 프론트엔드 CI/CD는 `.github/workflows/frontend.yml`에서 독립적으로 실행됩니다.
@@ -22,7 +22,7 @@ GitHub Actions 워크플로는 GitHub 규칙상 `.github/workflows/`에 있으�
 - TanStack Query + Axios
 - Vitest + Testing Library, Playwright (모바일 Chromium/WebKit)
 - `frontend/src/` 구조 및 `@/*` 경로 별칭
-- [API 연동 가이드](docs/frontend-api-guide.md)
+- [API 연동 가이드](docs/api/frontend-api-guide.md)
 - Swagger UI: `http://localhost:8080/swagger-ui.html`, OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
 Node.js 24와 pnpm을 설치한 뒤 실행합니다 (`npm install -g pnpm@12.21.0`). nvm을 사용한다면 `frontend/`에서 `nvm install`과 `nvm use`를 먼저 실행하세요.
@@ -67,9 +67,15 @@ pnpm test:e2e             # 모바일 Chromium + WebKit
 
 E2E는 3100번 포트에서 서버를 자동 실행합니다. 로컬은 개발 서버, CI는 Next.js 프로덕션 빌드를 사용합니다. CI 방식으로 로컬 검증하려면 `pnpm build` 후 `CI=true pnpm test:e2e`를 실행합니다. 현재 테스트는 실제 백엔드 없이 공통 API 코드와 메인 미리보기 동작을 검증합니다.
 
+## 문서 찾아보기
+
+[문서 목차](docs/README.md)에서 기획, 디자인, API, 개발 규칙을 목적별로 찾을 수 있습니다.
+
+프론트엔드·백엔드 공통 개발 흐름은 [AI-DLC 안내](docs/ai-dlc/README.md)를 따릅니다. `AI-DLC로 <기능>을 구현해줘`처럼 요청하면 작업 크기에 맞춰 기획·설계·구현·검증·PR 인계를 진행합니다.
+
 ## UI·UX 기획
 
-[UI·UX 기획서](docs/ui-ux-plan.md)에서 화면 구성, 사용자 흐름, 상태별 안내, 공유 경험과 구현 우선순위를 확인할 수 있습니다.
+[UI·UX 기획서](docs/planning/ui-ux-plan.md)에서 화면 구성, 사용자 흐름, 상태별 안내, 공유 경험과 구현 우선순위를 확인할 수 있습니다. 현재 화면의 시각 기준은 [디자인 방향](docs/design/visual-direction.md)에 정리합니다.
 
 ## 백엔드
 
@@ -105,4 +111,4 @@ cd backend
 
 ## PR 작성
 
-[PR 작성 규칙](docs/pr-guide.md)과 [PR 양식](docs/pull_request_template.md)을 따릅니다. 새 프론트엔드 전용 문서는 `frontend/docs/`에 두고 기존 문서는 별도 요청 없이 이동하지 않습니다.
+[PR 작성 규칙](docs/development/pr-guide.md)과 [PR 양식](docs/pull_request_template.md)을 따릅니다. 새 프론트엔드 전용 문서는 `frontend/docs/`에 두고 기존 문서는 별도 요청 없이 이동하지 않습니다.
