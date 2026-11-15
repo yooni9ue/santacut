@@ -7,6 +7,8 @@
   sql:
     init:
       mode: always
+      # 서울 밖 시·도와 시·군·구 시드. schema.sql 다음에 매번 실행되며 INSERT OR IGNORE라 기존 DB에도 새 지역만 더한다.
+      data-locations: classpath:regions.sql
   jpa:
     hibernate:
       ddl-auto: update
