@@ -1,0 +1,44 @@
+{
+  "participants": [
+    {
+      "name": "\u00ec\u0082\u00b0\u00ed\u0083\u0080"
+    },
+    {
+      "name": "\u00eb\u00a3\u00a8\u00eb\u008f\u008c\u00ed\u0094\u0084"
+    }
+  ],
+  "messages": [
+    {
+      "sender_name": "\u00eb\u00a3\u00a8\u00eb\u008f\u008c\u00ed\u0094\u0084",
+      "timestamp_ms": 1763132400000,
+      "content": "\u00ea\u00b3\u00a0\u00eb\u00a7\u0088\u00ec\u009b\u008c \u00f0\u009f\u008e\u0084",
+      "is_geoblocked_for_viewer": false
+    },
+    {
+      "sender_name": "\u00ec\u0082\u00b0\u00ed\u0083\u0080",
+      "timestamp_ms": 1763128800000,
+      "content": "\u00ec\u0098\u00a4\u00eb\u008a\u0098\u00eb\u008f\u0084 \u00ed\u009e\u0098\u00eb\u0082\u00b4"
+    },
+    {
+      "sender_name": "\u00ec\u0082\u00b0\u00ed\u0083\u0080",
+      "timestamp_ms": 1763125200000,
+      "photos": [
+        {
+          "uri": "messages/inbox/x/photos/1.jpg"
+        }
+      ]
+    },
+    {
+      "sender_name": "\u00ec\u0082\u00b0\u00ed\u0083\u0080",
+      "timestamp_ms": 1763121600000,
+      "content": ""
+    },
+    {
+      "sender_name": "Santa",
+      "timestamp_ms": 1763118000000,
+      "content": "plain ascii"
+    }
+  ],
+  "title": "\u00eb\u00a3\u00a8\u00eb\u008f\u008c\u00ed\u0094\u0084",
+  "thread_path": "inbox/rudolph_123"
+}

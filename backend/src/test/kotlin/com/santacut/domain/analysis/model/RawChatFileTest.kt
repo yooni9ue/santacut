@@ -37,6 +37,18 @@ class RawChatFileTest {
         assertNotEquals(hash, RawChatFile(DataSource.KAKAO, "대화!".toByteArray()).requestHash("산타"))
     }
 
+    @Test
+    fun `엄격한 UTF-8로 읽고 맨 앞 BOM을 뗀다`() {
+        val content = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + "산타\r\n".toByteArray()
+        assertEquals("산타\r\n", RawChatFile(DataSource.KAKAO, content).decodeText())
+    }
+
+    @Test
+    fun `UTF-8이 아닌 파일은 UNSUPPORTED_FILE_FORMAT이다`() {
+        val eucKr = "산타".toByteArray(charset("EUC-KR"))
+        assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { RawChatFile(DataSource.KAKAO, eucKr).decodeText() }
+    }
+
     companion object {
         private const val BINARY_CHECK_LENGTH = 4096
     }
