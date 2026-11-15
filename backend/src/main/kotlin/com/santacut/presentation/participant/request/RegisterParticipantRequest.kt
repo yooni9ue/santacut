@@ -11,7 +11,7 @@ data class RegisterParticipantRequest(
         maxLength = 16,
     )
     val nickname: String,
-    @field:Schema(description = "지역 목록 API(GET /v1/regions)가 돌려준 지역 코드 중 하나", example = "KR-11-650")
+    @field:Schema(description = "지역 목록 API(GET /v1/regions)가 돌려준 지역 중 selectable이 true인 코드", example = "KR-11-650")
     val regionCode: String,
 ) {
     fun toCommand(): RegisterParticipantCommand = RegisterParticipantCommand(nickname, regionCode)

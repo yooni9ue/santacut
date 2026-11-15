@@ -64,12 +64,15 @@ class ParticipantFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `형식이 틀린 닉네임이나 없는 지역으로는 등록할 수 없다`() {
+    fun `형식이 틀린 닉네임, 없는 지역, 하위 지역이 있는 시·도로는 등록할 수 없다`() {
         assertErrorCode(ErrorCode.INVALID_NICKNAME) {
             participantFacade.register(RegisterParticipantCommand("!", REGION_CODE))
         }
         assertErrorCode(ErrorCode.UNSUPPORTED_REGION) {
             participantFacade.register(RegisterParticipantCommand(uniqueNickname(), "KR-00-000"))
+        }
+        assertErrorCode(ErrorCode.UNSUPPORTED_REGION) {
+            participantFacade.register(RegisterParticipantCommand(uniqueNickname(), SEOUL_WITH_DISTRICTS))
         }
     }
 
@@ -79,5 +82,10 @@ class ParticipantFacadeTest @Autowired constructor(
         assertErrorCode(ErrorCode.PARTICIPANT_NOT_FOUND) {
             participantFacade.getCurrentParticipant(CurrentParticipantCommand(UUID.randomUUID()))
         }
+    }
+
+    companion object {
+        /** 자치구가 있어 그 자체로는 고를 수 없는 서울특별시 코드. */
+        private const val SEOUL_WITH_DISTRICTS = "KR-11"
     }
 }

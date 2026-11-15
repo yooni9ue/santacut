@@ -13,7 +13,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     INSUFFICIENT_EVENTS(400, "분석하려면 이벤트가 20개 이상 필요합니다."),
     TOO_MANY_EVENTS(400, "한 번에 보낼 수 있는 이벤트는 2,000개까지입니다."),
     INVALID_NICKNAME(400, "닉네임은 한글, 영문, 숫자, 밑줄로 된 2~16자여야 합니다."),
-    UNSUPPORTED_REGION(400, "지원하지 않는 지역입니다."),
+    UNSUPPORTED_REGION(400, "지원하지 않는 지역입니다. 하위 지역이 있는 지역은 하위 지역을 골라야 합니다."),
     INVALID_CURSOR(400, "cursor가 올바르지 않습니다. 이전 응답의 next_cursor를 그대로 보내야 합니다."),
     NOT_AUTHENTICATED(401, "로그인 세션이 없거나 만료되었습니다."),
     NOT_FOUND(404, "분석 작업이 없거나 다른 참가자의 작업입니다."),

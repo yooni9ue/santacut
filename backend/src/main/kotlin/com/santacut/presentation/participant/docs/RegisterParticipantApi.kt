@@ -37,7 +37,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
             headers = [Header(name = "Set-Cookie", description = "세션 쿠키. 로컬은 sc_session, 운영은 __Host-sc_session입니다.", schema = Schema(type = "string"))],
             content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ParticipantResponse::class))],
         ),
-        ApiResponse(responseCode = "400", description = "닉네임 형식 오류(INVALID_NICKNAME), 지원하지 않는 지역(UNSUPPORTED_REGION), 잘못된 요청 본문", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
+        ApiResponse(responseCode = "400", description = "닉네임 형식 오류(INVALID_NICKNAME), 없거나 하위 지역을 골라야 하는 지역(UNSUPPORTED_REGION), 잘못된 요청 본문", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "403", description = ApiDocs.FORBIDDEN_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "409", description = "이미 사용 중인 닉네임(NICKNAME_TAKEN)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
