@@ -41,6 +41,7 @@
 | --- | --- | --- | --- | --- |
 | GET | `/v1/csrf` | - | - | CSRF 토큰 발급 |
 | GET | `/v1/regions` | - | - | 등록 가능한 지역 목록 |
+| GET | `/v1/nicknames/availability` | - | - | 닉네임 가용성 확인 |
 | POST | `/v1/participants` | - | 필요 | 참가 등록 (`201`) |
 | GET | `/v1/me` | 필요 | - | 내 참가 정보 |
 | POST | `/v1/analyses` | 필요 | 필요 | 분석 요청 (`202`) |
@@ -56,6 +57,9 @@
 ## 5. 참가 등록
 
 - 닉네임: 앞뒤 공백 제거 후 NFKC 정규화, 한글·영문·숫자·밑줄 2~16자. 대소문자 구분 없이 중복을 막는다(`409`).
+- 입력을 멈추면 `GET /v1/nicknames/availability?nickname=`로 확인한다. 응답은 `{ available }`이다. 로그인은 필요 없다.
+- 가용성 확인은 예약이 아니다. `available`이 `true`여도 등록 때 `NICKNAME_TAKEN`이 날 수 있다. 화면에 "예약됨"으로 쓰지 않는다.
+- 형식이 틀리면 `400`(`INVALID_NICKNAME`), `nickname` 쿼리가 없으면 `400`(`INVALID_REQUEST`)이다.
 - `regionCode`: `GET /v1/regions`가 준 `code` 값만 쓸 수 있다.
 
 ## 6. 분석 요청과 상태 확인
@@ -118,6 +122,7 @@
 | 이벤트 시각·글자 수 범위 밖 | `400` | `INVALID_EVENT_RANGE` | |
 | 최근 기록·근거 부족(AI 판정) | - | 상태 조회의 `error_code` `INSUFFICIENT_EVIDENCE` | 작업은 `FAILED`로 끝난다 |
 | AI 일시 오류 | - | 상태 조회의 `error_code` `ANALYSIS_FAILED`, `RETRY_EXHAUSTED` | 같은 작업 상태를 다시 확인한다 |
+| 닉네임 형식 오류 | `400` | `INVALID_NICKNAME` | 등록·가용성 확인 공통. 닉네임 입력란에 표시 |
 | 닉네임 동시 등록 충돌 | `409` | `NICKNAME_TAKEN` | 닉네임만 수정 |
 | 요청 한도 초과 | `429` | `DAILY_USER_LIMIT` | 본문 `retry_at`(UTC)과 `Retry-After` 헤더(초)로 다시 가능한 시점을 안내 |
 | 세션 만료·쿠키 분실 | `401` | `NOT_AUTHENTICATED` | 공개 링크 보기 / 새 참여 안내 |
