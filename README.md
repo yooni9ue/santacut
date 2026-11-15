@@ -1,4 +1,4 @@
-﻿# 🎅 산타컷 (SantaCut)
+# 🎅 산타컷 (SantaCut)
 
 > 너 올해 산타컷 통과 가능?
 
@@ -25,4 +25,45 @@
 
 ## 프로젝트 상태
 
-현재 기획 단계이며 위 기능은 개발 예정입니다. 실행 가능한 애플리케이션과 기술 스택은 아직 확정되지 않았습니다.
+Next.js 기반 기본 프로젝트 설정을 완료했습니다. 위 서비스 기능은 개발 예정입니다.
+
+
+## 개발 환경
+
+- Node.js 24 LTS (`client/.nvmrc`)
+- npm 및 `package-lock.json`
+- Next.js App Router, React, TypeScript
+- Tailwind CSS, ESLint
+- `src/` 구조 및 `@/*` 경로 별칭
+
+## 실행 방법
+
+Node.js 24를 설치한 뒤 아래 명령을 실행합니다. 프론트엔드 코드와 설정은 `client/`에 있습니다. nvm을 사용한다면 `client/`에서 `nvm install`과 `nvm use`를 실행하세요.
+
+```bash
+cd client
+npm ci
+npm run dev
+```
+
+[http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 현재 기본 화면 실행에는 환경 변수가 필요하지 않습니다.
+
+## 확인 및 빌드
+
+`client/` 디렉터리에서 실행합니다.
+
+```bash
+npm run lint
+npm run typecheck
+npm run build
+npm start
+```
+
+`npm start`는 빌드 결과를 실행합니다.
+
+## 기본 파일
+
+- `client/src/app/page.tsx`: 첫 화면
+- `client/src/app/layout.tsx`: 공통 레이아웃과 메타데이터
+- `client/src/app/globals.css`: 전역 스타일과 Tailwind CSS
+- `client/public/`: 정적 파일
