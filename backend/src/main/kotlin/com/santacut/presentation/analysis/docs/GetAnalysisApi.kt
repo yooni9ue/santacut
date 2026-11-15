@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
     parameters = [Parameter(name = "id", `in` = ParameterIn.PATH, required = true, description = "분석 제출 API(POST /v1/analyses)가 돌려준 UUID")],
     responses = [
         ApiResponse(responseCode = "200", description = "현재 진행 단계", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = AnalysisStatusResponse::class))]),
+        ApiResponse(responseCode = "400", description = "id가 UUID 형식이 아님(INVALID_REQUEST)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "401", description = ApiDocs.UNAUTHORIZED_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "404", description = "작업이 없거나 다른 참가자의 작업(NOT_FOUND)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
