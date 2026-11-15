@@ -4,14 +4,13 @@ import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.participant.model.Nickname
-import com.santacut.domain.ranking.model.RankingPage
 import com.santacut.domain.share.model.ShareToken
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * 요청 값으로 만드는 값 객체(닉네임, 멱등 키, 공유 토큰, 순위표 범위)의 검증 규칙.
+ * 요청 값으로 만드는 값 객체(닉네임, 멱등 키, 공유 토큰)의 검증 규칙.
  */
 class RequestValueTest {
     @Test
@@ -47,16 +46,6 @@ class RequestValueTest {
         listOf("too-short", token + "a", token.dropLast(1) + "!").forEach { raw ->
             val exception = assertFailsWith<SantaCutException> { ShareToken.from(raw) }
             assertEquals(ErrorCode.SHARE_NOT_FOUND, exception.errorCode)
-        }
-    }
-
-    @Test
-    fun `순위표는 offset 0~10,000에서 50줄씩 읽는다`() {
-        assertEquals(50, RankingPage.of(0).size)
-        assertEquals(10_000, RankingPage.of(10_000).offset)
-        listOf(-1, 10_001).forEach { offset ->
-            val exception = assertFailsWith<SantaCutException> { RankingPage.of(offset) }
-            assertEquals(ErrorCode.INVALID_OFFSET, exception.errorCode)
         }
     }
 }

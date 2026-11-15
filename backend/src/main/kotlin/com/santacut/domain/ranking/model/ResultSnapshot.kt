@@ -22,6 +22,7 @@ class ResultSnapshot(
     deliverySequence: Int,
     eta: Instant,
     computedAt: Instant,
+    tied: Boolean = false,
 ) {
     @Id
     @Column(name = "id")
@@ -54,16 +55,24 @@ class ResultSnapshot(
     var computedAt: Instant = computedAt
         protected set
 
+    /** 같은 점수의 다른 참가자가 있어 공동 순위인지. 이 컬럼이 없던 기존 DB에도 붙도록 기본값을 둔다. */
+    @Column(name = "tied", nullable = false, columnDefinition = TIED_COLUMN_DEFINITION)
+    var tied: Boolean = tied
+        protected set
+
     companion object {
+        private const val TIED_COLUMN_DEFINITION = "INTEGER NOT NULL DEFAULT 0"
+
         fun publish(
             candidate: RankingCandidate,
             rank: Int,
+            tied: Boolean,
             deliverySequence: Int,
             eta: Instant,
             computedAt: Instant,
         ): ResultSnapshot = ResultSnapshot(
             UUID.randomUUID().toString(), candidate.participantId(), candidate.assessmentId(),
-            rank, deliverySequence, eta, computedAt,
+            rank, deliverySequence, eta, computedAt, tied,
         )
     }
 }

@@ -30,6 +30,8 @@ import java.math.BigDecimal
 import java.time.Clock
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -61,10 +63,16 @@ class ResultShareFlowTest @Autowired constructor(
         assertEquals(EXPECTED_SCORE, myResult.scoreHundredths)
         assertEquals("선물 배송 출발", myResult.verdict)
         assertEquals(1, myResult.deliverySequence)
+        assertEquals(PREVIEW, myResult.stage)
+        assertFalse(myResult.rankingPending)
 
-        val rows = resultFacade.getRankings(RankingPageCommand(0))
-        assertEquals(listOf(nickname), rows.map { it.nickname })
-        assertEquals(listOf(myResult.eta), rows.map { it.eta })
+        val board = resultFacade.getRankings(RankingPageCommand(null))
+        assertEquals(nickname, board.rows.map { it.nickname }.first())
+        assertEquals(myResult.eta, board.rows.map { it.eta }.first())
+        assertEquals(myResult.computedAt, board.computedAt)
+        assertEquals(board.rows.map { it.nickname }.size.toLong(), board.participantCount)
+        assertEquals(PREVIEW, board.stage)
+        assertNull(board.nextCursor)
     }
 
     private fun assertShareLifecycle(participantId: UUID, nickname: String) {
@@ -86,15 +94,30 @@ class ResultShareFlowTest @Autowired constructor(
     }
 
     @Test
-    fun `순위표 범위를 벗어난 offset과 남의 공유 토큰은 거절한다`() {
-        assertErrorCode(ErrorCode.INVALID_OFFSET) { resultFacade.getRankings(RankingPageCommand(-1)) }
+    fun `점수는 있지만 순위 계산 전이면 순위 없이 점수만 주고 반영 대기로 표시한다`() {
+        val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
+        recordAssessment(participantId, LOW_SCORES, rebuild = false)
+        val myResult = resultFacade.getMyResult(MyResultCommand(participantId))
+        assertEquals(LOW_SCORE, myResult.scoreHundredths)
+        assertTrue(myResult.rankingPending)
+        assertNull(myResult.rank)
+        assertNull(myResult.eta)
+        assertNull(myResult.computedAt)
+    }
+
+    @Test
+    fun `이전 응답이 준 값이 아닌 cursor와 남의 공유 토큰은 거절한다`() {
+        assertErrorCode(ErrorCode.INVALID_CURSOR) { resultFacade.getRankings(RankingPageCommand("-1")) }
         assertErrorCode(ErrorCode.SHARE_NOT_FOUND) {
             shareFacade.revokeShare(RevokeShareCommand(UUID.randomUUID(), "x".repeat(43)))
         }
         assertErrorCode(ErrorCode.SHARE_NOT_FOUND) { shareFacade.getPublicPage(PublicShareCommand("bad-token")) }
     }
 
-    private fun recordAssessmentAndRebuildRanking(participantId: UUID) {
+    private fun recordAssessmentAndRebuildRanking(participantId: UUID) =
+        recordAssessment(participantId, HIGH_SCORES, rebuild = true)
+
+    private fun recordAssessment(participantId: UUID, scores: List<Int>, rebuild: Boolean) {
         val now = clock.instant()
         val job = AnalysisJob.enqueue(
             participantId,
@@ -103,14 +126,20 @@ class ResultShareFlowTest @Autowired constructor(
             AnalysisPayload("{}"),
             now,
         )
-        val score = Score.weighted(listOf(BigDecimal(80), BigDecimal(90), BigDecimal(70), BigDecimal(60)))
+        val score = Score.weighted(scores.map { BigDecimal(it) })
         transactionTemplate.executeWithoutResult {
             assessmentService.record(job, score, now)
-            rankingService.rebuild(now, shareService.findAll())
+            if (rebuild) rankingService.rebuild(now, shareService.findAll())
         }
     }
 
     companion object {
         private const val EXPECTED_SCORE = 7600
+        private val HIGH_SCORES = listOf(80, 90, 70, 60)
+
+        /** 순위 계산 전 결과용 낮은 점수. 다른 테스트의 1위 참가자보다 늘 뒤에 선다. */
+        private val LOW_SCORES = listOf(10, 10, 10, 10)
+        private const val LOW_SCORE = 1000
+        private const val PREVIEW = "PREVIEW"
     }
 }

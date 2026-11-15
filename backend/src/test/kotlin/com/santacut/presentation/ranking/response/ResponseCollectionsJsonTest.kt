@@ -21,14 +21,13 @@ class ResponseCollectionsJsonTest {
 
     @Test
     fun `순위표 응답은 순서를 지킨 JSON 배열 하나로 나간다`() {
-        val computedAt = Instant.parse("2026-12-01T00:00:00Z")
         val eta = Instant.parse("2026-12-25T00:03:00Z")
         val results = RankingRowResults(
-            listOf(RankingRowResult("첫째", 1, 8000, eta, computedAt), RankingRowResult("둘째", 2, 7000, eta, computedAt)),
+            listOf(RankingRowResult("첫째", 1, false, 8000, eta), RankingRowResult("둘째", 2, false, 7000, eta)),
         )
         val expected = listOf(
-            RankingResponse("첫째", 1, 8000, eta.toString(), computedAt.toString()),
-            RankingResponse("둘째", 2, 7000, eta.toString(), computedAt.toString()),
+            RankingResponse("첫째", 1, false, 8000, eta.toString()),
+            RankingResponse("둘째", 2, false, 7000, eta.toString()),
         )
         assertEquals(mapper.writeValueAsString(expected), mapper.writeValueAsString(RankingResponses.from(results)))
     }

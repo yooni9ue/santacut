@@ -46,8 +46,8 @@
 | POST | `/v1/analyses` | 필요 | 필요 | 분석 요청 (`202`) |
 | GET | `/v1/analyses/{id}` | 필요 | - | 분석 작업 진행 상태 |
 | GET | `/v1/me/analysis` | 필요 | - | 내 최근 분석 작업 상태 |
-| GET | `/v1/me/result` | 필요 | - | 내 최신 점수·순위·도착 시각 |
-| GET | `/v1/rankings?offset=0` | 필요 | - | 랭킹 50명씩 |
+| GET | `/v1/me/result` | 필요 | - | 내 최신 점수·순위·도착 시각·확정 상태 |
+| GET | `/v1/rankings` | - | - | 랭킹 50명씩(cursor 페이지네이션) |
 | POST | `/v1/shares` | 필요 | 필요 | 공유 링크 생성·재사용 |
 | DELETE | `/v1/shares/{token}` | 필요 | 필요 | 공유 링크 폐기 (`204`) |
 | GET | `/s/{token}` | - | - | 공개 공유 HTML 페이지 |
@@ -87,8 +87,23 @@
 
 - `score_hundredths`는 정수다. 100으로 나눠 소수 둘째 자리까지 표시한다(`8245` → `82.45점`).
 - `eta`, `computed_at` 등 시각은 ISO-8601 UTC 문자열이다. 화면에는 `Asia/Seoul`로 바꿔 보여준다.
-- 순위는 동점이면 같은 순위를 공유한다. 배송 순번(`delivery_sequence`)은 항상 서로 다르다.
-- 랭킹은 `offset`(0~10,000)부터 50명씩 온다.
+- 순위는 동점이면 같은 순위를 공유한다. `tied`가 `true`면 `공동 N위`로 표시한다. 배송 순번(`delivery_sequence`)은 항상 서로 다르다.
+- `stage`는 `PREVIEW`(시즌 마감 전 미리보기)나 `FINAL`(시즌 확정)이다. 계산 시각과 함께 보여준다.
+
+### 내 결과 `GET /v1/me/result`
+
+- 점수와 순위는 늘 같은 심사 것이다. 서로 다른 심사의 점수와 순위를 섞지 않는다.
+- `ranking_pending`이 `true`면 새 심사가 아직 순위에 반영되지 않았다. 이전 스냅숏이 있으면 그 점수·순위를 그대로 보여주고 반영 중임을 따로 알린다.
+- 첫 순위 계산 전이면 `rank`, `delivery_sequence`, `eta`, `computed_at`이 `null`이다. 점수·판정을 먼저 보여주고 순위·도착일은 `계산 중`으로 둔다.
+- 점수가 나온 심사가 없으면 `404`(`RESULT_NOT_FOUND`)다.
+
+### 랭킹 `GET /v1/rankings`
+
+- 로그인 없이 볼 수 있다. 내 순위 카드는 `GET /v1/me/result`로 따로 읽는다.
+- 응답: `{ season_year, participant_count, computed_at, stage, rows[], next_cursor }`. 각 행은 `nickname`, `rank`, `tied`, `score_hundredths`, `eta`다.
+- 한 번에 50줄이 온다. `더 보기`는 `next_cursor`를 `cursor` 쿼리로 보낸다. `next_cursor`가 `null`이면 마지막 페이지다.
+- `cursor`는 불투명 문자열이다. 직접 만들지 말고 받은 값만 보낸다. 잘못된 값은 `400`(`INVALID_CURSOR`)이다.
+- 아직 순위가 없으면 `participant_count`는 `0`, `computed_at`은 `null`, `rows`는 빈 배열이다(빈 상태 화면).
 
 ## 8. 오류 응답
 

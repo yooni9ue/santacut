@@ -13,25 +13,30 @@ class RankingEntries private constructor(private val values: List<RankingCandida
     fun competitionRanks(): List<Int> =
         values.indices.scan(0) { rank, index -> if (sharesRankWithPrevious(index)) rank else index + 1 }.drop(1)
 
+    /** 각 후보가 앞이나 뒤 후보와 점수가 같아 공동 순위인지. */
+    fun tiedFlags(): List<Boolean> =
+        values.indices.map { index -> sharesRankWithPrevious(index) || sharesRankWithPrevious(index + 1) }
+
     /** 출발지에서 각 참가자까지 누적한 작업 시간(초). */
     fun cumulativeWorkSeconds(origin: Coordinate): List<Double> =
         (listOf(origin) + values.map { it.coordinate() })
             .zipWithNext { from, to -> Delivery.legSeconds(from, to) }
             .runningReduce(Double::plus)
 
-    /** 순위, 배송 순서, 도착 예정 시각을 담은 새 스냅숏을 만든다. */
+    /** 순위, 공동 순위 여부, 배송 순서, 도착 예정 시각을 담은 새 스냅숏을 만든다. */
     fun toSnapshots(origin: Coordinate, deliveryStart: ZonedDateTime, computedAt: Instant): ResultSnapshots {
         val ranks = competitionRanks()
+        val tied = tiedFlags()
         val workSeconds = cumulativeWorkSeconds(origin)
         val snapshots = values.mapIndexed { index, candidate ->
             val eta = Delivery.arrival(deliveryStart, workSeconds[index]).toInstant()
-            ResultSnapshot.publish(candidate, ranks[index], index + 1, eta, computedAt)
+            ResultSnapshot.publish(candidate, ranks[index], tied[index], index + 1, eta, computedAt)
         }
         return ResultSnapshots(snapshots)
     }
 
     private fun sharesRankWithPrevious(index: Int): Boolean =
-        index > 0 && values[index - 1].hasSameScoreAs(values[index])
+        index in 1 until values.size && values[index - 1].hasSameScoreAs(values[index])
 
     companion object {
         private val DELIVERY_ORDER = compareByDescending<RankingCandidate> { it.scoreHundredths() }

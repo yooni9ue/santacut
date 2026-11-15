@@ -9,12 +9,12 @@ import java.time.Instant
 data class RankingRowResult(
     val nickname: String,
     val rank: Int,
+    val tied: Boolean,
     val scoreHundredths: Int,
     val eta: Instant,
-    val computedAt: Instant,
 ) {
     companion object {
         fun from(row: RankingRow): RankingRowResult =
-            RankingRowResult(row.nickname, row.rank, row.scoreHundredths, row.eta, row.computedAt)
+            RankingRowResult(row.nickname, row.rank, row.tied, row.scoreHundredths, row.eta)
     }
 }

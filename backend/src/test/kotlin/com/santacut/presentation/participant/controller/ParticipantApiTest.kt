@@ -70,7 +70,24 @@ class ParticipantApiTest @Autowired constructor(
     @Test
     fun `세션 쿠키 없이 로그인이 필요한 경로를 부르면 401이다`() {
         mockMvc.perform(get("/v1/me")).andExpect(status().isUnauthorized)
-        mockMvc.perform(get("/v1/rankings")).andExpect(status().isUnauthorized)
+        mockMvc.perform(get("/v1/me/result")).andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `순위표는 로그인 없이 메타 정보와 함께 본다`() {
+        mockMvc.perform(get("/v1/rankings"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.season_year").value(2099))
+            .andExpect(jsonPath("$.participant_count").isNumber)
+            .andExpect(jsonPath("$.stage").value("PREVIEW"))
+            .andExpect(jsonPath("$.rows").isArray)
+    }
+
+    @Test
+    fun `이전 응답이 준 값이 아닌 순위표 cursor는 400과 INVALID_CURSOR다`() {
+        mockMvc.perform(get("/v1/rankings").param("cursor", "abc"))
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.code").value("INVALID_CURSOR"))
     }
 
     @Test
