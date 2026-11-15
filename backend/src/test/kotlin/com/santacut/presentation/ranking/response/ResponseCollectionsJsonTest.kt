@@ -20,7 +20,7 @@ class ResponseCollectionsJsonTest {
     }
 
     @Test
-    fun `순위표 응답은 순서를 지킨 JSON 배열 하나로 나간다`() {
+    fun `순위표 응답의 rows 목록은 순서를 지킨 JSON 배열로 나간다`() {
         val eta = Instant.parse("2026-12-25T00:03:00Z")
         val results = RankingRowResults(
             listOf(RankingRowResult("첫째", 1, false, 8000, eta), RankingRowResult("둘째", 2, false, 7000, eta)),
