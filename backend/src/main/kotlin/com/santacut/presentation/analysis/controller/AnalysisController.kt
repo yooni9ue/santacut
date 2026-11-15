@@ -1,37 +1,32 @@
 package com.santacut.presentation.analysis.controller
 
 import com.santacut.application.analysis.command.AnalysisJobCommand
+import com.santacut.application.analysis.command.LatestAnalysisCommand
 import com.santacut.application.analysis.facade.AnalysisFacade
-import com.santacut.presentation.analysis.docs.StreamAnalysisApi
+import com.santacut.presentation.analysis.docs.GetAnalysisApi
+import com.santacut.presentation.analysis.docs.GetLatestAnalysisApi
 import com.santacut.presentation.analysis.docs.SubmitAnalysisApi
 import com.santacut.presentation.analysis.request.SubmitAnalysisRequest
+import com.santacut.presentation.analysis.response.AnalysisStatusResponse
 import com.santacut.presentation.analysis.response.AnalysisSubmissionResponse
 import io.swagger.v3.oas.annotations.Parameter
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
-import org.springframework.http.MediaType
-import org.springframework.scheduling.TaskScheduler
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
-import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
-import java.time.Clock
 import java.util.UUID
 
 @RestController
-@RequestMapping("/v1/analyses")
 class AnalysisController(
     private val analysisFacade: AnalysisFacade,
-    private val taskScheduler: TaskScheduler,
-    private val clock: Clock,
 ) {
-    @PostMapping
+    @PostMapping("/v1/analyses")
     @SubmitAnalysisApi
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun submit(
@@ -41,15 +36,16 @@ class AnalysisController(
     ): AnalysisSubmissionResponse =
         AnalysisSubmissionResponse.from(analysisFacade.submit(request.toCommand(participantId, idempotencyKey)))
 
-    @GetMapping("/{id}/events", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
-    @StreamAnalysisApi
-    fun events(
+    @GetMapping("/v1/analyses/{id}")
+    @GetAnalysisApi
+    fun status(
         @AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID,
         @PathVariable id: UUID,
-    ): SseEmitter {
-        val command = AnalysisJobCommand(participantId, id)
-        // 스트림을 열기 전에 작업이 있고 본인 것인지 확인한다.
-        analysisFacade.getStatus(command)
-        return AnalysisEventStream(analysisFacade, taskScheduler, clock, command).open()
-    }
+    ): AnalysisStatusResponse =
+        AnalysisStatusResponse.from(analysisFacade.getStatus(AnalysisJobCommand(participantId, id)))
+
+    @GetMapping("/v1/me/analysis")
+    @GetLatestAnalysisApi
+    fun latestStatus(@AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID): AnalysisStatusResponse =
+        AnalysisStatusResponse.from(analysisFacade.getLatestStatus(LatestAnalysisCommand(participantId)))
 }

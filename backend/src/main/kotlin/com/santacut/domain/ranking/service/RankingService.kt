@@ -58,15 +58,6 @@ class RankingService(
         return RankedResult(snapshot, assessment)
     }
 
-    /** 성공한 분석 작업의 평가와 그 평가가 처음 반영된 최신 순위. */
-    fun findResultOfAssessment(assessmentId: String): RankedResult {
-        val assessment = assessmentRepository.findById(assessmentId).orElse(null)
-            ?: throw SantaCutException(ErrorCode.ANALYSIS_RESULT_MISSING)
-        val snapshot = resultSnapshotRepository.findFirstByAssessmentIdOrderByComputedAtDesc(assessmentId)
-            ?: throw SantaCutException(ErrorCode.ANALYSIS_RESULT_MISSING)
-        return RankedResult(snapshot, assessment)
-    }
-
     /** 가장 최근 순위 계산 결과의 한 페이지. */
     fun findRankingPage(page: RankingPage): RankingRows {
         val latest = resultSnapshotRepository.findFirstByOrderByComputedAtDesc() ?: return RankingRows.empty()

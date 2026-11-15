@@ -64,6 +64,11 @@ class AnalysisJobService(
         analysisJobRepository.findByIdAndUserId(jobId.toString(), participantId.toString())
             ?: throw SantaCutException(ErrorCode.NOT_FOUND)
 
+    /** 참가자가 가장 최근에 낸 작업. 낸 작업이 없으면 [ErrorCode.NOT_FOUND]다. */
+    fun getLatestOwned(participantId: UUID): AnalysisJob =
+        analysisJobRepository.findFirstByUserIdOrderByCreatedAtDesc(participantId.toString())
+            ?: throw SantaCutException(ErrorCode.NOT_FOUND)
+
     /** 너무 오래 기다린 대기 작업과 재시도를 다 쓴 실행 작업을 하나씩 실패로 정리한다. */
     fun expireOverdueJobs(now: Instant) {
         analysisJobRepository.findFirstByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(

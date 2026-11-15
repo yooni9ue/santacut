@@ -12,8 +12,6 @@ interface ResultSnapshotRepository : JpaRepository<ResultSnapshot, String> {
 
     fun findFirstByOrderByComputedAtDesc(): ResultSnapshot?
 
-    fun findFirstByAssessmentIdOrderByComputedAtDesc(assessmentId: String): ResultSnapshot?
-
     /** 한 번의 순위 계산 결과를 배송 순서대로 offset부터 limit줄 읽는다. */
     @Query(
         """

@@ -7,6 +7,7 @@ import com.santacut.TestParticipants.uniqueNickname
 import com.santacut.application.analysis.command.AnalysisEventCommand
 import com.santacut.application.analysis.command.AnalysisEventCommands
 import com.santacut.application.analysis.command.AnalysisJobCommand
+import com.santacut.application.analysis.command.LatestAnalysisCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
@@ -17,7 +18,6 @@ import java.time.Clock
 import java.time.Duration
 import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 @IntegrationTest
@@ -39,7 +39,7 @@ class AnalysisFacadeTest @Autowired constructor(
         assertEquals("QUEUED", status.status)
         assertNull(status.errorCode)
         assertNull(status.finishedAt)
-        assertFalse(status.succeeded || status.failed)
+        assertEquals(status, analysisFacade.getLatestStatus(LatestAnalysisCommand(participantId)))
 
         assertErrorCode(ErrorCode.NOT_FOUND) {
             analysisFacade.getStatus(AnalysisJobCommand(registerParticipant(), UUID.fromString(submitted.id)))

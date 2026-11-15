@@ -9,6 +9,8 @@ import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
+import com.santacut.application.ranking.command.MyResultCommand
+import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DailyBudget
@@ -53,6 +55,7 @@ import kotlin.test.assertNull
 class AnalysisWorkerFacadeTest @Autowired constructor(
     private val analysisWorkerFacade: AnalysisWorkerFacade,
     private val analysisFacade: AnalysisFacade,
+    private val resultFacade: ResultFacade,
     private val participantFacade: ParticipantFacade,
     private val scoreClient: ScoreClient,
     private val clock: MutableClock,
@@ -79,7 +82,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val status = analysisFacade.getStatus(job)
         assertEquals("SUCCEEDED", status.status)
         assertNotNull(status.assessmentId)
-        val outcome = analysisFacade.getOutcome(job)
+        val outcome = resultFacade.getMyResult(MyResultCommand(job.participantId))
         assertEquals(EXPECTED_SCORE_HUNDREDTHS, outcome.scoreHundredths)
         assertEquals(1, outcome.rank)
     }

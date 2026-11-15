@@ -9,40 +9,61 @@ import com.santacut.application.analysis.command.SubmitAnalysisCommand
 import com.santacut.application.analysis.facade.AnalysisFacade
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
-import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import jakarta.servlet.http.Cookie
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.request
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.Clock
 import java.time.Duration
 import java.util.UUID
-import kotlin.test.assertIs
 
 /**
- * 분석 이벤트 스트림이 폴링 중 오류를 만나면 스트림을 오류로 닫는지 확인한다.
+ * 분석 상태 폴링 경로(작업 하나, 내 최근 작업)의 HTTP 계약을 확인한다.
  */
 @IntegrationTest
-class AnalysisStreamApiTest @Autowired constructor(
+class AnalysisApiTest @Autowired constructor(
     private val mockMvc: MockMvc,
     private val participantFacade: ParticipantFacade,
     private val analysisFacade: AnalysisFacade,
-    private val analysisJobRepository: AnalysisJobRepository,
     private val clock: Clock,
 ) {
     @Test
-    fun `스트림을 연 뒤 작업이 사라지면 폴링이 실패해 스트림을 오류로 닫는다`() {
+    fun `제출한 작업의 진행 단계를 작업 ID와 내 최근 작업 경로로 조회한다`() {
         val participant = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE))
         val jobId = submitAnalysis(participant.id)
-        val stream = mockMvc.perform(
-            get("/v1/analyses/$jobId/events").cookie(Cookie(SESSION_COOKIE, participant.sessionToken)),
-        ).andExpect(request().asyncStarted()).andReturn()
+        val session = Cookie(SESSION_COOKIE, participant.sessionToken)
 
-        analysisJobRepository.deleteById(jobId)
+        mockMvc.perform(get("/v1/analyses/$jobId").cookie(session))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(jobId))
+            .andExpect(jsonPath("$.status").value("QUEUED"))
+        mockMvc.perform(get("/v1/me/analysis").cookie(session))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.id").value(jobId))
+    }
 
-        assertIs<IllegalStateException>(stream.getAsyncResult(ASYNC_WAIT_MILLIS))
+    @Test
+    fun `다른 참가자의 작업이나 낸 작업이 없으면 404와 NOT_FOUND다`() {
+        val owner = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE))
+        val jobId = submitAnalysis(owner.id)
+        val other = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE))
+        val session = Cookie(SESSION_COOKIE, other.sessionToken)
+
+        mockMvc.perform(get("/v1/analyses/$jobId").cookie(session))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+        mockMvc.perform(get("/v1/me/analysis").cookie(session))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+    }
+
+    @Test
+    fun `세션 없이 상태를 조회하면 401이다`() {
+        mockMvc.perform(get("/v1/analyses/${UUID.randomUUID()}")).andExpect(status().isUnauthorized)
+        mockMvc.perform(get("/v1/me/analysis")).andExpect(status().isUnauthorized)
     }
 
     private fun submitAnalysis(participantId: UUID): String {
@@ -58,6 +79,5 @@ class AnalysisStreamApiTest @Autowired constructor(
         private const val SESSION_COOKIE = "sc_session"
         private const val SOURCE = "KAKAO"
         private const val EVENT_COUNT = 20
-        private const val ASYNC_WAIT_MILLIS = 10_000L
     }
 }

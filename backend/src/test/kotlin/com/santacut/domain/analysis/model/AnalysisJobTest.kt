@@ -45,7 +45,7 @@ class AnalysisJobTest {
         val finishedAt = createdAt.plusSeconds(30)
         job.succeed("assessment-1", finishedAt)
         assertEquals(AnalysisJobStatus.SUCCEEDED, job.status)
-        assertEquals("assessment-1", job.requireAssessmentId())
+        assertEquals("assessment-1", job.assessmentId)
         assertEquals(finishedAt, job.finishedAt)
         assertNull(job.payload)
         assertTrue(job.hasSucceeded())
@@ -136,9 +136,24 @@ class AnalysisJobTest {
     }
 
     @Test
-    fun `성공하지 않은 작업에서 평가 ID를 찾으면 결과 없음 오류다`() {
-        val exception = assertFailsWith<SantaCutException> { newJob().requireAssessmentId() }
-        assertEquals(ErrorCode.ANALYSIS_RESULT_MISSING, exception.errorCode)
+    fun `진행 단계는 대기, 실행, 실패를 응답 어휘로 바꾼다`() {
+        val job = newJob()
+        assertEquals(AnalysisProgress.QUEUED, job.progress(null))
+        job.startAttempt(LEASE, createdAt)
+        assertEquals(AnalysisProgress.ANALYZING, job.progress(null))
+        job.fail(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, createdAt)
+        assertEquals(AnalysisProgress.FAILED, job.progress(null))
+    }
+
+    @Test
+    fun `성공한 작업은 완료 시각 이후 순위가 계산됐을 때만 성공이고 아니면 순위 계산 대기다`() {
+        val job = newJob().apply { startAttempt(LEASE, createdAt) }
+        val finishedAt = createdAt.plusSeconds(30)
+        job.succeed("assessment-1", finishedAt)
+        assertEquals(AnalysisProgress.RANKING_PENDING, job.progress(null))
+        assertEquals(AnalysisProgress.RANKING_PENDING, job.progress(finishedAt.minusMillis(1)))
+        assertEquals(AnalysisProgress.SUCCEEDED, job.progress(finishedAt))
+        assertEquals(AnalysisProgress.SUCCEEDED, job.progress(finishedAt.plusSeconds(60)))
     }
 
     @Test
