@@ -1,0 +1,30 @@
+name: santacut-frontend
+
+services:
+  frontend:
+    image: ${FRONTEND_IMAGE:?Use an immutable frontend GHCR image digest}
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3000:3000'
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: '1'
+      HOSTNAME: 0.0.0.0
+      PORT: '3000'
+    networks:
+      backend:
+        aliases: [frontend]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 384m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+networks:
+  backend:
+    external: true
+    name: santacut_default
