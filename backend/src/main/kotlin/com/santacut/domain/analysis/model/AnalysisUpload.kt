@@ -49,7 +49,16 @@ class AnalysisUpload(
     var createdAt: Instant = createdAt
         protected set
 
-    fun toRawFile(): RawChatFile = RawChatFile(source, content)
+    /**
+     * 원본을 읽어 본인 메시지만 이벤트로 바꾸고 [now] 기준 제출 한도에 맞춘다.
+     * 인스타그램 JSON은 [readInstagramThread]로 읽는다. 이벤트가 20개보다 적으면 INSUFFICIENT_EVENTS다.
+     */
+    fun normalize(now: Instant, readInstagramThread: (String) -> InstagramThread): AnalysisSubmission {
+        val events = toRawFile().readMessages(readInstagramThread).eventsWrittenBy(selfSpeaker).recentAt(now)
+        return AnalysisSubmission(source, events).also { it.verifyAcceptableAt(now) }
+    }
+
+    private fun toRawFile(): RawChatFile = RawChatFile(source, content)
 
     companion object {
         fun of(job: AnalysisJob, selfSpeaker: String, file: RawChatFile, createdAt: Instant): AnalysisUpload =

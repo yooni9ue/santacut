@@ -44,12 +44,8 @@ class AnalysisJobService(
     }
 
     /** 같은 키로 이미 받은 작업. 본문이 다르면 충돌이다. */
-    fun findReplay(participantId: UUID, key: IdempotencyKey, payload: AnalysisPayload): AnalysisJob? {
-        val existing = analysisJobRepository.findByUserIdAndIdempotencyKey(participantId.toString(), key.value)
-            ?: return null
-        if (!existing.matchesRequest(payload)) throw SantaCutException(ErrorCode.IDEMPOTENCY_CONFLICT)
-        return existing
-    }
+    fun findReplay(participantId: UUID, key: IdempotencyKey, payload: AnalysisPayload): AnalysisJob? =
+        findReplayByHash(participantId, key, payload.hash())
 
     /** 같은 키로 이미 받은 원본 파일 작업. 파일·출처·본인 이름 해시가 다르면 충돌이다. JSON 제출 작업과도 키를 함께 쓴다. */
     fun findReplayByHash(participantId: UUID, key: IdempotencyKey, requestHash: String): AnalysisJob? {
@@ -93,11 +89,8 @@ class AnalysisJobService(
 
     /** 너무 오래 기다린 검증·대기 작업과 재시도를 다 쓴 실행 작업을 하나씩 실패로 정리한다. */
     fun expireOverdueJobs(now: Instant) {
-        analysisJobRepository.findFirstByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
-            AnalysisJobStatus.VALIDATING, AnalysisJob.queueExpiryCutoff(now),
-        )?.let { expire(it, now) }
-        analysisJobRepository.findFirstByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
-            AnalysisJobStatus.QUEUED, AnalysisJob.queueExpiryCutoff(now),
+        analysisJobRepository.findFirstByStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+            AnalysisJobStatus.EXPIRABLE, AnalysisJob.queueExpiryCutoff(now),
         )?.let { expire(it, now) }
         analysisJobRepository.findFirstByStatusAndLeaseUntilBeforeAndAttemptsGreaterThanEqualOrderByCreatedAtAsc(
             AnalysisJobStatus.RUNNING, now, AnalysisJob.MAX_ATTEMPTS,

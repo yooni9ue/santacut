@@ -3,10 +3,7 @@ package com.santacut.domain.analysis.service
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.AnalysisUpload
-import com.santacut.domain.analysis.model.ChatMessages
-import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.InstagramThread
-import com.santacut.domain.analysis.model.KakaoTalkLines
 import com.santacut.domain.analysis.model.RawChatFile
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
@@ -41,19 +38,9 @@ class AnalysisUploadService(
         analysisUploadRepository.deleteByCreatedAtBefore(AnalysisJob.queueExpiryCutoff(now))
     }
 
-    /**
-     * 원본을 읽어 본인 메시지만 이벤트로 바꾸고 제출 한도에 맞춘다.
-     * 이벤트가 20개보다 적으면 [ErrorCode.INSUFFICIENT_EVENTS]다.
-     */
-    fun normalize(upload: AnalysisUpload, now: Instant): AnalysisSubmission {
-        val events = readMessages(upload.toRawFile()).eventsWrittenBy(upload.selfSpeaker).recentAt(now)
-        return AnalysisSubmission(upload.source, events).also { it.verifyAcceptableAt(now) }
-    }
-
-    private fun readMessages(file: RawChatFile): ChatMessages = when (file.source) {
-        DataSource.KAKAO -> KakaoTalkLines.from(file.decodeText()).toMessages()
-        DataSource.INSTAGRAM -> readInstagramThread(file.decodeText()).toMessages()
-    }
+    /** 원본을 본인 메시지만 담은 제출 내용으로 바꾼다. 출처별 파싱과 정규화 순서는 [AnalysisUpload.normalize]가 정한다. */
+    fun normalize(upload: AnalysisUpload, now: Instant): AnalysisSubmission =
+        upload.normalize(now, ::readInstagramThread)
 
     /** 올바른 JSON이 아니거나, 본문이 `null`이거나, 대화방 객체 모양이 아니면 [ErrorCode.UNSUPPORTED_FILE_FORMAT]이다. */
     private fun readInstagramThread(text: String): InstagramThread {

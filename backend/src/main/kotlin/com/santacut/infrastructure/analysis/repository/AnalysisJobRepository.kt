@@ -18,8 +18,8 @@ interface AnalysisJobRepository : JpaRepository<AnalysisJob, String> {
 
     fun findFirstByStatusOrderByCreatedAtAsc(status: AnalysisJobStatus): AnalysisJob?
 
-    fun findFirstByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
-        status: AnalysisJobStatus,
+    fun findFirstByStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+        statuses: Collection<AnalysisJobStatus>,
         createdAt: Instant,
     ): AnalysisJob?
 

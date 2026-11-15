@@ -65,15 +65,24 @@ class KakaoTalkLine(private val text: String) {
         private const val AFTERNOON = "오후"
         private const val HALF_DAY_HOURS = 12
 
+        /** 메시지 줄에서 화자 이름으로 읽는 최대 글자 수. */
+        private const val MAX_SPEAKER_LENGTH = 100
+
+        /** 오전·오후 중 하나를 잡는 정규식 그룹. */
+        private const val MERIDIEM = "($MORNING|$AFTERNOON)"
+
+        /** 화자 이름을 잡는 정규식 그룹. 가장 짧게 맞춰 본문의 ` : `까지 이름으로 먹지 않는다. */
+        private const val SPEAKER = "(.{1,$MAX_SPEAKER_LENGTH}?)"
+
         private val PC_DATE_HEADER = Regex("""-{5,} (\d{4})년 (\d{1,2})월 (\d{1,2})일 \S요일 -{5,}""")
-        private val PC_MESSAGE = Regex("""\[(.{1,100}?)] \[(오전|오후) (\d{1,2}):(\d{2})] (.*)""")
+        private val PC_MESSAGE = Regex("""\[$SPEAKER] \[$MERIDIEM (\d{1,2}):(\d{2})] (.*)""")
         private val IOS_MESSAGE =
-            Regex("""(\d{4})\. (\d{1,2})\. (\d{1,2})\. (?:(오전|오후) )?(\d{1,2}):(\d{2}), (.{1,100}?) : (.*)""")
+            Regex("""(\d{4})\. (\d{1,2})\. (\d{1,2})\. (?:$MERIDIEM )?(\d{1,2}):(\d{2}), $SPEAKER : (.*)""")
         private val ANDROID_MESSAGE =
-            Regex("""(\d{4})년 (\d{1,2})월 (\d{1,2})일 (오전|오후) (\d{1,2}):(\d{2}), (.{1,100}?) : (.*)""")
+            Regex("""(\d{4})년 (\d{1,2})월 (\d{1,2})일 $MERIDIEM (\d{1,2}):(\d{2}), $SPEAKER : (.*)""")
         private val MOBILE_DATE_HEADER = Regex("""\d{4}년 \d{1,2}월 \d{1,2}일 \S요일""")
-        private val ANDROID_TIME_HEADER = Regex("""\d{4}년 \d{1,2}월 \d{1,2}일 (오전|오후) \d{1,2}:\d{2}""")
-        private val IOS_PREFIX = Regex("""^\d{4}\. \d{1,2}\. \d{1,2}\. (?:(오전|오후) )?\d{1,2}:\d{2}, """)
-        private val ANDROID_PREFIX = Regex("""^\d{4}년 \d{1,2}월 \d{1,2}일 (오전|오후) \d{1,2}:\d{2}, """)
+        private val ANDROID_TIME_HEADER = Regex("""\d{4}년 \d{1,2}월 \d{1,2}일 $MERIDIEM \d{1,2}:\d{2}""")
+        private val IOS_PREFIX = Regex("""^\d{4}\. \d{1,2}\. \d{1,2}\. (?:$MERIDIEM )?\d{1,2}:\d{2}, """)
+        private val ANDROID_PREFIX = Regex("""^\d{4}년 \d{1,2}월 \d{1,2}일 $MERIDIEM \d{1,2}:\d{2}, """)
     }
 }

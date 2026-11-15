@@ -49,6 +49,16 @@ class RawChatFileTest {
         assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { RawChatFile(DataSource.KAKAO, eucKr).decodeText() }
     }
 
+    @Test
+    fun `출처가 카카오톡이면 TXT 파서로, 인스타그램이면 넘긴 JSON 읽기 함수로 읽는다`() {
+        val kakao = RawChatFile(DataSource.KAKAO, "2026. 11. 1. 15:00, 산타 : 안녕".toByteArray())
+        assertEquals(listOf("안녕"), kakao.readMessages { error("카카오톡은 JSON으로 읽지 않는다") }.toList().map { it.text })
+
+        val thread = InstagramThread(InstagramMessages(listOf(InstagramMessage("산타", 1, "고마워"))))
+        val instagram = RawChatFile(DataSource.INSTAGRAM, "{}".toByteArray())
+        assertEquals(listOf("고마워"), instagram.readMessages { text -> thread.also { assertEquals("{}", text) } }.toList().map { it.text })
+    }
+
     companion object {
         private const val BINARY_CHECK_LENGTH = 4096
     }

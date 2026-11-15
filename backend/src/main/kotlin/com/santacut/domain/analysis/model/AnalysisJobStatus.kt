@@ -20,4 +20,9 @@ enum class AnalysisJobStatus {
         SUCCEEDED -> if (ranked) AnalysisProgress.SUCCEEDED else AnalysisProgress.RANKING_PENDING
         FAILED, INSUFFICIENT_DATA -> AnalysisProgress.FAILED
     }
+
+    companion object {
+        /** 너무 오래 기다리면 만료하는 상태. 검증 대기와 점수 산정 대기다. */
+        val EXPIRABLE: Set<AnalysisJobStatus> = setOf(VALIDATING, QUEUED)
+    }
 }
