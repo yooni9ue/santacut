@@ -54,17 +54,15 @@ class RankingService(
         resultSnapshotRepository.findFirstByUserIdOrderByComputedAtDesc(participantId.toString())
 
     /**
-     * 참가자의 최신 결과. 순위 스냅숏이 있으면 그 스냅숏의 평가와 묶고, 최신 평가가 아직 반영되지 않았으면 표시한다.
-     * 스냅숏이 없으면 최신 평가만 돌려준다. 평가가 하나도 없으면 [ErrorCode.RESULT_NOT_FOUND]다.
+     * 참가자의 최신 결과. 점수와 순위를 어떻게 묶을지는 [RankedResult.of]가 정한다.
+     * 평가가 하나도 없으면 [ErrorCode.RESULT_NOT_FOUND]다.
      */
     fun findLatestResult(participantId: UUID): RankedResult {
         val latest = assessmentRepository.findFirstByUserIdOrderByCreatedAtDescIdDesc(participantId.toString())
             ?: throw SantaCutException(ErrorCode.RESULT_NOT_FOUND)
-        val snapshot = findLatestSnapshot(participantId) ?: return RankedResult(null, latest, true)
-        if (snapshot.assessmentId == latest.id) return RankedResult(snapshot, latest, false)
-        val ranked = assessmentRepository.findById(snapshot.assessmentId).orElse(null)
-            ?: return RankedResult(null, latest, true)
-        return RankedResult(snapshot, ranked, true)
+        return RankedResult.of(latest, findLatestSnapshot(participantId)) { assessmentId ->
+            assessmentRepository.findById(assessmentId).orElse(null)
+        }
     }
 
     /** 가장 최근 순위 계산 결과의 한 페이지와 참가자 수, 계산 시각, 확정 상태. */
