@@ -34,7 +34,8 @@
 
 공통 진입 버튼은 `내 데이터 가져오기` 하나다. 이후 카카오톡과 인스타그램 중 하나를 선택한다. 입력 경로만 다르고 채점·랭킹·공유 기능은 공통이다.
 
-- 카카오톡: 기기별 공식 내보내기 경로를 안내한다. 원본이 TXT인 경우 검증된 파서로 내부 JSON에 변환한다. 사용자가 자신의 화자를 선택해야 하며 다른 참여자의 문장은 맥락으로만 사용한다.
+- 카카오톡: 기기별 공식 내보내기 경로를 안내한다. 원본이 TXT인 경우 검증된 파서로 내부 JSON에 변환한다. 사용자가 자신의 화자를 선택해야 한다.
+- 결정(2026-11-16): 본인 메시지만 분석한다. 다른 참여자의 메시지는 맥락으로도 쓰지 않고 버리며 AI에 보내지 않는다. 인스타그램도 본인 이름을 고른다(`message_1.json`에 소유자 표시가 없다).
 - 인스타그램: 데이터 형식 JSON, 기간, 필요한 항목을 설명하고 공식 계정 센터의 정보 내보내기로 연결한다. 외부 경로는 출시 전 실제 계정·모바일에서 확인한다.
 - 안내 페이지에 `파일 준비됐어요 · 업로드하기`를 제공한다.
 - 버튼 클릭만으로 파일이 즉시 다운로드된다고 약속하지 않는다. 외부 서비스의 생성 대기·로그인·내보내기 절차를 안내한다.
@@ -202,6 +203,12 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | ranking_entries | snapshot_id, user_id, rank, delivery_sequence, score_hundredths, region_id, eta; UNIQUE(snapshot_id,user_id) |
 | share_cards | public_token UNIQUE, user_id, snapshot_id, asset_key, created_at, revoked_at |
 
+현재 구현(SQLite)은 원본을 객체 저장소 대신 `analysis_uploads` 테이블에 둔다. 상태 폴링이 `analysis_jobs` 행을 자주 읽으므로 원본을 작업 행에 넣지 않는다.
+
+| 테이블 | 필드·제약 |
+| --- | --- |
+| analysis_uploads | job_id PK REFERENCES analysis_jobs ON DELETE CASCADE, source, self_speaker, content BLOB, created_at; created_at 색인 |
+
 닉네임은 NFKC 정규화·앞뒤 공백 제거·영문 대소문자 통일 후 nickname_key를 만든다. 기본안은 2~16자, 한글·영문·숫자·밑줄 허용이다. 정규화 후 검증하며 보이지 않는 문자와 중간 공백은 거부한다. 가용성 조회는 참고용이고 최종 등록은 UNIQUE 제약으로 동시 요청을 처리한다. 중복 충돌은 409를 반환한다.
 
 ## 9. API 초안
@@ -231,6 +238,16 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 ## 10. 작업 처리·보관·장애 대응
 
 분석 상태: uploaded → validating → queued → analyzing → succeeded / insufficient_data / failed.
+
+현재 구현의 작업 상태(`analysis_jobs.status`):
+
+- 원본 파일 제출(`POST /v1/analyses/files`): `VALIDATING` → `QUEUED` → `RUNNING` → `SUCCEEDED` / `INSUFFICIENT_DATA` / `FAILED`. 검증 실패는 `VALIDATING`에서 바로 끝난다.
+- 이벤트 제출(`POST /v1/analyses`): `QUEUED`부터 시작한다.
+- 검증 작업자는 원본 꺼내기, 파싱, 결과 기록을 트랜잭션 셋으로 나눈다. 파싱 중에는 DB 커넥션을 쥐지 않는다.
+- 검증을 세 번 넘게 시작하면 `RETRY_EXHAUSTED`로 끝낸다. 통과하면 점수 산정 시도 횟수를 0부터 센다.
+- 원본과 본인 이름은 검증이 끝나는 트랜잭션에서 지운다. 24시간 넘게 남은 원본은 지우고 그 작업은 `EXPIRED`로 끝낸다.
+- 검증 실패 코드: `UNSUPPORTED_FILE_FORMAT`, `SPEAKER_NOT_IDENTIFIED`(`FAILED`), `INSUFFICIENT_EVENTS`(`INSUFFICIENT_DATA`).
+- 참여자 이름은 응답, 로그, 예외 detail에 넣지 않는다. 로그에는 작업 ID와 오류 코드만 남긴다.
 
 - AI 구조화 응답 스키마·값 범위를 검증한다. 모델이 반환한 최종 합계나 도착 시각을 신뢰하지 않는다.
 - 일시적 실패는 지수 백오프로 최대 3회 시도하고, 형식 오류·근거 부족은 무한 재시도하지 않는다.
