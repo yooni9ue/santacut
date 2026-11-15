@@ -96,10 +96,6 @@ class AnalysisJob(
 
     fun matchesRequest(payload: AnalysisPayload): Boolean = requestHash == payload.hash()
 
-    fun hasSucceeded(): Boolean = status == AnalysisJobStatus.SUCCEEDED
-
-    fun hasFailed(): Boolean = status == AnalysisJobStatus.FAILED || status == AnalysisJobStatus.INSUFFICIENT_DATA
-
     fun isHeldBy(lease: String): Boolean = leaseToken == lease && status == AnalysisJobStatus.RUNNING
 
     /** 대기 중이거나, 실행 중이지만 리스가 끝나 다른 작업자가 다시 잡을 수 있는지. */

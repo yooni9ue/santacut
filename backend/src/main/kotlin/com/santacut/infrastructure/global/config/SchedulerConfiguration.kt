@@ -1,22 +1,11 @@
 package com.santacut.infrastructure.global.config
 
-import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.scheduling.annotation.EnableScheduling
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 
+/**
+ * 분석 작업자의 `@Scheduled` 폴링을 켠다. 예약 작업은 그 하나뿐이라 Spring Boot 기본 스케줄러(스레드 1개)로 충분하다.
+ */
 @Configuration
 @EnableScheduling
-class SchedulerConfiguration {
-    @Bean
-    fun taskScheduler(): ThreadPoolTaskScheduler = ThreadPoolTaskScheduler().apply {
-        poolSize = POOL_SIZE
-        setThreadNamePrefix(THREAD_NAME_PREFIX)
-        setRemoveOnCancelPolicy(true)
-    }
-
-    companion object {
-        private const val POOL_SIZE = 4
-        private const val THREAD_NAME_PREFIX = "santacut-scheduler-"
-    }
-}
+class SchedulerConfiguration
