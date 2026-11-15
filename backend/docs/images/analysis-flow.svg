@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-label="분석 요청부터 결과까지의 흐름">
+  <title>분석 흐름</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1426"/><stop offset="1" stop-color="#0F1F33"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8FB4D9"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3DDC97"/>
+    </marker>
+    <style>
+      text { font-family: Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif; fill: #E6EDF7; }
+      .t { font-size: 24px; font-weight: 800; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #A9BAD3; }
+      .n { font-size: 15px; font-weight: 800; fill: #0B1426; }
+      .card { fill: #16233B; stroke: #2A3B5A; stroke-width: 1.5; }
+      .line { stroke: #8FB4D9; stroke-width: 2; fill: none; }
+      .gline { stroke: #3DDC97; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      .rline { stroke: #FF5A5F; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+    </style>
+  </defs>
+  <rect width="1200" height="600" rx="24" fill="url(#bg)"/>
+  <text class="t" x="40" y="54">분석 흐름</text>
+  <text class="s" x="40" y="80">요청은 바로 202로 끝난다. 채점은 워커가 따로 한다.</text>
+
+  <!-- 행 1: 접수 -->
+  <text class="s" x="40" y="122" fill="#F5B83D">요청 스레드</text>
+  <g>
+    <rect class="card" x="40" y="136" width="340" height="130" rx="16"/>
+    <circle cx="70" cy="166" r="14" fill="#F5B83D"/><text class="n" x="70" y="171" text-anchor="middle">1</text>
+    <text class="h" x="94" y="172">분석 제출</text>
+    <text class="s" x="62" y="204">POST /v1/analyses</text>
+    <text class="s" x="62" y="226">Idempotency-Key 헤더</text>
+    <text class="s" x="62" y="248">응답 202 Accepted</text>
+  </g>
+  <path class="line" d="M380,201 H418" marker-end="url(#arr)"/>
+  <g>
+    <rect class="card" x="422" y="136" width="340" height="130" rx="16"/>
+    <circle cx="452" cy="166" r="14" fill="#F5B83D"/><text class="n" x="452" y="171" text-anchor="middle">2</text>
+    <text class="h" x="476" y="172">접수 검사</text>
+    <text class="s" x="444" y="204">참가 등록 여부 확인</text>
+    <text class="s" x="444" y="226">참가자당 하루 3회</text>
+    <text class="s" x="444" y="248">같은 키 재요청은 기존 작업</text>
+  </g>
+  <path class="line" d="M762,201 H800" marker-end="url(#arr)"/>
+  <g>
+    <rect class="card" x="804" y="136" width="356" height="130" rx="16"/>
+    <circle cx="834" cy="166" r="14" fill="#F5B83D"/><text class="n" x="834" y="171" text-anchor="middle">3</text>
+    <text class="h" x="858" y="172">작업 큐 저장</text>
+    <text class="s" x="826" y="204">analysis_jobs 테이블</text>
+    <text class="s" x="826" y="226">상태 QUEUED</text>
+    <text class="s" x="826" y="248">24시간 지나면 만료</text>
+  </g>
+
+  <!-- 연결 -->
+  <path class="line" d="M982,266 V290 H210 V318" marker-end="url(#arr)"/>
+
+  <!-- 행 2: 워커 -->
+  <text class="s" x="40" y="312" fill="#3DDC97">분석 워커</text>
+  <g>
+    <rect class="card" x="40" y="322" width="340" height="130" rx="16"/>
+    <circle cx="70" cy="352" r="14" fill="#3DDC97"/><text class="n" x="70" y="357" text-anchor="middle">4</text>
+    <text class="h" x="94" y="358">작업 임대</text>
+    <text class="s" x="62" y="390">3초마다 다음 작업 확인</text>
+    <text class="s" x="62" y="412">하루 AI 호출 100회 예산</text>
+    <text class="s" x="62" y="434">임대 3분, 만료 시 재점유</text>
+  </g>
+  <path class="line" d="M380,387 H418" marker-end="url(#arr)"/>
+  <g>
+    <rect class="card" x="422" y="322" width="340" height="130" rx="16"/>
+    <circle cx="452" cy="352" r="14" fill="#9C8CFF"/><text class="n" x="452" y="357" text-anchor="middle">5</text>
+    <text class="h" x="476" y="358">AI 채점</text>
+    <text class="s" x="444" y="390">Spring AI 구조화 응답</text>
+    <text class="s" x="444" y="412">차원별 점수 검증</text>
+    <text class="s" x="444" y="434">트랜잭션 밖에서 호출</text>
+  </g>
+  <path class="line" d="M762,387 H800" marker-end="url(#arr)"/>
+  <g>
+    <rect x="804" y="322" width="356" height="130" rx="16" fill="#3DDC97" fill-opacity="0.1" stroke="#3DDC97" stroke-width="1.5"/>
+    <circle cx="834" cy="352" r="14" fill="#3DDC97"/><text class="n" x="834" y="357" text-anchor="middle">6</text>
+    <text class="h" x="858" y="358">한 트랜잭션으로 완료</text>
+    <text class="s" x="826" y="390">평가 저장 · 작업 SUCCEEDED</text>
+    <text class="s" x="826" y="412">순위 스냅숏 재계산</text>
+    <text class="s" x="826" y="434">하나라도 실패하면 롤백</text>
+  </g>
+
+  <!-- 실패 -->
+  <path class="rline" d="M592,452 V486"/>
+  <text class="s" x="604" y="478" fill="#FF8A8E">실패하면 실패 코드 기록, 재시도는 새 요청</text>
+
+  <!-- 행 3: 클라이언트 -->
+  <rect class="card" x="40" y="500" width="1120" height="70" rx="16"/>
+  <circle cx="72" cy="535" r="14" fill="none" stroke="#3E8BFF" stroke-width="3"/>
+  <circle cx="72" cy="535" r="4" fill="#3E8BFF"/>
+  <text class="h" x="98" y="541">클라이언트</text>
+  <text class="s" x="200" y="541">GET /v1/analyses/{id}/events</text>
+  <text class="s" x="440" y="541">SSE가 1초마다 상태를 확인해 보낸다</text>
+  <text class="s" x="850" y="541">→ /v1/me/result → /v1/shares</text>
+  <path class="gline" d="M982,452 V496" marker-end="url(#arrG)"/>
+</svg>
