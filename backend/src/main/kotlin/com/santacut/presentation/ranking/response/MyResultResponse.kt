@@ -1,0 +1,32 @@
+package com.santacut.presentation.ranking.response
+
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.santacut.application.ranking.result.MyRankingResult
+import io.swagger.v3.oas.annotations.media.Schema
+
+data class MyResultResponse(
+    @field:Schema(description = "경쟁 순위. 점수가 같으면 같은 순위입니다.")
+    val rank: Int,
+    @field:JsonProperty("delivery_sequence")
+    @field:Schema(description = "참가자 사이의 배송 순서")
+    val deliverySequence: Int,
+    @field:Schema(description = "시뮬레이션한 배송 도착 예정 시각(UTC)", format = "date-time")
+    val eta: String,
+    @field:JsonProperty("computed_at")
+    @field:Schema(description = "순위 스냅숏을 계산한 시각(UTC)", format = "date-time")
+    val computedAt: String,
+    @field:JsonProperty("score_hundredths")
+    @field:Schema(description = "100분의 1점 단위 가중 점수. 100으로 나누면 점수입니다.", example = "8245")
+    val scoreHundredths: Int,
+    @field:Schema(description = "재미용 점수 판정")
+    val verdict: String,
+    @field:Schema(description = "재미용 한마디")
+    val comment: String,
+) {
+    companion object {
+        fun from(result: MyRankingResult): MyResultResponse = MyResultResponse(
+            result.rank, result.deliverySequence, result.eta.toString(), result.computedAt.toString(),
+            result.scoreHundredths, result.verdict, result.comment,
+        )
+    }
+}
