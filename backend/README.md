@@ -126,7 +126,7 @@ sequenceDiagram
 <p align="center"><img src="docs/images/api.svg" alt="API 지도: 엔드포인트 18개와 dev 전용 프롬프트 관리 3개를 도메인별 카드로 보여 준다. 카드마다 메서드, 하는 일, 경로, 성공 코드, 공개·세션·CSRF·멱등키 표시가 있다. 프롬프트 관리 API는 dev에서만 켜지고 운영은 404다" width="100%"></p>
 
 - 필드 정의는 Swagger(`/swagger-ui.html`)가 기준이다.
-- 호출 순서는 [API 연동 가이드](../docs/frontend-api-guide.md)에 있다.
+- 호출 순서는 [API 연동 가이드](../docs/api/frontend-api-guide.md)에 있다.
 
 <details>
 <summary>엔드포인트 표 (텍스트)</summary>
@@ -194,6 +194,6 @@ cd backend
 
 ## 더 읽기
 
-[시스템 아키텍처](docs/system-architecture.md) · [백엔드 설계](docs/backend-design.md) · [코드 컨벤션](docs/backend-conventions.md) · [배포](docs/deployment.md) · [API 연동 가이드](../docs/frontend-api-guide.md) · [작업 지침](CLAUDE.md)
+[시스템 아키텍처](docs/system-architecture.md) · [백엔드 설계](docs/backend-design.md) · [코드 컨벤션](docs/backend-conventions.md) · [배포](docs/deployment.md) · [API 연동 가이드](../docs/api/frontend-api-guide.md) · [작업 지침](CLAUDE.md)
 
 <p align="center"><img src="docs/images/footer-season.svg" alt="2026-12-25 0시(KST) 시즌 마감. 순위와 선물 도착 시각이 확정되고, 그 뒤 새 분석과 지역 변경은 409 SEASON_FROZEN이다" width="100%"></p>
