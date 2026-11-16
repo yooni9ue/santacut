@@ -13,6 +13,7 @@ import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
 import tools.jackson.databind.json.JsonMapper
 import java.time.Instant
 import kotlin.test.assertEquals
@@ -51,6 +52,19 @@ class ScoreClientTest {
             ),
             usage,
         )
+    }
+
+    @Test
+    fun `Gemini 사용량의 생각 토큰을 답 본문 토큰과 따로 담는다`() {
+        chatModel.usage = GoogleGenAiUsage(
+            RecordingChatModel.INPUT_TOKENS, RecordingChatModel.OUTPUT_TOKENS, TOTAL_TOKENS, THOUGHT_TOKENS,
+            null, null, null, null, null, null, null, null,
+        )
+
+        val usage = scoreClient.requestAnswer(digest(), SYSTEM_PROMPT).usage
+
+        assertEquals(THOUGHT_TOKENS.toLong(), usage.thoughtTokens)
+        assertEquals((RecordingChatModel.OUTPUT_TOKENS + THOUGHT_TOKENS).toLong(), usage.billedOutputTokens())
     }
 
     @Test
@@ -125,6 +139,8 @@ class ScoreClientTest {
         private const val EVENT_COUNT = 4
         private const val EXPECTED_HUNDREDTHS = 8000
         private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
+        private const val THOUGHT_TOKENS = 37
+        private const val TOTAL_TOKENS = RecordingChatModel.INPUT_TOKENS + RecordingChatModel.OUTPUT_TOKENS + THOUGHT_TOKENS
         private val OCCURRED_AT: Instant = Instant.parse("2026-11-01T00:00:00Z")
         private const val FULL_ANSWER = """{"sufficient":true,""" +
             """"evidence":{"care_empathy":[1],"positivity_support":[2],"respectful_communication":[3],"cooperation_sharing":[4]},""" +

@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.model.ChatResponse
+import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
 import org.springframework.stereotype.Component
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
@@ -15,7 +16,7 @@ import tools.jackson.databind.ObjectMapper
  * Gemini 모델(Google GenAI)에 항목별 점수와 근거 번호를 묻고, 응답 JSON을 [ScoreAnswer]로 읽는다.
  * 시스템 프롬프트는 호출하는 쪽이 DB에서 읽어 넘긴다. 점수 검증과 합산은 도메인 모델이 한다.
  * 사용자 메시지에는 이벤트 원문 전체가 아니라 항목별 낱말 신호와 작은 표본만 담는다([ScoreModelInput]).
- * 응답 메타데이터의 토큰 사용량과 종료 사유는 [ModelUsage]로 넘긴다. 프롬프트, 사용자 메시지, 모델 응답은 로그에 남기지 않는다.
+ * 응답 메타데이터의 토큰 사용량(생각 토큰 포함)과 종료 사유는 [ModelUsage]로 넘긴다. 프롬프트, 사용자 메시지, 모델 응답은 로그에 남기지 않는다.
  * JSON 응답 모드를 켜 두지만, 모델이 JSON을 코드 블록으로 감싸 보내도 읽도록 첫 `{`부터 마지막 `}`까지만 읽는다.
  */
 @Component
@@ -56,7 +57,13 @@ class ScoreClient(
     private fun usageOf(response: ChatResponse?): ModelUsage {
         val usage = response?.metadata?.usage
         val finishReason = response?.result?.metadata?.finishReason.orEmpty()
-        return ModelUsage((usage?.promptTokens ?: 0).toLong(), (usage?.completionTokens ?: 0).toLong(), finishReason)
+        val thoughtTokens = (usage as? GoogleGenAiUsage)?.thoughtsTokenCount ?: 0
+        return ModelUsage(
+            (usage?.promptTokens ?: 0).toLong(),
+            (usage?.completionTokens ?: 0).toLong(),
+            finishReason,
+            thoughtTokens.toLong(),
+        )
     }
 
     /** 응답에서 첫 `{`부터 마지막 `}`까지. 중괄호 쌍이 없으면 null이다. */

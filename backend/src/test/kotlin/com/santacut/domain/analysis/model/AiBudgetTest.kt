@@ -30,6 +30,15 @@ class AiBudgetTest {
     }
 
     @Test
+    fun `생각 토큰은 출력 단가로 청구되므로 출력 토큰에 함께 더한다`() {
+        val day = AiUsageDay("2026-11-16")
+
+        day.add(ModelUsage(5_000, 100, "STOP", 40))
+
+        assertEquals(140, day.outputTokens)
+    }
+
+    @Test
     fun `오늘 비용이 하루 한도에 닿으면 막는다`() {
         val atLimit = days(ModelUsage(500_000, 0, ""))
         val belowLimit = days(ModelUsage(499_999, 0, ""))
