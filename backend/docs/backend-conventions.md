@@ -8,7 +8,7 @@
 
 **`com.santacut` 바로 아래에는 이 네 패키지와 `SantaCutApplication.kt`만 둔다.** `common`, `global`, `config`, `util`, `support` 같은 계층 밖 패키지를 만들지 않는다. 확인: `ls backend/src/main/kotlin/com/santacut` 결과가 `application domain infrastructure presentation SantaCutApplication.kt` 다섯 개뿐이어야 한다.
 
-**각 계층 아래는 도메인 이름 패키지로 나누고, 도메인 패키지 아래를 역할 패키지로 나눈다(계층 → 도메인 → 역할).** 도메인은 `participant`(참가자·지역), `session`(세션), `analysis`(분석 작업·점수), `ranking`(순위·결과·배송), `share`(공유)다. 여러 도메인이 함께 쓰는 것(보안, 예외 처리, Swagger, ErrorCode, Clock 같은 설정, 커스텀 애노테이션)은 그 계층의 `global` 패키지에 둔다. `global`은 계층 안에서만 만들 수 있다.
+**각 계층 아래는 도메인 이름 패키지로 나누고, 도메인 패키지 아래를 역할 패키지로 나눈다(계층 → 도메인 → 역할).** 도메인은 `participant`(참가자·지역), `session`(세션), `analysis`(분석 작업·점수), `ranking`(순위·결과·배송), `share`(공유), `prompt`(AI 시스템 프롬프트 판)다. 여러 도메인이 함께 쓰는 것(보안, 예외 처리, Swagger, ErrorCode, Clock 같은 설정, 커스텀 애노테이션)은 그 계층의 `global` 패키지에 둔다. `global`은 계층 안에서만 만들 수 있다.
 
 ```text
 com.santacut
