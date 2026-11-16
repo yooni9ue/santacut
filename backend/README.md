@@ -29,7 +29,7 @@
 
 - 분석은 큐에 넣고, 화면은 진행 상태를 폴링으로 조회한다.
 - 작업자는 둘이다. 원본 검증 1초, AI 채점 3초 간격.
-- 지금 코드는 Spring AI + Ollama(`qwen2.5:3b`)다. 운영은 Bedrock을 계획한다.
+- AI 채점은 Spring AI + Amazon Bedrock(Claude Haiku 4.5, Converse API)이다.
 
 ## 계층 구조
 
@@ -135,7 +135,7 @@ sequenceDiagram
 
 ## 실행
 
-JDK 25가 필요하다. AI 채점에는 Ollama(`localhost:11434`)가 필요하다.
+JDK 25가 필요하다. AI 채점에는 Bedrock을 부를 AWS 자격 증명(기본 체인)이 필요하다. 없으면 분석 작업은 실패로 끝나고 나머지 API는 돈다.
 
 ```powershell
 cd backend
