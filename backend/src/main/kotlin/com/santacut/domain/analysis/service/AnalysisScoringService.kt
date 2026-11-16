@@ -49,9 +49,9 @@ class AnalysisScoringService(
     fun estimateUsage(digest: ScoringDigest, systemPrompt: String): ModelUsage =
         ScoringChunks.of(digest).estimate(samples) { chunk -> scoreClient.estimateUsage(chunk, systemPrompt) }
 
-    /** 같은 채점 입력인지 가리는 해시. 모델 ID, 프롬프트 판, 점수 규칙 판, 대화문 전체가 모두 같아야 같다. */
+    /** 같은 채점 입력인지 가리는 해시. 모델 ID, 프롬프트 판, 점수 규칙 판, 반복 호출 수, 대화문 전체가 모두 같아야 같다. */
     fun fingerprint(digest: ScoringDigest, promptVersion: Int): String =
-        Sha256.hex(scoreClient.cacheKey(digest, promptVersion) + RULE_VERSION_PREFIX + Score.RULE_VERSION)
+        Sha256.hex(scoreClient.cacheKey(digest, promptVersion) + RULE_VERSION_PREFIX + Score.RULE_VERSION + SAMPLES_PREFIX + samples)
 
     /**
      * 대화문을 구간으로 나눠([ScoringChunks]) 구간마다 [systemPrompt]와 함께 AI에 묻는다.
@@ -72,5 +72,6 @@ class AnalysisScoringService(
 
     companion object {
         private const val RULE_VERSION_PREFIX = "\nrule="
+        private const val SAMPLES_PREFIX = "\nsamples="
     }
 }
