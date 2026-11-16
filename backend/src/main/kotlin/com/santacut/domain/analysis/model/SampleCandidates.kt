@@ -8,24 +8,26 @@ package com.santacut.domain.analysis.model
  * [MAX_SAMPLE_MESSAGES]개나 본문 [MAX_SAMPLE_CHARS]자를 넘기기 전에 멈추고, 뽑은 메시지는 시각순으로 놓는다.
  */
 class SampleCandidates private constructor(private val values: List<ScoringMessage>) {
-    fun pick(): ScoringSample {
+    fun pick(): SampleMessages {
         val ordered = inRoundRobinOrder()
         val withinChars = ordered.runningFold(0) { total, message -> total + message.length() }
             .drop(1)
-            .count { it <= MAX_SAMPLE_CHARS }
-        return ScoringSample(ordered.take(minOf(withinChars, MAX_SAMPLE_MESSAGES)).sortedBy { it.localTime })
+            .count { total -> total <= MAX_SAMPLE_CHARS }
+        return SampleMessages(ordered.take(minOf(withinChars, MAX_SAMPLE_MESSAGES)).sortedBy { message -> message.localTime })
     }
 
     private fun inRoundRobinOrder(): List<ScoringMessage> =
-        values.groupBy { it.weekStart() }
-            .flatMap { (week, messages) -> prioritized(messages).mapIndexed { round, it -> SampleSlot(round, week, it) } }
+        values.groupBy { message -> message.weekStart() }
+            .flatMap { (week, messages) -> prioritized(messages).mapIndexed { round, message -> SampleSlot(round, week, message) } }
             .sortedWith(SampleSlot.ORDER)
-            .map { it.message }
+            .map { slot -> slot.message }
 
     private fun prioritized(messages: List<ScoringMessage>): List<ScoringMessage> =
-        messages.sortedWith(compareByDescending<ScoringMessage> { isKeywordHit(it) }.thenBy { it.localTime })
+        messages.sortedWith(
+            compareByDescending<ScoringMessage> { message -> isKeywordHit(message) }.thenBy { message -> message.localTime },
+        )
 
-    private fun isKeywordHit(message: ScoringMessage): Boolean = ScoreTheme.entries.any { message.mentions(it) }
+    private fun isKeywordHit(message: ScoringMessage): Boolean = ScoreTheme.entries.any { theme -> message.mentions(theme) }
 
     companion object {
         /** 표본 메시지 수의 상한. */
@@ -39,7 +41,7 @@ class SampleCandidates private constructor(private val values: List<ScoringMessa
 
         /** 아주 짧거나 웃음·이모지뿐인 메시지를 빼고, 긴 메시지는 [MAX_SAMPLE_TEXT_LENGTH]자로 자른다. */
         fun from(messages: List<ScoringMessage>): SampleCandidates = SampleCandidates(
-            messages.filterNot { it.isLowSignal() }.map { it.truncated(MAX_SAMPLE_TEXT_LENGTH) },
+            messages.filterNot { message -> message.isLowSignal() }.map { message -> message.truncated(MAX_SAMPLE_TEXT_LENGTH) },
         )
     }
 }

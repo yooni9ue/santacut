@@ -106,7 +106,7 @@ class AnalysisWorkerFacade(
         val usage = answer.usage
         logger.info(
             "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 표본 {}줄 {}자, 입력 {} 출력 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
-            job.id, prompt.version, digest.features.eventCount, digest.sampleSize(), digest.sample.totalLength(),
+            job.id, prompt.version, digest.messageCount, digest.sampleSize(), digest.sample.totalLength(),
             usage.inputTokens, usage.outputTokens, usage.finishReason, answer.discardedEvidence(digest.sampleSize()), outcome,
         )
     }

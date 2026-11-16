@@ -84,7 +84,7 @@ class SampleCandidatesTest {
         assertEquals(0, pick(emptyList()).size())
     }
 
-    private fun pick(messages: List<ScoringMessage>): ScoringSample = SampleCandidates.from(messages).pick()
+    private fun pick(messages: List<ScoringMessage>): SampleMessages = SampleCandidates.from(messages).pick()
 
     /** 시작 시각에서 [day]일과 [minute]분 뒤의 메시지. */
     private fun at(day: Long, text: String, minute: Long = 0): ScoringMessage =

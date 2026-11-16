@@ -3,13 +3,13 @@ package com.santacut.domain.analysis.model
 /**
  * AI에 보내는 본인 메시지 표본. 시각순이고, AI는 1부터 붙인 줄 번호를 근거 번호로 돌려준다.
  */
-class ScoringSample(private val values: List<ScoringMessage>) {
+class SampleMessages(private val values: List<ScoringMessage>) {
     fun size(): Int = values.size
 
     /** 표본 본문 글자 수의 합. */
-    fun totalLength(): Int = values.sumOf { it.length() }
+    fun totalLength(): Int = values.sumOf { message -> message.length() }
 
-    fun countMentioning(theme: ScoreTheme): Int = values.count { it.mentions(theme) }
+    fun countMentioning(theme: ScoreTheme): Int = values.count { message -> message.mentions(theme) }
 
     fun toList(): List<ScoringMessage> = values.toList()
 

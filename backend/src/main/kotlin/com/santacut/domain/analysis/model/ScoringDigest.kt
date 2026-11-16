@@ -4,14 +4,14 @@ import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 
 /**
- * AI 채점에 쓰는 입력. 본인 메시지 전체 대신 항목별 낱말 [signals]와 작은 [sample]만 AI에 보내고,
- * [features]는 서버 쪽에서만 쓴다.
+ * AI 채점에 쓰는 입력. 본인 메시지 전체 대신 항목별 낱말 [signals]와 작은 [sample]만 AI에 보낸다.
+ *
+ * @property messageCount 본인 메시지 수. AI에는 보내지 않고 사용량 로그에만 남긴다.
  */
 class ScoringDigest(
-    val source: DataSource,
-    val features: ScoringFeatures,
+    val messageCount: Int,
     val signals: DimensionSignals,
-    val sample: ScoringSample,
+    val sample: SampleMessages,
 ) {
     /** AI가 돌려줄 수 있는 근거 번호의 상한. */
     fun sampleSize(): Int = sample.size()

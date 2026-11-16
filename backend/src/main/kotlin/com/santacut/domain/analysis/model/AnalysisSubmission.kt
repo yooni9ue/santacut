@@ -16,6 +16,6 @@ class AnalysisSubmission(
     fun toScoringDigest(): ScoringDigest {
         val messages = events.toScoringMessages(SeoulTime.ZONE)
         val sample = messages.sample()
-        return ScoringDigest(source, messages.toFeatures(), messages.signals(sample), sample)
+        return ScoringDigest(messages.size(), messages.signals(sample), sample)
     }
 }
