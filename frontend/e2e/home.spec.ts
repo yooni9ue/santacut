@@ -19,13 +19,9 @@ test("sample verdicts cycle without submitting an analysis", async ({ page }) =>
   await expect(page.getByText("판정 예시 2 / 3")).toBeVisible();
 });
 
-test("start displays the preview notice and Escape closes it", async ({ page }) => {
-  const start = page.getByRole("button", { name: "그래서 나 선물 받냐?" });
-  await start.click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("지금은 디자인 미리보기예요.");
-  await page.keyboard.press("Escape");
-  await expect(dialog).not.toBeVisible();
-  await expect(start).toBeFocused();
+test("start enters the mobile preview flow", async ({ page }) => {
+  await page.getByRole("link", { name: "그래서 나 선물 받냐?" }).click();
+  await expect(page).toHaveURL(/\/start$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("산타한테 뭘");
+  await expect(page.getByText("파일 전송·회원 등록·AI 심사는 실행되지 않습니다.")).toBeVisible();
 });
