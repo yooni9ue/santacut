@@ -2,6 +2,7 @@ package com.santacut.presentation.ranking.response
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.santacut.application.ranking.result.MyRankingResult
+import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 
 data class MyResultResponse(
@@ -32,11 +33,22 @@ data class MyResultResponse(
     @field:JsonProperty("ranking_pending")
     @field:Schema(description = "최신 심사 결과가 아직 순위에 반영되지 않았으면 true입니다. 점수와 순위는 늘 같은 심사 것입니다.")
     val rankingPending: Boolean,
+    @field:JsonProperty("low_confidence_dimensions")
+    @field:ArraySchema(
+        arraySchema = Schema(
+            description = "근거가 부족해 중립 점수(55점)를 준 채점 항목 키. 이 항목 점수는 신뢰도가 낮습니다. 없으면 빈 배열입니다.",
+        ),
+        schema = Schema(
+            allowableValues = ["care_empathy", "positivity_support", "respectful_communication", "cooperation_sharing"],
+        ),
+    )
+    val lowConfidenceDimensions: List<String>,
 ) {
     companion object {
         fun from(result: MyRankingResult): MyResultResponse = MyResultResponse(
             result.rank, result.tied, result.deliverySequence, result.eta?.toString(), result.computedAt?.toString(),
             result.scoreHundredths, result.verdict, result.comment, result.stage, result.rankingPending,
+            result.lowConfidenceDimensions,
         )
     }
 }

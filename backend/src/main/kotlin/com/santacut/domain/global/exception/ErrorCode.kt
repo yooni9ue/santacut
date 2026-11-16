@@ -34,7 +34,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     ANALYSIS_JOB_STATE_INVALID(500, "분석 작업의 현재 상태에서는 할 수 없는 상태 변경입니다."),
     AI_RESPONSE_INVALID(502, "AI 응답이 비어 있거나 너무 깁니다."),
     AI_RESPONSE_SCHEMA_INVALID(502, "AI 응답 형식이 올바르지 않습니다."),
-    AI_EVIDENCE_INVALID(502, "AI 응답의 근거 번호를 정리하고 나니 근거가 없는 항목이 있습니다."),
+    AI_EVIDENCE_INVALID(502, "AI 응답의 근거 번호를 정리하고 나니 모든 항목에 근거가 없습니다."),
     AI_SCORE_OUT_OF_RANGE(502, "AI 응답 점수가 0~100 범위를 벗어났거나 소수점 셋째 자리 이하 값이 있습니다."),
     AI_NOT_CONFIGURED(503, "AI 모델이 설정되지 않았습니다."),
     AI_PROVIDER_UNAVAILABLE(503, "AI 제공자가 호출을 막았거나 잠시 쓸 수 없습니다."),
