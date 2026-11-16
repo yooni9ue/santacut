@@ -20,9 +20,9 @@ class AnalysisScoringService(
         if (!isEnabled()) throw SantaCutException(ErrorCode.AI_NOT_CONFIGURED)
     }
 
-    /** 작업에 저장한 제출 내용을 AI에 보내고, 답을 검증해 점수로 만든다. */
-    fun score(job: AnalysisJob): Score {
+    /** 작업에 저장한 제출 내용을 [systemPrompt]와 함께 AI에 보내고, 답을 검증해 점수로 만든다. */
+    fun score(job: AnalysisJob, systemPrompt: String): Score {
         val submission = objectMapper.readValue(job.requirePayload(), AnalysisSubmission::class.java)
-        return scoreClient.requestAnswer(submission).toScore(submission.eventCount())
+        return scoreClient.requestAnswer(submission, systemPrompt).toScore(submission.eventCount())
     }
 }
