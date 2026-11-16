@@ -8,7 +8,7 @@ import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AnalysisScoringService
 import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.global.exception.SantaCutException
-import com.santacut.domain.prompt.model.Prompt
+import com.santacut.domain.prompt.model.PromptName
 import com.santacut.domain.prompt.service.PromptService
 import com.santacut.domain.ranking.service.RankingService
 import com.santacut.domain.share.service.ShareService
@@ -51,7 +51,7 @@ class AnalysisWorkerFacade(
         val lease = UUID.randomUUID().toString()
         val job = transactionTemplate.execute { claimNextJob(lease) } ?: return
         try {
-            val prompt = promptService.latest(Prompt.SCORE)
+            val prompt = promptService.latest(PromptName.SCORE)
             logger.info("분석 작업 {} 채점: 프롬프트 {} {}판", job.id, prompt.name, prompt.version)
             val score = analysisScoringService.score(job, prompt.content)
             transactionTemplate.executeWithoutResult { complete(job.id, lease, score, prompt.version) }

@@ -6,6 +6,7 @@ import com.santacut.application.prompt.command.PromptNameCommand
 import com.santacut.application.prompt.result.PromptResult
 import com.santacut.application.prompt.result.PromptVersionResult
 import com.santacut.application.prompt.result.PromptVersionResults
+import com.santacut.domain.prompt.model.PromptName
 import com.santacut.domain.prompt.service.PromptService
 import org.slf4j.LoggerFactory
 import org.springframework.transaction.annotation.Transactional
@@ -21,18 +22,19 @@ class PromptFacade(
 ) {
     private val logger = LoggerFactory.getLogger(PromptFacade::class.java)
 
-    /** 가장 높은 판 다음 번호로 새 판을 저장한다. 읽기와 쓰기를 한 트랜잭션에서 한다. */
+    /** 가장 높은 판 다음 번호로 새 판을 저장한다. 읽기와 쓰기를 한 트랜잭션에서 한다. 이름이 규칙을 어기면 INVALID_REQUEST다. */
     @Transactional
     fun create(command: CreatePromptCommand): PromptVersionResult {
-        val prompt = promptService.create(command.name, command.content, clock.instant())
+        val prompt = promptService.create(PromptName.from(command.name), command.content, clock.instant())
         logger.info("프롬프트 {} {}판을 저장했다", prompt.name, prompt.version)
         return PromptVersionResult.from(prompt)
     }
 
     @Transactional(readOnly = true)
-    fun getLatest(command: PromptNameCommand): PromptResult = PromptResult.from(promptService.latest(command.name))
+    fun getLatest(command: PromptNameCommand): PromptResult =
+        PromptResult.from(promptService.latest(PromptName.from(command.name)))
 
     @Transactional(readOnly = true)
     fun listVersions(command: PromptNameCommand): PromptVersionResults =
-        PromptVersionResults.from(promptService.versions(command.name))
+        PromptVersionResults.from(promptService.versions(PromptName.from(command.name)))
 }

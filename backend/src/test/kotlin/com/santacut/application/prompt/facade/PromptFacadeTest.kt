@@ -6,6 +6,7 @@ import com.santacut.application.prompt.command.CreatePromptCommand
 import com.santacut.application.prompt.command.PromptNameCommand
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.prompt.model.Prompt
+import com.santacut.domain.prompt.model.PromptName
 import com.santacut.infrastructure.prompt.repository.PromptRepository
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -63,8 +64,15 @@ class PromptFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `이름이 규칙을 벗어나면 저장과 조회 모두 INVALID_REQUEST다`() {
+        assertErrorCode(ErrorCode.INVALID_REQUEST) { promptFacade.create(CreatePromptCommand("Score", "본문")) }
+        assertErrorCode(ErrorCode.INVALID_REQUEST) { promptFacade.getLatest(PromptNameCommand("score_v2")) }
+        assertErrorCode(ErrorCode.INVALID_REQUEST) { promptFacade.listVersions(PromptNameCommand("")) }
+    }
+
+    @Test
     fun `앱이 뜰 때 채점 프롬프트 1판을 줄바꿈까지 그대로 넣는다`() {
-        val first = promptRepository.findAllByNameOrderByVersionDesc(Prompt.SCORE).last()
+        val first = promptRepository.findAllByNameOrderByVersionDesc(PromptName.SCORE.value).last()
 
         assertEquals(Prompt.FIRST_VERSION, first.version)
         assertTrue(first.content.startsWith("너는 재미 목적으로만 점수를 매기는 SantaCut Scorer다."))
