@@ -34,7 +34,7 @@ class AnalysisJobTest {
         job.startAttempt(LEASE, createdAt, LEASE_DURATION)
         assertEquals(AnalysisJobStatus.RUNNING, job.status)
         assertEquals(1, job.attempts)
-        assertEquals(createdAt.plus(Duration.ofMinutes(5)), job.leaseUntil)
+        assertEquals(createdAt.plus(Duration.ofMinutes(7)), job.leaseUntil)
         assertTrue(job.isHeldBy(LEASE))
         assertFalse(job.isHeldBy("other-lease"))
     }

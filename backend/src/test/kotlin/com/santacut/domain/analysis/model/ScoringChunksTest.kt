@@ -16,15 +16,15 @@ class ScoringChunksTest {
     }
 
     @Test
-    fun `본문이 길면 최대 4구간으로 나누고 앞 구간 끝 줄을 겹쳐 싣되 겹친 줄은 근거 범위에서 뺀다`() {
+    fun `본문이 길면 최대 6구간으로 나누고 앞 구간 끝 줄을 겹쳐 싣되 겹친 줄은 근거 범위에서 뺀다`() {
         val asked = mutableListOf<ScoringChunk>()
         ScoringChunks.of(digestOf(turns(1000, 50))).ask { chunk -> asked += chunk; ScoreAnswer.insufficient() }
 
         assertEquals(ScoringChunks.MAX_CHUNKS, asked.size)
-        assertEquals(1..250, asked[0].lineRange())
-        assertEquals(251..500, asked[1].lineRange())
-        assertEquals(247, asked[1].firstNumber)
-        assertEquals(125, asked[1].selfTurnCount())
+        assertEquals(1..167, asked[0].lineRange())
+        assertEquals(168..334, asked[1].lineRange())
+        assertEquals(164, asked[1].firstNumber)
+        assertEquals(83, asked[1].selfTurnCount())
     }
 
     @Test
@@ -40,8 +40,8 @@ class ScoringChunksTest {
     fun `어림 사용량은 모든 구간의 합이다`() {
         val estimate = ScoringChunks.of(digestOf(turns(1000, 50))).estimate(3) { ModelUsage(100, 10, "ESTIMATE") }
 
-        assertEquals(400, estimate.inputTokens)
-        assertEquals(40, estimate.outputTokens)
+        assertEquals(600, estimate.inputTokens)
+        assertEquals(60, estimate.outputTokens)
     }
 
     @Test
