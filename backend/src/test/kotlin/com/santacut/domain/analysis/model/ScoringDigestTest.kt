@@ -39,7 +39,7 @@ class ScoringDigestTest {
 
     @Test
     fun `대화문이 길이 한도를 넘으면 최근 줄만 남기고 뺀 줄 수를 적는다`() {
-        val length = 1000
+        val length = 250
         val digest = digestOf(exchanges(MAX_TRANSCRIPT_CHARS / length, length))
 
         assertEquals(MAX_TRANSCRIPT_CHARS / length, digest.lineCount())
