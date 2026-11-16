@@ -19,12 +19,13 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     @JsonValue
     fun toList(): List<AnalysisEvent> = values.toList()
 
-    /** 채점용 통계와 표본을 만들 메시지 목록으로 바꾼다. 시각은 [zone] 기준이다. */
-    fun toScoringMessages(zone: ZoneId): ScoringMessages = ScoringMessages(values.map { it.toScoringMessage(zone) })
+    /** 채점 대화문을 만들 시각순 메시지 목록으로 바꾼다. 같은 시각이면 받은 순서를 지킨다. 시각은 [zone] 기준이다. */
+    fun toScoringMessages(zone: ZoneId): ScoringMessages =
+        ScoringMessages(values.sortedBy { it.occurredAt }.map { it.toScoringMessage(zone) })
 
-    /** 이벤트 수, 전체 텍스트 길이, 이벤트 시각 범위를 확인한다. */
+    /** 본인 이벤트 수, 전체 이벤트 수, 전체 텍스트 길이, 이벤트 시각 범위를 확인한다. */
     fun verifyAcceptableAt(now: Instant) {
-        if (values.size < MIN_EVENTS) throw SantaCutException(ErrorCode.INSUFFICIENT_EVENTS)
+        if (values.count { it.isSelf() } < MIN_EVENTS) throw SantaCutException(ErrorCode.INSUFFICIENT_EVENTS)
         if (values.size > MAX_EVENTS) throw SantaCutException(ErrorCode.TOO_MANY_EVENTS)
         if (totalTextLength() > MAX_TOTAL_TEXT_LENGTH || values.any { it.isOutsideWindow(now) }) {
             throw SantaCutException(ErrorCode.INVALID_EVENT_RANGE)
@@ -50,7 +51,7 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     private fun totalTextLength(): Int = values.sumOf { it.text.length }
 
     companion object {
-        /** 한 번에 받는 이벤트 수의 하한과 상한. */
+        /** 한 번에 받는 본인 이벤트 수의 하한과, 상대 메시지를 포함한 이벤트 수의 상한. */
         const val MIN_EVENTS = 20
         const val MAX_EVENTS = 2000
         private const val MAX_TOTAL_TEXT_LENGTH = 200_000

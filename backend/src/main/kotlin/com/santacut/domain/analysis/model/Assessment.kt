@@ -16,6 +16,7 @@ import java.util.UUID
  *
  * @property components 항목별 점수를 담은 JSON 배열
  * @property promptVersion 점수를 매길 때 쓴 채점 프롬프트(`score`) 판 번호. 프롬프트를 DB로 옮기기 전 평가는 null이다.
+ * @property lowConfidence 근거가 부족해 중립 점수를 준 항목 키를 쉼표로 이은 값([LowConfidenceDimensions]). 이 값이 생기기 전 평가는 null이다.
  */
 @Entity
 @Table(name = "assessments")
@@ -29,6 +30,7 @@ class Assessment(
     components: String,
     createdAt: Instant,
     promptVersion: Int? = null,
+    lowConfidence: String? = null,
 ) {
     @Id
     @Column(name = "id")
@@ -69,19 +71,26 @@ class Assessment(
     var promptVersion: Int? = promptVersion
         protected set
 
+    @Column(name = "low_confidence")
+    var lowConfidence: String? = lowConfidence
+        protected set
+
+    /** 근거가 부족해 중립 점수를 준 항목 키 목록. */
+    fun lowConfidenceKeys(): List<String> = LowConfidenceDimensions.fromColumn(lowConfidence).toKeys()
+
     companion object {
         fun record(job: AnalysisJob, score: Score, componentsJson: String, promptVersion: Int, recordedAt: Instant): Assessment {
             val verdict = score.verdict()
             return Assessment(
                 UUID.randomUUID().toString(), job.userId, job.source, score.hundredths,
-                verdict.title, verdict.comment, componentsJson, recordedAt, promptVersion,
+                verdict.title, verdict.comment, componentsJson, recordedAt, promptVersion, score.lowConfidence.toColumn(),
             )
         }
 
         /** 같은 채점 입력으로 이미 받은 평가([previous])를 AI 없이 이 작업의 새 평가로 옮겨 적는다. */
         fun reuse(job: AnalysisJob, previous: Assessment, recordedAt: Instant): Assessment = Assessment(
             UUID.randomUUID().toString(), job.userId, job.source, previous.scoreHundredths,
-            previous.verdict, previous.comment, previous.components, recordedAt, previous.promptVersion,
+            previous.verdict, previous.comment, previous.components, recordedAt, previous.promptVersion, previous.lowConfidence,
         )
     }
 }

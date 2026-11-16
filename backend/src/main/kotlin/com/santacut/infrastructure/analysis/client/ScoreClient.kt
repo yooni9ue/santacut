@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.model.ChatResponse
+import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
 import org.springframework.stereotype.Component
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
@@ -14,8 +15,8 @@ import tools.jackson.databind.ObjectMapper
 /**
  * Gemini 모델(Google GenAI)에 항목별 점수와 근거 번호를 묻고, 응답 JSON을 [ScoreAnswer]로 읽는다.
  * 시스템 프롬프트는 호출하는 쪽이 DB에서 읽어 넘긴다. 점수 검증과 합산은 도메인 모델이 한다.
- * 사용자 메시지에는 이벤트 원문 전체가 아니라 항목별 낱말 신호와 작은 표본만 담는다([ScoreModelInput]).
- * 응답 메타데이터의 토큰 사용량과 종료 사유는 [ModelUsage]로 넘긴다. 프롬프트, 사용자 메시지, 모델 응답은 로그에 남기지 않는다.
+ * 사용자 메시지에는 분석 기간의 대화 전체를 정규화한 대화문을 담는다([ScoreModelInput]).
+ * 응답 메타데이터의 토큰 사용량(생각 토큰 포함)과 종료 사유는 [ModelUsage]로 넘긴다. 프롬프트, 사용자 메시지, 모델 응답은 로그에 남기지 않는다.
  * JSON 응답 모드를 켜 두지만, 모델이 JSON을 코드 블록으로 감싸 보내도 읽도록 첫 `{`부터 마지막 `}`까지만 읽는다.
  */
 @Component
@@ -33,7 +34,17 @@ class ScoreClient(
         "${scoreModelProperties.model}$KEY_SEPARATOR$promptVersion$KEY_SEPARATOR${ScoreModelInput.from(digest).toText()}"
 
     /**
-     * [systemPrompt]를 시스템 메시지로, [digest]의 신호와 번호 붙인 표본을 사용자 메시지로 보낸다.
+     * 호출 한 번의 어림 사용량. 입력은 시스템 프롬프트와 사용자 메시지 글자 수로([estimatedTokens]), 출력은 출력 토큰 상한으로 잡는다.
+     * 비용 가드가 호출 전에 이 값으로 한도를 넘지 않을지 확인한다.
+     */
+    fun estimateUsage(digest: ScoringDigest, systemPrompt: String): ModelUsage = ModelUsage(
+        estimatedTokens(systemPrompt.length + ScoreModelInput.from(digest).toText().length),
+        scoreModelProperties.maxOutputTokens.toLong(),
+        ESTIMATED_FINISH_REASON,
+    )
+
+    /**
+     * [systemPrompt]를 시스템 메시지로, [digest]의 번호 붙인 대화문을 사용자 메시지로 보낸다.
      * 제공자가 권한 거부, 요청 한도, 서버 오류, 시간 초과로 막으면 [ScoreAnswer.providerUnavailable]이다. 그 밖의 호출 오류는 그대로 던진다.
      */
     fun requestAnswer(digest: ScoringDigest, systemPrompt: String): ScoreAnswer =
@@ -56,7 +67,13 @@ class ScoreClient(
     private fun usageOf(response: ChatResponse?): ModelUsage {
         val usage = response?.metadata?.usage
         val finishReason = response?.result?.metadata?.finishReason.orEmpty()
-        return ModelUsage((usage?.promptTokens ?: 0).toLong(), (usage?.completionTokens ?: 0).toLong(), finishReason)
+        val thoughtTokens = (usage as? GoogleGenAiUsage)?.thoughtsTokenCount ?: 0
+        return ModelUsage(
+            (usage?.promptTokens ?: 0).toLong(),
+            (usage?.completionTokens ?: 0).toLong(),
+            finishReason,
+            thoughtTokens.toLong(),
+        )
     }
 
     /** 응답에서 첫 `{`부터 마지막 `}`까지. 중괄호 쌍이 없으면 null이다. */
@@ -94,5 +111,14 @@ class ScoreClient(
         private const val JSON_OBJECT_START = '{'
         private const val JSON_OBJECT_END = '}'
         private const val KEY_SEPARATOR = "\n"
+        private const val ESTIMATED_FINISH_REASON = "ESTIMATE"
+
+        /** 어림 토큰 수 = 글자 수 × 3 / 4(올림). 한국어 대화문 실측(2,000개 대화 53,132자 → 37,838토큰)보다 조금 넉넉하게 잡았다. */
+        private const val TOKENS_PER_CHARS_NUMERATOR = 3L
+        private const val TOKENS_PER_CHARS_DENOMINATOR = 4L
+
+        /** 글자 [chars]개를 보낼 때의 어림 입력 토큰 수. */
+        fun estimatedTokens(chars: Int): Long =
+            (chars * TOKENS_PER_CHARS_NUMERATOR + TOKENS_PER_CHARS_DENOMINATOR - 1) / TOKENS_PER_CHARS_DENOMINATOR
     }
 }

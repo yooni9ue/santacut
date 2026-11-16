@@ -17,6 +17,17 @@ class DimensionScoresTest {
     @Test
     fun `숫자인 항목 점수만 순서대로 남긴다`() {
         val scores = DimensionScores(listOf(BigDecimal(1), null, BigDecimal(3)))
-        assertEquals(listOf(BigDecimal(1), BigDecimal(3)), scores.toComponents())
+        assertEquals(listOf(BigDecimal(1), BigDecimal(3)), scores.toComponents(LowConfidenceDimensions.NONE))
+    }
+
+    @Test
+    fun `근거 부족 항목은 모델 점수 대신 중립 점수를 쓴다`() {
+        val scores = DimensionScores(listOf(BigDecimal(90), BigDecimal(10), BigDecimal(70), BigDecimal(60)))
+        val lowConfidence = LowConfidenceDimensions(listOf(ScoreDimension.POSITIVITY_SUPPORT))
+
+        assertEquals(
+            listOf(BigDecimal(90), DimensionScores.NEUTRAL_SCORE, BigDecimal(70), BigDecimal(60)),
+            scores.toComponents(lowConfidence),
+        )
     }
 }

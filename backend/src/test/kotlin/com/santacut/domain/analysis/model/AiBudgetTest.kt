@@ -30,12 +30,42 @@ class AiBudgetTest {
     }
 
     @Test
+    fun `생각 토큰은 출력 단가로 청구되므로 출력 토큰에 함께 더한다`() {
+        val day = AiUsageDay("2026-11-16")
+
+        day.add(ModelUsage(5_000, 100, "STOP", 40))
+
+        assertEquals(140, day.outputTokens)
+    }
+
+    @Test
     fun `오늘 비용이 하루 한도에 닿으면 막는다`() {
         val atLimit = days(ModelUsage(500_000, 0, ""))
         val belowLimit = days(ModelUsage(499_999, 0, ""))
 
         assertTrue(budget.isExhausted(atLimit, atLimit))
         assertFalse(budget.isExhausted(belowLimit, belowLimit))
+    }
+
+    @Test
+    fun `하루 한도가 없거나 0이면 하루 비용으로는 막지 않는다`() {
+        val heavyDay = days(ModelUsage(5_000_000, 0, ""))
+
+        listOf(null, BigDecimal.ZERO).forEach { daily ->
+            val noDaily = AiBudget(daily, BigDecimal("9"), BigDecimal("1"), BigDecimal("5"))
+            assertFalse(noDaily.isExhausted(heavyDay, heavyDay))
+            assertFalse(noDaily.wouldExceed(heavyDay, heavyDay, ModelUsage(1_000_000, 0, "")))
+        }
+    }
+
+    @Test
+    fun `호출 전 어림 비용을 더해 하루나 한 달 한도를 넘으면 넘는다고 본다`() {
+        val today = days(ModelUsage(400_000, 0, ""))
+        val month = days(ModelUsage(8_900_000, 0, ""))
+
+        assertTrue(budget.wouldExceed(today, today, ModelUsage(100_001, 0, "")))
+        assertFalse(budget.wouldExceed(today, today, ModelUsage(100_000, 0, "")))
+        assertTrue(budget.wouldExceed(days(ModelUsage(0, 0, "")), month, ModelUsage(100_001, 0, "")))
     }
 
     @Test

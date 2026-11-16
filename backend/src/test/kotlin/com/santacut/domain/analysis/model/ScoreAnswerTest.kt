@@ -34,17 +34,35 @@ class ScoreAnswerTest {
     }
 
     @Test
-    fun `근거가 없는 항목이 있으면 형식 오류다`() {
-        val missingEvidence = listOf(listOf(1), emptyList(), listOf(3), listOf(4))
+    fun `근거 목록이 빠진 항목이 있으면 형식 오류다`() {
+        val missingEvidence = listOf(listOf(1), listOf(3), listOf(4))
         assertRejected(ErrorCode.AI_RESPONSE_SCHEMA_INVALID, ScoreAnswer.of(fullScores, missingEvidence, SHAPE))
     }
 
     @Test
-    fun `범위 밖 근거 번호만 있는 항목이 있으면 근거 오류다`() {
-        val belowRange = listOf(listOf(0), listOf(1), listOf(1), listOf(1))
-        val aboveRange = listOf(listOf(1), listOf(21, 22), listOf(1), listOf(1))
-        assertRejected(ErrorCode.AI_EVIDENCE_INVALID, ScoreAnswer.of(fullScores, belowRange, SHAPE))
-        assertRejected(ErrorCode.AI_EVIDENCE_INVALID, ScoreAnswer.of(fullScores, aboveRange, SHAPE))
+    fun `근거가 빈 항목은 실패시키지 않고 중립 점수를 주고 근거 부족 항목으로 표시한다`() {
+        val score = ScoreAnswer.of(fullScores, listOf(listOf(1), emptyList(), listOf(3), listOf(4)), SHAPE).toScore(EVENT_COUNT)
+
+        assertEquals(listOf(BigDecimal(80), DimensionScores.NEUTRAL_SCORE, BigDecimal(70), BigDecimal(60)), score.components.toList())
+        assertEquals(listOf("positivity_support"), score.lowConfidence.toKeys())
+        assertEquals(6725, score.hundredths)
+    }
+
+    @Test
+    fun `범위 밖 근거 번호만 있는 항목도 근거 부족 항목이다`() {
+        val aboveRange = listOf(listOf(1), listOf(21, 22), listOf(0), listOf(1))
+        val score = ScoreAnswer.of(fullScores, aboveRange, SHAPE).toScore(EVENT_COUNT)
+
+        assertEquals(listOf("positivity_support", "respectful_communication"), score.lowConfidence.toKeys())
+    }
+
+    @Test
+    fun `모든 항목에 근거가 없으면 처음부터 비었을 때 근거 부족, 번호를 지워서 비었을 때 근거 오류다`() {
+        val empty = List(ScoreDimension.entries.size) { emptyList<Int>() }
+        val outOfRange = List(ScoreDimension.entries.size) { listOf(EVENT_COUNT + 1) }
+
+        assertRejected(ErrorCode.INSUFFICIENT_EVIDENCE, ScoreAnswer.of(fullScores, empty, SHAPE))
+        assertRejected(ErrorCode.AI_EVIDENCE_INVALID, ScoreAnswer.of(fullScores, outOfRange, SHAPE))
     }
 
     @Test

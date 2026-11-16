@@ -18,7 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 프롬프트 판 저장, 최신 판 조회, 판 목록 조회와 앱 시작 때 넣는 채점 프롬프트 1판·2판을 확인한다.
+ * 프롬프트 판 저장, 최신 판 조회, 판 목록 조회와 앱 시작 때 넣는 채점 프롬프트 1판·2판·3판을 확인한다.
  */
 @IntegrationTest
 class PromptFacadeTest @Autowired constructor(
@@ -96,6 +96,15 @@ class PromptFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `앱이 뜰 때 부정 낱말 수와 날짜 간격 줄을 설명하는 채점 프롬프트 3판도 넣는다`() {
+        val third = promptRepository.findAllByNameOrderByVersionDesc(PromptName.SCORE.value).first { it.version == SEED_THIRD_VERSION }
+
+        assertTrue(third.content.contains("neg는 낱말 앞뒤에 부정이나 반어"))
+        assertTrue(third.content.contains("`(3일 뒤)` 같은 줄은 앞 표본 줄과 그만큼 날짜가 벌어졌다는 표시"))
+        assertTrue(third.content.endsWith("다른 필드는 넣지 않는다."))
+    }
+
+    @Test
     fun `프롬프트 시드를 다시 실행해도 판이 늘거나 본문이 바뀌지 않는다`() {
         val before = promptRepository.findAllByNameOrderByVersionDesc(PromptName.SCORE.value).map { it.version to it.content }
 
@@ -110,6 +119,7 @@ class PromptFacadeTest @Autowired constructor(
     companion object {
         private const val NAME_SUFFIX_LENGTH = 8
         private const val SEED_SECOND_VERSION = 2
+        private const val SEED_THIRD_VERSION = 3
         private const val PROMPT_SEED = "prompts.sql"
     }
 }
