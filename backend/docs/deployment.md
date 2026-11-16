@@ -56,6 +56,11 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 | `spring.ai.bedrock.aws.region` (`AWS_REGION`) | `ap-northeast-2` | Bedrock 리전 |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | 없음 | 앱 IAM 사용자 키. 서버가 `app.env` 뒤에 붙인다 |
 | `santacut.prompt-admin.enabled` (`PROMPT_ADMIN_ENABLED`) | `false` | dev 전용 프롬프트 관리 API(`/v1/admin/prompts`). dev의 `app.env`에만 `true`를 둔다. 운영은 두지 않아 404다 |
+| `santacut.ai.budget.daily-usd` (`AI_BUDGET_DAILY_USD`) | `0.5` | 앱 안의 AI 비용 가드 하루 한도(달러). 닿으면 작업을 잡지 않는다. 넣지 않아도 된다 |
+| `santacut.ai.budget.monthly-usd` (`AI_BUDGET_MONTHLY_USD`) | `9` | 앱 안의 AI 비용 가드 한 달 한도(달러). 넣지 않아도 된다 |
+
+- 단가(입력·출력 100만 토큰당 1·5달러), 멈춤 시간(15분), 연속 실패 기준(3번)은 `application.yml`의 `santacut.ai.budget`에 있다.
+- Bedrock 호출 하나의 시간 상한(`spring.ai.bedrock.aws.timeout`)은 60초, 출력 토큰 상한(`max-tokens`)은 250이다. 둘 다 `application.yml`에 있다.
 
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
 
