@@ -13,6 +13,7 @@ import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
 import tools.jackson.databind.json.JsonMapper
 import java.time.Instant
 import kotlin.test.assertEquals
@@ -54,6 +55,19 @@ class ScoreClientTest {
     }
 
     @Test
+    fun `Gemini 사용량의 생각 토큰을 답 본문 토큰과 따로 담는다`() {
+        chatModel.usage = GoogleGenAiUsage(
+            RecordingChatModel.INPUT_TOKENS, RecordingChatModel.OUTPUT_TOKENS, TOTAL_TOKENS, THOUGHT_TOKENS,
+            null, null, null, null, null, null, null, null,
+        )
+
+        val usage = scoreClient.requestAnswer(digest(), SYSTEM_PROMPT).usage
+
+        assertEquals(THOUGHT_TOKENS.toLong(), usage.thoughtTokens)
+        assertEquals((RecordingChatModel.OUTPUT_TOKENS + THOUGHT_TOKENS).toLong(), usage.billedOutputTokens())
+    }
+
+    @Test
     fun `JSON 객체가 없거나 잘린 JSON이면 AI_RESPONSE_INVALID이고 사용량은 남긴다`() {
         listOf("점수를 매길 수 없습니다.", """{"sufficient":true,"evidence":{"care_empathy":[1}""").forEach { reply ->
             chatModel.reply = reply
@@ -92,14 +106,24 @@ class ScoreClientTest {
     }
 
     @Test
-    fun `넘겨받은 프롬프트를 시스템 메시지로, 신호와 번호 붙인 표본 줄을 사용자 메시지로 보낸다`() {
+    fun `넘겨받은 프롬프트를 시스템 메시지로, 번호와 화자를 붙인 대화문을 사용자 메시지로 보낸다`() {
         scoreClient.requestAnswer(digest(), SYSTEM_PROMPT)
 
         val prompt = checkNotNull(chatModel.lastPrompt)
         val userText = prompt.userMessage.text.orEmpty()
         assertEquals(SYSTEM_PROMPT, prompt.systemMessage.text)
-        assertTrue(userText.startsWith("[signals]\ncare_empathy hit=0 weeks=0/1 shown=0\npositivity_support hit=4 weeks=1/1 shown=4\n"))
-        assertTrue(userText.endsWith("[sample]\n# 10-26주\n1|고마워 0\n2|고마워 1\n3|고마워 2\n4|고마워 3"))
+        assertEquals("[대화]\n1|나|고마워 0\n2|상대|고마워 1\n3|나|고마워 2\n4|상대|고마워 3", userText)
+    }
+
+    @Test
+    fun `어림 사용량은 프롬프트와 대화문 글자 수의 4분의 3을 입력으로, 출력 상한을 출력으로 잡는다`() {
+        val userText = "[대화]\n1|나|고마워 0\n2|상대|고마워 1\n3|나|고마워 2\n4|상대|고마워 3"
+        val estimate = scoreClient.estimateUsage(digest(), SYSTEM_PROMPT)
+
+        assertEquals(ScoreClient.estimatedTokens(SYSTEM_PROMPT.length + userText.length), estimate.inputTokens)
+        assertEquals(MAX_OUTPUT_TOKENS, estimate.outputTokens)
+        assertEquals(3L, ScoreClient.estimatedTokens(4))
+        assertEquals(1L, ScoreClient.estimatedTokens(1))
     }
 
     @Test
@@ -118,13 +142,17 @@ class ScoreClientTest {
 
     private fun digest(): ScoringDigest = AnalysisSubmission(
         DataSource.KAKAO,
-        AnalysisEvents(List(EVENT_COUNT) { index -> AnalysisEvent(OCCURRED_AT, "고마워 $index") }),
+        AnalysisEvents(List(EVENT_COUNT) { index -> AnalysisEvent(OCCURRED_AT, "고마워 $index", PARTNER.takeIf { index % 2 == 1 }) }),
     ).toScoringDigest()
 
     companion object {
         private const val EVENT_COUNT = 4
+        private const val PARTNER = "상대"
+        private const val MAX_OUTPUT_TOKENS = 250L
         private const val EXPECTED_HUNDREDTHS = 8000
         private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
+        private const val THOUGHT_TOKENS = 37
+        private const val TOTAL_TOKENS = RecordingChatModel.INPUT_TOKENS + RecordingChatModel.OUTPUT_TOKENS + THOUGHT_TOKENS
         private val OCCURRED_AT: Instant = Instant.parse("2026-11-01T00:00:00Z")
         private const val FULL_ANSWER = """{"sufficient":true,""" +
             """"evidence":{"care_empathy":[1],"positivity_support":[2],"respectful_communication":[3],"cooperation_sharing":[4]},""" +

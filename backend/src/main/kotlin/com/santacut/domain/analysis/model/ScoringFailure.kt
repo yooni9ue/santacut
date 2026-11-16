@@ -16,6 +16,7 @@ enum class ScoringFailure(
     val countsTowardPause: Boolean,
 ) {
     PROVIDER_BLOCKED(null, true, false),
+    BUDGET_EXCEEDED(null, true, false),
     INSUFFICIENT_EVIDENCE(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, false, false),
     ANALYSIS_ERROR(AnalysisFailureCode.ANALYSIS_FAILED, false, true),
     ;
@@ -24,6 +25,7 @@ enum class ScoringFailure(
         /** 점수 산정 중 난 예외를 실패 종류로 바꾼다. */
         fun of(exception: Exception): ScoringFailure = when {
             (exception as? SantaCutException)?.errorCode == ErrorCode.AI_PROVIDER_UNAVAILABLE -> PROVIDER_BLOCKED
+            (exception as? SantaCutException)?.errorCode == ErrorCode.AI_BUDGET_EXCEEDED -> BUDGET_EXCEEDED
             AnalysisFailureCode.fromScoringFailure(exception) == AnalysisFailureCode.INSUFFICIENT_EVIDENCE -> INSUFFICIENT_EVIDENCE
             else -> ANALYSIS_ERROR
         }

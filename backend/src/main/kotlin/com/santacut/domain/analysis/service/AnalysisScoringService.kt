@@ -2,6 +2,7 @@ package com.santacut.domain.analysis.service
 
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
+import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoreAnswer
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.domain.global.exception.ErrorCode
@@ -23,11 +24,14 @@ class AnalysisScoringService(
     }
 
     /**
-     * 작업에 저장한 제출 내용으로 채점 입력(통계, 항목별 낱말 신호, 표본)을 만든다.
-     * 표본이 너무 적으면 AI를 부르지 않고 [ErrorCode.INSUFFICIENT_EVIDENCE]다.
+     * 작업에 저장한 제출 내용으로 채점 입력(정규화한 대화문)을 만든다.
+     * 본인 말이 너무 적으면 AI를 부르지 않고 [ErrorCode.INSUFFICIENT_EVIDENCE]다.
      */
     fun digest(job: AnalysisJob): ScoringDigest =
-        objectMapper.readValue(job.requirePayload(), AnalysisSubmission::class.java).toScoringDigest().verifySampled()
+        objectMapper.readValue(job.requirePayload(), AnalysisSubmission::class.java).toScoringDigest().verifyEnough()
+
+    /** 호출 전 비용 확인에 쓰는 어림 사용량. */
+    fun estimateUsage(digest: ScoringDigest, systemPrompt: String): ModelUsage = scoreClient.estimateUsage(digest, systemPrompt)
 
     /** 같은 채점 입력인지 가리는 해시. 모델 ID, 프롬프트 판, AI 사용자 메시지가 모두 같아야 같다. */
     fun fingerprint(digest: ScoringDigest, promptVersion: Int): String = Sha256.hex(scoreClient.cacheKey(digest, promptVersion))

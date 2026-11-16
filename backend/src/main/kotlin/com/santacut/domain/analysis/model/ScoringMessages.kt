@@ -1,23 +1,24 @@
 package com.santacut.domain.analysis.model
 
 /**
- * 채점에 쓰는 본인 메시지 전체. 여기서 항목별 낱말 신호와 표본을 만든다.
+ * 채점에 쓰는 분석 기간의 메시지 전체(본인과 상대). 시각순이다. 여기서 AI에 보낼 대화문을 만든다.
  */
 class ScoringMessages(private val values: List<ScoringMessage>) {
     fun size(): Int = values.size
 
-    /** 고르는 규칙은 [SampleCandidates]가 정한다. */
-    fun sample(): SampleMessages = SampleCandidates.from(values).pick()
+    /** 대화문에 들어가는(자리표시도 빈 본문도 아닌) 본인 메시지 수. */
+    fun selfCount(): Int = values.count { message -> message.isSelf() && !message.isPlaceholder() && message.normalizedText().isNotEmpty() }
 
-    /** 항목마다 낱말이 든 메시지 수, 그런 메시지가 있는 주 수, [sample]에서 낱말이 든 줄 수. */
-    fun signals(sample: SampleMessages): DimensionSignals {
-        val activeWeeks = values.map { message -> message.weekStart() }.distinct().size
-        return DimensionSignals(ScoreTheme.entries.map { theme -> signalOf(theme, activeWeeks, sample) })
-    }
-
-    private fun signalOf(theme: ScoreTheme, activeWeeks: Int, sample: SampleMessages): DimensionSignal {
-        val hits = values.filter { message -> message.mentions(theme) }
-        val hitWeeks = hits.map { message -> message.weekStart() }.distinct().size
-        return DimensionSignal(theme.dimension, hits.size, hitWeeks, activeWeeks, sample.countMentioning(theme))
+    /**
+     * 첨부·삭제 안내와 빈 메시지를 빼고, 같은 화자가 잇달아 보낸 메시지를 한 줄로 이은 대화문.
+     * 줄 규칙은 [TranscriptTurn]이 정한다.
+     */
+    fun toTurns(): TranscriptTurns {
+        val turns = mutableListOf<TranscriptTurn>()
+        values.filterNot { message -> message.isPlaceholder() || message.normalizedText().isEmpty() }.forEach { message ->
+            val last = turns.lastOrNull()
+            if (last != null && last.canAbsorb(message)) turns[turns.lastIndex] = last.absorbed(message) else turns += TranscriptTurn.of(message)
+        }
+        return TranscriptTurns(turns)
     }
 }

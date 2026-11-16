@@ -7,7 +7,7 @@ import java.time.Duration
 /**
  * 앱 안의 AI 비용 가드 설정. 기록한 토큰 수에 단가를 곱해 하루·한 달 비용을 어림하고, 한도를 넘으면 작업을 잡지 않는다.
  *
- * @property dailyUsd 하루(한국 날짜) 비용 상한(달러)
+ * @property dailyUsd 하루(한국 날짜) 비용 상한(달러). null이나 0이면 하루 한도를 두지 않는다(기본). Gemini 선불 크레딧이 실제 상한이다.
  * @property monthlyUsd 한 달(한국 달력) 비용 상한(달러)
  * @property inputUsdPerMillionTokens 입력 토큰 100만 개 단가(달러)
  * @property outputUsdPerMillionTokens 출력 토큰 100만 개 단가(달러)
@@ -16,7 +16,7 @@ import java.time.Duration
  */
 @ConfigurationProperties(prefix = "santacut.ai.budget")
 data class AiBudgetProperties(
-    val dailyUsd: BigDecimal = BigDecimal("0.5"),
+    val dailyUsd: BigDecimal? = null,
     val monthlyUsd: BigDecimal = BigDecimal("9"),
     val inputUsdPerMillionTokens: BigDecimal = BigDecimal("0.3"),
     val outputUsdPerMillionTokens: BigDecimal = BigDecimal("2.5"),

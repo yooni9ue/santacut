@@ -10,6 +10,7 @@ import java.time.Instant
  *
  * @property stage 순위 확정 상태 이름(PREVIEW, FINAL)
  * @property rankingPending 최신 평가가 아직 순위에 반영되지 않았는지
+ * @property lowConfidenceDimensions 최신 평가에서 근거가 부족해 중립 점수를 준 항목 키
  */
 data class MyRankingResult(
     val rank: Int?,
@@ -22,13 +23,14 @@ data class MyRankingResult(
     val comment: String,
     val stage: String,
     val rankingPending: Boolean,
+    val lowConfidenceDimensions: List<String>,
 ) {
     companion object {
         fun from(result: RankedResult, stage: RankingStage): MyRankingResult = MyRankingResult(
             result.snapshot?.rank, result.snapshot?.tied ?: false, result.snapshot?.deliverySequence,
             result.snapshot?.eta, result.snapshot?.computedAt,
             result.assessment.scoreHundredths, result.assessment.verdict, result.assessment.comment,
-            stage.name, result.rankingPending,
+            stage.name, result.rankingPending, result.assessment.lowConfidenceKeys(),
         )
     }
 }

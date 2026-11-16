@@ -59,13 +59,31 @@ class AnalysisEventsTest {
     }
 
     @Test
-    fun `채점용 메시지로 바꿀 때 시각을 주어진 시간대로 옮기고 본문과 순서를 지킨다`() {
-        val events = AnalysisEvents(listOf(AnalysisEvent(utcNoon, "첫째"), AnalysisEvent(utcNoon, "둘째")))
+    fun `채점용 메시지로 바꿀 때 시각을 주어진 시간대로 옮기고 본문, 화자, 순서를 지킨다`() {
+        val events = AnalysisEvents(listOf(AnalysisEvent(utcNoon, "첫째", "상대"), AnalysisEvent(utcNoon, "둘째")))
 
-        val sample = events.toScoringMessages(SeoulTime.ZONE).sample().toList()
+        val turns = events.toScoringMessages(SeoulTime.ZONE).toTurns()
+        val lines = turns.mapNumbered { _, turn, _ -> "${turn.speaker}:${turn.text}" }
 
-        assertEquals(listOf("첫째", "둘째"), sample.map { it.text })
-        assertEquals(LocalDateTime.of(2026, 11, 1, 21, 0), sample.first().localTime)
+        assertEquals(listOf("상대:첫째", "나:둘째"), lines)
+        assertEquals(LocalDateTime.of(2026, 11, 1, 21, 0), turns.mapNumbered { _, turn, _ -> turn.startedAt }.first())
+    }
+
+    @Test
+    fun `본인 이벤트는 화자 필드 없이 JSON으로 써 이벤트 제출의 요청 해시가 바뀌지 않는다`() {
+        val mapper = jacksonObjectMapper()
+        val json = mapper.writeValueAsString(AnalysisEvents(listOf(AnalysisEvent(now, "고마워"), AnalysisEvent(now, "응", "상대"))))
+
+        assertEquals(1, Regex("partner").findAll(json).count())
+        assertEquals(AnalysisEvent(now, "응", "상대"), mapper.readValue(json, AnalysisEvents::class.java).toList()[1])
+    }
+
+    @Test
+    fun `이벤트 수 하한은 본인 이벤트로만 센다`() {
+        val own = List(MIN_EVENTS - 1) { AnalysisEvent(now, "고마워") }
+        val partner = List(MIN_EVENTS) { AnalysisEvent(now, "응", "상대") }
+
+        assertErrorCode(ErrorCode.INSUFFICIENT_EVENTS) { AnalysisEvents(own + partner).verifyAcceptableAt(now) }
     }
 
     @Test

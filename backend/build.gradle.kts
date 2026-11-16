@@ -54,13 +54,25 @@ tasks.named<BootRun>("bootRun") {
 	systemProperty("santacut.prompt-admin.enabled", "true")
 }
 
-tasks.withType<Test> {
-	useJUnitPlatform()
+tasks.named<Test>("test") {
+	// eval 태그는 실제 Gemini를 부르는 수동 평가라 check에서 뺀다.
+	useJUnitPlatform { excludeTags("eval") }
 	// 통합 테스트가 매번 빈 데이터베이스에서 시작하도록 이전 테스트 DB 파일을 지운다.
 	val testDatabase = layout.buildDirectory.file("test.db")
 	doFirst { testDatabase.get().asFile.delete() }
 	// 테스트는 Gemini를 부르지 않는다(가짜 ChatModel). 클라이언트 빈을 만들 자리표시 키만 넣는다.
 	environment("GEMINI_API_KEY", "test-placeholder-not-a-real-key")
+}
+
+// 채점 입력 평가(ScoringContextEvalTest). 환경 변수 GEMINI_API_KEY로 실제 Gemini를 부르므로 직접 실행할 때만 돈다.
+// 결과는 build/eval/에 남는다. 실행: GEMINI_API_KEY=... ./gradlew eval
+tasks.register<Test>("eval") {
+	description = "실제 Gemini를 부르는 채점 입력 평가를 실행한다."
+	group = "verification"
+	testClassesDirs = sourceSets["test"].output.classesDirs
+	classpath = sourceSets["test"].runtimeClasspath
+	useJUnitPlatform { includeTags("eval") }
+	outputs.upToDateWhen { false }
 }
 
 

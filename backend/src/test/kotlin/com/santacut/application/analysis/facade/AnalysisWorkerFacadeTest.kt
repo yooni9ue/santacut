@@ -50,6 +50,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * 분석 작업자가 AI 점수 클라이언트를 바꿔 끼운 상태에서 성공, 실패, 연속 처리, 시즌 마감을 처리하는지 확인한다.
@@ -93,6 +94,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         aiBudgetService.recordSuccess()
         given(scoreClient.isEnabled()).willReturn(true)
         given(scoreClient.cacheKey(anyDigest(), anyInt())).willReturn(CACHE_KEY)
+        given(scoreClient.estimateUsage(anyDigest(), anyString())).willReturn(ESTIMATE)
     }
 
     @Test
@@ -281,7 +283,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `하루 비용 한도에 닿으면 다음 작업을 잡지 않고 대기열에 둔다`() {
+    fun `한 달 비용 한도에 닿으면 다음 작업을 잡지 않고 대기열에 둔다`() {
         given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer(EXPENSIVE_USAGE))
         val first = submitAnalysis()
         val second = submitAnalysis()
@@ -293,9 +295,22 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertEquals(EXPENSIVE_USAGE.inputTokens, aiUsageDayRepository.findAll().single().inputTokens)
     }
 
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    fun `호출 전 어림 비용을 더하면 한도를 넘을 때는 AI를 부르지 않고 대기열로 되돌린 뒤 멈춘다`() {
+        given(scoreClient.estimateUsage(anyDigest(), anyString())).willReturn(OVER_BUDGET_ESTIMATE)
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
+        assertTrue(aiBudgetService.isBlocked(clock.instant()))
+    }
+
     private fun submitAnalysis(participantId: UUID = registerParticipant(), text: String = SAMPLE_TEXT): AnalysisJobCommand {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))
-        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt, "$text $index") })
+        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt.minus(Duration.ofHours(EVENT_SPACING_HOURS * index)), "$text $index") })
         val command = SubmitAnalysisCommand(participantId, "key-" + UUID.randomUUID(), DataSource.KAKAO.name, events)
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.submit(command).id))
     }
@@ -315,6 +330,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         const val SEASON_YEAR = 2099
         private const val CONSECUTIVE_JOB_COUNT = 6
         private const val EVENT_COUNT = 20
+
+        /** 대화문에서 한 줄로 이어지지 않게 이벤트 사이를 3시간보다 넓게 띄운다. */
+        private const val EVENT_SPACING_HOURS = 4L
         private const val SAMPLE_TEXT = "오늘 정말 고마웠어 덕분에 힘이 났어"
         private const val SHORT_TEXT = "고마워"
         private const val CACHE_KEY = "같은 채점 입력"
@@ -326,7 +344,12 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private val USAGE = ModelUsage(4_000, 90, "end_turn")
 
         /** 입력 60만 토큰. 단가(100만 토큰당 1달러)로 0.6달러라 하루 한도 0.5달러를 넘는다. */
-        private val EXPENSIVE_USAGE = ModelUsage(2_000_000, 0, "end_turn")
+        /** 입력 단가 0.3달러 × 3,000만 토큰 = 한 달 한도 9달러. */
+        private val EXPENSIVE_USAGE = ModelUsage(30_000_000, 0, "end_turn")
+        private val ESTIMATE = ModelUsage(40_000, 250, "ESTIMATE")
+
+        /** 한 번만으로 한 달 한도(9달러)를 넘는 어림 사용량. */
+        private val OVER_BUDGET_ESTIMATE = ModelUsage(31_000_000, 250, "ESTIMATE")
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
 
         private const val MAX_CONSECUTIVE_FAILURES = 3

@@ -14,7 +14,7 @@ import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 
 /**
- * 검증을 기다리는 원본 파일을 저장하고, 본인 메시지만 분석 제출 내용으로 정규화한다.
+ * 검증을 기다리는 원본 파일을 저장하고, 참여자 이름을 화자 표시로 바꾼 분석 제출 내용으로 정규화한다.
  * 원본과 본인 이름은 검증이 끝나면 지운다.
  */
 @Service
@@ -38,7 +38,7 @@ class AnalysisUploadService(
         analysisUploadRepository.deleteByCreatedAtBefore(AnalysisJob.queueExpiryCutoff(now))
     }
 
-    /** 원본을 본인 메시지만 담은 제출 내용으로 바꾼다. 출처별 파싱과 정규화 순서는 [AnalysisUpload.normalize]가 정한다. */
+    /** 원본을 화자 표시만 남긴 제출 내용으로 바꾼다. 출처별 파싱과 정규화 순서는 [AnalysisUpload.normalize]가 정한다. */
     fun normalize(upload: AnalysisUpload, now: Instant): AnalysisSubmission =
         upload.normalize(now, ::readInstagramThread)
 

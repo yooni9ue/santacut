@@ -4,6 +4,7 @@ import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.metadata.ChatGenerationMetadata
 import org.springframework.ai.chat.metadata.ChatResponseMetadata
 import org.springframework.ai.chat.metadata.DefaultUsage
+import org.springframework.ai.chat.metadata.Usage
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.ai.chat.model.Generation
@@ -14,9 +15,12 @@ import org.springframework.ai.chat.prompt.Prompt
  *
  * @property reply 모델이 돌려줄 답 본문
  * @property failure 있으면 답 대신 이 예외를 던진다
+ * @property usage 응답 메타데이터에 실을 토큰 사용량
  */
 class RecordingChatModel(var reply: String) : ChatModel {
     var failure: RuntimeException? = null
+
+    var usage: Usage = DefaultUsage(INPUT_TOKENS, OUTPUT_TOKENS)
 
     var lastPrompt: Prompt? = null
         private set
@@ -25,7 +29,7 @@ class RecordingChatModel(var reply: String) : ChatModel {
         lastPrompt = prompt
         failure?.let { throw it }
         val generation = Generation(AssistantMessage(reply), ChatGenerationMetadata.builder().finishReason(FINISH_REASON).build())
-        return ChatResponse(listOf(generation), ChatResponseMetadata.builder().usage(DefaultUsage(INPUT_TOKENS, OUTPUT_TOKENS)).build())
+        return ChatResponse(listOf(generation), ChatResponseMetadata.builder().usage(usage).build())
     }
 
     companion object {
