@@ -7,13 +7,17 @@ interface PreviewData {
   sample: boolean;
   source: Source;
   fileName: string;
+  file: File | null;
+  speakers: string[];
+  uploadKey: string;
+  analysisId: string | null;
   speaker: string;
   nickname: string;
   province: string;
   district: string;
 }
 const initial: PreviewData = {
-  sample: false, source: "KAKAO", fileName: "", speaker: "나", nickname: "", province: "서울", district: "강남구",
+  file: null, speakers: [], uploadKey: "", analysisId: null, sample: false, source: "KAKAO", fileName: "", speaker: "나", nickname: "", province: "서울", district: "강남구",
 };
 const PreviewContext = createContext<{
   data: PreviewData;

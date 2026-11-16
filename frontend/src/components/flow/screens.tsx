@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { UploadDraftScreen } from "./upload-draft-screen";
 import { RegistrationScreen } from "./registration-screen";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlowFrame, InfoNote, NextLink } from "./frame";
 import { sourceName, usePreview, type Source } from "./preview-context";
+import { analysisError, analysisFailure, getAnalysis, getLatestAnalysis, isFinished, uploadAnalysis, watchAnalysis, type AnalysisStatus } from "@/lib/analyses";
+import { getParticipant } from "@/lib/participants";
 
 export function StartScreen() {
   const { update } = usePreview();
   const router = useRouter();
   function choose(source: Source) {
-    update({ source, fileName: "", sample: false });
+    update({ source, fileName: "", file: null, speaker: "", speakers: [], uploadKey: "", analysisId: null, sample: false });
     router.push("/prepare");
   }
   return <FlowFrame step={0} title={<>산타한테 뭘<br />보여줄 건데?</>} description="말로만 착했다고 하면 산타도 곤란해.">
@@ -46,26 +49,8 @@ export function PrepareScreen() {
 }
 
 export function UploadScreen() {
-  const { data, update } = usePreview();
-  const [error, setError] = useState("");
-  const allowed = data.source === "KAKAO" ? ["txt", "json"] : ["json"];
-  function selectFile(file?: File) {
-    if (!file) return;
-    if (!allowed.includes(file.name.split(".").pop()?.toLowerCase() ?? "")) {
-      update({ fileName: "" }); setError(`${allowed.join(", ").toUpperCase()} 파일을 선택해 주세요.`); return;
-    }
-    if (file.size === 0 || file.size > 20 * 1024 * 1024) {
-      update({ fileName: "" }); setError("내용이 있는 20MB 이하 파일을 선택해 주세요."); return;
-    }
-    setError(""); update({ fileName: file.name, sample: false });
-  }
-  return <FlowFrame back="/prepare" step={0} title={<>증거물,<br />여기 놓으세요.</>} description="착한 척은 끝. 이제 기록 차례." action={data.fileName ? <NextLink href="/join">이 파일로 계속</NextLink> : <button className="flow-primary" disabled>파일을 먼저 선택해 주세요</button>}>
-    <label className={`flow-upload ${data.fileName ? "has-file" : ""}`}><input type="file" aria-label="분석 파일 선택" accept={allowed.map((extension) => `.${extension}`).join(",")} onChange={(event) => selectFile(event.target.files?.[0])} /><span className="flow-upload-icon" aria-hidden="true">{data.fileName ? "✓" : "↑"}</span><b>{data.fileName || "파일 선택하기"}</b><small>{data.fileName ? "다시 누르면 파일을 바꿀 수 있어요" : `${allowed.join(" · ").toUpperCase()} / 최대 20MB`}</small></label>
-    {error && <p className="flow-error" role="alert">{error}</p>}
-    <button className="flow-sample-button" onClick={() => { setError(""); update({ sample: true, fileName: data.source === "KAKAO" ? "산타와의_대화_예시.txt" : "인스타_활동_예시.json" }); }}>파일 없이 예시로 둘러보기 →</button>
-    {data.source === "KAKAO" && data.fileName && <div className="flow-field"><label htmlFor="speaker">이 대화에서 나는? <span>선택 화면 예시</span></label><select id="speaker" value={data.speaker} onChange={(event) => update({ speaker: event.target.value })}><option>나</option><option>루돌프</option></select><p>실제 화자 목록은 파일 분석 기능과 연결할 때 제공돼요.</p></div>}
-    <InfoNote>지금은 파일 선택 화면을 확인하는 단계예요. 파일을 읽거나 서버로 보내지 않아요.</InfoNote>
-  </FlowFrame>;
+  const { data } = usePreview();
+  return <UploadDraftScreen key={data.source} />;
 }
 
 const districts: Record<string, string[]> = { 서울: ["강남구", "마포구", "서초구", "송파구", "종로구"], 경기: ["성남시", "수원시", "고양시"], 부산: ["해운대구", "수영구", "동래구"] };
@@ -97,6 +82,11 @@ function SampleJoinScreen() {
 
 export function ReviewScreen() {
   const { data } = usePreview();
+  return data.sample ? <SampleReviewScreen /> : <LiveReviewScreen />;
+}
+
+function SampleReviewScreen() {
+  const { data } = usePreview();
   const [agreed, setAgreed] = useState(false);
   return <FlowFrame back="/join" step={2} title={<>마지막 확인.<br />변명은 지금 해.</>} description="산타에게 보여줄 내용을 확인해 주세요." action={<NextLinkGuard enabled={agreed} href="/analysis">심사 화면 보기</NextLinkGuard>}>
     <dl className="flow-summary"><div><dt>참가자</dt><dd>{data.nickname || "루돌프인턴"}<Link href="/join">수정</Link></dd></div><div><dt>거주 지역</dt><dd>{data.province} {data.district}</dd></div><div><dt>기록 출처</dt><dd>{sourceName(data.source)}</dd></div><div><dt>파일</dt><dd className="flow-filename">{data.fileName || "대화_예시.txt"}<Link href="/upload">변경</Link></dd></div>{data.source === "KAKAO" && <div><dt>본인 화자</dt><dd>{data.speaker}</dd></div>}</dl>
@@ -106,11 +96,47 @@ export function ReviewScreen() {
   </FlowFrame>;
 }
 
+function LiveReviewScreen() {
+  const { data, update } = usePreview();
+  const [agreed, setAgreed] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [participant, setParticipant] = useState<{ nickname: string; regionCode: string } | null>(null);
+  const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [sending, setSending] = useState(false);
+  const router = useRouter();
+  useEffect(() => { let active = true; getParticipant().then(value => { if (active) setParticipant(value); }).catch(() => { if (active) setError("참가 정보를 확인하지 못했어요. 다시 시도해 주세요."); }); return () => { active = false; }; }, []);
+  const ready = Boolean(participant && data.file && data.speaker && data.uploadKey && agreed && consent && !sending);
+  async function submit() {
+    if (!ready || !data.file) return;
+    setSending(true); setError(""); setProgress(0);
+    try {
+      const result = await uploadAnalysis({ file: data.file, source: data.source, speaker: data.speaker, key: data.uploadKey }, { onProgress: setProgress });
+      update({ analysisId: result.id, file: null, speakers: [], speaker: "" });
+      router.push("/analysis");
+    } catch (failure) { setError(analysisError(failure)); setSending(false); }
+  }
+  return <FlowFrame back="/join" step={2} title={<>마지막 확인.<br />이번엔 진짜 전송해.</>} description="동의한 뒤에만 파일을 심사 서버로 보냅니다." action={<button className="flow-primary" disabled={!ready} onClick={submit}>{sending ? `전송 중 ${progress}%` : "파일 전송하고 심사 시작"}<span aria-hidden="true">↗</span></button>}>
+    {!participant && !error && <p role="status">참가 정보를 확인하고 있어요.</p>}
+    <dl className="flow-summary"><div><dt>참가자</dt><dd>{participant?.nickname ?? (data.nickname || "확인 중")}</dd></div><div><dt>거주 지역</dt><dd>{data.province} {data.district}</dd></div><div><dt>기록 출처</dt><dd>{sourceName(data.source)}</dd></div><div><dt>파일</dt><dd className="flow-filename">{data.fileName || "파일이 없어요"}</dd></div><div><dt>본인 화자</dt><dd>{data.speaker || "선택하지 않음"}</dd></div></dl>
+    <div className="flow-privacy"><h2>전송 전에 꼭 읽어줘요.</h2><ul><li>선택한 본인 화자의 메시지만 분석해요.</li><li>원문과 상대방 이름은 검증 후 최대 24시간 안에 삭제해요.</li><li>닉네임·점수·순위는 공개될 수 있어요.</li></ul></div>
+    <label className="flow-checkbox"><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>이 파일에서 선택한 화자가 나라는 것을 확인했어요.</span></label>
+    <label className="flow-checkbox"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span>파일을 전송하고 AI 심사를 받는 데 동의해요.</span></label>
+    {error && <p className="flow-error" role="alert">{error}</p>}
+    {!data.file && <Link className="flow-text-link" href="/upload">파일을 다시 선택하기 ↗</Link>}
+  </FlowFrame>;
+}
+
 function NextLinkGuard({ enabled, href, children }: { enabled: boolean; href: string; children: React.ReactNode }) {
   return enabled ? <NextLink href={href}>{children}</NextLink> : <button className="flow-primary" disabled>{children}<span aria-hidden="true">↗</span></button>;
 }
 
 export function AnalysisScreen() {
+  const { data } = usePreview();
+  return data.sample || (!data.analysisId && !data.fileName) ? <SampleAnalysisScreen /> : <LiveAnalysisScreen />;
+}
+
+function SampleAnalysisScreen() {
   const [status, setStatus] = useState("analyzing");
   const failed = status === "failed" || status === "insufficient";
   const title = status === "queued" ? "산타 앞에 줄 서는 중." : status === "failed" ? "산타가 잠깐 멈췄어요." : status === "insufficient" ? "기록이 조금 더 필요해요." : "산타가 기록을 읽는 중.";
@@ -119,6 +145,19 @@ export function AnalysisScreen() {
     <div className="flow-state-preview"><p>다른 심사 상태 보기</p><div>{[["queued", "대기"], ["analyzing", "심사 중"], ["failed", "오류"], ["insufficient", "근거 부족"]].map(([value, label]) => <button key={value} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}</div></div>
     {failed && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}
   </FlowFrame>;
+}
+
+function LiveAnalysisScreen() {
+  const { data } = usePreview();
+  const [status, setStatus] = useState<AnalysisStatus | null>(null);
+  const [error, setError] = useState("");
+  const [fallback, setFallback] = useState(false);
+  const [jobId, setJobId] = useState(data.analysisId);
+  useEffect(() => { let active = true; (async () => { try { const latest = jobId ? await getAnalysis(jobId) : await getLatestAnalysis(); if (active) { setStatus(latest); if (latest) setJobId(latest.id); } } catch (failure) { if (active) setError(analysisError(failure)); } })(); return () => { active = false; }; }, [jobId]);
+  useEffect(() => { if (!jobId || !status || isFinished(status.status)) return; return watchAnalysis(jobId, next => setStatus(next), () => setFallback(true)); }, [jobId, status?.status]);
+  useEffect(() => { if (!fallback || !jobId || status && isFinished(status.status)) return; const timer = window.setInterval(() => { getAnalysis(jobId).then(setStatus).catch(failure => setError(analysisError(failure))); }, 3000); return () => window.clearInterval(timer); }, [fallback, jobId, status]);
+  const title = !status ? "심사 상태를 확인하는 중." : status.status === "SUCCEEDED" ? "심사가 끝났어요." : status.status === "FAILED" ? "심사가 멈췄어요." : status.status === "QUEUED" ? "산타 앞에 줄 서는 중." : status.status === "RANKING_PENDING" ? "순위를 정리하는 중." : "산타가 기록을 읽는 중.";
+  return <FlowFrame back="/review" step={2} title={<>판정 중에는<br />얌전히 계세요.</>} description="실제 심사 상태를 서버에서 확인하고 있어요."><div className={`flow-analysis ${status?.status === "FAILED" ? "is-failed" : ""}`}><span className="flow-analysis-face" aria-hidden="true">{status?.status === "FAILED" ? "( •_• )" : "( ◉_◉ )"}</span><span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2><p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : status?.status === "SUCCEEDED" ? "실제 결과 화면을 준비하고 있어요. 이 페이지를 닫지 않아도 돼요." : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p></div>{error && <p className="flow-error" role="alert">{error}</p>}{status?.status === "FAILED" && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}</FlowFrame>;
 }
 
 export function ResultScreen() {
