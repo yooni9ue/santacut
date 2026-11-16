@@ -40,11 +40,35 @@ class ScoreAnswerTest {
     }
 
     @Test
-    fun `근거 번호가 1보다 작거나 이벤트 수보다 크면 근거 오류다`() {
+    fun `범위 밖 근거 번호만 있는 항목이 있으면 근거 오류다`() {
         val belowRange = listOf(listOf(0), listOf(1), listOf(1), listOf(1))
-        val aboveRange = listOf(listOf(1), listOf(21), listOf(1), listOf(1))
+        val aboveRange = listOf(listOf(1), listOf(21, 22), listOf(1), listOf(1))
         assertRejected(ErrorCode.AI_EVIDENCE_INVALID, ScoreAnswer.of(fullScores, belowRange, SHAPE))
         assertRejected(ErrorCode.AI_EVIDENCE_INVALID, ScoreAnswer.of(fullScores, aboveRange, SHAPE))
+    }
+
+    @Test
+    fun `범위 밖·겹친 번호를 지우고도 항목마다 근거가 남으면 다시 묻지 않고 점수가 된다`() {
+        val answer = ScoreAnswer.of(fullScores, listOf(listOf(1, 21), listOf(2, 2), listOf(0, 3), listOf(20)), SHAPE)
+
+        assertEquals(7600, answer.toScore(EVENT_COUNT).hundredths)
+        assertEquals(3, answer.discardedEvidence(EVENT_COUNT))
+    }
+
+    @Test
+    fun `제공자가 호출을 막았으면 AI_PROVIDER_UNAVAILABLE이고 사용량은 없다`() {
+        val answer = ScoreAnswer.providerUnavailable()
+
+        assertRejected(ErrorCode.AI_PROVIDER_UNAVAILABLE, answer)
+        assertEquals(ModelUsage.NONE, answer.usage)
+    }
+
+    @Test
+    fun `답은 받은 토큰 사용량을 그대로 들고 있다`() {
+        val usage = ModelUsage(4200, 90, "end_turn")
+
+        assertEquals(usage, ScoreAnswer.of(fullScores, validEvidence, SHAPE, usage).usage)
+        assertEquals(usage, ScoreAnswer.unreadable(usage).usage)
     }
 
     private fun assertRejected(expected: ErrorCode, answer: ScoreAnswer) {
