@@ -12,11 +12,10 @@ class AnalysisStatusStreams(
 ) {
     fun size(): Int = values.size
 
-    fun hasStreamOf(participantId: UUID): Boolean = values.containsKey(participantId)
-
     /**
      * [stream]을 이 참가자의 스트림으로 먼저 등록한 뒤 [loadInitial]로 현재 상태를 읽어 보낸다.
-     * 읽기 전에 등록하므로, 읽는 사이 작업이 끝나도 그 이벤트를 놓치지 않는다. 읽기에 실패하면 스트림을 닫는다.
+     * 읽기 전에 등록하므로, 읽는 사이 작업이 끝나도 그 이벤트를 놓치지 않는다.
+     * 이전 스트림은 읽기에 성공한 뒤에야 닫는다. 읽기에 실패하면(없는 작업, 남의 작업) 새 스트림만 닫고 이전 스트림을 되돌린다.
      *
      * @param verifyOpenable 지금 열린 스트림 수와 이 참가자 스트림을 대신하는지를 받아 상한을 확인한다
      */
@@ -26,14 +25,15 @@ class AnalysisStatusStreams(
         verifyOpenable: (openStreams: Int, replacing: Boolean) -> Unit,
         loadInitial: () -> AnalysisStatusEvent,
     ) {
-        register(participantId, stream, verifyOpenable)
+        val previous = register(participantId, stream, verifyOpenable)
         val initial = try {
             loadInitial()
         } catch (exception: RuntimeException) {
-            stream.close()
+            restore(participantId, stream, previous)
             throw exception
         }
-        stream.send(initial)
+        previous?.close()
+        stream.sendInitial(initial)
     }
 
     /** 이 참가자가 연 스트림이 이 작업을 보고 있으면 새 상태를 보낸다. */
@@ -45,15 +45,22 @@ class AnalysisStatusStreams(
         values.values.forEach { stream -> stream.heartbeat() }
     }
 
-    /** 상한 확인과 등록을 한 잠금 안에서 해, 동시에 들어온 요청이 함께 상한을 넘지 못하게 한다. 이전 스트림은 닫는다. */
+    /** 상한 확인과 등록을 한 잠금 안에서 해, 동시에 들어온 요청이 함께 상한을 넘지 못하게 한다. 대신한 이전 스트림을 돌려준다. */
     @Synchronized
     private fun register(
         participantId: UUID,
         stream: AnalysisStatusStream,
         verifyOpenable: (openStreams: Int, replacing: Boolean) -> Unit,
-    ) {
+    ): AnalysisStatusStream? {
         verifyOpenable(values.size, values.containsKey(participantId))
         stream.onFinish { values.remove(participantId, stream) }
-        values.put(participantId, stream)?.close()
+        return values.put(participantId, stream)
+    }
+
+    /** 열지 못한 [stream]을 닫고, 이전 스트림이 아직 열려 있으면 그 자리에 되돌린다. */
+    @Synchronized
+    private fun restore(participantId: UUID, stream: AnalysisStatusStream, previous: AnalysisStatusStream?) {
+        if (previous != null && previous.isOpen()) values.replace(participantId, stream, previous)
+        stream.close()
     }
 }

@@ -30,12 +30,48 @@ class AnalysisStatusStreamsTest {
 
     @Test
     fun `참가자마다 스트림을 따로 세어 앱 전체 수를 알려 준다`() {
-        open(participant, stream(), event(QUEUED))
-        open(UUID.randomUUID(), stream(), event(QUEUED))
+        val first = stream()
+        val second = stream()
+
+        open(participant, first, event(QUEUED))
+        open(UUID.randomUUID(), second, event(QUEUED))
 
         assertEquals(2, streams.size())
-        assertTrue(streams.hasStreamOf(participant))
-        assertFalse(streams.hasStreamOf(UUID.randomUUID()))
+        assertTrue(first.isOpen())
+        assertTrue(second.isOpen())
+    }
+
+    @Test
+    fun `다시 열 때 현재 상태를 읽지 못하면 이전 스트림을 그대로 살려 둔다`() {
+        val emitter = RecordingSseEmitter()
+        val first = AnalysisStatusStream(JOB_ID, emitter)
+        open(participant, first, event(QUEUED))
+        val second = stream()
+
+        assertThrows<IllegalArgumentException> {
+            open(participant, second) { throw IllegalArgumentException("없는 작업") }
+        }
+        streams.publish(participant, event(ANALYZING))
+
+        assertTrue(first.isOpen())
+        assertFalse(second.isOpen())
+        assertEquals(1, streams.size())
+        assertTrue(emitter.sent.last().contains(ANALYZING))
+    }
+
+    @Test
+    fun `현재 상태를 읽는 사이 더 새로운 상태를 보냈으면 읽은 상태를 보내지 않는다`() {
+        val emitter = RecordingSseEmitter()
+        val stream = AnalysisStatusStream(JOB_ID, emitter)
+
+        open(participant, stream) {
+            streams.publish(participant, event(ANALYZING))
+            event(QUEUED)
+        }
+
+        assertEquals(1, emitter.sent.size)
+        assertTrue(emitter.sent.single().contains(ANALYZING))
+        assertTrue(stream.isOpen())
     }
 
     @Test
@@ -110,7 +146,7 @@ class AnalysisStatusStreamsTest {
         open(participant, stream, event(FAILED, terminal = true))
 
         assertFalse(stream.isOpen())
-        assertFalse(streams.hasStreamOf(participant))
+        assertEquals(0, streams.size())
     }
 
     @Test
