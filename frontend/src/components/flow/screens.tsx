@@ -10,6 +10,7 @@ import { sourceName, usePreview, type Source } from "./preview-context";
 import { analysisError, analysisFailure, getAnalysis, getLatestAnalysis, isFinished, uploadAnalysis, watchAnalysis, type AnalysisStatus } from "@/lib/analyses";
 import { getParticipant } from "@/lib/participants";
 import { formatKoreanDate, formatScore, getMyResult, resultError } from "@/lib/results";
+import { getRankings, rankingError, type RankingRow } from "@/lib/rankings";
 
 export function StartScreen() {
   const { update } = usePreview();
@@ -196,6 +197,11 @@ function LiveResultScreen() {
 
 export function RankingScreen() {
   const { data } = usePreview();
+  return data.sample ? <SampleRankingScreen /> : <LiveRankingScreen />;
+}
+
+function SampleRankingScreen() {
+  const { data } = usePreview();
   const [expanded, setExpanded] = useState(false);
   const entries = [["1", "산타아들아님", "99.91"], ["2", "착한말수집가", "99.20"], ["2", "루돌프주주", "99.20"], ["4", "굴뚝관리인", "98.74"], ["5", "선물은못참지", "98.60"], ["6", "북극인턴", "98.45"], ["7", "산타연차반려", "98.33"], ["8", "귤두개드림", "98.25"]];
   return <FlowFrame back="/result" title={<>착한 사람들,<br />왜 이렇게 많아.</>} description="2026 산타컷 통합 랭킹" action={<NextLink href="/result">내 결과 보기</NextLink>}>
@@ -204,5 +210,23 @@ export function RankingScreen() {
     <ol className="flow-ranking-list">{entries.slice(0, expanded ? undefined : 5).map(([rank, name, score], index) => <li key={name}><span className={index === 0 ? "is-first" : ""}>{rank === "2" ? "공동 2" : rank}</span><b>{name}</b><strong>{score}<small>점</small></strong></li>)}</ol>
     {!expanded && <button className="flow-load-more" onClick={() => setExpanded(true)}>예시 랭킹 더 보기 ＋</button>}
     <InfoNote>점수가 같으면 공동 순위가 될 수 있어요. 공동 순위여도 배송 순서에 따라 도착 시간이 다를 수 있습니다.</InfoNote>
+  </FlowFrame>;
+}
+
+function LiveRankingScreen() {
+  const { data } = usePreview();
+  const [rows, setRows] = useState<RankingRow[]>([]);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => { const controller = new AbortController(); getRankings(undefined, controller.signal).then(page => { setRows(page.rows); setCursor(page.next_cursor); }).catch(failure => { if (!controller.signal.aborted) setError(rankingError(failure)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); }); return () => controller.abort(); }, []);
+  async function loadMore() { if (!cursor) return; try { const page = await getRankings(cursor); setRows(previous => [...previous, ...page.rows]); setCursor(page.next_cursor); } catch (failure) { setError(rankingError(failure)); } }
+  return <FlowFrame back="/result" title={<>착한 사람들,<br />왜 이렇게 많아.</>} description="실제 참가자 기준 산타컷 통합 랭킹" action={<NextLink href="/result">내 결과 보기</NextLink>}>
+    <section className="flow-ranking-me" aria-label="나의 순위"><span>내 결과는 결과 화면에서 확인해요</span><div><p>{data.nickname || "참가자"}</p><i>↗</i></div></section>
+    {loading && <p role="status">랭킹을 불러오는 중이에요.</p>}
+    {error && <p className="flow-error" role="alert">{error}</p>}
+    {!loading && !error && rows.length === 0 && <InfoNote>아직 계산된 랭킹이 없어요. 첫 순위 계산을 기다려 주세요.</InfoNote>}
+    {rows.length > 0 && <><div className="flow-ranking-caption"><b>전체 랭킹</b><span>실제 참가자 · 서버 계산</span></div><ol className="flow-ranking-list">{rows.slice(0, expanded ? undefined : 5).map((entry, index) => <li key={`${entry.rank}-${entry.nickname}-${index}`}><span className={index === 0 ? "is-first" : ""}>{entry.tied ? `공동 ${entry.rank}` : entry.rank}</span><b>{entry.nickname}</b><strong>{formatScore(entry.score_hundredths)}<small>점</small></strong></li>)}</ol>{!expanded && (rows.length > 5 || cursor) && <button className="flow-load-more" onClick={() => { setExpanded(true); if (rows.length <= 5) void loadMore(); }}>랭킹 더 보기 ＋</button>}{expanded && cursor && <button className="flow-load-more" onClick={() => void loadMore()}>다음 랭킹 불러오기 ＋</button>}</>}
   </FlowFrame>;
 }
