@@ -15,21 +15,27 @@ import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
+import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.domain.analysis.model.ScoringDigest
+import com.santacut.domain.analysis.service.AiBudgetService
 import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.prompt.model.PromptName
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.client.ScoreClient
+import com.santacut.infrastructure.analysis.repository.AiUsageDayRepository
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AssessmentRepository
 import com.santacut.infrastructure.prompt.repository.PromptRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.BDDMockito.given
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -40,12 +46,14 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
  * 분석 작업자가 AI 점수 클라이언트를 바꿔 끼운 상태에서 성공, 실패, 연속 처리, 시즌 마감을 처리하는지 확인한다.
- * AI 호출마다 DB의 최신 채점 프롬프트를 쓰는지도 확인한다.
+ * AI 호출마다 DB의 최신 채점 프롬프트를 쓰는지, 같은 채점 입력의 재제출에 지난 결과를 다시 쓰는지,
+ * 호출 전 차단, 제공자 차단, 앱 안의 비용 가드도 확인한다.
  * 대기열 전체를 보는 작업자라 다른 통합 테스트와 섞이지 않게 `build/worker-test.db`를 따로 쓰고 테스트마다 비운다.
  */
 @SpringBootTest(
@@ -68,21 +76,26 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private val analysisJobRepository: AnalysisJobRepository,
     private val promptRepository: PromptRepository,
     private val assessmentRepository: AssessmentRepository,
+    private val aiUsageDayRepository: AiUsageDayRepository,
+    private val aiBudgetService: AiBudgetService,
 ) {
     private val seasonClose: Instant = Season(SEASON_YEAR).deliveryStart().toInstant()
 
     @BeforeEach
     fun setUp() {
         analysisJobRepository.deleteAll()
+        aiUsageDayRepository.deleteAll()
         promptRepository.deleteAll()
         promptRepository.save(Prompt.initial(PromptName.SCORE, FIRST_PROMPT, OPEN_TIME))
         clock.moveTo(OPEN_TIME)
+        aiBudgetService.recordSuccess()
         given(scoreClient.isEnabled()).willReturn(true)
+        given(scoreClient.cacheKey(anyDigest(), anyInt())).willReturn(CACHE_KEY)
     }
 
     @Test
     fun `점수를 받으면 평가를 저장하고 순위를 다시 계산해 작업을 성공으로 끝낸다`() {
-        given(scoreClient.requestAnswer(anySubmission(), anyString())).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -97,7 +110,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `점수 산정 중 예외가 나면 작업을 ANALYSIS_FAILED로 끝낸다`() {
-        given(scoreClient.requestAnswer(anySubmission(), anyString())).willThrow(IllegalStateException("AI 장애"))
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willThrow(IllegalStateException("AI 장애"))
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -110,8 +123,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `AI 호출 수 한도 없이 하루에 여러 작업을 연달아 채점한다`() {
-        given(scoreClient.requestAnswer(anySubmission(), anyString())).willReturn(fullAnswer())
+    fun `여러 작업을 연달아 채점한다`() {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
         val jobs = List(CONSECUTIVE_JOB_COUNT) { submitAnalysis() }
 
         repeat(CONSECUTIVE_JOB_COUNT) { analysisWorkerFacade.processNextJob() }
@@ -130,13 +143,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val status = analysisFacade.getStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("EXPIRED", status.errorCode)
-        verify(scoreClient, never()).requestAnswer(anySubmission(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
     }
 
     @Test
     fun `점수를 받은 사이에 시즌이 마감되면 평가를 저장하지 않고 SEASON_FROZEN으로 끝낸다`() {
         clock.moveTo(seasonClose.minus(Duration.ofMinutes(1)))
-        given(scoreClient.requestAnswer(anySubmission(), anyString())).willAnswer {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willAnswer {
             clock.moveTo(seasonClose)
             fullAnswer()
         }
@@ -154,7 +167,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     fun `AI를 부를 때마다 채점 프롬프트의 최신 판을 보내고 평가에 그 판 번호를 남긴다`() {
         val first = checkNotNull(promptRepository.findFirstByNameOrderByVersionDesc(PromptName.SCORE.value))
         val latest = promptRepository.save(first.next(LATEST_PROMPT, OPEN_TIME))
-        given(scoreClient.requestAnswer(anySubmission(), eq(LATEST_PROMPT) ?: LATEST_PROMPT)).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anyDigest(), eq(LATEST_PROMPT) ?: LATEST_PROMPT)).willReturn(fullAnswer())
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -174,34 +187,125 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val status = analysisFacade.getStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("ANALYSIS_FAILED", status.errorCode)
-        verify(scoreClient, never()).requestAnswer(anySubmission(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
     }
 
-    private fun submitAnalysis(): AnalysisJobCommand {
-        val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
+    @Test
+    fun `표본이 너무 짧으면 AI를 부르지 않고 근거 부족으로 끝낸다`() {
+        val job = submitAnalysis(text = SHORT_TEXT)
+
+        analysisWorkerFacade.processNextJob()
+
+        val status = analysisFacade.getStatus(job)
+        assertEquals("FAILED", status.status)
+        assertEquals("INSUFFICIENT_EVIDENCE", status.errorCode)
+        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
+    }
+
+    @Test
+    fun `같은 참가자가 같은 채점 입력으로 다시 내면 AI를 다시 부르지 않고 지난 점수를 새 평가로 옮겨 적는다`() {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val status = analysisFacade.getStatus(second)
+        assertEquals("SUCCEEDED", status.status)
+        assertNotEquals(analysisFacade.getStatus(first).assessmentId, status.assessmentId)
+        assertEquals(EXPECTED_SCORE_HUNDREDTHS, resultFacade.getMyResult(MyResultCommand(second.participantId)).scoreHundredths)
+        verify(scoreClient, times(1)).requestAnswer(anyDigest(), anyString())
+    }
+
+    @Test
+    fun `같은 채점 입력이 근거 부족으로 끝났으면 다시 내도 AI 없이 근거 부족으로 끝낸다`() {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(ScoreAnswer.insufficient(USAGE))
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("INSUFFICIENT_EVIDENCE", analysisFacade.getStatus(first).errorCode)
+        assertEquals("INSUFFICIENT_EVIDENCE", analysisFacade.getStatus(second).errorCode)
+        verify(scoreClient, times(1)).requestAnswer(anyDigest(), anyString())
+    }
+
+    @Test
+    fun `다른 참가자의 같은 채점 입력은 다시 쓰지 않는다`() {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
+        submitAnalysis()
+        submitAnalysis()
+
+        repeat(2) { analysisWorkerFacade.processNextJob() }
+
+        verify(scoreClient, times(2)).requestAnswer(anyDigest(), anyString())
+    }
+
+    @Test
+    fun `제공자가 호출을 막으면 작업을 실패시키지 않고 대기열로 되돌린 뒤 멈춘다`() {
+        clock.moveTo(BACKOFF_TIME)
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(ScoreAnswer.providerUnavailable())
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        verify(scoreClient, times(1)).requestAnswer(anyDigest(), anyString())
+    }
+
+    @Test
+    fun `하루 비용 한도에 닿으면 다음 작업을 잡지 않고 대기열에 둔다`() {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer(EXPENSIVE_USAGE))
+        val first = submitAnalysis()
+        val second = submitAnalysis()
+
+        repeat(2) { analysisWorkerFacade.processNextJob() }
+
+        assertEquals("SUCCEEDED", analysisFacade.getStatus(first).status)
+        assertEquals("QUEUED", analysisFacade.getStatus(second).status)
+        assertEquals(EXPENSIVE_USAGE.inputTokens, aiUsageDayRepository.findAll().single().inputTokens)
+    }
+
+    private fun submitAnalysis(participantId: UUID = registerParticipant(), text: String = SAMPLE_TEXT): AnalysisJobCommand {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))
-        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt, "고마워 $index") })
+        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt, "$text $index") })
         val command = SubmitAnalysisCommand(participantId, "key-" + UUID.randomUUID(), DataSource.KAKAO.name, events)
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.submit(command).id))
     }
 
-    /** 모든 항목 80점, 근거는 첫 이벤트. 가중 합계는 8,000(80.00점)이다. */
-    private fun fullAnswer(): ScoreAnswer =
-        ScoreAnswer.of(List(DIMENSION_COUNT) { DIMENSION_SCORE }, List(DIMENSION_COUNT) { listOf(1) }, "test")
+    private fun registerParticipant(): UUID =
+        participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
 
-    /** Kotlin의 null 불가 매개변수에도 쓸 수 있도록 매처를 등록한 뒤 null 대신 빈 제출을 돌려준다. */
-    private fun anySubmission(): AnalysisSubmission =
-        any(AnalysisSubmission::class.java) ?: AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList()))
+    /** 모든 항목 80점, 근거는 첫 표본 줄. 가중 합계는 8,000(80.00점)이다. */
+    private fun fullAnswer(usage: ModelUsage = USAGE): ScoreAnswer =
+        ScoreAnswer.of(List(DIMENSION_COUNT) { DIMENSION_SCORE }, List(DIMENSION_COUNT) { listOf(1) }, "test", usage)
+
+    /** Kotlin의 null 불가 매개변수에도 쓸 수 있도록 매처를 등록한 뒤 null 대신 빈 제출의 채점 입력을 돌려준다. */
+    private fun anyDigest(): ScoringDigest =
+        any(ScoringDigest::class.java) ?: AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())).toScoringDigest()
 
     companion object {
         const val SEASON_YEAR = 2099
         private const val CONSECUTIVE_JOB_COUNT = 6
         private const val EVENT_COUNT = 20
+        private const val SAMPLE_TEXT = "오늘 정말 고마웠어 덕분에 힘이 났어"
+        private const val SHORT_TEXT = "고마워"
+        private const val CACHE_KEY = "같은 채점 입력"
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
         private const val DIMENSION_COUNT = 4
         private const val EXPECTED_SCORE_HUNDREDTHS = 8000
         private val DIMENSION_SCORE = BigDecimal("80")
+        private val USAGE = ModelUsage(4_000, 90, "end_turn")
+
+        /** 입력 60만 토큰. 단가(100만 토큰당 1달러)로 0.6달러라 하루 한도 0.5달러를 넘는다. */
+        private val EXPENSIVE_USAGE = ModelUsage(600_000, 0, "end_turn")
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
+
+        /** 제공자 차단 뒤 멈춤(15분)이 다른 테스트의 [OPEN_TIME]까지 이어지지 않도록 하루 앞선 시각. */
+        private val BACKOFF_TIME: Instant = OPEN_TIME.minus(Duration.ofDays(1))
     }
 }
