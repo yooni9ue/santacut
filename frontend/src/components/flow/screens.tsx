@@ -118,7 +118,7 @@ function LiveReviewScreen() {
   }
   return <FlowFrame back="/join" step={2} title={<>마지막 확인.<br />이번엔 진짜 전송해.</>} description="동의한 뒤에만 파일을 심사 서버로 보냅니다." action={<button className="flow-primary" disabled={!ready} onClick={submit}>{sending ? `전송 중 ${progress}%` : "파일 전송하고 심사 시작"}<span aria-hidden="true">↗</span></button>}>
     {!participant && !error && <p role="status">참가 정보를 확인하고 있어요.</p>}
-    <dl className="flow-summary"><div><dt>참가자</dt><dd>{participant?.nickname ?? (data.nickname || "확인 중")}</dd></div><div><dt>기록 출처</dt><dd>{sourceName(data.source)}</dd></div><div><dt>파일</dt><dd className="flow-filename">{data.fileName || "파일이 없어요"}</dd></div><div><dt>본인 화자</dt><dd>{data.speaker || "선택하지 않음"}</dd></div></dl>
+    <dl className="flow-summary"><div><dt>참가자</dt><dd>{participant?.nickname ?? (data.nickname || "확인 중")}</dd></div><div><dt>거주 지역</dt><dd>{data.province} {data.district}</dd></div><div><dt>기록 출처</dt><dd>{sourceName(data.source)}</dd></div><div><dt>파일</dt><dd className="flow-filename">{data.fileName || "파일이 없어요"}</dd></div><div><dt>본인 화자</dt><dd>{data.speaker || "선택하지 않음"}</dd></div></dl>
     <div className="flow-privacy"><h2>전송 전에 꼭 읽어줘요.</h2><ul><li>선택한 본인 화자의 메시지만 분석해요.</li><li>원문과 상대방 이름은 검증 후 최대 24시간 안에 삭제해요.</li><li>닉네임·점수·순위는 공개될 수 있어요.</li></ul></div>
     <label className="flow-checkbox"><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>이 파일에서 선택한 화자가 나라는 것을 확인했어요.</span></label>
     <label className="flow-checkbox"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span>파일을 전송하고 AI 심사를 받는 데 동의해요.</span></label>
@@ -133,7 +133,7 @@ function NextLinkGuard({ enabled, href, children }: { enabled: boolean; href: st
 
 export function AnalysisScreen() {
   const { data } = usePreview();
-  return data.sample ? <SampleAnalysisScreen /> : <LiveAnalysisScreen />;
+  return data.sample || (!data.analysisId && !data.fileName) ? <SampleAnalysisScreen /> : <LiveAnalysisScreen />;
 }
 
 function SampleAnalysisScreen() {
