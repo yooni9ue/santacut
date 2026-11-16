@@ -90,14 +90,11 @@ class AnalysisFacade(
     }
 
     /**
-     * 진행 상황 스트림을 열기 전에 작업 소유와 스트림 상한을 확인하고, 연결하자마자 보낼 현재 상태를 돌려준다.
-     * 상한에 걸리면 ANALYSIS_STREAM_LIMIT(503)이고, 화면은 폴링으로 바꾼다.
+     * 진행 상황 스트림을 하나 더 열 수 있는지 확인한다. 상한에 걸리면 ANALYSIS_STREAM_LIMIT(503)이고, 화면은 폴링으로 바꾼다.
+     * 연결하자마자 보낼 현재 상태는 스트림을 등록한 뒤 [getStatus]로 읽는다.
      */
-    @Transactional(readOnly = true)
-    fun openStatusStream(command: OpenAnalysisStreamCommand): AnalysisStatusResult {
+    fun verifyStreamOpenable(command: OpenAnalysisStreamCommand) {
         analysisJobService.verifyStreamOpenable(command.openStreams, command.replacing, clock.instant())
-        val job = analysisJobService.getOwned(command.jobId, command.participantId)
-        return AnalysisStatusResult.from(job, progressOf(job, command.participantId))
     }
 
     /**

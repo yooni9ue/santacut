@@ -221,7 +221,7 @@ class LayerDependencyTest {
         private const val GLOBAL = "global"
         private val DOMAINS = setOf("participant", "session", "analysis", "ranking", "share", "prompt")
         private val DOMAIN_ROLES = mapOf(
-            "presentation" to setOf("controller", "request", "response", "docs"),
+            "presentation" to setOf("controller", "request", "response", "stream", "docs"),
             "application" to setOf("facade", "command", "result"),
             "domain" to setOf("model", "service"),
             "infrastructure" to setOf("repository", "client", "render"),

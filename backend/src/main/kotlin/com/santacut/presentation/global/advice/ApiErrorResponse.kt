@@ -20,7 +20,7 @@ data class ApiErrorResponse(
     @field:JsonProperty("retry_at")
     @field:JsonInclude(JsonInclude.Include.NON_NULL)
     @field:Schema(
-        description = "다시 시도할 수 있는 시각(UTC). 요청 한도 초과(DAILY_USER_LIMIT)에만 있고 Retry-After 헤더(초)와 같은 시점입니다.",
+        description = "다시 시도할 수 있는 시각(UTC). 요청 한도 초과(DAILY_USER_LIMIT)와 진행 상황 스트림 상한(ANALYSIS_STREAM_LIMIT)에만 있고 Retry-After 헤더(초)와 같은 시점입니다.",
         format = "date-time",
         example = "2026-11-16T12:00:00Z",
         nullable = true,
