@@ -137,7 +137,9 @@ Response ◀──from()──── Result ◀──from()── Model
 ## 7. 트랜잭션과 JPA
 
 - 트랜잭션 경계는 facade 메서드다. 쓰기는 `@Transactional`, 읽기는 `@Transactional(readOnly = true)`.
-- 백그라운드 작업처럼 한 흐름에서 트랜잭션을 여러 번 나눠야 할 때만 `TransactionTemplate`을 쓰고, 그 이유를 주석으로 남긴다.
+- `TransactionTemplate`은 아래 두 경우에만 쓰고, 그 이유를 주석으로 남긴다.
+  - 백그라운드 작업처럼 한 흐름에서 트랜잭션을 여러 번 나눠야 할 때.
+  - 실패해도 호출한 쪽을 막으면 안 되는 부수 작업(앱 시작 때 다시 세기 등)에서 트랜잭션을 롤백한 뒤 예외를 잡아 로그만 남겨야 할 때. `@Transactional` 메서드 안에서 예외를 잡으면 반쯤 쓴 변경이 커밋되거나, 안쪽 트랜잭션이 rollback-only로 표시해 커밋 때 `UnexpectedRollbackException`이 난다. 그래서 트랜잭션을 롤백으로 끝낸 뒤 경계 바깥에서 잡는다. 예: `ResultFacade.refreshPopulation`.
 - 엔티티 하나당 파일 하나, 리포지토리 하나당 파일 하나.
 
 ## 8. 한국어 규칙
