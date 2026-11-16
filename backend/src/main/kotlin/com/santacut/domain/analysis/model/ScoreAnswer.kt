@@ -19,12 +19,16 @@ class ScoreAnswer private constructor(
     private val evidenceIndices: EvidenceIndices,
     private val shape: String,
 ) {
-    /** 범위 밖·겹친 근거 번호를 지운 뒤에도 모든 항목에 근거가 남아야 점수가 된다. */
+    /**
+     * 범위 밖·겹친 근거 번호를 지운 뒤 근거가 남지 않은 항목은 근거 부족으로 표시하고 중립 점수를 준다.
+     * 모든 항목에 근거가 없으면 점수를 매길 내용이 없다고 보고 실패한다.
+     */
     fun toScore(sampleSize: Int): Score {
         reply.verify()
         verifySchema()
-        verifyEvidence(sampleSize)
-        return Score.weighted(dimensionScores.toComponents())
+        val lowConfidence = evidenceIndices.cleaned(sampleSize).emptyDimensions()
+        verifyAnyEvidence(lowConfidence, sampleSize)
+        return Score.weighted(dimensionScores.toComponents(lowConfidence), lowConfidence)
     }
 
     /** 검증할 때 지운 근거 번호 수. 사용량 로그에 남긴다. */
@@ -35,9 +39,11 @@ class ScoreAnswer private constructor(
         if (!complete) throw SantaCutException(ErrorCode.AI_RESPONSE_SCHEMA_INVALID, shape)
     }
 
-    private fun verifyEvidence(sampleSize: Int) {
-        if (evidenceIndices.cleaned(sampleSize).isComplete()) return
+    /** 모든 항목에 근거가 없을 때, 지운 번호가 있었으면 응답 오류, 처음부터 없었으면 근거 부족이다. */
+    private fun verifyAnyEvidence(lowConfidence: LowConfidenceDimensions, sampleSize: Int) {
+        if (!lowConfidence.coversAll()) return
         val discarded = evidenceIndices.discardedCount(sampleSize)
+        if (discarded == 0) throw SantaCutException(ErrorCode.INSUFFICIENT_EVIDENCE)
         throw SantaCutException(ErrorCode.AI_EVIDENCE_INVALID, "count=$sampleSize,discarded=$discarded")
     }
 
