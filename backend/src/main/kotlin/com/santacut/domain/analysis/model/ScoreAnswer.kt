@@ -23,12 +23,16 @@ class ScoreAnswer private constructor(
     private val evidenceIndices: EvidenceIndices,
     private val opportunities: DimensionOpportunities,
     private val shape: String,
+    private val thrown: RuntimeException? = null,
 ) {
     /** 점수를 담은 답인지. 근거 부족 답은 다른 구간과 합칠 때 뺀다. */
     fun isScored(): Boolean = reply == Reply.SCORED
 
     /** 다른 구간을 더 물어도 되는 답인지. 제공자 차단과 읽기 실패면 작업 전체가 그 이유로 끝난다. */
     fun isUsable(): Boolean = reply == Reply.SCORED || reply == Reply.INSUFFICIENT
+
+    /** 제공자가 호출을 막은 답인지. 여러 번 물은 답이 과반이 못 될 때 이 답을 먼저 골라 대기열로 돌려보낸다. */
+    fun isProviderUnavailable(): Boolean = reply == Reply.PROVIDER_UNAVAILABLE
 
     /** 점수를 담았고 형식과 범위가 맞는 답인지. [verifyAnswered]가 던지지 않는 점수 답이다. */
     fun isValidScore(): Boolean =
@@ -45,10 +49,11 @@ class ScoreAnswer private constructor(
 
     /** 사용량만 [total]로 바꾼 같은 답. 여러 번 물은 답을 하나로 합칠 때 모든 호출의 사용량을 싣는다. */
     fun withUsage(total: ModelUsage): ScoreAnswer =
-        ScoreAnswer(total, playfulness, reply, dimensionScores, evidenceIndices, opportunities, shape)
+        ScoreAnswer(total, playfulness, reply, dimensionScores, evidenceIndices, opportunities, shape, thrown)
 
-    /** 제공자 차단, 읽기 실패, 형식 오류, 범위 밖 점수를 던진다. 근거 부족 답은 던지지 않는다. */
+    /** 호출 예외, 제공자 차단, 읽기 실패, 형식 오류, 범위 밖 점수를 던진다. 근거 부족 답은 던지지 않는다. 호출 예외는 받은 그대로 던진다. */
     fun verifyAnswered() {
+        thrown?.let { exception -> throw exception }
         reply.verify()
         if (!isScored()) return
         if (!dimensionScores.isComplete() || !evidenceIndices.isComplete()) {
@@ -70,6 +75,7 @@ class ScoreAnswer private constructor(
         UNREADABLE(ErrorCode.AI_RESPONSE_INVALID),
         INSUFFICIENT(null),
         PROVIDER_UNAVAILABLE(ErrorCode.AI_PROVIDER_UNAVAILABLE),
+        THREW(null),
         ;
 
         fun verify() {
@@ -91,6 +97,13 @@ class ScoreAnswer private constructor(
 
         /** 제공자가 호출을 막았거나(권한, 요청 한도) 잠시 쓸 수 없다. 작업을 실패시키지 않고 나중에 다시 잡는다. */
         fun providerUnavailable(): ScoreAnswer = failed(ModelUsage.NONE, Reply.PROVIDER_UNAVAILABLE)
+
+        /**
+         * 호출이 예외를 던졌다(제공자 차단 밖의 일시 오류). 여러 번 물은 답 가운데 하나면 버리고,
+         * 과반이 못 되어 이 답이 남으면 [verifyAnswered]가 그 예외를 그대로 던져 예전 실패 경로를 탄다.
+         */
+        fun threw(exception: RuntimeException): ScoreAnswer =
+            ScoreAnswer(ModelUsage.NONE, null, Reply.THREW, NO_SCORES, NO_EVIDENCE, DimensionOpportunities.MISSING, "", exception)
 
         private fun failed(usage: ModelUsage, reply: Reply): ScoreAnswer =
             ScoreAnswer(usage, null, reply, NO_SCORES, NO_EVIDENCE, DimensionOpportunities.MISSING, "")

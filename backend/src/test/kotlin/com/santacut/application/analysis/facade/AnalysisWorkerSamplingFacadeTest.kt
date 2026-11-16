@@ -36,6 +36,7 @@ import org.mockito.BDDMockito.willReturn
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.math.BigDecimal
 import java.time.Duration
@@ -50,7 +51,7 @@ import kotlin.test.assertTrue
 
 /**
  * 짧은 대화를 [SAMPLES]번 따로 묻는 설정에서 분석 작업자가 호출마다 사용량을 기록하고, 항목별 중앙값을 평가로 저장하는지 확인한다.
- * 호출은 가상 스레드에서 동시에 불리고, 한 호출이 실패해도 이미 끝난 호출의 사용량은 남아야 한다.
+ * 호출은 가상 스레드에서 동시에 불리고, 한 호출이 예외를 던지면 그 답만 버린다. 실패해도 이미 끝난 호출의 사용량은 남아야 한다.
  */
 @SpringBootTest(
     properties = [
@@ -114,7 +115,7 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `한 호출이 예외를 던지면 작업은 실패하지만 나머지 호출의 사용량은 기록한다`() {
+    fun `세 호출 중 하나가 예외를 던지면 그 답만 버리고 나머지 둘로 작업을 성공시킨다`() {
         val calls = AtomicInteger()
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
             if (calls.getAndIncrement() == 0) throw IllegalStateException("AI 장애")
@@ -124,8 +125,43 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("ANALYSIS_FAILED", analysisFacade.getStatus(job).errorCode)
+        assertEquals("SUCCEEDED", analysisFacade.getStatus(job).status)
+        assertTrue(scoreOf(job) > 0)
         assertEquals(USAGE.inputTokens * (SAMPLES - 1), aiUsageDayRepository.findAll().single().inputTokens)
+    }
+
+    @Test
+    fun `과반의 호출이 예외를 던지면 작업은 ANALYSIS_FAILED로 끝나지만 나머지 호출의 사용량은 기록한다`() {
+        val calls = AtomicInteger()
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
+            if (calls.getAndIncrement() < SAMPLES - 1) throw IllegalStateException("AI 장애")
+            answerOf(MEDIAN_SCORE)
+        }
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("ANALYSIS_FAILED", analysisFacade.getStatus(job).errorCode)
+        assertEquals(USAGE.inputTokens, aiUsageDayRepository.findAll().single().inputTokens)
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    fun `과반이 못 될 때 제공자 차단 답이 섞여 있으면 예외가 있어도 작업을 대기열로 되돌린다`() {
+        val calls = AtomicInteger()
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
+            when (calls.getAndIncrement()) {
+                0 -> throw IllegalStateException("AI 장애")
+                1 -> ScoreAnswer.providerUnavailable()
+                else -> answerOf(MEDIAN_SCORE)
+            }
+        }
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertTrue(aiBudgetService.isBlocked(clock.instant()))
     }
 
     @Test

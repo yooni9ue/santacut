@@ -51,11 +51,14 @@ class AnalysisScoringService(
 
     /** 같은 채점 입력인지 가리는 해시. 모델 ID, 프롬프트 판, 점수 규칙 판, 반복 호출 수, 대화문 전체가 모두 같아야 같다. */
     fun fingerprint(digest: ScoringDigest, promptVersion: Int): String =
-        Sha256.hex(scoreClient.cacheKey(digest, promptVersion) + RULE_VERSION_PREFIX + Score.RULE_VERSION + SAMPLES_PREFIX + samples)
+        Sha256.hex(
+            scoreClient.cacheKey(digest, promptVersion) + RULE_VERSION_PREFIX + Score.RULE_VERSION + SAMPLES_PREFIX + samples,
+        )
 
     /**
      * 대화문을 구간으로 나눠([ScoringChunks]) 구간마다 [systemPrompt]와 함께 AI에 묻는다.
      * 한 구간이면 [samples]번 동시에(가상 스레드, [ScoreAnswerCalls]) 묻고 항목별 중앙값으로 합친다.
+     * 한 호출이 예외를 던지면 그 답만 버리고 남은 답의 과반으로 합친다.
      * 호출이 끝날 때마다 그 호출의 사용량을 [recordUsage]에 넘긴다. 다른 호출이 실패해도 이미 과금된 호출은 기록된다.
      * 점수 검증과 합산은 [score]가 한다.
      */

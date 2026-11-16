@@ -130,6 +130,39 @@ class ScoreAnswersTest {
         assertEquals(30, median.usage.inputTokens)
     }
 
+    @Test
+    fun `세 답 중 하나가 예외를 던져도 나머지 둘로 중앙값을 낸다`() {
+        val median = ScoreAnswers(
+            listOf(
+                scored(listOf(70, 60, 50, 40), evidence = 1),
+                ScoreAnswer.threw(IllegalStateException("AI 장애")),
+                scored(listOf(72, 62, 52, 42), evidence = 1),
+            ),
+        ).median()
+
+        median.verifyAnswered()
+        assertEquals(BigDecimal("71.00"), median.scoreAt(0))
+        assertEquals(20, median.usage.inputTokens)
+    }
+
+    @Test
+    fun `예외를 던진 답이 과반이면 합칠 때 그 예외를 그대로 던진다`() {
+        val failure = IllegalStateException("AI 장애")
+        val median = ScoreAnswers(listOf(ScoreAnswer.threw(failure), ScoreAnswer.threw(failure), scored(listOf(70, 60, 50, 40), evidence = 1))).median()
+
+        assertSame(failure, assertThrows<IllegalStateException> { median.verifyAnswered() })
+    }
+
+    @Test
+    fun `과반이 못 될 때 제공자 차단 답이 있으면 다른 실패보다 먼저 그 답으로 끝난다`() {
+        val median = ScoreAnswers(
+            listOf(ScoreAnswer.threw(IllegalStateException("AI 장애")), ScoreAnswer.providerUnavailable(), scored(listOf(70, 60, 50, 40), evidence = 1)),
+        ).median()
+
+        val exception = assertThrows<SantaCutException> { median.verifyAnswered() }
+        assertEquals(ErrorCode.AI_PROVIDER_UNAVAILABLE, exception.errorCode)
+    }
+
     private fun scored(scores: List<Int>, opportunity: Int = 2, playfulness: Int? = null, evidence: Int): ScoreAnswer =
         ScoreAnswer.of(scores.map { BigDecimal(it) }, scores.map { listOf(evidence) }, "test", USAGE, scores.map { opportunity }, playfulness)
 
