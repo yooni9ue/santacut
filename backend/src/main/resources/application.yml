@@ -46,14 +46,13 @@ app:
   origin-lat: ${SANTA_ORIGIN_LAT:37.5252}
   origin-lon: ${SANTA_ORIGIN_LON:126.9253}
 spring.ai:
-  model.chat: ollama
-  ollama:
-    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-    chat.options:
-      model: ${OLLAMA_MODEL:qwen2.5:3b}
-      format: json
+  model.chat: bedrock-converse
+  bedrock:
+    aws:
+      # 자격 증명은 AWS 기본 체인(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY 환경 변수)에서 읽는다.
+      region: ${AWS_REGION:ap-northeast-2}
+    converse.chat:
+      # 앱 IAM 사용자는 global. 추론 프로파일로만 호출할 수 있다.
+      model: ${BEDROCK_MODEL_ID:global.anthropic.claude-haiku-4-5-20251001-v1:0}
       temperature: 0.1
-      num-predict: 500
-
-
-
+      max-tokens: 500

@@ -10,8 +10,9 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 
 /**
- * Ollama 모델에 항목별 점수와 근거 번호를 묻고, 응답 JSON을 [ScoreAnswer]로 읽는다.
+ * Bedrock 모델(Converse API)에 항목별 점수와 근거 번호를 묻고, 응답 JSON을 [ScoreAnswer]로 읽는다.
  * 점수 검증과 합산은 도메인 모델이 한다.
+ * Converse API에는 JSON 강제 모드가 없어 모델이 JSON을 코드 블록으로 감싸 보낼 수 있다. 그래서 첫 `{`부터 마지막 `}`까지만 읽는다.
  */
 @Component
 class ScoreClient(
@@ -30,7 +31,15 @@ class ScoreClient(
         val userMessage = objectMapper.writeValueAsString(ScoreModelInput.from(submission))
         val content = chatClient.prompt().system(systemPrompt).user(userMessage).call().content()
         if (content.isNullOrBlank() || content.length > MAX_RESPONSE_LENGTH) return ScoreAnswer.unreadable()
-        return toAnswer(objectMapper.readTree(content))
+        val json = jsonObjectIn(content) ?: return ScoreAnswer.unreadable()
+        return toAnswer(objectMapper.readTree(json))
+    }
+
+    /** 응답에서 첫 `{`부터 마지막 `}`까지. 중괄호 쌍이 없으면 null이다. */
+    private fun jsonObjectIn(content: String): String? {
+        val start = content.indexOf(JSON_OBJECT_START)
+        val end = content.lastIndexOf(JSON_OBJECT_END)
+        return if (start in 0..<end) content.substring(start, end + 1) else null
     }
 
     private fun toAnswer(response: JsonNode): ScoreAnswer {
@@ -50,5 +59,7 @@ class ScoreClient(
         private const val SUFFICIENT_FIELD = "sufficient"
         private const val SCORES_FIELD = "scores"
         private const val EVIDENCE_FIELD = "evidence"
+        private const val JSON_OBJECT_START = '{'
+        private const val JSON_OBJECT_END = '}'
     }
 }
