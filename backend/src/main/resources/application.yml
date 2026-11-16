@@ -45,9 +45,8 @@ santacut:
   prompt-admin.enabled: ${PROMPT_ADMIN_ENABLED:false}
   # 앱 안의 AI 비용 가드. 기록한 토큰 수 × 단가로 한 달(설정하면 하루도) 비용을 어림해 한도에 닿으면 작업을 잡지 않는다.
   # Gemini는 선불 크레딧으로 쓰므로 하루 한도는 기본으로 끈다(0). 크레딧이 떨어지면 Gemini가 429로 막고 작업자는 잠시 멈춘다.
-  # 항목 점수 수축 x' = (C·m + w·x) / (C + w). C는 평가로 골랐다(backend-design.md §14.9).
+  # 항목 점수 수축 x' = (C·m + w·x) / (C + w). m은 중립 점수(55, 코드 상수), C는 평가로 골랐다(backend-design.md §14.9).
   score.shrinkage:
-    prior: 55
     strength: 0.5
     full-self-turns: 20
   ai.budget:

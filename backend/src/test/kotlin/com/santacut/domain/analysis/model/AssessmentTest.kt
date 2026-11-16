@@ -17,9 +17,9 @@ class AssessmentTest {
 
     @Test
     fun `평가를 기록하면 점수, 판정, 쓴 채점 프롬프트 판 번호를 함께 남긴다`() {
-        val score = Score.weighted(listOf(BigDecimal("80"), BigDecimal("90"), BigDecimal("70"), BigDecimal("60")))
+        val score = Score.shrunk(listOf(BigDecimal("80"), BigDecimal("90"), BigDecimal("70"), BigDecimal("60")), LowConfidenceDimensions.NONE, null)
 
-        val assessment = Assessment.record(job, ScoredAssessment(score, PROMPT_VERSION, QUOTE, EarnedBadges.NONE), COMPONENTS_JSON, recordedAt)
+        val assessment = Assessment.record(job, ScoredAssessment(score, PROMPT_VERSION, QUOTE, EarnedBadges(emptyList())), COMPONENTS_JSON, recordedAt)
 
         assertEquals(participantId.toString(), assessment.userId)
         assertEquals(DataSource.KAKAO, assessment.source)

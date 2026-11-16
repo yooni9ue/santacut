@@ -5,8 +5,6 @@ package com.santacut.domain.analysis.model
  * 평가 행에는 항목 키를 쉼표로 이어 저장한다.
  */
 data class LowConfidenceDimensions(private val values: List<ScoreDimension>) {
-    fun contains(dimension: ScoreDimension): Boolean = dimension in values
-
     /** 모든 항목이 근거 부족인지. 그러면 점수를 매길 내용이 없다고 본다. */
     fun coversAll(): Boolean = values.size == ScoreDimension.entries.size
 

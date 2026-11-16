@@ -162,7 +162,7 @@ class ScoreClientTest {
 
     /** 이 구간 하나의 답으로 보고 수축 없이 점수를 낸다. */
     private fun ScoreAnswer.toScore(@Suppress("UNUSED_PARAMETER") lines: Int): Score =
-        ScoringChunkAnswers(listOf(ScoringChunkAnswer(chunk(), this))).toScore(ScoreShrinkage.NONE)
+        ScoringChunkAnswers(listOf(ScoringChunkAnswer(chunk(), this))).toScore(ScoreShrinkage(BigDecimal.ZERO, 1))
 
     private fun chunk(): ScoringChunk = ScoringChunk.whole(digest())
 

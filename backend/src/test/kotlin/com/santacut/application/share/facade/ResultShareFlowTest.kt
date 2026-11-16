@@ -19,11 +19,12 @@ import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisPayload
 import com.santacut.domain.analysis.model.AnalysisSubmission
-import com.santacut.domain.analysis.model.DataSource
-import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.analysis.model.BadgeRule
+import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.EarnedBadge
 import com.santacut.domain.analysis.model.EarnedBadges
+import com.santacut.domain.analysis.model.IdempotencyKey
+import com.santacut.domain.analysis.model.LowConfidenceDimensions
 import com.santacut.domain.analysis.model.Score
 import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.service.AssessmentService
@@ -196,7 +197,7 @@ class ResultShareFlowTest @Autowired constructor(
         rebuild: Boolean,
         assessedAt: Instant = clock.instant(),
     ) {
-        val score = Score.weighted(scores.map { BigDecimal(it) })
+        val score = Score.shrunk(scores.map { BigDecimal(it) }, LowConfidenceDimensions.NONE, null)
         transactionTemplate.executeWithoutResult {
             assessmentService.record(emptyJob(participantId, assessedAt), ScoredAssessment(score, PROMPT_VERSION, QUOTE, BADGES), assessedAt)
             if (rebuild) rankingService.rebuild(assessedAt, shareService.findAll())

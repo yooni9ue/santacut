@@ -8,19 +8,21 @@ import kotlin.test.assertTrue
 class ScoringChunksTest {
     @Test
     fun `짧은 대화는 한 구간이다`() {
-        val chunks = ScoringChunks.of(digestOf(turns(10, 100)))
+        var calls = 0
+        ScoringChunks.of(digestOf(turns(10, 100))).ask { calls++; ScoreAnswer.insufficient() }
 
-        assertEquals(1, chunks.size())
+        assertEquals(1, calls)
     }
 
     @Test
-    fun `본문이 길면 최대 4구간으로 나누고 앞 구간 끝 줄을 겹쳐 싣는다`() {
+    fun `본문이 길면 최대 4구간으로 나누고 앞 구간 끝 줄을 겹쳐 싣되 겹친 줄은 근거 범위에서 뺀다`() {
         val asked = mutableListOf<ScoringChunk>()
         ScoringChunks.of(digestOf(turns(1000, 50))).ask { chunk -> asked += chunk; ScoreAnswer.insufficient() }
 
         assertEquals(ScoringChunks.MAX_CHUNKS, asked.size)
         assertEquals(1..250, asked[0].lineRange())
-        assertEquals(247..500, asked[1].lineRange())
+        assertEquals(251..500, asked[1].lineRange())
+        assertEquals(247, asked[1].firstNumber)
         assertEquals(125, asked[1].selfTurnCount())
     }
 

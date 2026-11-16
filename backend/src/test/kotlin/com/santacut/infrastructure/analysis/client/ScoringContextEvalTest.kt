@@ -162,14 +162,14 @@ class ScoringContextEvalTest {
 
     private class Run(private val answers: ScoringChunkAnswers, private val chunks: List<ScoringChunkAnswer>) {
         fun score(strength: BigDecimal): Score? =
-            runCatching { answers.toScore(ScoreShrinkage(PRIOR, strength, FULL_SELF_TURNS)) }.getOrNull()
+            runCatching { answers.toScore(ScoreShrinkage(strength, FULL_SELF_TURNS)) }.getOrNull()
 
         fun rawLine(): String = score(BigDecimal.ZERO)?.components?.toList()?.joinToString("/").orEmpty()
 
         fun chunkCount(): Int = chunks.size
 
         fun chunkScores(dimension: ScoreDimension): List<String> = chunks.map { chunkAnswer ->
-            runCatching { ScoringChunkAnswers(listOf(chunkAnswer)).toScore(ScoreShrinkage.NONE).components.scoreOf(dimension).toPlainString() }
+            runCatching { ScoringChunkAnswers(listOf(chunkAnswer)).toScore(ScoreShrinkage(BigDecimal.ZERO, 1)).components.scoreOf(dimension).toPlainString() }
                 .getOrDefault("-")
         }
 
@@ -268,7 +268,6 @@ class ScoringContextEvalTest {
         private val REPETITIONS = System.getenv("EVAL_REPETITIONS")?.toIntOrNull() ?: 3
         private val LONG_REPETITIONS = System.getenv("EVAL_LONG_REPETITIONS")?.toIntOrNull() ?: 0
         private val VARIANT_REPETITIONS = System.getenv("EVAL_VARIANT_REPETITIONS")?.toIntOrNull() ?: 0
-        private val PRIOR = BigDecimal(55)
         private const val FULL_SELF_TURNS = 20
         private val STRENGTHS = listOf(BigDecimal.ZERO, BigDecimal("0.5"), BigDecimal.ONE, BigDecimal(2))
         private val DEFAULT_STRENGTH = BigDecimal("0.5")

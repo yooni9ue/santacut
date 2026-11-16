@@ -7,15 +7,11 @@ class EarnedBadges(private val values: List<EarnedBadge>) {
     /** 표시 라벨 목록. */
     fun labels(): List<String> = values.map { badge -> badge.label() }
 
-    /** 공유 카드에 실을 첫 배지 라벨. 없으면 null이다. */
-    fun firstLabel(): String? = values.firstOrNull()?.label()
-
     /** 평가 행에 저장할 값(`THANKS_MACHINE:12,APOLOGY_SOLD_OUT:0`). 배지가 없으면 빈 문자열이다. */
     fun toColumn(): String = values.joinToString(COLUMN_SEPARATOR) { badge -> badge.toCell() }
 
     companion object {
         private const val COLUMN_SEPARATOR = ","
-        val NONE = EarnedBadges(emptyList())
 
         /** 대화문 [turns]의 본인 줄에서 규칙마다 낱말을 세어 받은 배지만 남긴다. */
         fun countedIn(turns: TranscriptTurns): EarnedBadges = EarnedBadges(

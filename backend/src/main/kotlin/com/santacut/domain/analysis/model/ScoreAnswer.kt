@@ -40,9 +40,9 @@ class ScoreAnswer private constructor(
         if (!dimensionScores.isWithinRange()) throw SantaCutException(ErrorCode.AI_SCORE_OUT_OF_RANGE)
     }
 
-    /** 근거 번호를 [lines] 범위로 거른 항목별 점수. [selfTurns]는 구간의 본인 턴 수다. [verifyAnswered]를 통과한 답에서 부른다. */
-    fun readings(lines: IntRange, selfTurns: Int): DimensionReadings =
-        if (isScored()) dimensionScores.toReadings(evidenceIndices.cleaned(lines), opportunities, selfTurns) else DimensionReadings.EMPTY
+    /** 근거 번호를 [lines] 범위로 거른 항목별 점수. [turnWeight]는 구간의 본인 턴 무게다. [verifyAnswered]를 통과한 답에서 부른다. */
+    fun readings(lines: IntRange, turnWeight: Int): DimensionReadings =
+        if (isScored()) dimensionScores.toReadings(evidenceIndices.cleaned(lines), opportunities, turnWeight) else DimensionReadings.EMPTY
 
     /** [lines] 범위 밖이거나 겹쳐 지운 근거 번호 수. 사용량 로그에 남긴다. */
     fun discardedEvidence(lines: IntRange): Int = evidenceIndices.discardedCount(lines)
@@ -63,6 +63,8 @@ class ScoreAnswer private constructor(
     companion object {
         private val NO_SCORES = DimensionScores(emptyList())
         private val NO_EVIDENCE = EvidenceIndices(emptyList())
+        private const val MIN_PLAYFULNESS = 0
+        private const val MAX_PLAYFULNESS = 100
 
         /** 응답이 비었거나 너무 길어 읽지 않았다. */
         fun unreadable(usage: ModelUsage = ModelUsage.NONE): ScoreAnswer = failed(usage, Reply.UNREADABLE)
@@ -80,6 +82,7 @@ class ScoreAnswer private constructor(
          * @param dimensionScores [ScoreDimension] 순서의 점수. 숫자가 아니면 null이다.
          * @param evidenceIndices 항목별 1부터 시작하는 근거 줄 번호. 해석할 수 없는 값은 -1이다.
          * @param opportunities 항목별 기회 수. 받지 못했으면 null이다.
+         * @param playfulness 장난기. 0~100 밖이면 받지 않은 것으로 본다.
          */
         fun of(
             dimensionScores: List<BigDecimal?>,
@@ -89,7 +92,7 @@ class ScoreAnswer private constructor(
             opportunities: List<Int?> = emptyList(),
             playfulness: Int? = null,
         ): ScoreAnswer = ScoreAnswer(
-            usage, playfulness, Reply.SCORED, DimensionScores(dimensionScores), EvidenceIndices(evidenceIndices),
+            usage, playfulness?.takeIf { it in MIN_PLAYFULNESS..MAX_PLAYFULNESS }, Reply.SCORED, DimensionScores(dimensionScores), EvidenceIndices(evidenceIndices),
             DimensionOpportunities(opportunities), shape,
         )
     }

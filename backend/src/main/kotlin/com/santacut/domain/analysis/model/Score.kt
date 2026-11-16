@@ -25,13 +25,6 @@ class Score private constructor(
          */
         const val RULE_VERSION = 2
 
-        /** [ScoreDimension] 순서의 항목 점수로 가중 합계를 낸다. [lowConfidence]는 근거가 부족해 중립 점수를 준 항목이다. */
-        fun weighted(components: List<BigDecimal>, lowConfidence: LowConfidenceDimensions = LowConfidenceDimensions.NONE): Score {
-            val scoreComponents = ScoreComponents(components)
-            if (!scoreComponents.isValid()) throw SantaCutException(ErrorCode.AI_SCORE_OUT_OF_RANGE)
-            return Score(scoreComponents.weightedHundredths(), scoreComponents, lowConfidence, null)
-        }
-
         /**
          * 수축한 정밀 항목 점수 [precise]로 합계를 낸다. 합계는 정밀 값의 가중 합을 한 번만 반올림하고,
          * 저장·표시용 항목 점수는 소수 둘째 자리로 반올림한다.

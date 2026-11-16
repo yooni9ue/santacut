@@ -52,7 +52,8 @@ class TranscriptTurns(private val values: List<TranscriptTurn>) {
     }
 
     companion object {
-        private const val FIRST_NUMBER = 1
+        /** 대화문 첫 줄의 번호. 근거 번호와 구간 번호가 모두 이 값에서 시작한다. */
+        const val FIRST_NUMBER = 1
 
         /** 이보다 짧은 토막(ㅇㅇ, ㅋㅋ)은 한마디로 고르지 않는다. */
         private const val MIN_QUOTE_CHARS = 4

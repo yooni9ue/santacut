@@ -5,8 +5,6 @@ package com.santacut.domain.analysis.model
  * 본문이 [CHUNK_CHARS]자 이하면 한 구간이고, 길면 [MAX_CHUNKS]개까지 본문 길이가 비슷하게 나눈다.
  */
 class ScoringChunks(private val values: List<ScoringChunk>) {
-    fun size(): Int = values.size
-
     /** 모든 구간 호출의 어림 사용량 합. 비용 가드가 호출 전에 한 번에 확인한다. */
     fun estimate(estimator: (ScoringChunk) -> ModelUsage): ModelUsage =
         values.fold(ModelUsage.NONE) { total, chunk -> total + estimator(chunk) }
@@ -46,7 +44,7 @@ class ScoringChunks(private val values: List<ScoringChunk>) {
         private fun chunkOf(digest: ScoringDigest, start: Int, end: Int): ScoringChunk {
             val from = (start - OVERLAP_TURNS).coerceAtLeast(0)
             val omitted = if (start == 0) digest.omittedTurns else 0
-            return ScoringChunk(digest.turns.slice(from, end), from + ScoringChunk.FIRST_NUMBER, start - from, omitted)
+            return ScoringChunk(digest.turns.slice(from, end), from + TranscriptTurns.FIRST_NUMBER, start - from, omitted)
         }
     }
 }
