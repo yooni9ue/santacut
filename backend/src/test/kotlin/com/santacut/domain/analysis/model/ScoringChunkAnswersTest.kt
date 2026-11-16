@@ -15,7 +15,7 @@ class ScoringChunkAnswersTest {
         val first = chunkAnswer(chunk(1, 20), scored(90, opportunity = 2))
         val second = chunkAnswer(chunk(21, 20), scored(30, opportunity = 0, firstNumber = 21))
 
-        val score = ScoringChunkAnswers(listOf(first, second)).toScore(ScoreShrinkage(BigDecimal.ZERO, 1))
+        val score = ScoringChunkAnswers(listOf(first, second)).toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false))
 
         assertEquals(BigDecimal(75), score.components.scoreOf(ScoreDimension.CARE_EMPATHY))
     }
@@ -24,21 +24,21 @@ class ScoringChunkAnswersTest {
     fun `근거 부족 구간은 빼고 합치며 모두 근거 부족이면 근거 부족 오류다`() {
         val answers = ScoringChunkAnswers(listOf(chunkAnswer(chunk(1, 20), ScoreAnswer.insufficient()), chunkAnswer(chunk(21, 20), scored(70, firstNumber = 21))))
 
-        assertEquals(7000, answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1)).hundredths)
+        assertEquals(7000, answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)).hundredths)
         val none = ScoringChunkAnswers(listOf(chunkAnswer(chunk(1, 20), ScoreAnswer.insufficient())))
-        assertEquals(ErrorCode.INSUFFICIENT_EVIDENCE, assertFailsWith<SantaCutException> { none.toScore(ScoreShrinkage(BigDecimal.ZERO, 1)) }.errorCode)
+        assertEquals(ErrorCode.INSUFFICIENT_EVIDENCE, assertFailsWith<SantaCutException> { none.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)) }.errorCode)
     }
 
     @Test
     fun `한 구간이라도 읽을 수 없으면 작업 전체가 응답 오류다`() {
         val answers = ScoringChunkAnswers(listOf(chunkAnswer(chunk(1, 20), scored(70)), chunkAnswer(chunk(21, 20), ScoreAnswer.unreadable())))
 
-        assertEquals(ErrorCode.AI_RESPONSE_INVALID, assertFailsWith<SantaCutException> { answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1)) }.errorCode)
+        assertEquals(ErrorCode.AI_RESPONSE_INVALID, assertFailsWith<SantaCutException> { answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)) }.errorCode)
     }
 
     @Test
     fun `수축한 정밀 점수로 합계를 한 번만 반올림한다`() {
-        val shrinkage = ScoreShrinkage(BigDecimal.ONE, 20)
+        val shrinkage = ScoreShrinkage(BigDecimal.ONE, 20, personalPrior = false)
 
         val score = ScoringChunkAnswers(listOf(chunkAnswer(chunk(1, 40), scored(80)))).toScore(shrinkage)
 
@@ -52,7 +52,7 @@ class ScoringChunkAnswersTest {
             listOf(chunkAnswer(chunk(1, 20), scored(70, playfulness = 90)), chunkAnswer(chunk(21, 60), scored(70, playfulness = 10, firstNumber = 21))),
         )
 
-        assertEquals(30, answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1)).playfulness)
+        assertEquals(30, answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)).playfulness)
     }
 
     @Test
@@ -67,8 +67,8 @@ class ScoringChunkAnswersTest {
             listOf(chunkAnswer(chunk, ScoreAnswer.of(List(4) { BigDecimal(70) }, List(4) { listOf(1) }, "test"))),
         )
 
-        assertEquals("덕분에 살았다", answers.quoteOf(answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1))))
-        assertNull(partnerOnly.quoteOf(partnerOnly.toScore(ScoreShrinkage(BigDecimal.ZERO, 1))))
+        assertEquals("덕분에 살았다", answers.quoteOf(answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false))))
+        assertNull(partnerOnly.quoteOf(partnerOnly.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false))))
     }
 
     private fun scored(value: Int, opportunity: Int = 2, playfulness: Int? = null, firstNumber: Int = 1): ScoreAnswer =

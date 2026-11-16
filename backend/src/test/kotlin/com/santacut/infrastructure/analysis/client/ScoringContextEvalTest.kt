@@ -14,6 +14,7 @@ import com.santacut.domain.analysis.model.ScoringChunkAnswer
 import com.santacut.domain.analysis.model.ScoringChunkAnswers
 import com.santacut.domain.analysis.model.ScoringChunks
 import com.santacut.domain.analysis.model.ScoringDigest
+import com.santacut.domain.global.config.ScoreShrinkageProperties
 import com.santacut.domain.global.model.SeoulTime
 import com.santacut.domain.global.model.Sha256
 import com.santacut.infrastructure.global.config.ScoreModelProperties
@@ -197,7 +198,7 @@ class ScoringContextEvalTest {
     private class Run(private val answers: ScoringChunkAnswers, private val chunks: List<ScoringChunkAnswer>) {
         fun score(shrinkage: ScoreShrinkage): Score? = runCatching { answers.toScore(shrinkage) }.getOrNull()
 
-        fun rawLine(): String = score(ScoreShrinkage(BigDecimal.ZERO, 1))?.components?.toList()?.joinToString("/").orEmpty()
+        fun rawLine(): String = score(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false))?.components?.toList()?.joinToString("/").orEmpty()
 
         fun chunkCount(): Int = chunks.size
 
@@ -208,7 +209,7 @@ class ScoringContextEvalTest {
         }
 
         fun chunkScores(dimension: ScoreDimension): List<String> = chunks.map { chunkAnswer ->
-            runCatching { ScoringChunkAnswers(listOf(chunkAnswer)).toScore(ScoreShrinkage(BigDecimal.ZERO, 1)).components.scoreOf(dimension).toPlainString() }
+            runCatching { ScoringChunkAnswers(listOf(chunkAnswer)).toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)).components.scoreOf(dimension).toPlainString() }
                 .getOrDefault("-")
         }
 
@@ -339,17 +340,17 @@ class ScoringContextEvalTest {
         private val VARIANT_NAMES = System.getenv("EVAL_VARIANT_NAMES")?.split(",") ?: listOf("half", "double", "group")
         private const val FULL_SELF_TURNS = 20
         private val SHRINKAGES = listOf(
-            ScoreShrinkage(BigDecimal.ZERO, FULL_SELF_TURNS),
-            ScoreShrinkage(BigDecimal("0.5"), FULL_SELF_TURNS),
-            ScoreShrinkage(BigDecimal.ONE, FULL_SELF_TURNS),
-            ScoreShrinkage(BigDecimal("0.25"), FULL_SELF_TURNS),
-            ScoreShrinkage(BigDecimal("0.5"), 10),
-            ScoreShrinkage(BigDecimal("0.5"), 5),
-            ScoreShrinkage(BigDecimal("0.25"), 10),
-            ScoreShrinkage(BigDecimal("0.25"), 5),
+            ScoreShrinkage(BigDecimal.ZERO, FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.5"), FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal.ONE, FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.25"), FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.5"), 10, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.5"), 5, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.25"), 10, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.25"), 5, personalPrior = false),
             ScoreShrinkage(BigDecimal("0.25"), 5, personalPrior = true),
         )
-        private val DEFAULT_SHRINKAGE = ScoreShrinkage(BigDecimal("0.25"), 5)
+        private val DEFAULT_SHRINKAGE = ScoreShrinkageProperties().toShrinkage()
         private const val LENGTH_BASELINE_FILE = "build/eval/length-baseline.txt"
         private val BASELINE_REPETITIONS = System.getenv("EVAL_BASELINE_REPETITIONS")?.toIntOrNull() ?: 3
         private const val BASELINE_MAX_OUTPUT_TOKENS = 1024
