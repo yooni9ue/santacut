@@ -111,7 +111,10 @@ jobs:
       - name: Install pinned Vercel CLI
         run: npm install --global vercel@65.16.0
       - name: Pull branch environment settings
-        run: vercel pull --yes --environment="$VERCEL_TARGET" --git-branch="$GITHUB_REF_NAME" --token="$VERCEL_TOKEN"
+        run: |
+          flags=()
+          if [ "$VERCEL_TARGET" = preview ]; then flags+=(--git-branch="$GITHUB_REF_NAME"); fi
+          vercel pull --yes --environment="$VERCEL_TARGET" "${flags[@]}" --token="$VERCEL_TOKEN"
       - name: Build Vercel output
         run: |
           flags=()
@@ -122,7 +125,7 @@ jobs:
         run: |
           flags=()
           if [ "$VERCEL_TARGET" = production ]; then flags+=(--prod); fi
-          deployment_url=$(vercel deploy --prebuilt "${flags[@]}" --token="$VERCEL_TOKEN")
+          deployment_url=$(vercel deploy --prebuilt --environment="$VERCEL_TARGET" "${flags[@]}" --token="$VERCEL_TOKEN")
           printf 'url=%s\n' "$deployment_url" >> "$GITHUB_OUTPUT"
           printf 'Vercel %s (%s): %s\n' "$VERCEL_TARGET" "$GITHUB_REF_NAME" "$deployment_url" >> "$GITHUB_STEP_SUMMARY"
       - name: Update stable development domain
