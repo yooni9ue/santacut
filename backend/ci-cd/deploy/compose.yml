@@ -23,7 +23,8 @@ services:
       - santacut_data:/app/data
     read_only: true
     tmpfs:
-      - /tmp:size=64m,mode=1777
+      # SQLite JDBC가 네이티브 라이브러리를 /tmp에 풀어 실행하므로 exec가 필요하다(Docker tmpfs 기본값은 noexec).
+      - /tmp:size=64m,mode=1777,exec
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
     mem_limit: 400m
