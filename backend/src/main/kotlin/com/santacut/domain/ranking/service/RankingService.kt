@@ -1,5 +1,6 @@
 package com.santacut.domain.ranking.service
 
+import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.Assessments
 import com.santacut.domain.global.config.AppProperties
 import com.santacut.domain.global.exception.ErrorCode
@@ -12,6 +13,7 @@ import com.santacut.domain.ranking.model.RankingBoard
 import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.model.RankingRows
 import com.santacut.domain.ranking.model.RankingStage
+import com.santacut.domain.ranking.model.ResultProfile
 import com.santacut.domain.ranking.model.ResultSnapshot
 import com.santacut.domain.ranking.model.ResultSnapshots
 import com.santacut.domain.ranking.model.Season
@@ -63,6 +65,15 @@ class RankingService(
         return RankedResult.of(latest, findLatestSnapshot(participantId)) { assessmentId ->
             assessmentRepository.findById(assessmentId).orElse(null)
         }
+    }
+
+    /**
+     * [assessment]와 그 순위 [snapshot]의 재미용 꾸밈 값(유형, 항목 막대, 상위 비율, 배지, 한마디).
+     * 장난기 기준값과 유형 비율은 지금 참가자별 최신 평가로, 상위 비율은 그 순위 계산의 참가자 수로 계산한다.
+     */
+    fun findProfile(assessment: Assessment, snapshot: ResultSnapshot?): ResultProfile {
+        val participantCount = snapshot?.let { resultSnapshotRepository.countByComputedAt(it.computedAt) } ?: 0
+        return ResultProfile.of(assessment, snapshot, Assessments(assessmentRepository.findLatestForEachUser()), participantCount)
     }
 
     /** 가장 최근 순위 계산 결과의 한 페이지와 참가자 수, 계산 시각, 확정 상태. */

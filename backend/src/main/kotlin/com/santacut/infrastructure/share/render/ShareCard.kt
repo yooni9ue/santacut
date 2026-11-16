@@ -9,6 +9,10 @@ package com.santacut.infrastructure.share.render
  * @property computedAt 서울 시각으로 표시한 순위 계산 시각
  * @property stage 공유 당시 순위 상태(예: `미리보기`, `시즌 확정`)
  * @property sharedAt 서울 시각으로 표시한 공유 시각
+ * @property archetype 산타 유형 이름. 예전 링크면 빈 문자열이다.
+ * @property bars 항목 막대 요약(예: `공감 72 · 응원 65 · 존중 70 · 협력 58`). 예전 링크면 빈 문자열이다.
+ * @property highlights 배지, 상위 %, 가장 약한 항목을 이은 줄
+ * @property quote 본인이 싣기로 고른 한마디. 없으면 null이다. 상대 말은 들어오지 않는다.
  */
 data class ShareCard(
     val token: String,
@@ -21,4 +25,8 @@ data class ShareCard(
     val computedAt: String,
     val stage: String,
     val sharedAt: String,
+    val archetype: String = "",
+    val bars: String = "",
+    val highlights: String = "",
+    val quote: String? = null,
 )

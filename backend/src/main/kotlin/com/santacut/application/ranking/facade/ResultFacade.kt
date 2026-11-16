@@ -16,10 +16,11 @@ class ResultFacade(
     private val clock: Clock,
 ) {
     @Transactional(readOnly = true)
-    fun getMyResult(command: MyResultCommand): MyRankingResult = MyRankingResult.from(
-        rankingService.findLatestResult(command.participantId),
-        rankingService.stageAt(clock.instant()),
-    )
+    fun getMyResult(command: MyResultCommand): MyRankingResult {
+        val result = rankingService.findLatestResult(command.participantId)
+        val profile = rankingService.findProfile(result.assessment, result.snapshot)
+        return MyRankingResult.from(result, profile, rankingService.stageAt(clock.instant()))
+    }
 
     @Transactional(readOnly = true)
     fun getRankings(command: RankingPageCommand): RankingBoardResult = RankingBoardResult.from(

@@ -75,6 +75,12 @@ class ResultShareFlowTest @Autowired constructor(
         assertEquals(1, myResult.deliverySequence)
         assertEquals(PREVIEW, myResult.stage)
         assertFalse(myResult.rankingPending)
+        assertEquals("TREE_TOP_STAR", myResult.archetypeCode)
+        assertEquals(listOf("공감", "응원", "존중", "협력"), myResult.dimensionBars.values.map { it.label })
+        assertEquals("cooperation_sharing", myResult.weakestDimension.key)
+        assertNull(myResult.topPercent)
+        assertEquals(listOf("고마워 12회 · 감사 자판기"), myResult.badges)
+        assertEquals(QUOTE, myResult.quote)
         return myResult
     }
 
@@ -94,10 +100,14 @@ class ResultShareFlowTest @Autowired constructor(
         assertEquals(link.token, shareFacade.createShare(CreateShareCommand(participantId)).token)
         val page = shareFacade.getPublicPage(PublicShareCommand(link.token)).html
         assertTrue(page.contains(nickname) && page.contains("공유 당시 결과") && page.contains("미리보기"))
+        assertTrue(page.contains("트리 꼭대기 별") && page.contains("감사 자판기") && page.contains("공감 80"))
+        assertFalse(page.contains(QUOTE))
         assertTrue(shareFacade.getPublicImage(PublicShareCommand(link.token)).png.isNotEmpty())
 
         shareFacade.revokeShare(RevokeShareCommand(participantId, link.token))
         assertErrorCode(ErrorCode.SHARE_NOT_FOUND) { shareFacade.getPublicPage(PublicShareCommand(link.token)) }
+        val quoted = shareFacade.createShare(CreateShareCommand(participantId, includeQuote = true))
+        assertTrue(shareFacade.getPublicPage(PublicShareCommand(quoted.token)).html.contains(QUOTE))
         shareFacade.revokeShare(RevokeShareCommand(participantId, quoted.token))
     }
 
