@@ -62,8 +62,12 @@ data class MyResultResponse(
     )
     val topPercent: Int?,
     @field:JsonProperty("archetype_share_percent")
-    @field:Schema(description = "같은 유형인 참가자 비율(%, 반올림). 희귀도 표시에 씁니다.", example = "8")
-    val archetypeSharePercent: Int,
+    @field:Schema(
+        description = "같은 유형인 참가자 비율(%, 반올림). 희귀도 표시에 씁니다. 점수를 받은 참가자가 30명보다 적으면 null이며, 이때는 숨깁니다.",
+        nullable = true,
+        example = "8",
+    )
+    val archetypeSharePercent: Int?,
     @field:ArraySchema(
         arraySchema = Schema(description = "본인 말에서 낱말 횟수로 받은 재미용 배지 라벨. 점수에는 영향이 없습니다. 없으면 빈 배열입니다."),
         schema = Schema(example = "고마워 12회 · 감사 자판기"),

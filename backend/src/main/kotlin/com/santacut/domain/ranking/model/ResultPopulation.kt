@@ -38,11 +38,14 @@ class ResultPopulation(
     /** [assessment]의 유형. 장난기 높낮이는 저장한 기준값으로 가른다. */
     fun archetypeOf(assessment: Assessment): Archetype = assessment.archetype(playfulnessSplit)
 
-    /** 유형이 [archetype]인 참가자 비율(%). */
-    fun sharePercentOf(archetype: Archetype): Int = ArchetypeCounts.fromColumn(archetypeCounts).sharePercentOf(archetype)
+    /** 유형이 [archetype]인 참가자 비율(%). 참가자가 [ArchetypeCounts.MIN_PARTICIPANTS_FOR_SHARE]명보다 적으면 null이다. */
+    fun sharePercentOf(archetype: Archetype): Int? = ArchetypeCounts.fromColumn(archetypeCounts).sharePercentOf(archetype)
 
     companion object {
         const val LATEST_ID = 1
+
+        /** 평가가 하나도 없을 때의 분포. 기준값은 기본값이고 유형 비율은 모두 null이다. */
+        val EMPTY: ResultPopulation get() = of(Assessments(emptyList()))
 
         /** 참가자별 최신 평가 [population]으로 기준값과 유형 분포를 센다. */
         fun of(population: Assessments): ResultPopulation {

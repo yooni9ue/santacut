@@ -30,6 +30,7 @@ class ResultProfileTest {
         assertEquals(Archetype.HOT_COCOA_COURIER, ResultProfile.of(mine, null, few, 0).archetype)
         assertEquals(Archetype.FIREPLACE_KEEPER, ResultProfile.of(mine, null, many, 0).archetype)
         assertEquals(3, ResultProfile.of(mine, null, many, 0).archetypeSharePercent)
+        assertNull(ResultProfile.of(mine, null, few, 0).archetypeSharePercent)
     }
 
     @Test

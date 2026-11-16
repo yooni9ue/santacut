@@ -41,13 +41,15 @@ class RankingService(
      * 참가자별 최신 평가로 순위와 배송 예정 시각을 새로 계산해 저장한다.
      * 배송이 시작된 뒤에는 순위를 고정한다. 동시에 두 번 계산하지 않도록 직렬화한다.
      * 결과 화면이 쓰는 장난기 기준값과 유형 분포([ResultPopulation])도 같은 평가로 함께 센다.
+     * 마감 뒤에도 참가자 삭제로 분포가 바뀌므로 분포만은 다시 센다.
      * [shares]는 지우면 안 되는 스냅숏을 알려 주는 현재 공유 링크 목록이다.
      */
     @Synchronized
     fun rebuild(computedAt: Instant, shares: Shares) {
         val season = season()
-        if (season.isClosedAt(computedAt)) return
         val latest = Assessments(assessmentRepository.findLatestForEachUser())
+        resultPopulationRepository.save(ResultPopulation.of(latest))
+        if (season.isClosedAt(computedAt)) return
         val entries = latest.toRankingEntries(
             Participants(participantRepository.findAll()),
             Regions(regionRepository.findAll()),
@@ -55,7 +57,15 @@ class RankingService(
         val snapshots = entries.toSnapshots(origin(), season.deliveryStart(), computedAt)
         pruneSnapshots(shares)
         resultSnapshotRepository.saveAll(snapshots.toList())
-        resultPopulationRepository.save(ResultPopulation.of(latest))
+    }
+
+    /**
+     * 장난기 기준값과 유형 분포를 지금 평가로 다시 센다. 앱이 뜰 때 불러, 시즌 마감 뒤라도 저장한 행이 늘 있게 하고
+     * 유형 규칙이 바뀐 배포 뒤의 분포도 맞춘다.
+     */
+    @Synchronized
+    fun refreshPopulation() {
+        resultPopulationRepository.save(ResultPopulation.of(Assessments(assessmentRepository.findLatestForEachUser())))
     }
 
     fun findLatestSnapshot(participantId: UUID): ResultSnapshot? =
@@ -75,13 +85,13 @@ class RankingService(
 
     /**
      * [assessment]와 그 순위 [snapshot]의 재미용 꾸밈 값(유형, 항목 막대, 상위 비율, 배지, 한마디).
-     * 장난기 기준값과 유형 비율은 순위 계산 때 저장한 값을 읽는다. 배포 직후처럼 저장한 값이 아직 없을 때만 평가 전체로 센다.
+     * 장난기 기준값과 유형 비율은 순위 계산과 앱 시작 때 저장한 값([refreshPopulation])만 읽고 평가 전체를 세지 않는다.
+     * 저장한 값이 없으면(평가가 하나도 없던 때) 빈 분포로 본다.
      * 상위 비율은 그 순위 계산의 참가자 수로 낸다.
      */
     fun findProfile(assessment: Assessment, snapshot: ResultSnapshot?): ResultProfile {
         val participantCount = snapshot?.let { resultSnapshotRepository.countByComputedAt(it.computedAt) } ?: 0
-        val population = resultPopulationRepository.findById(ResultPopulation.LATEST_ID).orElse(null)
-            ?: ResultPopulation.of(Assessments(assessmentRepository.findLatestForEachUser()))
+        val population = resultPopulationRepository.findById(ResultPopulation.LATEST_ID).orElse(null) ?: ResultPopulation.EMPTY
         return ResultProfile.of(assessment, snapshot, population, participantCount)
     }
 
