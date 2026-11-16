@@ -1,6 +1,6 @@
 name: santacut
 
-# 서버(512MB, 스왑 1GB)에 맞춘 구성이다. 앱 설정과 AWS 키는 /run/santacut/app.env(tmpfs)에서 읽는다.
+# 서버(512MB, 스왑 1GB)에 맞춘 구성이다. 앱 설정과 GEMINI_API_KEY는 /run/santacut/app.env(tmpfs)에서 읽는다.
 # 보간용 값(APP_IMAGE를 뺀 나머지)도 같은 파일을 --env-file로 넘긴다. CI 검증만 APP_ENV_FILE로 예시 파일을 쓴다.
 services:
   app:
