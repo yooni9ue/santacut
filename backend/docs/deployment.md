@@ -61,7 +61,7 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 | `santacut.ai.budget.monthly-usd` (`AI_BUDGET_MONTHLY_USD`) | `9` | 앱 안의 AI 비용 가드 한 달 한도(달러). 넣지 않아도 된다 |
 
 - 단가(입력·출력 100만 토큰당 0.3·2.5달러), 멈춤 시간(15분), 연속 실패 기준(3번)은 `application.yml`의 `santacut.ai.budget`에 있다.
-- 출력 토큰 상한(`max-output-tokens`)은 250이고 `application.yml`에 있다. 3.5 Flash-Lite는 생각 토큰이 기본으로 꺼져 있다. `thinking-budget`을 넣으면 Gemini가 요청을 거절하므로 두지 않는다.
+- 출력 토큰 상한(`max-output-tokens`)은 250이고 `application.yml`에 있다. 3.5 Flash-Lite는 생각을 끌 수 없어 `thinking-level: MINIMAL`로 둔다. 생각 토큰은 출력 단가로 청구되고 이 상한을 함께 쓴다. `thinking-budget`을 넣으면 Gemini가 요청을 거절하므로 두지 않는다.
 - Gemini 호출 하나의 시간 상한은 60초이고 SDK 재시도는 하지 않는다. `GeminiClientConfiguration`에 있다.
 
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
