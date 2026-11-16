@@ -40,7 +40,7 @@ Caddy 사이트 주소는 `DOMAIN`을 따른다. Caddyfile은 `{$SITE_ADDRESS::8
 - 앱은 AWS 기본 자격 증명 체인으로 환경 변수의 키를 읽는다. 키를 Spring 설정에 따로 적지 않는다.
 - CI는 `APP_ENV_FILE=.env.example`로 예시 파일을 넣어 Compose 구문만 검사한다.
 
-GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR에 게시한다. 운영 배포는 `workflow_dispatch`에서 `deploy=true`를 고른다. 릴리스 묶음에는 `compose.yml`, `Caddyfile`, `deploy.sh`, `backup.sh`가 들어간다. 배포 스크립트는 검증한 image digest를 쓰고 readiness를 확인한다.
+GitHub Actions는 PR, `develop`, `main`에서 검증한다. `develop`과 `main`에 푸시된 커밋 이미지는 GHCR에 게시한다(`ghcr.io/yooni9ue/santacut:<sha>`, `develop`은 `:develop` 태그도 붙인다). 운영 배포는 `workflow_dispatch`에서 `deploy=true`를 고른다. 릴리스 묶음에는 `compose.yml`, `Caddyfile`, `deploy.sh`, `backup.sh`가 들어간다. 배포 스크립트는 검증한 image digest를 쓰고 readiness를 확인한다.
 
 ### 운영 설정 키
 
@@ -99,7 +99,29 @@ Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보�
 - `upload_cutoff=5G`로 멀티파트 업로드를 피한다.
 - 앱 사용자는 `backups/*`에만 쓸 수 있다.
 
-age 암호화는 뺐다. 2026-11 전에 age로 만든 백업 복구는 인프라 레포 9절을 따른다.
+age 암호화는 뺐다. 2026-11 전에 age로 만든 백업 ### dev 자동 배포
+
+`backend/**`를 바꾼 커밋이 `develop`에 푸시되면 `deploy-dev` 잡이 `test` → `publish` 다음에 dev 서버(`https://api-dev.santacut.me`)로 배포한다. 동시에 하나만 돈다(`concurrency: dev-deploy`).
+
+1. GitHub Environment `dev`(배포 브랜치는 `develop`만)에서 OIDC로 `santacut-app-deploy-dev` 역할을 맡는다.
+2. 러너 IP `/32`에 Lightsail 22번을 연다.
+3. 릴리스 묶음을 `scp`로 올리고 `deploy.sh <image@digest> /opt/santacut/releases/<sha>`를 돌린다. 이어서 `/opt/santacut/current-image`가 방금 올린 digest와 같은지 대조한다.
+4. `https://api-dev.santacut.me/v3/api-docs`를 호출해 응답을 확인한다.
+5. 성공하든 실패하든(`if: always()`) 러너 CIDR만 닫는다. 닫은 뒤 22번에 러너 CIDR이 남아 있으면 잡을 실패시킨다. 운영자 CIDR이 빠졌으면 다시 연다.
+
+Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정한 CIDR만 뺀다(2026-11-17 dev에서 확인). 그래서 운영자 CIDR은 배포 뒤에도 그대로 남는다.
+
+`dev` Environment 설정:
+
+| 종류 | 이름 | 값 |
+| --- | --- | --- |
+| 변수 | `AWS_DEPLOY_ROLE_ARN` | 인프라 출력 `app_deploy_role_arns.dev` |
+| 변수 | `DEV_DEPLOY_HOST`, `DEV_DEPLOY_USER` | `54.180.194.120`, `ubuntu` |
+| 변수 | `DEV_OPERATOR_SSH_CIDR` | 운영자 SSH CIDR(`SSH_ALLOWED_CIDRS`와 같은 값) |
+| 시크릿 | `DEV_DEPLOY_SSH_KEY` | 배포용 SSH 개인 키 |
+| 시크릿 | `DEV_DEPLOY_KNOWN_HOSTS` | `ssh-keyscan 54.180.194.120` 결과 |
+
+복구는 인프라 레포 9절을 따른다.
 
 복구는 인프라 레포 `docs/operations.md` 9절 "S3 백업에서 SQLite 복원"을 따른다. 운영 볼륨에 바로 덮어쓰지 말고, 내려받은 파일의 `PRAGMA integrity_check`부터 확인한다.
 
