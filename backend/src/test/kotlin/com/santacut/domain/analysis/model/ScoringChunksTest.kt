@@ -55,7 +55,7 @@ class ScoringChunksTest {
     @Test
     fun `한 구간 대화는 반복 호출 수만큼 묻고 사용량을 모두 싣는다`() {
         val calls = AtomicInteger()
-        val answers = ScoringChunks.of(digestOf(turns(10, 100))).ask(3) { calls.incrementAndGet(); ScoreAnswer.insufficient(ModelUsage(100, 10, "STOP")) }
+        val answers = ScoringChunks.of(digestOf(turns(10, 100))).ask(3, IN_TURN) { calls.incrementAndGet(); ScoreAnswer.insufficient(ModelUsage(100, 10, "STOP")) }
 
         assertEquals(3, calls.get())
         assertEquals(1, answers.size())
@@ -66,7 +66,7 @@ class ScoringChunksTest {
     fun `반복 호출 수가 1이면 예전처럼 한 번만 묻고 그 답을 그대로 쓴다`() {
         var calls = 0
         val answer = ScoreAnswer.insufficient(ModelUsage(100, 10, "STOP"))
-        val answers = ScoringChunks.of(digestOf(turns(10, 100))).ask(1) { calls++; answer }
+        val answers = ScoringChunks.of(digestOf(turns(10, 100))).ask(1, IN_TURN) { calls++; answer }
 
         assertEquals(1, calls)
         assertEquals(answer.usage, answers.usage())
@@ -75,7 +75,7 @@ class ScoringChunksTest {
     @Test
     fun `여러 구간 대화는 반복 호출 수와 상관없이 구간마다 한 번 묻는다`() {
         val calls = AtomicInteger()
-        ScoringChunks.of(digestOf(turns(1000, 50))).ask(3) { calls.incrementAndGet(); ScoreAnswer.insufficient() }
+        ScoringChunks.of(digestOf(turns(1000, 50))).ask(3, IN_TURN) { calls.incrementAndGet(); ScoreAnswer.insufficient() }
 
         assertEquals(ScoringChunks.MAX_CHUNKS, calls.get())
     }
@@ -96,6 +96,9 @@ class ScoringChunksTest {
     }
 
     companion object {
+        /** 반복 호출을 차례로 부르는 표본기. */
+        private val IN_TURN: (Int, () -> ScoreAnswer) -> List<ScoreAnswer> = { count, asker -> List(count) { asker() } }
+
         private const val PARTNER = "상대"
         private val NOON: LocalDateTime = LocalDateTime.of(2026, 11, 1, 12, 0)
     }

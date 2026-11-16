@@ -17,16 +17,17 @@ class ScoringChunks(private val values: List<ScoringChunk>) {
     /**
      * 한 구간이면 같은 구간을 [samples]번 동시에 따로 묻고 항목별 중앙값([ScoreAnswers.median])으로 합친다.
      * 여러 구간이면 구간마다 한 번씩 묻는다([ask]). 구간 호출이 이미 잡음을 평균하기 때문이다. [samples]가 1이면 예전과 같다.
-     * 반복 호출을 어떻게 돌릴지(차례로, 동시에)는 [sampler]가 정한다. 기본은 차례로 부른다.
+     * 반복 호출을 어떻게 돌릴지(차례로, 동시에)는 [sampler]가 정한다.
      */
     fun ask(
         samples: Int,
-        sampler: (Int, () -> ScoreAnswer) -> List<ScoreAnswer> = ::askInTurn,
+        sampler: (Int, () -> ScoreAnswer) -> List<ScoreAnswer>,
         asker: (ScoringChunk) -> ScoreAnswer,
     ): ScoringChunkAnswers {
         if (callsPerChunk(samples) == 1) return ask(asker)
         val chunk = values.single()
-        return ScoringChunkAnswers(listOf(ScoringChunkAnswer(chunk, ScoreAnswers(sampler(samples) { asker(chunk) }).median())))
+        val answer = ScoreAnswers(sampler(samples) { asker(chunk) }).median()
+        return ScoringChunkAnswers(listOf(ScoringChunkAnswer(chunk, answer)))
     }
 
     /** 구간 하나를 몇 번 묻는지. 한 구간일 때만 [samples]번이고, 나머지는 한 번이다. */
@@ -60,8 +61,6 @@ class ScoringChunks(private val values: List<ScoringChunk>) {
             val bounds = digest.turns.partitionBounds(chunkCount(digest.turns.totalLength()))
             return ScoringChunks(bounds.zipWithNext { start, end -> chunkOf(digest, start, end) })
         }
-
-        private fun askInTurn(count: Int, asker: () -> ScoreAnswer): List<ScoreAnswer> = List(count) { asker() }
 
         private fun chunkCount(totalChars: Int): Int =
             ((totalChars + CHUNK_CHARS - 1) / CHUNK_CHARS).coerceIn(1, MAX_CHUNKS)
