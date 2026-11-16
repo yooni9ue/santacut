@@ -1,38 +1,40 @@
 name: santacut
 
+# 서버(512MB, 스왑 1GB)에 맞춘 구성이다. 앱 설정과 GEMINI_API_KEY는 /run/santacut/app.env(tmpfs)에서 읽는다.
+# 보간용 값(APP_IMAGE를 뺀 나머지)도 같은 파일을 --env-file로 넘긴다. CI 검증만 APP_ENV_FILE로 예시 파일을 쓴다.
 services:
   app:
     image: ${APP_IMAGE:?Use an immutable GHCR image digest}
     restart: unless-stopped
+    env_file:
+      - ${APP_ENV_FILE:-/run/santacut/app.env}
     environment:
       SPRING_PROFILES_ACTIVE: production
       SPRING_DATASOURCE_URL: jdbc:sqlite:/app/data/santacut.db
-      APP_PUBLIC_BASE_URL: https://${DOMAIN:?Set DOMAIN}
-      APP_SESSION_SECURE: "true"
+      APP_PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL, e.g. http://<static_ip> or https://<domain>}
+      APP_SESSION_SECURE: ${SESSION_SECURE:-false}
       APP_SEASON_YEAR: ${APP_SEASON_YEAR:-2026}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:?Set a private reachable Ollama endpoint}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
-      SANTACUT_AI_DAILY_CALL_LIMIT: ${SANTACUT_AI_DAILY_CALL_LIMIT:-100}
-      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true
+      JAVA_TOOL_OPTIONS: >-
+        -Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m
+        -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true
     ports:
       - '127.0.0.1:8080:8080'
     volumes:
       - santacut_data:/app/data
-    extra_hosts:
-      - host.docker.internal:host-gateway
     read_only: true
     tmpfs:
-      - /tmp:size=96m,mode=1777
+      # SQLite JDBC가 네이티브 라이브러리를 /tmp에 풀어 실행하므로 exec가 필요하다(Docker tmpfs 기본값은 noexec).
+      - /tmp:size=64m,mode=1777,exec
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    mem_limit: 1024m
+    mem_limit: 400m
     cpus: 1.5
     healthcheck:
       test: [CMD, curl, --fail, --silent, http://localhost:8080/actuator/health/readiness]
       interval: 10s
       timeout: 3s
-      retries: 12
-      start_period: 60s
+      retries: 36
+      start_period: 120s
     logging: &logging
       driver: json-file
       options:
@@ -46,8 +48,9 @@ services:
       - '80:80'
       - '443:443'
     environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN}
-      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+      # DOMAIN이 비어 있으면 :80 평문 HTTP로만 받는다. 도메인이 있으면 Caddy가 TLS 인증서를 받는다.
+      SITE_ADDRESS: ${DOMAIN:-:80}
+      ACME_EMAIL: ${ACME_EMAIL:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -55,7 +58,7 @@ services:
     depends_on:
       app:
         condition: service_healthy
-    mem_limit: 128m
+    mem_limit: 64m
     logging: *logging
 
 volumes:

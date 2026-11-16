@@ -1,10 +1,15 @@
+# SITE_ADDRESS는 compose가 넘긴다. DOMAIN이 있으면 그 도메인(HTTPS), 없으면 :80(평문 HTTP)이다.
+# ACME_EMAIL은 도메인이 있을 때만 쓴다. 비어 있으면 빈 문자열로 들어가 이메일 없이 인증서를 받는다.
 {
-    email {$ACME_EMAIL}
+    email "{$ACME_EMAIL}"
     admin off
 }
 
-{$DOMAIN} {
-    encode zstd gzip
+{$SITE_ADDRESS::80} {
+    # 진행 상황 스트림(SSE)은 압축하지 않는다. 압축기가 이벤트를 모아 두면 브라우저에 늦게 닿는다.
+    @events path /v1/analyses/*/events
+    @compressible not path /v1/analyses/*/events
+    encode @compressible zstd gzip
     request_body {
         max_size 21MB
     }
@@ -16,5 +21,9 @@
     }
     @internal path /actuator /actuator/*
     respond @internal 404
+    # SSE는 버퍼 없이 바로 흘려보낸다. 나머지 경로는 기본 버퍼링을 그대로 쓴다.
+    reverse_proxy @events app:8080 {
+        flush_interval -1
+    }
     reverse_proxy app:8080
 }

@@ -1,21 +1,30 @@
 package com.santacut.infrastructure.analysis.client
 
-import com.fasterxml.jackson.annotation.JsonPropertyOrder
-import com.santacut.domain.analysis.model.AnalysisSubmission
-import com.santacut.domain.analysis.model.DataSource
+import com.santacut.domain.analysis.model.ScoringDigest
 
 /**
- * AI 모델에 보내는 사용자 메시지 본문. 이벤트마다 1부터 시작하는 번호를 붙인다.
+ * AI 모델에 보내는 사용자 메시지 본문. 이벤트마다 JSON 객체를 보내지 않고, 항목별 낱말 신호와 표본 줄만 짧은 글로 보낸다.
+ *
+ * ```text
+ * [signals]
+ * care_empathy hit=41 weeks=9/13 shown=12
+ * ...
+ * [sample]
+ * # 11-09주
+ * 17|내용
+ * ```
  */
-@JsonPropertyOrder("source", "events")
 class ScoreModelInput(
-    val source: DataSource,
-    val events: List<ScoreModelEvent>,
+    private val signalLines: ScoreModelSignalLines,
+    private val events: ScoreModelEvents,
 ) {
+    fun toText(): String = SIGNALS_HEADER + signalLines.toText() + SAMPLE_HEADER + events.toText()
+
     companion object {
-        fun from(submission: AnalysisSubmission): ScoreModelInput = ScoreModelInput(
-            submission.source,
-            submission.events.mapNumbered { number, event -> ScoreModelEvent(number, event.occurredAt, event.text) },
-        )
+        private const val SIGNALS_HEADER = "[signals]\n"
+        private const val SAMPLE_HEADER = "\n[sample]\n"
+
+        fun from(digest: ScoringDigest): ScoreModelInput =
+            ScoreModelInput(ScoreModelSignalLines.from(digest.signals), ScoreModelEvents.from(digest.sample))
     }
 }

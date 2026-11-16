@@ -2,50 +2,67 @@
 
 ## 배포 구조와 전제
 
-도메인은 가비아에서 별도 구매하고 서버는 월 20,000원 이내를 목표로 한다. `backend/ci-cd/deploy/compose.yml`은 Caddy, Spring Boot 앱, SQLite 파일 저장소로 구성된다. PostgreSQL 컨테이너는 사용하지 않는다. SQLite 파일은 Docker named volume에 보관한다.
+서버와 AWS 자원은 [`santacut-infra`](https://github.com/yooni9ue/santacut-infra)가 만든다. 서버 쪽 약속(비밀값 파일, 백업 버킷, 사용자)은 그 레포 `docs/operations.md` 6·7절이 기준이다. 이 문서는 앱 레포가 그 약속에 맞춘 부분을 적는다.
 
-앱은 Spring AI를 통해 Ollama에 연결한다. 2GB급 저가 서버에서 앱과 `qwen2.5:3b`를 동시에 운영하기에는 메모리가 부족하므로, 운영 전용 사설 Ollama 주소를 준비해 `OLLAMA_BASE_URL`에 넣거나 서버 예산을 다시 산정해야 한다. Ollama 포트를 인터넷에 직접 공개하지 않는다. 로컬 개발은 `http://localhost:11434` 기본값을 사용한다.
+- 서버는 Lightsail `nano_3_0`이다. 메모리 512MB에 스왑 1GB가 있다.
+- `backend/ci-cd/deploy/compose.yml`은 Caddy와 Spring Boot 앱 두 컨테이너다. SQLite 파일은 Docker named volume에 둔다.
+- AI는 Google Gemini 3.5 Flash-Lite(Gemini Developer API)다. API 키(`GEMINI_API_KEY`)로 부른다.
+- SQLite 한 파일이라 앱 인스턴스는 하나만 띄운다. 여러 서버에서 같은 파일을 쓰지 않는다.
 
-SQLite 단일 파일은 작은 단일 인스턴스 서비스에 적합하다. 여러 앱 인스턴스를 동시에 띄우거나 여러 서버에서 같은 파일을 공유하지 않는다. DB 파일과 세션을 외부에 공개하지 않는다.
+## 메모리 예산 (512MB)
 
-## 서버 준비
+| 대상 | 설정 |
+| --- | --- |
+| 앱 컨테이너 | `mem_limit: 400m` |
+| JVM | `-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError` |
+| Caddy | `mem_limit: 64m` |
 
-Ubuntu LTS x86_64, Docker Engine/Compose, 고정 공인 IPv4를 준비한다. 보안 그룹은 80/443을 공개하고 SSH 접근은 운영자 IP로 제한한다. `deploy` 사용자는 배포 전용으로 만들고 Docker 그룹의 root 권한 범위를 인지한다.
+- 힙이 모자라면 JVM이 바로 죽고 `restart: unless-stopped`가 다시 띄운다.
+- 스왑은 비상용이다. 자주 죽거나 느리면 번들을 올린다(인프라 레포 9절).
 
-```bash
-sudo apt-get update
-sudo apt-get install -y curl age rclone
-sudo adduser --disabled-password --gecos '' deploy
-sudo usermod -aG docker deploy
-sudo install -d -o deploy -g deploy -m 750 /opt/santacut /opt/santacut/releases
-```
+## 도메인 없이, 또는 도메인과 함께
 
-가비아 DNS의 `@` A 레코드를 서버 IPv4로 지정한다. 전파 후 80/443 연결을 확인한다. `APP_PUBLIC_BASE_URL`은 실제 HTTPS 도메인으로 설정된다.
+Caddy 사이트 주소는 `DOMAIN`을 따른다. Caddyfile은 `{$SITE_ADDRESS::80}` 하나로 두 경우를 모두 처리한다.
+
+| 경우 | `DOMAIN` | `ACME_EMAIL` | `PUBLIC_BASE_URL` | `SESSION_SECURE` | Caddy |
+| --- | --- | --- | --- | --- | --- |
+| 도메인 없음(지금) | 비움 | 비움 | `http://<고정 IP>` | `false` | `:80` 평문 HTTP |
+| 도메인 있음 | `santacut.kr` 등 | 운영자 이메일 | `https://<도메인>` | `true` | 인증서 자동 발급, 443 |
+
+- HTTP에서 `SESSION_SECURE=true`면 브라우저가 `__Host-` 세션 쿠키를 보내지 않는다. 도메인과 HTTPS를 갖춘 뒤에만 켠다.
+- HTTP는 암호화되지 않는다. 실제 사용자 데이터는 도메인과 TLS를 갖춘 뒤 받는다.
 
 ## 환경 설정과 배포
 
-`backend/ci-cd/deploy/.env.example`을 `/opt/santacut/.env`로 복사해 도메인, 이메일, Ollama 사설 주소, 모델을 설정하고 권한을 제한한다.
+앱 설정은 서버 디스크에 두지 않는다. 운영자가 인프라 레포 `scripts/put-secrets.sh`로 KMS 암호화해 S3에 올리고, 서버는 부팅 때 `/run/santacut/app.env`(tmpfs, 600)로 받는다. 키 목록은 `backend/ci-cd/deploy/.env.example`에 있다.
 
-```bash
-chmod 600 /opt/santacut/.env
-```
+- Compose는 이 파일을 두 번 쓴다. 앱 컨테이너의 `env_file`이고, `deploy.sh`·`backup.sh`의 `--env-file`(보간용)이다.
+- 앱은 AWS 기본 자격 증명 체인으로 환경 변수의 키를 읽는다. 키를 Spring 설정에 따로 적지 않는다.
+- CI는 `APP_ENV_FILE=.env.example`로 예시 파일을 넣어 Compose 구문만 검사한다.
 
-GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR에 게시한다. 운영 배포는 `workflow_dispatch`에서 `deploy=true`를 선택한다. GitHub production environment에 `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`를 등록해야 한다. 배포 스크립트는 검증한 image digest를 사용하고 readiness를 확인한다.
-
-현재 기본 세션 쿠키 보안은 로컬 HTTP 실행에 맞춰 꺼져 있다. Compose는 HTTPS 도메인 사용을 전제로 `APP_SESSION_SECURE=true`로 설정한다.
+GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR에 게시한다. 운영 배포는 `workflow_dispatch`에서 `deploy=true`를 고른다. 릴리스 묶음에는 `compose.yml`, `Caddyfile`, `deploy.sh`, `backup.sh`가 들어간다. 배포 스크립트는 검증한 image digest를 쓰고 readiness를 확인한다.
 
 ### 운영 설정 키
 
 | 키(환경 변수) | 기본값 | 뜻 |
 | --- | --- | --- |
-| `app.public-base-url` (`APP_PUBLIC_BASE_URL`) | `http://localhost:8080` | 공유 링크·Open Graph에 쓰는 공개 출처. 경로 없는 URL이어야 한다 |
-| `app.session-secure` (`APP_SESSION_SECURE`) | `false` | 세션 쿠키 Secure·`__Host-` 이름 사용 |
+| `app.public-base-url` (`APP_PUBLIC_BASE_URL`, Compose에서는 `PUBLIC_BASE_URL`) | `http://localhost:8080` | 공유 링크·Open Graph에 쓰는 공개 출처. 경로 없는 URL이어야 한다 |
+| `app.session-secure` (`APP_SESSION_SECURE`, Compose에서는 `SESSION_SECURE`) | `false` | 세션 쿠키 Secure·`__Host-` 이름 사용 |
+| `app.cors.allowed-origins` (`APP_CORS_ALLOWED_ORIGINS`) | `https://www.santacut.me,https://santacut.me` | 쿠키를 실어 API를 부를 수 있는 프론트엔드 출처. 쉼표로 나눈다. dev는 `http://localhost:3000`을 더한다. 자격 증명을 허용하므로 `*`는 쓸 수 없고, 넣으면 앱이 뜨지 않는다 |
+| `app.session-same-site` (`APP_SESSION_SAME_SITE`) | `Lax` | 세션·CSRF 쿠키의 SameSite(`Strict`, `Lax`, `None`). `None`은 `APP_SESSION_SECURE=true`일 때만 쓸 수 있고, 아니면 앱이 뜨지 않는다. dev만 `None`으로 둬 `http://localhost:3000`에서도 쿠키가 실리게 한다 |
 | `app.season-year` (`APP_SEASON_YEAR`) | `2026` | 시즌 연도. 그해 12월 25일 0시(KST)에 마감한다 |
 | `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
-| `santacut.ai.daily-call-limit` (`SANTACUT_AI_DAILY_CALL_LIMIT`) | `100` | 서울 날짜 기준 하루 AI 호출 상한 |
 | `santacut.ai.poll-delay-ms` | `3000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |
 | `santacut.upload.poll-delay-ms` | `1000` | 원본 파일 검증 작업자가 다음 원본을 찾기 전에 쉬는 시간 |
-| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | `http://localhost:11434`, `qwen2.5:3b` | Spring AI Ollama 연결 |
+| `spring.ai.google.genai.api-key` (`GEMINI_API_KEY`) | 없음 | Gemini Developer API 키. 없으면 앱이 뜨지 않는다 |
+| `spring.ai.google.genai.chat.model` (`GEMINI_MODEL`) | `gemini-3.5-flash-lite` | 채점 모델. 비우면 AI 분석을 끈다 |
+| `santacut.prompt-admin.enabled` (`PROMPT_ADMIN_ENABLED`) | `false` | dev 전용 프롬프트 관리 API(`/v1/admin/prompts`). dev의 `app.env`에만 `true`를 둔다. 운영은 두지 않아 404다 |
+| `santacut.ai.budget.daily-usd` (`AI_BUDGET_DAILY_USD`) | `0.5` | 앱 안의 AI 비용 가드 하루 한도(달러). 닿으면 작업을 잡지 않는다. 넣지 않아도 된다 |
+| `santacut.ai.budget.monthly-usd` (`AI_BUDGET_MONTHLY_USD`) | `9` | 앱 안의 AI 비용 가드 한 달 한도(달러). 넣지 않아도 된다 |
+
+- 단가(입력·출력 100만 토큰당 0.3·2.5달러), 멈춤 시간(15분), 연속 실패 기준(3번)은 `application.yml`의 `santacut.ai.budget`에 있다.
+- 출력 토큰 상한(`max-output-tokens`)은 250이고 `application.yml`에 있다. 3.5 Flash-Lite는 생각 토큰이 기본으로 꺼져 있다. `thinking-budget`을 넣으면 Gemini가 요청을 거절하므로 두지 않는다.
+- Gemini 호출 하나의 시간 상한은 60초이고 SDK 재시도는 하지 않는다. `GeminiClientConfiguration`에 있다.
 
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
 
@@ -63,25 +80,33 @@ Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보�
 
 ### 지역 시드
 
-지역 데이터는 앱이 뜰 때마다 들어간다. `schema.sql`이 테이블과 서울 26행을 만들고, 이어서 `spring.sql.init.data-locations: classpath:regions.sql`이 나머지 시·도와 시·군·구를 넣는다(모두 271개). 둘 다 `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어간다. `regions.parent_code`는 앱 시작 때 `RegionFacade`가 채운다. 별도 마이그레이션 단계는 없다. 이미 있는 지역의 이름·좌표를 바꾸려면 시드만으로는 안 되고 DB를 직접 고쳐야 한다.
+지역 데이터는 앱이 뜰 때마다 들어간다. `schema.sql`이 테이블과 서울 26행을 만들고, 이어서 `spring.sql.init.data-locations: classpath:regions.sql,classpath:prompts.sql`이 돈다. `regions.sql`은 나머지 시·도와 시·군·구를 넣고(모두 271개), `prompts.sql`은 채점 프롬프트(`score`) 1판을 넣는다. 셋 다 `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어가고, 이미 있는 프롬프트 판은 건드리지 않는다. `regions.parent_code`는 앱 시작 때 `RegionFacade`가 채운다. 별도 마이그레이션 단계는 없다. 이미 있는 지역의 이름·좌표를 바꾸려면 시드만으로는 안 되고 DB를 직접 고쳐야 한다.
 
 ## SQLite 백업과 복구
 
-`backend/ci-cd/scripts/backup.sh`는 실행 중인 앱 컨테이너의 `sqlite3 .backup`으로 일관된 파일 복사본을 만들고, age로 암호화한 다음 rclone remote에 전송한다. `/opt/santacut/backup.env`에 `BACKUP_AGE_RECIPIENT`와 `BACKUP_REMOTE`를 설정한다. 이 파일은 git에 넣지 않는다. 서버 밖 백업이 확인되기 전에는 백업 성공으로 처리하지 않는다.
+`backend/ci-cd/scripts/backup.sh`가 한 시간마다 돈다(cron 설치는 인프라 레포 7절).
 
-복구는 운영 볼륨에 바로 덮어쓰지 않고 격리된 디렉터리에서 수행한다.
+1. 실행 중인 앱 컨테이너에서 `sqlite3 .backup`으로 일관된 복사본을 뜬다.
+2. 서버에서 `PRAGMA integrity_check`로 확인하고 `/opt/santacut/backups/santacut-<시각>.sqlite`(600)로 둔다.
+3. rclone으로 `$BACKUP_REMOTE/santacut-<시각>.sqlite`(버킷의 `backups/sqlite/`)에 올린다. 암호화는 S3가 환경 KMS 키로 한다.
+4. 올린 파일을 내려받아 바이트 단위로 대조한다(`rclone check --download`). 이게 통과해야 성공이다.
+5. 서버의 로컬 복사본은 2일만 남긴다.
 
-1. 암호화 파일을 서버 밖에서 내려받고 checksum을 확인한다.
-2. age 개인키로 복호화하고 `sqlite3 restored.db 'PRAGMA integrity_check;'`를 실행한다.
-3. 임시 앱에 복원해 readiness, 참가자 수, 랭킹 및 공유 페이지를 확인한다.
-4. 검증 후 유지보수 시간에 볼륨을 교체하고 앱을 다시 확인한다.
+`/opt/santacut/backup.env`(600)에 `BACKUP_REMOTE`를 둔다. 예시는 `backend/ci-cd/deploy/backup.env.example`이다. 비밀값은 없다.
 
-`ddl-auto: update`는 스키마를 자동 되돌리지 않는다. 배포 전 파일 백업을 확인하고, 컬럼 삭제·변경을 포함한 릴리스는 이전 앱 바이너리만으로 롤백할 수 있다고 가정하지 않는다. 최소 목표 복구 시점은 24시간, 복구 시간은 2시간으로 잡되 복구 훈련 전에는 보장하지 않는다.
+- 버킷 정책이 SSE-KMS와 환경 키 ARN을 둘 다 요구한다. 그래서 remote에 `server_side_encryption='aws:kms'`, `sse_kms_key_id='<키 ARN>'`이 꼭 있어야 한다.
+- `upload_cutoff=5G`로 멀티파트 업로드를 피한다.
+- 앱 사용자는 `backups/*`에만 쓸 수 있다.
+
+age 암호화는 뺐다. 2026-11 전에 age로 만든 백업 복구는 인프라 레포 9절을 따른다.
+
+복구는 인프라 레포 `docs/operations.md` 9절 "S3 백업에서 SQLite 복원"을 따른다. 운영 볼륨에 바로 덮어쓰지 말고, 내려받은 파일의 `PRAGMA integrity_check`부터 확인한다.
+
+`ddl-auto: update`는 스키마를 자동으로 되돌리지 않는다. 컬럼 삭제·변경이 든 릴리스는 이전 앱 이미지만으로 롤백된다고 가정하지 않는다. 배포 전 백업은 `deploy.sh`가 두 번째 배포부터 자동으로 뜬다.
 
 ## 아직 운영 전에 필요한 것
 
-- 실제 도메인·서버와 DNS 설정
-- 사설 네트워크를 통한 Ollama 주소 또는 예산에 맞는 AI 제공 방식
+- 도메인과 TLS(지금은 고정 IP 평문 HTTP)
 - 배포용 GitHub secrets와 production environment
-- 암호화 백업 remote 및 복구 리허설
+- dev에서 백업 복구 리허설
 - 카카오톡·인스타그램 실제 내보내기 샘플로 원본 파서 검증(지금 파서는 공개 예시로 만들었다)

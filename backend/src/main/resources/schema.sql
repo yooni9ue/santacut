@@ -7,16 +7,23 @@ INSERT OR IGNORE INTO regions(code,name,latitude,longitude) VALUES
 CREATE TABLE IF NOT EXISTS participants (id TEXT PRIMARY KEY, nickname TEXT NOT NULL, nickname_key TEXT NOT NULL UNIQUE, region_code TEXT NOT NULL REFERENCES regions(code), created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')));
 CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, expires_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
-CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, source TEXT NOT NULL CHECK(source IN ('KAKAO','INSTAGRAM')), score_hundredths INTEGER NOT NULL CHECK(score_hundredths BETWEEN 0 AND 10000), verdict TEXT NOT NULL, comment TEXT NOT NULL, components TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')));
+CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, source TEXT NOT NULL CHECK(source IN ('KAKAO','INSTAGRAM')), score_hundredths INTEGER NOT NULL CHECK(score_hundredths BETWEEN 0 AND 10000), verdict TEXT NOT NULL, comment TEXT NOT NULL, components TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), prompt_version INTEGER);
+-- prompt_version은 기존 DB에 Hibernate(ddl-auto: update)가 이 스크립트 다음에 더한다. 프롬프트를 DB로 옮기기 전 평가는 NULL이다.
 CREATE INDEX IF NOT EXISTS assessments_user ON assessments(user_id,created_at DESC);
-CREATE TABLE IF NOT EXISTS analysis_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, idempotency_key TEXT NOT NULL, request_hash TEXT NOT NULL, source TEXT NOT NULL, payload TEXT, status TEXT NOT NULL DEFAULT 'QUEUED', attempts INTEGER NOT NULL DEFAULT 0, lease_token TEXT, lease_until TEXT, error_code TEXT, assessment_id TEXT REFERENCES assessments(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), finished_at TEXT, UNIQUE(user_id,idempotency_key));
+CREATE TABLE IF NOT EXISTS analysis_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, idempotency_key TEXT NOT NULL, request_hash TEXT NOT NULL, source TEXT NOT NULL, payload TEXT, status TEXT NOT NULL DEFAULT 'QUEUED', attempts INTEGER NOT NULL DEFAULT 0, lease_token TEXT, lease_until TEXT, error_code TEXT, assessment_id TEXT REFERENCES assessments(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), finished_at TEXT, digest_hash TEXT, UNIQUE(user_id,idempotency_key));
+-- digest_hash는 기존 DB에 Hibernate(ddl-auto: update)가 이 스크립트 다음에 더한다. 같은 채점 입력의 재제출이 AI를 다시 부르지 않게 하는 해시다.
 CREATE INDEX IF NOT EXISTS analysis_jobs_pending ON analysis_jobs(status,created_at);
 CREATE TABLE IF NOT EXISTS analysis_uploads (job_id TEXT PRIMARY KEY REFERENCES analysis_jobs(id) ON DELETE CASCADE, source TEXT NOT NULL, self_speaker TEXT NOT NULL, content BLOB NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS analysis_uploads_created ON analysis_uploads(created_at);
-CREATE TABLE IF NOT EXISTS ai_daily_budget (day TEXT PRIMARY KEY, calls INTEGER NOT NULL CHECK(calls>=0));
+-- 호출 수로 세던 하루 AI 한도 테이블이다. 지금은 쓰지 않으므로 예전 DB에 남은 것을 지운다.
+DROP TABLE IF EXISTS ai_daily_budget;
+-- 앱 안의 AI 비용 가드가 읽는 날짜(한국)별 토큰 사용량. 호출 수 대신 토큰 수 × 단가로 하루·한 달 비용을 어림한다.
+CREATE TABLE IF NOT EXISTS ai_usage_days (usage_date TEXT PRIMARY KEY, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0, calls INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS result_snapshots (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, assessment_id TEXT NOT NULL REFERENCES assessments(id) ON DELETE CASCADE, rank INTEGER NOT NULL, delivery_sequence INTEGER NOT NULL, eta TEXT NOT NULL, computed_at TEXT NOT NULL, tied INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS snapshots_latest ON result_snapshots(computed_at,user_id);
 CREATE TABLE IF NOT EXISTS shares (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, snapshot_id TEXT NOT NULL REFERENCES result_snapshots(id) ON DELETE CASCADE, nickname TEXT NOT NULL, score_hundredths INTEGER NOT NULL, rank INTEGER NOT NULL, eta TEXT NOT NULL, verdict TEXT NOT NULL, comment TEXT NOT NULL, computed_at TEXT NOT NULL, revoked_at TEXT, tied INTEGER NOT NULL DEFAULT 0, stage TEXT NOT NULL DEFAULT 'PREVIEW', created_at TEXT);
 CREATE INDEX IF NOT EXISTS shares_owner ON shares(user_id,snapshot_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS shares_active_snapshot_unique ON shares(user_id,snapshot_id) WHERE revoked_at IS NULL;
+-- AI 시스템 프롬프트 판. 같은 이름 안에서 판 번호는 1부터 늘고 겹치지 않는다. score 1판은 prompts.sql이 넣는다.
+CREATE TABLE IF NOT EXISTS prompts (id TEXT PRIMARY KEY, name TEXT NOT NULL, version INTEGER NOT NULL CHECK(version>=1), content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), UNIQUE(name,version));

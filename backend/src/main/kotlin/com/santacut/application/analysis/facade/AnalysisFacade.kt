@@ -2,12 +2,15 @@ package com.santacut.application.analysis.facade
 
 import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.LatestAnalysisCommand
+import com.santacut.application.analysis.command.OpenAnalysisStreamCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
 import com.santacut.application.analysis.command.UploadAnalysisCommand
+import com.santacut.application.analysis.result.AnalysisStatusChangeResult
 import com.santacut.application.analysis.result.AnalysisStatusResult
 import com.santacut.application.analysis.result.AnalysisSubmissionResult
 import com.santacut.application.global.Facade
 import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisJobChange
 import com.santacut.domain.analysis.model.AnalysisProgress
 import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.analysis.service.AnalysisJobService
@@ -15,7 +18,10 @@ import com.santacut.domain.analysis.service.AnalysisScoringService
 import com.santacut.domain.analysis.service.AnalysisUploadService
 import com.santacut.domain.participant.service.ParticipantService
 import com.santacut.domain.ranking.service.RankingService
+import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.event.TransactionalEventListener
 import java.time.Clock
 import java.util.UUID
 
@@ -26,8 +32,11 @@ class AnalysisFacade(
     private val analysisScoringService: AnalysisScoringService,
     private val analysisUploadService: AnalysisUploadService,
     private val rankingService: RankingService,
+    private val eventPublisher: ApplicationEventPublisher,
     private val clock: Clock,
 ) {
+    private val logger = LoggerFactory.getLogger(AnalysisFacade::class.java)
+
     /**
      * 분석 작업을 대기열에 넣는다. 같은 키와 같은 본문으로 다시 보내면 처음 작업을 그대로 돌려준다.
      */
@@ -78,6 +87,30 @@ class AnalysisFacade(
     fun getLatestStatus(command: LatestAnalysisCommand): AnalysisStatusResult {
         val job = analysisJobService.getLatestOwned(command.participantId)
         return AnalysisStatusResult.from(job, progressOf(job, command.participantId))
+    }
+
+    /**
+     * 진행 상황 스트림을 하나 더 열 수 있는지 확인한다. 상한에 걸리면 ANALYSIS_STREAM_LIMIT(503)이고, 화면은 폴링으로 바꾼다.
+     * 연결하자마자 보낼 현재 상태는 스트림을 등록한 뒤 [getStatus]로 읽는다.
+     */
+    fun verifyStreamOpenable(command: OpenAnalysisStreamCommand) {
+        analysisJobService.verifyStreamOpenable(command.openStreams, command.replacing, clock.instant())
+    }
+
+    /**
+     * 작업 행을 저장한 트랜잭션이 커밋된 뒤 응답용 새 상태를 만들어 진행 상황 스트림에 알린다.
+     * 커밋 뒤 단계라 원래 트랜잭션 자원으로 읽기만 한다. 실패해도 작업 흐름을 막지 않도록 로그만 남긴다.
+     */
+    @TransactionalEventListener(fallbackExecution = true)
+    fun announceStatusChange(change: AnalysisJobChange) {
+        try {
+            val job = analysisJobService.find(change.jobId) ?: return
+            val participantId = UUID.fromString(job.userId)
+            val status = AnalysisStatusResult.from(job, progressOf(job, participantId))
+            eventPublisher.publishEvent(AnalysisStatusChangeResult(participantId, status))
+        } catch (exception: RuntimeException) {
+            logger.warn("분석 작업 {} 상태 알림 실패: {}", change.jobId, exception.javaClass.simpleName)
+        }
     }
 
     private fun progressOf(job: AnalysisJob, participantId: UUID): AnalysisProgress =

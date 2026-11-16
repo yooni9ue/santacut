@@ -7,8 +7,9 @@
   sql:
     init:
       mode: always
-      # 서울 밖 시·도와 시·군·구 시드. schema.sql 다음에 매번 실행되며 INSERT OR IGNORE라 기존 DB에도 새 지역만 더한다.
-      data-locations: classpath:regions.sql
+      # schema.sql 다음에 매번 실행되는 시드. 둘 다 INSERT OR IGNORE라 기존 DB에는 없는 행만 더한다.
+      # regions.sql: 서울 밖 시·도와 시·군·구, prompts.sql: 채점 프롬프트(score) 1판과 2판.
+      data-locations: classpath:regions.sql,classpath:prompts.sql
   jpa:
     hibernate:
       ddl-auto: update
@@ -39,21 +40,43 @@ management:
         readiness:
           include: readinessState,db
       show-details: never
+santacut:
+  # dev 전용 프롬프트 관리 API(/v1/admin/prompts). 운영은 끈 채로 둔다(404).
+  prompt-admin.enabled: ${PROMPT_ADMIN_ENABLED:false}
+  # 앱 안의 AI 비용 가드. 기록한 토큰 수 × 단가로 하루·한 달 비용을 어림해 한도에 닿으면 작업을 잡지 않는다.
+  ai.budget:
+    daily-usd: ${AI_BUDGET_DAILY_USD:0.5}
+    monthly-usd: ${AI_BUDGET_MONTHLY_USD:9}
+    input-usd-per-million-tokens: 0.3
+    output-usd-per-million-tokens: 2.5
+    # 제공자가 호출을 막았거나(권한, 요청 한도) 연달아 3번 실패하면 이만큼 작업 잡기를 멈춘다.
+    pause: 15m
+    max-consecutive-failures: 3
+  # 진행 상황 스트림(SSE)의 앱 전체 상한. 넘으면 503(ANALYSIS_STREAM_LIMIT)이고 화면은 폴링으로 바꾼다.
+  stream:
+    max-open-streams: 200
+    retry-after: 30s
 app:
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
   session-secure: ${APP_SESSION_SECURE:false}
+  # 세션·CSRF 쿠키의 SameSite. 다른 사이트(예: localhost)의 프론트엔드가 부르게 하려면 None과 Secure를 함께 쓴다.
+  session-same-site: ${APP_SESSION_SAME_SITE:Lax}
   season-year: ${APP_SEASON_YEAR:2026}
   origin-lat: ${SANTA_ORIGIN_LAT:37.5252}
   origin-lon: ${SANTA_ORIGIN_LON:126.9253}
+  cors:
+    # 쿠키를 실어 API를 부를 수 있는 프론트엔드 출처. 쉼표로 나눈다.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://www.santacut.me,https://santacut.me}
 spring.ai:
-  model.chat: ollama
-  ollama:
-    base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-    chat.options:
-      model: ${OLLAMA_MODEL:qwen2.5:3b}
-      format: json
+  model.chat: google-genai
+  google.genai:
+    # Gemini Developer API 키. 환경 변수로만 넣는다. 시간 상한(60초)과 재시도 끔은 GeminiClientConfiguration이 정한다.
+    api-key: ${GEMINI_API_KEY:}
+    chat:
+      # 채점 모델. GEMINI_MODEL로 바꿀 수 있고, 비우면 AI 분석을 끈다.
+      model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
       temperature: 0.1
-      num-predict: 500
-
-
-
+      # 정상 답(근거 항목당 1~3개)은 100토큰 안팎이다. 폭주해도 비용이 크지 않게 낮게 둔다.
+      max-output-tokens: 250
+      # 3.5 Flash-Lite는 생각(thinking)이 기본으로 꺼져 있고 thinkingBudget을 보내면 400으로 거절한다. 그래서 생각 설정은 두지 않는다.
+      response-mime-type: application/json

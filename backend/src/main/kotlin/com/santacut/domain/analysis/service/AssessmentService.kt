@@ -15,10 +15,15 @@ class AssessmentService(
     private val assessmentRepository: AssessmentRepository,
     private val objectMapper: ObjectMapper,
 ) {
-    fun record(job: AnalysisJob, score: Score, recordedAt: Instant): Assessment {
+    /** [promptVersion]은 점수를 매길 때 쓴 채점 프롬프트 판 번호다. */
+    fun record(job: AnalysisJob, score: Score, promptVersion: Int, recordedAt: Instant): Assessment {
         val componentsJson = objectMapper.writeValueAsString(score.components.toList())
-        return assessmentRepository.save(Assessment.record(job, score, componentsJson, recordedAt))
+        return assessmentRepository.save(Assessment.record(job, score, componentsJson, promptVersion, recordedAt))
     }
+
+    /** [previousAssessmentId] 평가를 이 작업의 새 평가로 다시 저장한다. */
+    fun reuse(job: AnalysisJob, previousAssessmentId: String, recordedAt: Instant): Assessment =
+        assessmentRepository.save(Assessment.reuse(job, get(previousAssessmentId), recordedAt))
 
     fun get(assessmentId: String): Assessment =
         assessmentRepository.findById(assessmentId).orElse(null)

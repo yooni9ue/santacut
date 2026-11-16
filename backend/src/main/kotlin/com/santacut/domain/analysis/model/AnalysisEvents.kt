@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * 분석에 제출한 이벤트 목록. JSON에서는 배열 하나로 읽고 쓴다.
@@ -18,9 +19,8 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     @JsonValue
     fun toList(): List<AnalysisEvent> = values.toList()
 
-    /** 제출 순서대로 1부터 시작하는 번호를 붙여 각 이벤트를 바꾼다. */
-    fun <T> mapNumbered(transform: (Int, AnalysisEvent) -> T): List<T> =
-        values.mapIndexed { index, event -> transform(index + FIRST_NUMBER, event) }
+    /** 채점용 통계와 표본을 만들 메시지 목록으로 바꾼다. 시각은 [zone] 기준이다. */
+    fun toScoringMessages(zone: ZoneId): ScoringMessages = ScoringMessages(values.map { it.toScoringMessage(zone) })
 
     /** 이벤트 수, 전체 텍스트 길이, 이벤트 시각 범위를 확인한다. */
     fun verifyAcceptableAt(now: Instant) {
@@ -54,6 +54,5 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
         const val MIN_EVENTS = 20
         const val MAX_EVENTS = 2000
         private const val MAX_TOTAL_TEXT_LENGTH = 200_000
-        private const val FIRST_NUMBER = 1
     }
 }
