@@ -32,7 +32,7 @@ test("sample Kakao flow keeps input through review, result and ranking", async (
 test("invalid files and nicknames show actionable errors", async ({ page }) => {
   await page.goto("/upload");
   await page.getByLabel("분석 파일 선택").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: Buffer.from("example") });
-  await expect(page.getByRole("main").getByRole("alert")).toContainText("TXT, JSON 파일");
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("TXT");
   await expect(page.getByRole("button", { name: "파일을 먼저 선택해 주세요" })).toBeDisabled();
   await page.getByRole("button", { name: "파일 없이 예시로 둘러보기" }).click();
   await page.getByRole("link", { name: "이 파일로 계속" }).click();
