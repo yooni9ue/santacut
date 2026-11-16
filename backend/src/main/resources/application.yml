@@ -49,6 +49,7 @@ santacut:
   score.shrinkage:
     strength: 0.25
     full-self-turns: 5
+    personal-prior: true
   # 짧은 대화(한 구간)를 몇 번 따로 채점해 항목별 중앙값을 낼지. 1이면 예전처럼 한 번만 묻는다(backend-design.md).
   score.sampling:
     samples: 3

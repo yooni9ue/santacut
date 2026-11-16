@@ -26,7 +26,7 @@ class AnalysisScoringService(
     shrinkageProperties: ScoreShrinkageProperties,
     samplingProperties: ScoreSamplingProperties,
 ) {
-    private val shrinkage = ScoreShrinkage(shrinkageProperties.strength, shrinkageProperties.fullSelfTurns)
+    private val shrinkage = ScoreShrinkage(shrinkageProperties.strength, shrinkageProperties.fullSelfTurns, shrinkageProperties.personalPrior)
     private val samples = samplingProperties.samples
 
     /** 동시에 부른 호출의 사용량을 하나씩 기록하게 하는 잠금. 같은 날 사용량 행을 두 호출이 함께 만들지 않게 한다. */
