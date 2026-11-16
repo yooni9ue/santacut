@@ -4,6 +4,7 @@ import { createContext, useContext, useState } from "react";
 
 export type Source = "KAKAO" | "INSTAGRAM";
 interface PreviewData {
+  sample: boolean;
   source: Source;
   fileName: string;
   speaker: string;
@@ -12,7 +13,7 @@ interface PreviewData {
   district: string;
 }
 const initial: PreviewData = {
-  source: "KAKAO", fileName: "", speaker: "나", nickname: "", province: "서울", district: "강남구",
+  sample: false, source: "KAKAO", fileName: "", speaker: "나", nickname: "", province: "서울", district: "강남구",
 };
 const PreviewContext = createContext<{
   data: PreviewData;
