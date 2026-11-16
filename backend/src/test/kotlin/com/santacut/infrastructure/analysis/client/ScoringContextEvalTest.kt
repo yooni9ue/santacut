@@ -286,7 +286,7 @@ class ScoringContextEvalTest {
         private const val BLOCK_HEADER = "## "
         private val JSON = JsonMapper.builder().build()
         private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        private val PROMPT_ROW = Regex("'score',(\\d+),'((?:[^']|'')*)'\\)")
+        private val PROMPT_ROW = Regex("'score',(\\d+),'((?:[^']++|'')*+)'\\)")
         private val FULL_CONTEXT_PROMPT = """
             너는 재미용 산타 점수를 매기는 채점자다. 입력은 '나'와 '상대'의 대화 전체이며 각 줄 앞에 시각이 있다.
             '나'의 행동만 평가하고, 상대 메시지와 답장 간격은 '나'의 말을 이해하는 맥락으로 쓴다. 비꼬는 말은 근거가 아니다.
