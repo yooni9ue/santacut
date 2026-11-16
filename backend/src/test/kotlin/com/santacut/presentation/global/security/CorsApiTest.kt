@@ -1,6 +1,7 @@
 package com.santacut.presentation.global.security
 
 import com.santacut.IntegrationTest
+import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
@@ -33,6 +34,19 @@ class CorsApiTest @Autowired constructor(
             .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS))
     }
 
+    @Test
+    fun `허용한 출처의 분석 제출 사전 요청은 Idempotency-Key 헤더를 허용받는다`() {
+        mockMvc.perform(
+            options("/v1/analyses")
+                .header(HttpHeaders.ORIGIN, ALLOWED_ORIGIN)
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, IDEMPOTENCY_HEADERS),
+        )
+            .andExpect(status().isOk)
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ALLOWED_ORIGIN))
+            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, containsString(IDEMPOTENCY_HEADER)))
+    }
+
     private fun preflight(origin: String) = options("/v1/participants")
         .header(HttpHeaders.ORIGIN, origin)
         .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
@@ -42,5 +56,7 @@ class CorsApiTest @Autowired constructor(
         private const val ALLOWED_ORIGIN = "https://www.santacut.me"
         private const val DISALLOWED_ORIGIN = "https://evil.example"
         private const val CSRF_HEADER = "X-XSRF-TOKEN"
+        private const val IDEMPOTENCY_HEADER = "Idempotency-Key"
+        private const val IDEMPOTENCY_HEADERS = "$CSRF_HEADER,$IDEMPOTENCY_HEADER"
     }
 }
