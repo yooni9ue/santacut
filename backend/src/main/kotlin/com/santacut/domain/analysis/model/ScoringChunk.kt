@@ -18,6 +18,9 @@ class ScoringChunk(
      */
     fun lineRange(): IntRange = firstNumber + overlapTurns until firstNumber + turns.size()
 
+    /** 앞 구간과 겹친 마지막 줄 번호. 겹친 줄이 없으면 null이다. 모델에 그 줄까지는 맥락뿐이라고 알린다. */
+    fun lastOverlapNumber(): Int? = if (overlapTurns == 0) null else lineRange().first - 1
+
     /** 겹친 앞 줄을 뺀 본인 턴 수. 수축의 근거 무게에 쓴다. */
     fun selfTurnCount(): Int = turns.selfCountFrom(overlapTurns)
 

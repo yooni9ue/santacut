@@ -47,4 +47,12 @@ class ScoreModelInputTest {
 
         assertTrue(ScoreModelInput.from(ScoringChunk.whole(digest)).toText().startsWith("[대화]\n(앞선 2줄은 길이 한도로 뺐다)\n1|나|고마워"))
     }
+
+    @Test
+    fun `앞 구간과 겹친 줄을 실었으면 그 줄까지는 맥락뿐이라고 머리에 적는다`() {
+        val noon = LocalDateTime.of(2026, 11, 14, 12, 0)
+        val turns = TranscriptTurns(List(4) { index -> TranscriptTurn("나", noon, noon, "말 $index") })
+
+        assertTrue(ScoreModelInput.from(ScoringChunk(turns, 5, 2, 0)).toText().startsWith("[대화]\n(6번 줄까지는 앞 구간과 겹친 맥락)\n5|나|말 0"))
+    }
 }
