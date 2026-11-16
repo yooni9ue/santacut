@@ -17,6 +17,7 @@ com.santacut
 │  │  ├─ controller               XxxController
 │  │  ├─ request                  XxxRequest, XxxRequests (요청 일급 컬렉션)
 │  │  ├─ response                 XxxResponse, XxxResponses (응답 일급 컬렉션)
+│  │  ├─ stream                   SSE 스트림과 그 목록 (XxxStream, XxxStreams, XxxEvent)
 │  │  └─ docs                     엔드포인트별 Swagger 메타 애노테이션
 │  └─ global
 │     ├─ advice                   전역 예외 처리 (@RestControllerAdvice), ApiErrorResponse

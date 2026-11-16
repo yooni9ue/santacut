@@ -1,6 +1,7 @@
-package com.santacut.presentation.analysis.response
+package com.santacut.presentation.analysis.stream
 
 import com.santacut.application.analysis.result.AnalysisStatusResult
+import com.santacut.presentation.analysis.response.AnalysisStatusResponse
 
 /**
  * 진행 상황 스트림으로 보낼 `status` 이벤트 하나.

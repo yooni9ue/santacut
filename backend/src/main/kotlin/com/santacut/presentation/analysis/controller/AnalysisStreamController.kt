@@ -1,14 +1,16 @@
 package com.santacut.presentation.analysis.controller
 
+import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.OpenAnalysisStreamCommand
 import com.santacut.application.analysis.facade.AnalysisFacade
 import com.santacut.application.analysis.result.AnalysisStatusChangeResult
 import com.santacut.presentation.analysis.docs.StreamAnalysisStatusApi
-import com.santacut.presentation.analysis.response.AnalysisStatusEvent
-import com.santacut.presentation.analysis.response.AnalysisStatusStream
-import com.santacut.presentation.analysis.response.AnalysisStatusStreams
+import com.santacut.presentation.analysis.stream.AnalysisStatusEvent
+import com.santacut.presentation.analysis.stream.AnalysisStatusStream
+import com.santacut.presentation.analysis.stream.AnalysisStatusStreams
 import io.swagger.v3.oas.annotations.Parameter
 import org.springframework.context.event.EventListener
+import org.springframework.http.ResponseEntity
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
@@ -34,12 +36,15 @@ class AnalysisStreamController(
     fun events(
         @AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID,
         @PathVariable id: UUID,
-    ): SseEmitter {
-        val command = OpenAnalysisStreamCommand(participantId, id, streams.size(), streams.hasStreamOf(participantId))
-        val initial = AnalysisStatusEvent.from(analysisFacade.openStatusStream(command))
-        val stream = AnalysisStatusStream(initial.jobId, SseEmitter(STREAM_TIMEOUT_MS))
-        streams.open(participantId, stream, initial)
-        return stream.emitter
+    ): ResponseEntity<SseEmitter> {
+        val stream = AnalysisStatusStream(id.toString(), SseEmitter(STREAM_TIMEOUT_MS))
+        streams.open(
+            participantId,
+            stream,
+            { openStreams, replacing -> analysisFacade.verifyStreamOpenable(OpenAnalysisStreamCommand(openStreams, replacing)) },
+            { AnalysisStatusEvent.from(analysisFacade.getStatus(AnalysisJobCommand(participantId, id))) },
+        )
+        return ResponseEntity.ok(stream.emitter)
     }
 
     /** 커밋된 상태 변경을 그 참가자의 스트림으로 보낸다. */

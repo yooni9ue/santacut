@@ -1,4 +1,4 @@
-package com.santacut.presentation.analysis.response
+package com.santacut.presentation.analysis.stream
 
 import org.springframework.http.MediaType
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
