@@ -9,12 +9,14 @@ import java.math.BigDecimal
  * 검증과 가중 합산은 [ScoreComponents]가 한다.
  *
  * @property playfulness 순위에 쓰지 않는 장난기 성향(0~100). 모르면 null이다.
+ * @property rawMeans 수축 전 항목별 평균(소수 둘째 자리 반올림). 순위에는 쓰지 않고 유형을 고를 때만 쓴다.
  */
 class Score private constructor(
     val hundredths: Int,
     val components: ScoreComponents,
     val lowConfidence: LowConfidenceDimensions,
     val playfulness: Int?,
+    val rawMeans: ScoreComponents,
 ) {
     fun verdict(): ScoreVerdict = ScoreVerdict.of(hundredths)
 
@@ -28,12 +30,18 @@ class Score private constructor(
 
         /**
          * 수축한 정밀 항목 점수 [precise]로 합계를 낸다. 합계는 정밀 값의 가중 합을 한 번만 반올림하고,
-         * 저장·표시용 항목 점수는 소수 둘째 자리로 반올림한다.
+         * 저장·표시용 항목 점수는 소수 둘째 자리로 반올림한다. 수축 전 평균 [rawMeans]를 모르면 [precise]로 본다.
          */
-        fun shrunk(precise: List<BigDecimal>, lowConfidence: LowConfidenceDimensions, playfulness: Int?): Score {
+        fun shrunk(
+            precise: List<BigDecimal>,
+            lowConfidence: LowConfidenceDimensions,
+            playfulness: Int?,
+            rawMeans: List<BigDecimal> = precise,
+        ): Score {
             val scoreComponents = ScoreComponents(precise)
             if (!scoreComponents.isWithinBounds()) throw SantaCutException(ErrorCode.AI_SCORE_OUT_OF_RANGE)
-            return Score(scoreComponents.weightedHundredths(), scoreComponents.rounded(), lowConfidence, playfulness)
+            val rounded = scoreComponents.rounded()
+            return Score(scoreComponents.weightedHundredths(), rounded, lowConfidence, playfulness, ScoreComponents(rawMeans).rounded())
         }
     }
 }

@@ -21,6 +21,7 @@ import java.util.UUID
  * @property scoreRuleVersion 점수 규칙 판([Score.RULE_VERSION]). 1판(구간 합산·수축 전) 평가는 null이다.
  * @property quote 본인 근거 줄에서 고른 20자 이하 한마디. 본인 결과에만 보이고 공유 카드에는 본인이 고를 때만 싣는다.
  * @property badges 본인 말에서 받은 배지([EarnedBadges]). 이 값이 생기기 전 평가는 null이다.
+ * @property rawComponents 수축 전 항목별 평균을 담은 JSON 배열. 유형을 고를 때만 쓴다. 이 값이 생기기 전 평가는 null이다.
  */
 @Entity
 @Table(name = "assessments")
@@ -39,6 +40,7 @@ class Assessment(
     scoreRuleVersion: Int? = null,
     quote: String? = null,
     badges: String? = null,
+    rawComponents: String? = null,
 ) {
     @Id
     @Column(name = "id")
@@ -99,11 +101,15 @@ class Assessment(
     var badges: String? = badges
         protected set
 
+    @Column(name = "raw_components")
+    var rawComponents: String? = rawComponents
+        protected set
+
     /** 저장한 항목 점수. [ScoreDimension] 순서다. */
     fun dimensionScores(): ScoreComponents = ScoreComponents.fromColumn(components)
 
     /** 장난기 기준값 [playfulnessSplit](참가자 중앙값)으로 고른 유형. */
-    fun archetype(playfulnessSplit: Int): Archetype = Archetype.of(dimensionScores(), playfulness, playfulnessSplit)
+    fun archetype(playfulnessSplit: Int): Archetype = Archetype.of(dimensionScores(), playfulness, playfulnessSplit, rawComponents?.let(ScoreComponents::fromColumn))
 
     /** 받은 배지 라벨 목록. */
     fun badgeLabels(): List<String> = EarnedBadges.fromColumn(badges).labels()
@@ -112,13 +118,14 @@ class Assessment(
     fun lowConfidenceKeys(): List<String> = LowConfidenceDimensions.fromColumn(lowConfidence).toKeys()
 
     companion object {
-        fun record(job: AnalysisJob, scored: ScoredAssessment, componentsJson: String, recordedAt: Instant): Assessment {
+        /** [componentsJson]은 수축한 항목 점수, [rawComponentsJson]은 수축 전 평균의 JSON 배열이다. */
+        fun record(job: AnalysisJob, scored: ScoredAssessment, componentsJson: String, rawComponentsJson: String, recordedAt: Instant): Assessment {
             val score = scored.score
             val verdict = score.verdict()
             return Assessment(
                 UUID.randomUUID().toString(), job.userId, job.source, score.hundredths,
                 verdict.title, verdict.comment, componentsJson, recordedAt, scored.promptVersion, score.lowConfidence.toColumn(),
-                score.playfulness, Score.RULE_VERSION, scored.quote, scored.badges.toColumn(),
+                score.playfulness, Score.RULE_VERSION, scored.quote, scored.badges.toColumn(), rawComponentsJson,
             )
         }
 
@@ -126,7 +133,7 @@ class Assessment(
         fun reuse(job: AnalysisJob, previous: Assessment, recordedAt: Instant): Assessment = Assessment(
             UUID.randomUUID().toString(), job.userId, job.source, previous.scoreHundredths,
             previous.verdict, previous.comment, previous.components, recordedAt, previous.promptVersion, previous.lowConfidence,
-            previous.playfulness, previous.scoreRuleVersion, previous.quote, previous.badges,
+            previous.playfulness, previous.scoreRuleVersion, previous.quote, previous.badges, previous.rawComponents,
         )
     }
 }
