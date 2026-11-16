@@ -68,12 +68,13 @@
 
 ## 데이터 모델
 
-<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, result_snapshots, shares, prompts 9개 테이블의 모든 컬럼과 키. assessments.prompt_version은 채점에 쓴 프롬프트 판 번호이고 prompts는 FK가 없는 독립 테이블이다" width="100%"></p>
+<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, result_snapshots, shares, prompts, ai_usage_days 10개 테이블의 모든 컬럼과 키. assessments.prompt_version은 채점에 쓴 프롬프트 판 번호이고 prompts와 ai_usage_days는 FK가 없는 독립 테이블이다" width="100%"></p>
 
 - 기준은 [`schema.sql`](src/main/resources/schema.sql)이다.
 - 원본 파일은 `analysis_uploads`에 잠깐 머물다가 검증이 끝나면 지워진다.
 - 지역은 `parent_code`로 시·도와 시·군·구를 잇는다.
 - `assessments.prompt_version`에는 채점에 쓴 프롬프트 판 번호가 남는다. 프롬프트를 DB로 옮기기 전 평가는 `NULL`이다.
+- `analysis_jobs.digest_hash`는 같은 채점 입력의 재제출을 알아보는 해시다. `ai_usage_days`는 날짜별 AI 토큰 합계다.
 
 ## 분석 흐름
 
