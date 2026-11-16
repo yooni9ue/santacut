@@ -10,12 +10,13 @@ import java.math.MathContext
  *
  * @property strength 사전 평균의 무게 C. 0이면 당기지 않는다.
  * @property fullSelfTurns 근거 무게를 깎지 않는 본인 턴 수
- * @property personalPrior 근거 없는 항목에 중립 점수 대신 본인의 다른 항목 수준을 섞은 값을 줄지([DimensionReadings.shrunkScores])
+ * @property personalPrior 근거 없는 항목에 중립 점수 대신 본인의 다른 항목 수준을 섞은 값을 줄지([DimensionReadings.shrunkScores]).
+ *   기본값은 [com.santacut.domain.global.config.ScoreShrinkageProperties] 한 곳에만 둔다.
  */
 data class ScoreShrinkage(
     val strength: BigDecimal,
     val fullSelfTurns: Int,
-    val personalPrior: Boolean = false,
+    val personalPrior: Boolean,
 ) {
     /** [score]를 기회 수 [opportunity]와 본인 턴 수 [selfTurns]에 맞춰 당긴 정밀 값. */
     fun shrink(score: BigDecimal, opportunity: Int, selfTurns: Int): BigDecimal {

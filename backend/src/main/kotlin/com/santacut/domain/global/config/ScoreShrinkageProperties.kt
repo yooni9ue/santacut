@@ -1,5 +1,6 @@
 package com.santacut.domain.global.config
 
+import com.santacut.domain.analysis.model.ScoreShrinkage
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.math.BigDecimal
 
@@ -17,4 +18,7 @@ data class ScoreShrinkageProperties(
     val strength: BigDecimal = BigDecimal("0.25"),
     val fullSelfTurns: Int = 5,
     val personalPrior: Boolean = true,
-)
+) {
+    /** 이 설정으로 만든 수축 규칙. */
+    fun toShrinkage(): ScoreShrinkage = ScoreShrinkage(strength, fullSelfTurns, personalPrior)
+}
