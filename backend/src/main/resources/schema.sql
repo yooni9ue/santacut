@@ -14,8 +14,10 @@ CREATE TABLE IF NOT EXISTS analysis_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT 
 CREATE INDEX IF NOT EXISTS analysis_jobs_pending ON analysis_jobs(status,created_at);
 CREATE TABLE IF NOT EXISTS analysis_uploads (job_id TEXT PRIMARY KEY REFERENCES analysis_jobs(id) ON DELETE CASCADE, source TEXT NOT NULL, self_speaker TEXT NOT NULL, content BLOB NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS analysis_uploads_created ON analysis_uploads(created_at);
--- 앱의 하루 AI 호출 한도를 없앴다(AI 비용은 AWS Bedrock 예산으로만 막는다). 예전 DB에 남은 호출 수 테이블을 지운다.
+-- 호출 수로 세던 하루 AI 한도 테이블이다. 지금은 쓰지 않으므로 예전 DB에 남은 것을 지운다.
 DROP TABLE IF EXISTS ai_daily_budget;
+-- 앱 안의 AI 비용 가드가 읽는 날짜(한국)별 토큰 사용량. 호출 수 대신 토큰 수 × 단가로 하루·한 달 비용을 어림한다.
+CREATE TABLE IF NOT EXISTS ai_usage_days (usage_date TEXT PRIMARY KEY, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0, calls INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS result_snapshots (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, assessment_id TEXT NOT NULL REFERENCES assessments(id) ON DELETE CASCADE, rank INTEGER NOT NULL, delivery_sequence INTEGER NOT NULL, eta TEXT NOT NULL, computed_at TEXT NOT NULL, tied INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS snapshots_latest ON result_snapshots(computed_at,user_id);
 CREATE TABLE IF NOT EXISTS shares (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, snapshot_id TEXT NOT NULL REFERENCES result_snapshots(id) ON DELETE CASCADE, nickname TEXT NOT NULL, score_hundredths INTEGER NOT NULL, rank INTEGER NOT NULL, eta TEXT NOT NULL, verdict TEXT NOT NULL, comment TEXT NOT NULL, computed_at TEXT NOT NULL, revoked_at TEXT, tied INTEGER NOT NULL DEFAULT 0, stage TEXT NOT NULL DEFAULT 'PREVIEW', created_at TEXT);
