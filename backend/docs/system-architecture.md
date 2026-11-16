@@ -8,11 +8,11 @@
 - 저장소 코드는 Spring Data JPA Repository만 사용한다. 분석 큐, 점수, 순위 스냅샷, 공유도 JPA 엔티티로 관리한다.
 - Swagger UI와 OpenAPI 3 명세는 `/swagger-ui.html`과 `/v3/api-docs`에서 제공한다. 각 API의 설명은 endpoint 전용 `@Operation` 메타 애노테이션에 두고, 요청·응답 모델에는 필드별 스키마 설명을 둔다.
 - 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
-- AI 호출은 Spring AI Google GenAI로 Gemini 3.5 Flash-Lite(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 본인 메시지로 만든 항목별 신호와 표본(최대 120줄, 본문 6,000자)뿐이다.
+- AI 호출은 Spring AI Google GenAI로 Gemini 3.5 Flash-Lite(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 참여자 이름을 `나`·`상대`로 바꾼 두 화자 대화 전체(정규화 뒤 최대 40,000자)다. 긴 대화는 약 6,700자씩 최대 6구간으로 나눠 채점하고, 한 구간에 들어가는 대화는 세 번 따로 채점해 항목별 중앙값을 낸다. 점수는 본인 말만 매기고, 상대 말을 포함한 대화 내용은 작업이 끝나면(성공·실패 모두) 지운다. 점수 규칙은 `Score.RULE_VERSION` 7판, 채점 프롬프트는 DB `prompts`의 `score` 7판이다.
 - 분석 API는 원본 파일 업로드(`POST /v1/analyses/files`)와 정규화된 이벤트 JSON(`POST /v1/analyses`)을 둘 다 받는다. 카카오톡 TXT(PC·모바일)와 인스타그램 `message_1.json` 파서가 있다. 다만 공개 내보내기 예시로 만든 것이라 실제 샘플 검증은 출시 전에 해야 한다.
 - 지역은 전국 시·도 16개와 시·군·구 255개(모두 271개)다. 서울은 `schema.sql`이, 나머지는 `regions.sql`이 앱 시작 때마다 넣는다(`INSERT OR IGNORE`).
 - 분석 진행 상태는 진행 상황 스트림(`GET /v1/analyses/{id}/events`, SSE)으로 받거나 폴링(`GET /v1/analyses/{id}`, `GET /v1/me/analysis`)으로 읽는다. 스트림 상한에 걸리면 폴링으로 바꾼다. 결과는 `GET /v1/me/result`로 따로 읽는다.
-- 내보내기 안내 UI, 실제 도메인과 서버는 아직 출시 전 작업이다.
+- dev 서버는 `https://api-dev.santacut.me`(Lightsail `micro_3_0`, 1GB)에서 `develop` 브랜치를 자동 배포로 돌린다. 화면은 Vercel(`dev.santacut.me`, 운영은 `santacut.me`·`www.santacut.me`)이 맡고 `/v1/**`, `/s/**`를 API로 넘긴다(rewrite). 운영 API `api.santacut.me`는 아직 켜지 않았다.
 - 백엔드 코드는 `presentation → application → domain → infrastructure` 4계층 레이어드 아키텍처를 따른다. 의존은 위에서 아래로만 흐르고 포트·어댑터는 쓰지 않는다. 규칙은 [백엔드 코드 컨벤션](backend-conventions.md)에 정의한다.
 
 ## 1. 결정 요약
@@ -27,7 +27,7 @@ Kotlin + Spring Boot 모듈형 모놀리스 한 개와 SQLite 파일 DB를 단�
 
 ```mermaid
 flowchart LR
-  U[브라우저 / 공유 링크 크롤러] -->|HTTP 80, 도메인 뒤 HTTPS 443| C[Caddy]
+  U[브라우저 / 공유 링크 크롤러] -->|HTTPS 443, Let's Encrypt, HSTS| C[Caddy]
   C -->|내부 네트워크| A[Kotlin Spring Boot API]
   A --> P[(SQLite 파일 DB)]
   A --> V[(원본 파일: analysis_uploads BLOB)]
@@ -87,7 +87,7 @@ flowchart LR
 
 서버가 막으면 `413 FILE_TOO_LARGE`, Caddy가 막으면 `code` 없는 `413`이 간다. 검증 작업자는 원본을 한 번에 하나만 꺼내 파싱하고, 파싱하는 동안 DB 커넥션을 쥐지 않는다. 출처별 형식 확인과 이벤트 수·글자 수 제한을 적용한다.
 
-프론트엔드는 같은 도메인에서 API를 호출해 세션 쿠키와 CSRF 쿠키를 그대로 사용한다. Caddy는 모든 요청을 앱으로 proxy하고 `/actuator`만 외부에 404로 막는다. 별도 API 서브도메인과 CORS 설정은 초기에는 필요하지 않다. 프론트엔드 배포 방식(같은 Caddy 아래 정적 파일 또는 별도 호스팅)은 프론트엔드 팀이 `frontend/`를 구성할 때 정한다.
+프론트엔드는 Vercel에 배포하고, Next.js rewrite로 `/v1/**`, `/s/**`, Swagger 경로를 API 서브도메인(`api-dev`, `api`)에 넘긴다. 그래서 브라우저 입장에서는 같은 출처라 세션 쿠키와 CSRF 쿠키를 그대로 쓴다. API를 바로 부르는 경우를 위해 CORS 허용 목록(`APP_CORS_ALLOWED_ORIGINS`, dev는 `https://dev.santacut.me`와 `http://localhost:3000` 포함)도 둔다. Caddy는 모든 요청을 앱으로 proxy하고 `/actuator`만 외부에 404로 막는다. 운영 프로필은 Caddy가 붙인 `X-Forwarded-*` 헤더를 믿는다(`forward-headers-strategy: native`, 내부 프록시 대역만).
 
 ### 백엔드 개발 명령
 
@@ -151,7 +151,7 @@ season current_snapshot_id는 계산 완료 후 짧은 트랜잭션으로 교체
 
 ## 8. 보안·개인 데이터 경계
 
-세션은 추측 불가능한 난수 token과 서버 hash 저장 방식으로 관리한다. 쿠키는 HttpOnly, Secure(운영), SameSite=Lax이며 전체 상태 변경 API에 CSRF를 적용한다. JSON content type 검증과 Origin 확인을 보조적으로 사용한다. CORS wildcard+credentials를 허용하지 않는다.
+세션은 추측 불가능한 난수 token과 서버 hash 저장 방식으로 관리한다. 쿠키는 HttpOnly, Secure(HTTPS로 띄운 dev·운영), SameSite=Lax(dev는 로컬 화면을 위해 `None`)이며 전체 상태 변경 API에 CSRF를 적용한다. JSON content type 검증과 Origin 확인을 보조적으로 사용한다. CORS wildcard+credentials를 허용하지 않는다.
 
 원본 파일은 디스크 디렉터리가 아니라 SQLite `analysis_uploads` 테이블의 BLOB 컬럼에 작업 ID를 키로 둔다. 사용자 파일명은 저장하지 않는다. 검증이 끝나는 트랜잭션에서 지우고, 남은 원본도 24시간 TTL이 지나면 지운다. 원문은 access log·exception·AI 에러 응답에 남기지 않는다. 처리 전에 외부 AI 전송에 대한 사용자 안내·동의와 삭제 정책을 제공한다.
 
@@ -165,7 +165,7 @@ Gemini API 키·AWS 키·SSH 키 같은 비밀값은 저장소·Docker image·wo
 
 | 선택 | 월 서버 비용 | 결정 |
 | --- | ---: | --- |
-| AWS Lightsail `nano_3_0` / public IPv4 / 512MB / 2vCPU / 20GB | USD 5 | 현재 선택. worker 1개, 단일 JVM, 스왑 1GB, 부하 검증 필수 |
+| AWS Lightsail `micro_3_0` / public IPv4 / 1GB / 2vCPU / 40GB | USD 7 | 현재 선택(2026-11-16에 `nano_3_0` 512MB에서 올림). worker 1개, 단일 JVM |
 | AWS Lightsail Linux / public IPv4 / 2GB / 2vCPU / 60GB | USD 12 | 메모리가 모자랄 때 먼저 올릴 번들 |
 | AWS Lightsail Linux / public IPv4 / 4GB / 2vCPU / 80GB | USD 24 | 예산 증액 시 확장안. 현재 월 2만원 제약의 기본 선택이 아님 |
 | Hetzner CX23 / 4GB / 2vCPU | EUR 5.49 기준, IPv4·VAT 별도 | 초저예산 대안. 유럽 지연과 현재 재고·최종 견적 확인 필요 |
@@ -174,11 +174,11 @@ Lightsail 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/
 
 도메인은 사용자 선택에 따라 [가비아](https://domain.gabia.com/)에서 구매한다. `.com` 우선 검색 후 실제 구매 가능 이름을 정한다. 연간 등록비와 갱신가·VAT는 결제 화면에서 확인하며 현재 확정 견적은 없다. 첫해 할인보다 갱신가·등록 소유자·MFA·자동갱신을 확인한다. DNS는 가비아에서 직접 관리할 수 있고, 향후 Cloudflare DNS를 쓰더라도 등록기관은 가비아로 유지할 수 있다.
 
-서울 지연을 우선해 Lightsail 서울 `nano_3_0`($5)으로 시작한다. 큰 번들로 올릴 때 환율·VAT·백업을 더해 20,000원을 넘으면 이 예산을 충족한다고 표시하지 않는다. [Hetzner 공식 2026-06 가격 조정 안내](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) 검색 결과는 CX23 EUR 5.49를 제시한다. 직접 페이지 fetch가 404여서 주문 시 재확인하며 현재 제품 페이지에는 가용성 제한도 보인다. 서버 월 예산 산식은 VM + public IPv4 + 세금/환율 + 외부 백업 저장·요청·전송료다. 도메인 연납은 별도로 계산한다. AI 비용은 `분석 수 × (입력 토큰 × 입력 단가 + 출력 토큰 × 출력 단가)`로 따로 계산한다. 앱에는 AI 호출 한도가 없고, 토큰 비용 가드(하루 0.5달러, 한 달 9달러)가 막는다. 사용량을 정하기 전 총비용을 월 몇천 원으로 약속하지 않는다.
+서울 지연을 우선해 Lightsail 서울 `nano_3_0`($5)으로 시작했고, 기동 시간 때문에 `micro_3_0`($7)으로 올렸다. 큰 번들로 올릴 때 환율·VAT·백업을 더해 20,000원을 넘으면 이 예산을 충족한다고 표시하지 않는다. [Hetzner 공식 2026-06 가격 조정 안내](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) 검색 결과는 CX23 EUR 5.49를 제시한다. 직접 페이지 fetch가 404여서 주문 시 재확인하며 현재 제품 페이지에는 가용성 제한도 보인다. 서버 월 예산 산식은 VM + public IPv4 + 세금/환율 + 외부 백업 저장·요청·전송료다. 도메인 연납은 별도로 계산한다. AI 비용은 `분석 수 × (입력 토큰 × 입력 단가 + 출력 토큰 × 출력 단가)`로 따로 계산한다. 앱에는 AI 호출 한도가 없고, 토큰 비용 가드(한 달 9달러, 하루 한도는 기본으로 꺼 둠)와 Gemini 선불 크레딧이 막는다. 사용량을 정하기 전 총비용을 월 몇천 원으로 약속하지 않는다.
 
 [GitHub Actions 공식 안내](https://docs.github.com/en/actions/concepts/billing-and-usage)에 따라 공개 저장소의 standard hosted runner 사용은 무료다. 비공개 저장소·larger runner·artifact/package 저장 비용은 계정 조건을 확인한다. artifact 보관 기간을 짧게 하고 오래된 container image는 롤백 후보를 남긴 뒤 정리한다.
 
-512MB 메모리 예산: 앱 컨테이너 `mem_limit: 400m`, JVM `-Xms128m -Xmx256m`(metaspace 최대 128MB, SerialGC), Caddy `mem_limit: 64m`, 나머지는 OS와 페이지캐시다. 자세한 값은 [배포 운영서](deployment.md)에 있다. 숫자는 부하 테스트로 검증한다. 스왑 1GB는 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
+처음 512MB 번들의 메모리 예산(지금 1GB 번들도 같은 제한을 쓴다): 앱 컨테이너 `mem_limit: 400m`, JVM `-Xms128m -Xmx256m`(metaspace 최대 128MB, SerialGC), Caddy `mem_limit: 64m`, 나머지는 OS와 페이지캐시다. 자세한 값은 [배포 운영서](deployment.md)에 있다. 숫자는 부하 테스트로 검증한다. 스왑 1GB는 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
 
 ## 10. CI/CD와 배포 계약
 
@@ -186,7 +186,7 @@ PR CI: Wrapper checksum 확인 → Java toolchain → compile/test → SQLite �
 
 GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:write. 외부 PR에 배포 secrets를 전달하지 않는다. production environment에 서버 키·known_hosts를 저장하고 SSH host key를 대역 외 확인한다. 실행 때 `ssh-keyscan`만으로 처음 본 키를 무조건 신뢰하지 않는다.
 
-초기 CD는 수동 workflow_dispatch로 검증된 digest를 선택한다. 도메인·서버가 마련된 후 운영 정책에 맞춰 main 자동 배포를 켠다. 배포 concurrency group은 한 서버당 하나이며 배포 중 취소하지 않는다. GitHub concurrency와 별도로 서버 파일 lock으로 겹치는 실행을 막는다.
+`develop` 푸시는 테스트·이미지 게시 뒤 dev 서버에 자동 배포한다. GitHub OIDC로 AWS 배포 역할을 맡아 러너 IP에만 SSH(22번)를 잠깐 열고, 배포가 끝나면 닫는다. `main` 푸시는 이미지 게시까지만 하고, 운영 배포는 수동 `workflow_dispatch`(`deploy=true`)로 검증된 digest를 고른다. 배포 concurrency group은 한 서버당 하나이며 배포 중 취소하지 않는다. GitHub concurrency와 별도로 서버 파일 lock으로 겹치는 실행을 막는다.
 
 배포 순서:
 
@@ -216,7 +216,7 @@ GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:
 
 ## 12. 백업·복원·관측
 
-초기 목표는 RPO 24시간, RTO 2시간이며 실제 복원 리허설로 검증하기 전에는 보장하지 않는다. 매일 SQLite 온라인 백업을 생성하고 checksum과 함께 암호화해 서버 밖 저장소에 전송한다. 같은 서버 디스크의 backup 폴더만으로 완료 처리하지 않는다. 7일 일간·4주 주간 보존을 기본안으로 하고 비용을 확인한다.
+초기 목표는 RPO 24시간, RTO 2시간이며 실제 복원 리허설로 검증하기 전에는 보장하지 않는다. 지금은 매시 SQLite 온라인 백업(`sqlite3 .backup`)을 checksum과 함께 S3 `backups/`에 올리고, 버킷이 환경별 KMS 키로 암호화한다(SSE-KMS). 14일 뒤 이전 버전이 되고 7일 뒤 지워져 최대 21일 남는다. 여기에 Lightsail 자동 스냅숏(매일 03:00 KST)을 더한다. 같은 서버 디스크의 backup 폴더만으로 완료 처리하지 않는다. 복원 절차는 [배포 운영서](deployment.md)에 있다.
 
 원본 업로드는 24시간 이내 삭제 대상이므로 장기 backup에 넣지 않는다. 공개 이미지도 DB의 안전한 share payload로 다시 생성할 수 있다면 별도 장기 백업을 생략한다. 운영 설정은 비밀 관리 경로에서 별도로 복구할 수 있어야 한다.
 
@@ -228,7 +228,7 @@ GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:
 
 출시 차단 조건: 실제 플랫폼 샘플 parser 미검증, mock AI 운영 활성화, 세션/CSRF 우회, 사용자 간 데이터 접근, 미검증 점수 저장, 무한 retry·무제한 비용, 공유 XSS/원문 노출, backup 복원 실패, readiness 실패.
 
-부하 목표는 최초 기준으로 조회 20 RPS·분석 동시성 1·1만 참가자 전체 재계산을 측정한다. 이는 보장 성능이 아니며 p95 응답·heap·DB lock·계산 시간을 기록해 예산과 맞춘다. 512MB에서 OOM 또는 빈번한 swap이 생기면 먼저 2GB 번들로 올린다.
+부하 목표는 최초 기준으로 조회 20 RPS·분석 동시성 1·1만 참가자 전체 재계산을 측정한다. 이는 보장 성능이 아니며 p95 응답·heap·DB lock·계산 시간을 기록해 예산과 맞춘다. 1GB에서 OOM 또는 빈번한 swap이 생기면 먼저 2GB 번들로 올린다.
 
 이후 확장은 원본/공유 파일을 S3 호환 저장소로 분리 → 분석 worker를 별도 프로세스로 분리 → DB를 별도 서버로 분리 순이다. 지속적인 큐 지연과 비용 근거가 생기기 전 Kafka·Kubernetes를 도입하지 않는다.
 
