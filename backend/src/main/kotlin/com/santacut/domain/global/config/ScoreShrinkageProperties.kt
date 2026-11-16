@@ -10,9 +10,11 @@ import java.math.BigDecimal
  *
  * @property strength 사전 평균의 무게 C. 평가(`./gradlew eval`)로 골랐고 근거는 backend-design.md에 있다.
  * @property fullSelfTurns 본인 턴이 이만큼 있으면 근거 무게를 깎지 않는다. 이보다 짧은 대화만 덜 믿는다.
+ * @property personalPrior 근거 없는 항목에 중립 점수와 본인의 다른 항목 평균을 섞은 값을 준다(backend-design.md §14.12).
  */
 @ConfigurationProperties(prefix = "santacut.score.shrinkage")
 data class ScoreShrinkageProperties(
     val strength: BigDecimal = BigDecimal("0.25"),
     val fullSelfTurns: Int = 5,
+    val personalPrior: Boolean = true,
 )
