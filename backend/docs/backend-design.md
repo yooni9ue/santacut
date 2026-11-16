@@ -364,7 +364,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | DELETE /v1/shares/{id} | 소유자의 공유 링크 비활성화 |
 | DELETE /v1/me | 계정·원본·공유 결과 삭제 요청 |
 
-### 9.2 현재 API (17개 + dev 전용 3개)
+### 9.2 현재 API (18개 + dev 전용 3개)
 
 OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-TOKEN` 헤더로 보낸다.
 
@@ -380,6 +380,7 @@ OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-T
 | POST | `/v1/analyses` | 정규화한 이벤트로 분석 제출 (`202`) | 세션 · CSRF · `Idempotency-Key` |
 | POST | `/v1/analyses/files` | 원본 파일로 분석 제출 (`202`, multipart) | 세션 · CSRF · `Idempotency-Key` |
 | GET | `/v1/analyses/{id}` | 분석 작업 진행 단계(소유자만) | 세션 |
+| GET | `/v1/analyses/{id}/events` | 분석 작업 진행 단계 스트림(SSE, 소유자만) | 세션 |
 | GET | `/v1/me/analysis` | 내 가장 최근 작업의 진행 단계 | 세션 |
 | GET | `/v1/me/result` | 내 점수·순위·공동 순위·ETA·확정 상태 | 세션 |
 | GET | `/v1/rankings` | 순위표 50줄씩(cursor) | 공개 |
@@ -400,7 +401,12 @@ dev 전용 프롬프트 관리 API다. `santacut.prompt-admin.enabled=true`(`PRO
 - 판 번호는 가장 높은 판 + 1이다. 커넥션 풀이 하나라 읽기와 쓰기 사이에 다른 트랜잭션이 끼지 못하고, `UNIQUE(name, version)`이 한 번 더 막는다.
 - 분석 작업자는 AI를 부를 때마다 `score`의 최신 판을 DB에서 읽는다. 캐시하지 않는다. 로그에는 이름과 판 번호만 남긴다. 판이 하나도 없으면 작업은 `ANALYSIS_FAILED`로 끝나고 로그 사유는 `PROMPT_NOT_FOUND`다.
 
-- 진행 상태는 폴링으로 읽는다. 상태 응답에는 결과가 없고, 결과는 `GET /v1/me/result` 하나로만 읽는다.
+- 진행 상태는 폴링이나 SSE 스트림으로 읽는다. 상태 응답에는 결과가 없고, 결과는 `GET /v1/me/result` 하나로만 읽는다.
+- 스트림 흐름은 이렇다. `AnalysisJobService`가 작업 행을 저장할 때마다 `AnalysisJobChange`를 알린다. `AnalysisFacade`가 트랜잭션 커밋 뒤(`TransactionalEventListener`) 폴링과 같은 상태를 만들어 `AnalysisStatusChangeResult`로 다시 알린다. `AnalysisStreamController`가 그 참가자의 스트림으로 보낸다. 스트림마다 DB를 다시 읽지 않는다.
+- 열린 스트림은 이 인스턴스 메모리(`AnalysisStatusStreams`)에만 있다. 참가자당 하나이며, 새로 열면 이전 것을 닫는다. 완료·시간 초과(5분)·오류 때 목록에서 빠진다.
+- 앱 전체 스트림은 `santacut.stream.max-open-streams`(기본 200)까지다. 넘으면 `503 ANALYSIS_STREAM_LIMIT`과 `Retry-After`(30초)다.
+- 15초마다 주석 줄을 보낸다. 작업자와 같은 스케줄러 스레드를 쓰므로 AI 호출이 길면 늦을 수 있다.
+- Caddy는 이 경로를 압축하지 않고(`encode` 제외) 버퍼 없이 흘려보낸다(`flush_interval -1`).
 - 없거나 취소된 공유 링크를 `Accept: text/html`로 열면 `/s/{token}`과 `/s/{token}/image.png` 모두 `404`와 함께 시작 링크가 있는 안내 HTML을 준다. 그 밖의 요청에는 `404` JSON(`SHARE_NOT_FOUND`)을 준다.
 - `{id}`가 UUID 형식이 아니면 `400 INVALID_REQUEST`다.
 
@@ -490,6 +496,7 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 | `AI_EVIDENCE_INVALID` | 502 | 범위 밖·겹친 근거 번호를 지우고 나니 근거가 없는 항목이 있음(작업자 내부) |
 | `AI_SCORE_OUT_OF_RANGE` | 502 | AI 점수가 0~100 밖이거나 소수 셋째 자리 이하 값이 있음(작업자 내부) |
 | `AI_NOT_CONFIGURED` | 503 | AI 모델이 설정되지 않아 제출을 받지 않음 |
+| `ANALYSIS_STREAM_LIMIT` | 503 | 앱 전체 진행 상황 스트림 수가 상한에 닿음. `retry_at`과 `Retry-After`가 붙는다 |
 | `AI_PROVIDER_UNAVAILABLE` | 503 | AI 제공자가 권한 거부·요청 한도로 호출을 막음(작업자 내부, 작업은 대기열로 돌아감) |
 
 작업이 실패하면 상태 조회의 `error_code`가 이유를 알려 준다. 값은 [`AnalysisFailureCode`](../src/main/kotlin/com/santacut/domain/analysis/model/AnalysisFailureCode.kt)의 8개다. `SEASON_FROZEN`, `EXPIRED`, `RETRY_EXHAUSTED`, `ANALYSIS_FAILED`, `UNSUPPORTED_FILE_FORMAT`, `SPEAKER_NOT_IDENTIFIED`는 `FAILED`로, `INSUFFICIENT_EVIDENCE`와 `INSUFFICIENT_EVENTS`는 `INSUFFICIENT_DATA`로 저장한다. 작업자 내부 오류(`AI_*` 등)는 `ANALYSIS_FAILED`로 바꿔 기록한다.
@@ -591,3 +598,11 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 - 재사용 해시는 페이로드가 아니라 AI 입력으로 만든다. 파일이 조금 달라도 표본이 같으면 다시 쓸 수 있다. 성공과 실패를 한 컬럼(`analysis_jobs.digest_hash`)으로 다루려고 평가가 아니라 작업 행에 둔다.
 - 앱 안의 비용 가드는 날짜별 토큰 합계로 판단한다. 호출 수로 세던 예전 `ai_daily_budget`은 비용과 맞지 않아 지웠던 것이다.
 - 전문가 검토에서 미룬 것: 항목별 표본 칸 나누기, 본문 정규화와 중복 접기, 저신호 기준 4자로 올리기, 부정 신호 칸, 표본 크기 실험.
+
+### 14.7 진행 상황 스트림(SSE)을 다시 더하기 (2026-11-16)
+
+- §14.1에서 걷어 낸 SSE를 다른 방식으로 다시 더했다. 폴링은 대체 수단으로 그대로 둔다.
+- 예전 구현은 1초마다 상태를 보냈다. 지금은 작업 저장 알림을 커밋 뒤에 받아, 바뀐 작업의 참가자에게만 보낸다. 스트림마다 DB를 읽지 않는다.
+- 열린 스트림은 메모리에만 둔다. 서버가 한 대라 다른 인스턴스로 퍼뜨릴 필요가 없다.
+- 512MB 서버를 지키려고 참가자당 하나, 앱 전체 200개로 막는다. 넘으면 화면이 폴링으로 바꾼다.
+- 이벤트 `id`는 진행 단계 순번이다. 다시 연결하면 현재 단계를 처음부터 보내므로, 놓친 이벤트를 되돌려 보낼 저장소가 필요 없다.

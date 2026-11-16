@@ -49,6 +49,7 @@
 | POST | `/v1/analyses` | 필요 | 필요 | 이벤트 목록으로 분석 요청 (`202`) |
 | POST | `/v1/analyses/files` | 필요 | 필요 | 원본 파일로 분석 요청 (`202`, multipart) |
 | GET | `/v1/analyses/{id}` | 필요 | - | 분석 작업 진행 상태 |
+| GET | `/v1/analyses/{id}/events` | 필요 | - | 분석 작업 진행 상황 스트림(SSE, `text/event-stream`) |
 | GET | `/v1/me/analysis` | 필요 | - | 내 최근 분석 작업 상태 |
 | GET | `/v1/me/result` | 필요 | - | 내 최신 점수·순위·도착 시각·확정 상태 |
 | GET | `/v1/rankings` | - | - | 랭킹 50명씩(cursor 페이지네이션) |
@@ -113,6 +114,50 @@
 - 서버의 AI 비용 한도에 닿았거나 AI 제공자가 잠시 막으면 작업이 `QUEUED`에 오래 머물 수 있다. 24시간이 지나면 `EXPIRED`로 끝난다.
 - 짧은 메시지를 빼고 남는 본인 메시지가 8개 또는 300자보다 적으면 AI를 부르지 않고 `INSUFFICIENT_EVIDENCE`로 끝난다.
 - 같은 참가자가 같은 내용으로 다시 내면 AI를 다시 부르지 않고 지난번과 같은 결과(점수 또는 근거 부족)로 끝난다.
+
+### 6.0 진행 상황 스트림 `GET /v1/analyses/{id}/events`
+
+폴링 대신 SSE로 진행 단계를 받을 수 있다. 폴링은 그대로 있으며, 스트림이 안 되면 폴링으로 바꾼다.
+
+- 연결하자마자 현재 단계를 한 번 받고, 단계가 바뀔 때마다 하나씩 받는다.
+- 이벤트 이름은 `status`, `data`는 `GET /v1/analyses/{id}`와 같은 JSON이다.
+- `id`는 진행 단계 순번이다(`VALIDATING` 0, `QUEUED` 1, `ANALYZING` 2, `RANKING_PENDING` 3, `SUCCEEDED` 4, `FAILED` 5). AI 제공자가 잠시 막아 대기열로 돌아가면 작아질 수 있다.
+- `SUCCEEDED`나 `FAILED`를 보낸 뒤 서버가 닫는다. 이미 끝난 작업에 연결하면 끝난 단계를 받고 바로 닫힌다.
+- 15초마다 주석 줄(`: heartbeat`)이 온다. `EventSource`는 이 줄을 이벤트로 넘기지 않는다.
+- 5분이 지나면 서버가 닫는다. 브라우저 `EventSource`는 `Last-Event-ID`를 붙여 다시 연결하고, 서버는 현재 단계를 처음부터 다시 보낸다.
+- 인증과 소유 규칙은 상태 조회와 같다. 세션이 없으면 `401`, 다른 참가자의 작업이면 `404`다.
+- 참가자 한 명은 스트림을 하나만 쓴다. 새로 열면 이전 스트림이 닫힌다(탭을 여러 개 열면 마지막 탭만 받는다).
+- 서버 전체 스트림 수가 상한에 닿으면 `503`(`ANALYSIS_STREAM_LIMIT`)과 `Retry-After`가 온다. 이때는 폴링으로 바꾼다.
+
+`EventSource`는 응답 코드와 본문을 알려 주지 않는다. 그래서 처음 연결이 실패하면(`503` 포함) 이유를 따지지 않고 폴링으로 바꾼다.
+
+```ts
+const POLL_INTERVAL_MS = 3000; // 폴링은 2~3초 간격을 권장한다
+
+function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
+  let opened = false;
+  const source = new EventSource(`/v1/analyses/${id}/events`, { withCredentials: true });
+
+  source.addEventListener("open", () => { opened = true; });
+  source.addEventListener("status", (event) => {
+    const status = JSON.parse((event as MessageEvent).data) as AnalysisStatus;
+    onStatus(status);
+    if (status.status === "SUCCEEDED" || status.status === "FAILED") source.close();
+  });
+  source.addEventListener("error", () => {
+    // 한 번도 열리지 않았으면(401, 404, 503 등) 스트림을 접고 폴링한다.
+    // 열린 뒤 끊긴 것은 EventSource가 Last-Event-ID를 붙여 다시 연결하게 둔다.
+    if (!opened || source.readyState === EventSource.CLOSED) {
+      source.close();
+      startPolling(id, onStatus, POLL_INTERVAL_MS);
+    }
+  });
+  return () => source.close();
+}
+```
+
+- 같은 출처(`/v1` 프록시)로 부르므로 세션 쿠키가 함께 간다. `withCredentials`는 다른 출처로 부를 때를 위한 것이다.
+- 스트림을 쓰는 동안에는 폴링을 멈춘다. 화면을 떠나면 `close()`로 닫는다.
 
 ### 6.1 원본 파일 업로드 `POST /v1/analyses/files`
 
@@ -216,5 +261,6 @@
 | 세션의 참가자가 지워짐 | `404` | `PARTICIPANT_NOT_FOUND` | 새 참여 안내 |
 | 잘못된 Idempotency-Key | `400` | `INVALID_IDEMPOTENCY_KEY` | 키 생성 코드 버그 |
 | 같은 키로 다른 요청 | `409` | `IDEMPOTENCY_CONFLICT` | 새 제출에는 새 키를 만든다 |
+| 진행 상황 스트림이 꽉 참 | `503` | `ANALYSIS_STREAM_LIMIT` | 폴링으로 바꾼다. `Retry-After` 뒤에 다시 열어 봐도 된다 |
 | AI 모델 미설정 | `503` | `AI_NOT_CONFIGURED` | 지금은 분석을 받을 수 없다고 안내 |
 | 랭킹 cursor 오류 | `400` | `INVALID_CURSOR` | 받은 `next_cursor`만 보낸다 |
