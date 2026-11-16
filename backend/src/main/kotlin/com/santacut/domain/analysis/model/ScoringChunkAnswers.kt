@@ -30,7 +30,7 @@ class ScoringChunkAnswers(private val values: List<ScoringChunkAnswer>) {
         val lowConfidence = readings.lowConfidence()
         verifyAnyEvidence(lowConfidence)
         val selfTurns = scored.sumOf { chunkAnswer -> chunkAnswer.chunk.selfTurnCount() }
-        return Score.shrunk(readings.shrunkScores(shrinkage, selfTurns), lowConfidence, playfulnessOf(scored), readings.meanScores())
+        return Score.shrunk(readings.shrunkScores(shrinkage, selfTurns), lowConfidence, playfulnessOf(scored), readings.meanScores(shrinkage))
     }
 
     /**

@@ -21,8 +21,14 @@ class DimensionReadings(private val values: List<DimensionReading>) {
         return ScoreDimension.entries.map { dimension -> shrunkScoreOf(dimension, shrinkage, selfTurns) ?: prior }
     }
 
-    /** 수축 전 항목별 평균. 근거 없는 항목은 중립 점수다. 유형을 고를 때 쓴다([Archetype.of]). [ScoreDimension] 순서다. */
-    fun meanScores(): List<BigDecimal> = ScoreDimension.entries.map { dimension -> meanOf(supporting(dimension)) }
+    /**
+     * 수축 전 항목별 평균. 근거 없는 항목은 [shrunkScores]와 같은 사전값([priorFor])이라 보여 주는 막대와 유형이 어긋나지 않는다.
+     * 유형을 고를 때 쓴다([Archetype.of]). [ScoreDimension] 순서다.
+     */
+    fun meanScores(shrinkage: ScoreShrinkage): List<BigDecimal> {
+        val prior = priorFor(shrinkage)
+        return ScoreDimension.entries.map { dimension -> supporting(dimension).takeIf { supported -> supported.isNotEmpty() }?.let(::meanOf) ?: prior }
+    }
 
     /** 항목의 근거 줄 번호를 차례로 [finder]에 넘겨 처음 나온 한마디. 없으면 null이다. */
     fun quoteOf(dimension: ScoreDimension, finder: (Int) -> String?): String? =
