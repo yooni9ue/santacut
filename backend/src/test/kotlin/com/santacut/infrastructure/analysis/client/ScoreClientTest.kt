@@ -98,7 +98,7 @@ class ScoreClientTest {
         val prompt = checkNotNull(chatModel.lastPrompt)
         val userText = prompt.userMessage.text.orEmpty()
         assertEquals(SYSTEM_PROMPT, prompt.systemMessage.text)
-        assertTrue(userText.startsWith("[signals]\ncare_empathy hit=0 weeks=0/1 shown=0\npositivity_support hit=4 weeks=1/1 shown=4\n"))
+        assertTrue(userText.startsWith("[signals]\ncare_empathy hit=0 neg=0 weeks=0/1 shown=0\npositivity_support hit=4 neg=0 weeks=1/1 shown=4\n"))
         assertTrue(userText.endsWith("[sample]\n# 10-26주\n1|고마워 0\n2|고마워 1\n3|고마워 2\n4|고마워 3"))
     }
 

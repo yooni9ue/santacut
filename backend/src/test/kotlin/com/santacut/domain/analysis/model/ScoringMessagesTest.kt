@@ -17,13 +17,14 @@ class ScoringMessagesTest {
             at(1, "괜찮아? 걱정돼"),
             at(8, "어제 고마웠어"),
             at(15, "밥 먹었어"),
+            at(16, "안 괜찮아 진짜"),
         ),
     )
     private val signals = messages.signals(SampleMessages(listOf(at(0, "고마워 정말 고마워")))).toList()
 
     @Test
     fun `메시지 수를 센다`() {
-        assertEquals(5, messages.size())
+        assertEquals(6, messages.size())
         assertEquals(0, ScoringMessages(emptyList()).size())
     }
 
@@ -34,9 +35,19 @@ class ScoringMessagesTest {
     }
 
     @Test
-    fun `항목마다 낱말이 든 메시지 수, 그런 주 수, 전체 주 수, 표본에서 낱말이 든 줄 수를 센다`() {
-        assertEquals(DimensionSignal(ScoreDimension.POSITIVITY_SUPPORT, 2, 2, 4, 1), signals[1])
-        assertEquals(DimensionSignal(ScoreDimension.CARE_EMPATHY, 1, 1, 4, 0), signals[0])
+    fun `항목마다 낱말이 든 메시지 수, 부정 낱말 수, 그런 주 수, 전체 주 수, 표본에서 낱말이 든 줄 수를 센다`() {
+        assertEquals(DimensionSignal(ScoreDimension.POSITIVITY_SUPPORT, 2, 0, 2, 4, 1), signals[1])
+        assertEquals(DimensionSignal(ScoreDimension.CARE_EMPATHY, 1, 1, 1, 4, 0), signals[0])
+    }
+
+    @Test
+    fun `낱말 앞뒤에 부정이나 반어가 붙으면 부정 낱말로 센다`() {
+        listOf("안 괜찮아", "괜찮지 않아", "못 만나", "고맙긴 뭐가", "같이 못 가").forEach { text ->
+            assertTrue(ScoreTheme.entries.any { theme -> theme.isNegatedIn(text) }, text)
+        }
+        listOf("안녕 고마워", "괜찮아 걱정 마", "내일 같이 만나", "미안해").forEach { text ->
+            assertTrue(ScoreTheme.entries.none { theme -> theme.isNegatedIn(text) }, text)
+        }
     }
 
     @Test

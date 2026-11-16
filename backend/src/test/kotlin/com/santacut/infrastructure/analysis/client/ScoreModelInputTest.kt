@@ -17,17 +17,17 @@ class ScoreModelInputTest {
     fun `신호 블록은 항목마다 낱말 수, 주 수, 표본 줄 수를 한 줄씩 쓴다`() {
         val signals = """
             [signals]
-            care_empathy hit=0 weeks=0/2 shown=0
-            positivity_support hit=1 weeks=1/2 shown=1
-            respectful_communication hit=1 weeks=1/2 shown=1
-            cooperation_sharing hit=1 weeks=1/2 shown=1
+            care_empathy hit=0 neg=0 weeks=0/2 shown=0
+            positivity_support hit=2 neg=0 weeks=2/2 shown=2
+            respectful_communication hit=1 neg=0 weeks=1/2 shown=1
+            cooperation_sharing hit=1 neg=0 weeks=1/2 shown=1
         """.trimIndent()
 
         assertTrue(text.startsWith(signals + "\n"))
     }
 
     @Test
-    fun `신호 블록 다음에 시각순 표본을 주가 바뀔 때만 머리줄을 넣어 번호와 본문으로 쓴다`() {
+    fun `신호 블록 다음에 시각순 표본을 주가 바뀔 때 머리줄, 이틀 넘게 벌어질 때 간격 줄을 넣어 번호와 본문으로 쓴다`() {
         val sample = """
             [sample]
             # 11-09주
@@ -35,6 +35,8 @@ class ScoreModelInputTest {
             2|점심 뭐 먹었어
             # 11-16주
             3|미안 늦었어
+            (3일 뒤)
+            4|어제 고마웠어
         """.trimIndent()
 
         assertTrue(text.endsWith("\n" + sample))
@@ -47,6 +49,7 @@ class ScoreModelInputTest {
                 ScoringMessage(LocalDateTime.of(2026, 11, 15, 8, 5), "ㅋㅋㅋ"),
                 ScoringMessage(LocalDateTime.of(2026, 11, 15, 13, 0), "점심 뭐 먹었어"),
                 ScoringMessage(LocalDateTime.of(2026, 11, 16, 9, 0), "미안 늦었어"),
+                ScoringMessage(LocalDateTime.of(2026, 11, 19, 9, 0), "어제 고마웠어"),
             ),
         )
         val sample = messages.sample()

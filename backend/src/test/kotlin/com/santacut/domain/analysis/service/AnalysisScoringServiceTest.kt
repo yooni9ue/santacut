@@ -38,7 +38,8 @@ class AnalysisScoringServiceTest @Autowired constructor(
         val answer = analysisScoringService.ask(digest, SYSTEM_PROMPT)
 
         val userText = checkNotNull(recordingChatModel.lastPrompt).userMessage.text.orEmpty()
-        val sampleLines = userText.substringAfter(SAMPLE_HEADER).lines().filterNot { it.startsWith(WEEK_HEADER_PREFIX) }
+        val sampleLines = userText.substringAfter(SAMPLE_HEADER).lines()
+            .filterNot { it.startsWith(WEEK_HEADER_PREFIX) || it.startsWith(GAP_LINE_PREFIX) }
         assertEquals(EXPECTED_HUNDREDTHS, answer.toScore(digest.sampleSize()).hundredths)
         assertTrue(userText.length <= MAX_USER_MESSAGE_CHARS, "length=${userText.length}")
         assertTrue(payload.length > userText.length * MIN_REDUCTION_FACTOR, "payload=${payload.length},user=${userText.length}")
@@ -76,6 +77,7 @@ class AnalysisScoringServiceTest @Autowired constructor(
         private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
         private const val SAMPLE_HEADER = "[sample]\n"
         private const val WEEK_HEADER_PREFIX = "# "
+        private const val GAP_LINE_PREFIX = "("
         private const val EXPECTED_HUNDREDTHS = 8000
 
         /** 신호 블록(약 200자) + 표본 본문 6,000자 + 줄 번호 120개와 주 머리줄 13개를 넉넉히 더한 상한. */

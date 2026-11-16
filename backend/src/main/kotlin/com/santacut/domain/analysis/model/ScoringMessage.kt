@@ -20,6 +20,8 @@ data class ScoringMessage(
 
     fun mentions(theme: ScoreTheme): Boolean = theme.isMentionedIn(text)
 
+    fun negates(theme: ScoreTheme): Boolean = theme.isNegatedIn(text)
+
     fun truncated(maxLength: Int): ScoringMessage = copy(text = text.take(maxLength))
 
     fun length(): Int = text.length
