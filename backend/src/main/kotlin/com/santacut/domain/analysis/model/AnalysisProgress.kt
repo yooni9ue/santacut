@@ -11,4 +11,8 @@ enum class AnalysisProgress {
     RANKING_PENDING,
     SUCCEEDED,
     FAILED,
+    ;
+
+    /** 더 바뀌지 않는 단계. 진행 상황 스트림은 이 단계를 보낸 뒤 닫는다. */
+    fun isTerminal(): Boolean = this == SUCCEEDED || this == FAILED
 }
