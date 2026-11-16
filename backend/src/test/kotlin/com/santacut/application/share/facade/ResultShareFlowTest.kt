@@ -35,6 +35,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.support.TransactionTemplate
 import java.math.BigDecimal
+import org.springframework.jdbc.core.ConnectionCallback
+import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Clock
 import java.time.Instant
 import java.util.UUID
@@ -58,6 +60,7 @@ class ResultShareFlowTest @Autowired constructor(
     private val shareService: ShareService,
     private val transactionTemplate: TransactionTemplate,
     private val clock: Clock,
+    private val jdbcTemplate: JdbcTemplate,
 ) {
     @Test
     fun `평가가 순위에 반영되면 내 결과와 순위표를 보고 공유 링크를 만들고 취소할 수 있다`() {
@@ -111,6 +114,31 @@ class ResultShareFlowTest @Autowired constructor(
         assertTrue(shareFacade.getPublicPage(PublicShareCommand(quoted.token)).html.contains(QUOTE))
         shareFacade.revokeShare(RevokeShareCommand(participantId, quoted.token))
     }
+
+    @Test
+    fun `공유 당시 유형 코드가 지금은 없는 이름이어도 공유 페이지와 이미지는 유형 없이 뜬다`() {
+        val nickname = uniqueNickname()
+        val participantId = participantFacade.register(RegisterParticipantCommand(nickname, REGION_CODE)).id
+        recordAssessmentAndRebuildRanking(participantId)
+        val link = shareFacade.createShare(CreateShareCommand(participantId))
+        storeRetiredArchetype(link.token)
+
+        val page = shareFacade.getPublicPage(PublicShareCommand(link.token)).html
+        assertTrue(page.contains(nickname) && !page.contains("트리 꼭대기 별"))
+        assertTrue(shareFacade.getPublicImage(PublicShareCommand(link.token)).png.isNotEmpty())
+        participantFacade.deleteMyData(DeleteParticipantCommand(participantId))
+    }
+
+    /** 예전 배포가 만든 enum CHECK 제약이 있어도 지금은 없는 유형 코드를 써 넣는다. 같은 연결에서만 제약을 잠시 끈다. */
+    private fun storeRetiredArchetype(token: String) = jdbcTemplate.execute(
+        ConnectionCallback { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute("PRAGMA ignore_check_constraints = ON")
+                statement.executeUpdate("UPDATE shares SET archetype = 'RETIRED_ARCHETYPE' WHERE token = '$token'")
+                statement.execute("PRAGMA ignore_check_constraints = OFF")
+            }
+        },
+    )
 
     @Test
     fun `내 데이터를 지우면 참가 정보, 순위, 공유 링크가 함께 사라진다`() {
