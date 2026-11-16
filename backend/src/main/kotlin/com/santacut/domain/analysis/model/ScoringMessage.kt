@@ -27,7 +27,7 @@ data class ScoringMessage(
             .replace(WHITESPACE, SPACE)
             .replace(REPEATED_LAUGH, LAUGH_KEPT)
             .replace(REPEATED_CRY_OR_MARK, CRY_OR_MARK_KEPT)
-            .replace(REPEATED_EMOJI, "$1")
+            .replace(REPEATED_EMOJI, EMOJI_KEPT)
             .trim(),
     )
 
@@ -53,6 +53,9 @@ data class ScoringMessage(
 
         /** 잇단 ㅠ·ㅜ와 문장 부호를 두 개로 줄인 치환 문자열(정규식 그룹 1을 두 번). */
         private const val CRY_OR_MARK_KEPT = "\$1\$1"
+
+        /** 잇단 이모지를 앞 두 개(정규식 그룹 1)로 줄인 치환 문자열. */
+        private const val EMOJI_KEPT = "\$1"
         private const val LINK = "(링크)"
         private val URL = Regex("""(?:https?://|www\.)\S+""", RegexOption.IGNORE_CASE)
 

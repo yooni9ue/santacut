@@ -5,6 +5,7 @@ import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.Score
 import com.santacut.domain.analysis.model.ScoredAssessment
+import com.santacut.domain.analysis.model.ScoringAttempt
 import com.santacut.domain.analysis.model.ScoringChunkAnswers
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.domain.analysis.model.ScoringFailure
@@ -79,11 +80,13 @@ class AnalysisWorkerFacade(
         val digest = analysisScoringService.digest(job)
         val digestHash = analysisScoringService.fingerprint(digest, prompt.version)
         if (transactionTemplate.execute { reuseIfSameDigest(job.id, lease, digestHash) } == true) return
+        val attempt = ScoringAttempt(job, lease, prompt, digest, digestHash)
         val answers = askAll(prompt, digest)
-        val score = scoreOf(job, lease, prompt, digest, answers, digestHash)
+        val score = scoreOf(attempt, answers)
         val quote = answers.quoteOf(score)
         val badges = analysisScoringService.badges(digest)
-        transactionTemplate.executeWithoutResult { complete(job.id, lease, ScoredAssessment(score, prompt.version, quote, badges), digestHash) }
+        val scored = ScoredAssessment(score, prompt.version, quote, badges)
+        transactionTemplate.executeWithoutResult { complete(job.id, lease, scored, digestHash) }
         aiBudgetService.recordSuccess()
     }
 
@@ -103,24 +106,26 @@ class AnalysisWorkerFacade(
      * 구간 답을 합쳐 점수로 바꾼다. 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는
      * 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
      */
-    private fun scoreOf(job: AnalysisJob, lease: String, prompt: Prompt, digest: ScoringDigest, answers: ScoringChunkAnswers, digestHash: String): Score {
+    private fun scoreOf(attempt: ScoringAttempt, answers: ScoringChunkAnswers): Score {
         try {
-            return analysisScoringService.score(answers).also { logUsage(job, prompt, digest, answers, SCORED_OUTCOME) }
+            return analysisScoringService.score(answers).also { logUsage(attempt, answers, SCORED_OUTCOME) }
         } catch (exception: SantaCutException) {
-            logUsage(job, prompt, digest, answers, exception.errorCode.name)
+            logUsage(attempt, answers, exception.errorCode.name)
             if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
-                transactionTemplate.executeWithoutResult { finishIfHeld(job.id, lease, ScoringFailure.of(exception), digestHash) }
+                val failure = ScoringFailure.of(exception)
+                transactionTemplate.executeWithoutResult { finishIfHeld(attempt.job.id, attempt.lease, failure, attempt.digestHash) }
             }
             throw exception
         }
     }
 
     /** 숫자만 남긴다. 사용량은 모든 구간 호출의 합이고, 근거 보정은 범위 밖·겹친 근거 번호를 지운 수다. */
-    private fun logUsage(job: AnalysisJob, prompt: Prompt, digest: ScoringDigest, answers: ScoringChunkAnswers, outcome: String) {
+    private fun logUsage(attempt: ScoringAttempt, answers: ScoringChunkAnswers, outcome: String) {
         val usage = answers.usage()
+        val digest = attempt.digest
         logger.info(
             "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 대화문 {}줄 {}자(뺀 줄 {}), 구간 {}개, 입력 {} 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
-            job.id, prompt.version, digest.messageCount, digest.lineCount(), digest.turns.totalLength(), digest.omittedTurns, answers.size(),
+            attempt.job.id, attempt.prompt.version, digest.messageCount, digest.lineCount(), digest.turns.totalLength(), digest.omittedTurns, answers.size(),
             usage.inputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answers.discardedEvidence(), outcome,
         )
     }
