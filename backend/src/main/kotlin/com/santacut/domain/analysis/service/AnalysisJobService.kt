@@ -2,27 +2,38 @@ package com.santacut.domain.analysis.service
 
 import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisJobChange
 import com.santacut.domain.analysis.model.AnalysisJobStatus
 import com.santacut.domain.analysis.model.AnalysisPayload
+import com.santacut.domain.analysis.model.AnalysisStreamLimit
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.IdempotencyKey
+import com.santacut.domain.global.config.AnalysisStreamProperties
 import com.santacut.domain.global.config.AppProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import java.util.UUID
 
+/**
+ * 분석 작업을 저장하고 찾는다. 작업 행을 저장할 때마다 [AnalysisJobChange]를 알려 진행 상황 스트림이 커밋 뒤 새 상태를 보내게 한다.
+ */
 @Service
 class AnalysisJobService(
     private val analysisJobRepository: AnalysisJobRepository,
     private val objectMapper: ObjectMapper,
     private val appProperties: AppProperties,
+    private val eventPublisher: ApplicationEventPublisher,
+    analysisStreamProperties: AnalysisStreamProperties,
 ) {
+    private val streamLimit = AnalysisStreamLimit(analysisStreamProperties.maxOpenStreams, analysisStreamProperties.retryAfter)
+
     fun toPayload(submission: AnalysisSubmission): AnalysisPayload =
         AnalysisPayload(objectMapper.writeValueAsString(submission))
 
@@ -35,7 +46,7 @@ class AnalysisJobService(
     /** 완료 시점에 시즌이 마감됐으면 작업을 시즌 마감 실패로 저장하고 참을 돌려준다. */
     fun freezeIfSeasonClosed(job: AnalysisJob, completedAt: Instant): Boolean {
         val frozen = job.freezeIfSeasonClosed(season(), completedAt)
-        if (frozen) analysisJobRepository.save(job)
+        if (frozen) save(job)
         return frozen
     }
 
@@ -59,7 +70,7 @@ class AnalysisJobService(
         now: Instant,
     ): AnalysisJob {
         verifyWithinDailyLimit(participantId, now)
-        return analysisJobRepository.save(AnalysisJob.enqueue(participantId, key, submission, payload, now))
+        return save(AnalysisJob.enqueue(participantId, key, submission, payload, now))
     }
 
     /** 원본 파일로 받은 작업을 검증 상태로 저장한다. 하루 제출 한도는 JSON 제출과 함께 센다. */
@@ -71,8 +82,14 @@ class AnalysisJobService(
         now: Instant,
     ): AnalysisJob {
         verifyWithinDailyLimit(participantId, now)
-        return analysisJobRepository.save(AnalysisJob.receive(participantId, key, source, requestHash, now))
+        return save(AnalysisJob.receive(participantId, key, source, requestHash, now))
     }
+
+    /** 진행 상황 스트림을 하나 더 열 수 있는지 확인한다. [replacing]이면 이 참가자의 이전 스트림을 대신한다. */
+    fun verifyStreamOpenable(openStreams: Int, replacing: Boolean, now: Instant) =
+        streamLimit.verifyOpenable(openStreams, replacing, now)
+
+    fun find(jobId: String): AnalysisJob? = analysisJobRepository.findById(jobId).orElse(null)
 
     fun getOwned(jobId: UUID, participantId: UUID): AnalysisJob =
         analysisJobRepository.findByIdAndUserId(jobId.toString(), participantId.toString())
@@ -102,7 +119,7 @@ class AnalysisJobService(
 
     fun startAttempt(job: AnalysisJob, lease: String, now: Instant): AnalysisJob {
         job.startAttempt(lease, now)
-        return analysisJobRepository.save(job)
+        return save(job)
     }
 
     /** 아직 이 리스를 쥐고 실행 중인 작업. 다른 작업자가 가져갔으면 null이다. */
@@ -111,18 +128,18 @@ class AnalysisJobService(
 
     fun succeed(job: AnalysisJob, assessmentId: String, finishedAt: Instant, digestHash: String? = null) {
         job.succeed(assessmentId, finishedAt, digestHash)
-        analysisJobRepository.save(job)
+        save(job)
     }
 
     fun fail(job: AnalysisJob, code: AnalysisFailureCode, finishedAt: Instant, digestHash: String? = null) {
         job.fail(code, finishedAt, digestHash)
-        analysisJobRepository.save(job)
+        save(job)
     }
 
     /** AI 제공자가 호출을 막아 작업을 대기열로 되돌린다. */
     fun releaseLease(job: AnalysisJob) {
         job.releaseLease()
-        analysisJobRepository.save(job)
+        save(job)
     }
 
     /** 같은 참가자가 같은 채점 입력([digestHash])으로 낸 작업 가운데 가장 최근에 끝난 것. */
@@ -136,26 +153,26 @@ class AnalysisJobService(
     fun startValidation(jobId: String, now: Instant): AnalysisJob? {
         val job = findValidating(jobId) ?: return null
         job.startValidation(now)
-        return analysisJobRepository.save(job).takeIf { it.isValidating() }
+        return save(job).takeIf { it.isValidating() }
     }
 
     /** 검증을 통과한 작업에 정규화한 제출 내용을 담아 대기열에 넣는다. 그사이 끝난 작업은 건드리지 않는다. */
     fun queueValidated(jobId: String, submission: AnalysisSubmission) {
         val job = findValidating(jobId) ?: return
         job.queueValidated(toPayload(submission))
-        analysisJobRepository.save(job)
+        save(job)
     }
 
     /** 검증에 실패한 작업을 끝낸다. 그사이 끝난 작업은 건드리지 않는다. */
     fun rejectUpload(jobId: String, code: AnalysisFailureCode, finishedAt: Instant) {
         val job = findValidating(jobId) ?: return
         job.rejectUpload(code, finishedAt)
-        analysisJobRepository.save(job)
+        save(job)
     }
 
     private fun expire(job: AnalysisJob, now: Instant) {
         job.expire(now)
-        analysisJobRepository.save(job)
+        save(job)
     }
 
     private fun findValidating(jobId: String): AnalysisJob? =
@@ -172,4 +189,8 @@ class AnalysisJobService(
     }
 
     private fun season(): Season = Season(appProperties.seasonYear)
+
+    /** 작업 행을 저장하고 저장했다는 사실을 알린다. 받는 쪽은 트랜잭션이 커밋된 뒤에 처리한다. */
+    private fun save(job: AnalysisJob): AnalysisJob =
+        analysisJobRepository.save(job).also { eventPublisher.publishEvent(AnalysisJobChange(it.id)) }
 }
