@@ -92,8 +92,13 @@ class ScoreAnswer private constructor(
             opportunities: List<Int?> = emptyList(),
             playfulness: Int? = null,
         ): ScoreAnswer = ScoreAnswer(
-            usage, playfulness?.takeIf { it in MIN_PLAYFULNESS..MAX_PLAYFULNESS }, Reply.SCORED, DimensionScores(dimensionScores), EvidenceIndices(evidenceIndices),
-            DimensionOpportunities(opportunities), shape,
+            usage,
+            playfulness?.takeIf { it in MIN_PLAYFULNESS..MAX_PLAYFULNESS },
+            Reply.SCORED,
+            DimensionScores(dimensionScores),
+            EvidenceIndices(evidenceIndices),
+            DimensionOpportunities(opportunities),
+            shape,
         )
     }
 }
