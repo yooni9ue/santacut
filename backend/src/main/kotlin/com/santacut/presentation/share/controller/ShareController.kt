@@ -1,10 +1,10 @@
 package com.santacut.presentation.share.controller
 
-import com.santacut.application.share.command.CreateShareCommand
 import com.santacut.application.share.command.RevokeShareCommand
 import com.santacut.application.share.facade.ShareFacade
 import com.santacut.presentation.share.docs.CreateShareApi
 import com.santacut.presentation.share.docs.RevokeShareApi
+import com.santacut.presentation.share.request.CreateShareRequest
 import com.santacut.presentation.share.response.CreateShareResponse
 import io.swagger.v3.oas.annotations.Parameter
 import org.springframework.http.HttpStatus
@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
@@ -23,8 +24,11 @@ class ShareController(
 ) {
     @PostMapping("/v1/shares")
     @CreateShareApi
-    fun create(@AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID): CreateShareResponse =
-        CreateShareResponse.from(shareFacade.createShare(CreateShareCommand(participantId)))
+    fun create(
+        @AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID,
+        @RequestBody(required = false) request: CreateShareRequest?,
+    ): CreateShareResponse =
+        CreateShareResponse.from(shareFacade.createShare((request ?: CreateShareRequest()).toCommand(participantId)))
 
     @DeleteMapping("/v1/shares/{token}")
     @RevokeShareApi
