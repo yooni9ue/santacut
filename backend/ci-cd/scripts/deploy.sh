@@ -31,14 +31,14 @@ rollback() {
   trap - ERR
   echo 'Deployment failed; attempting previous application image. Database is not rolled back.' >&2
   if [[ -n "$previous_release" && -n "$previous_image" ]]; then
-    APP_IMAGE="$previous_image" docker compose --env-file "$env_file" -f "$previous_release/deploy/compose.yml" up -d --wait --wait-timeout 180 app caddy || echo 'ROLLBACK FAILED: operator intervention required' >&2
+    APP_IMAGE="$previous_image" docker compose --env-file "$env_file" -f "$previous_release/deploy/compose.yml" up -d --wait --wait-timeout 360 app caddy || echo 'ROLLBACK FAILED: operator intervention required' >&2
   else
     echo 'No prior release: inspect logs and fix configuration.' >&2
   fi
   exit 1
 }
 trap rollback ERR
-compose up -d --wait --wait-timeout 180 app caddy
+compose up -d --wait --wait-timeout 360 app caddy
 curl --fail --silent --max-time 10 http://127.0.0.1:8080/actuator/health/readiness >/dev/null
 printf '%s\n' "$image" > "$root/current-image.next"
 mv "$root/current-image.next" "$root/current-image"
