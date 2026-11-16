@@ -17,6 +17,7 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ScoreAnswer
 import com.santacut.domain.prompt.model.Prompt
+import com.santacut.domain.prompt.model.PromptName
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
@@ -74,7 +75,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     fun setUp() {
         analysisJobRepository.deleteAll()
         promptRepository.deleteAll()
-        promptRepository.save(Prompt.initial(Prompt.SCORE, FIRST_PROMPT, OPEN_TIME))
+        promptRepository.save(Prompt.initial(PromptName.SCORE, FIRST_PROMPT, OPEN_TIME))
         clock.moveTo(OPEN_TIME)
         given(scoreClient.isEnabled()).willReturn(true)
     }
@@ -151,7 +152,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `AI를 부를 때마다 채점 프롬프트의 최신 판을 보내고 평가에 그 판 번호를 남긴다`() {
-        val first = checkNotNull(promptRepository.findFirstByNameOrderByVersionDesc(Prompt.SCORE))
+        val first = checkNotNull(promptRepository.findFirstByNameOrderByVersionDesc(PromptName.SCORE.value))
         val latest = promptRepository.save(first.next(LATEST_PROMPT, OPEN_TIME))
         given(scoreClient.requestAnswer(anySubmission(), eq(LATEST_PROMPT) ?: LATEST_PROMPT)).willReturn(fullAnswer())
         val job = submitAnalysis()

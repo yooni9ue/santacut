@@ -10,7 +10,7 @@ class PromptTest {
     fun `첫 판은 1판이다`() {
         val prompt = Prompt.initial(NAME, "본문", CREATED_AT)
 
-        assertEquals(NAME, prompt.name)
+        assertEquals(NAME.value, prompt.name)
         assertEquals(Prompt.FIRST_VERSION, prompt.version)
         assertEquals("본문", prompt.content)
         assertEquals(CREATED_AT, prompt.createdAt)
@@ -23,7 +23,7 @@ class PromptTest {
 
         val next = first.next("새 본문", later)
 
-        assertEquals(NAME, next.name)
+        assertEquals(NAME.value, next.name)
         assertEquals(first.version + 1, next.version)
         assertEquals("새 본문", next.content)
         assertEquals(later, next.createdAt)
@@ -41,7 +41,7 @@ class PromptTest {
     }
 
     companion object {
-        private const val NAME = "score"
+        private val NAME: PromptName = PromptName.SCORE
         private val CREATED_AT: Instant = Instant.parse("2026-11-16T00:00:00Z")
     }
 }

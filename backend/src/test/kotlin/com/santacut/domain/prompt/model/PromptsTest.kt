@@ -14,7 +14,7 @@ class PromptsTest {
 
     @Test
     fun `받은 순서대로 바꾼다`() {
-        val first = Prompt.initial("score", "1판", CREATED_AT)
+        val first = Prompt.initial(PromptName.SCORE, "1판", CREATED_AT)
         val second = first.next("2판", CREATED_AT)
         val prompts = Prompts(listOf(second, first))
 
