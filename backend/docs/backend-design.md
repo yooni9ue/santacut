@@ -557,7 +557,7 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 ### 14.1 진행 상태: SSE에서 폴링으로 (2026-11-16)
 
 - 기록: 처음 구현은 `GET /v1/analyses/{id}/events` SSE 스트림이었다. 1초마다 상태를 보내고, 성공하면 결과를 실은 뒤 스트림을 닫았다. 스트림은 최대 150초까지 열렸다.
-- 지금은 `GET /v1/analyses/{id}`와 `GET /v1/me/analysis`를 폴링한다(커밋 `9bb9c39`). 화면 기획(`docs/ui-ux-plan.md`)이 상태 폴링을 전제로 하고, 창을 닫았다 다시 와도 같은 API로 상태를 읽을 수 있다. 스트림용 스케줄러 스레드와 재연결 규칙도 함께 없어졌다.
+- 지금은 `GET /v1/analyses/{id}`와 `GET /v1/me/analysis`를 폴링한다(커밋 `9bb9c39`). 화면 기획(`docs/planning/ui-ux-plan.md`)이 상태 폴링을 전제로 하고, 창을 닫았다 다시 와도 같은 API로 상태를 읽을 수 있다. 스트림용 스케줄러 스레드와 재연결 규칙도 함께 없어졌다.
 - 응답 단계 이름을 기획 §4.7의 어휘로 바꿨다. 성공했지만 아직 순위가 없으면 오류 대신 `RANKING_PENDING`을 준다.
 - 상태 응답에는 결과를 넣지 않는다. 점수와 순위는 `GET /v1/me/result` 한 곳에서만 읽어서 두 곳 값이 어긋날 일을 없앤다.
 
