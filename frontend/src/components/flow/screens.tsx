@@ -220,15 +220,16 @@ function SampleRankingScreen() {
 
 function LiveRankingScreen() {
   const { data } = usePreview();
+  const [mine, setMine] = useState<Awaited<ReturnType<typeof getMyResult>>>(null);
   const [rows, setRows] = useState<RankingRow[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  useEffect(() => { const controller = new AbortController(); getRankings(undefined, controller.signal).then(page => { setRows(page.rows); setCursor(page.next_cursor); }).catch(failure => { if (!controller.signal.aborted) setError(rankingError(failure)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); }); return () => controller.abort(); }, []);
+  useEffect(() => { const controller = new AbortController(); getRankings(undefined, controller.signal).then(page => { setRows(page.rows); setCursor(page.next_cursor); }).catch(failure => { if (!controller.signal.aborted) setError(rankingError(failure)); }).finally(() => { if (!controller.signal.aborted) setLoading(false); }); getMyResult(controller.signal).then(setMine).catch(() => undefined); return () => controller.abort(); }, []);
   async function loadMore() { if (!cursor) return; try { const page = await getRankings(cursor); setRows(previous => [...previous, ...page.rows]); setCursor(page.next_cursor); } catch (failure) { setError(rankingError(failure)); } }
   return <FlowFrame back="/result" title={<>착한 사람들,<br />왜 이렇게 많아.</>} description="실제 참가자 기준 산타컷 통합 랭킹" action={<NextLink href="/result">내 결과 보기</NextLink>}>
-    <section className="flow-ranking-me" aria-label="나의 순위"><span>내 결과는 결과 화면에서 확인해요</span><div><p>{data.nickname || "참가자"}</p><i>↗</i></div></section>
+    <section className="flow-ranking-me" aria-label="나의 순위"><span>{mine?.rank == null ? "내 순위 계산 중" : "나의 순위"}</span><div><strong>{mine?.rank == null ? "—" : `${mine.tied ? "공동 " : ""}${mine.rank}`}<small>{mine?.rank == null ? "" : "위"}</small></strong><p>{mine?.nickname || data.nickname || "참가자"}{mine && <b>{formatScore(mine.score_hundredths)}점</b>}</p><i>↗</i></div></section>
     {loading && <p role="status">랭킹을 불러오는 중이에요.</p>}
     {error && <p className="flow-error" role="alert">{error}</p>}
     {!loading && !error && rows.length === 0 && <InfoNote>아직 계산된 랭킹이 없어요. 첫 순위 계산을 기다려 주세요.</InfoNote>}
