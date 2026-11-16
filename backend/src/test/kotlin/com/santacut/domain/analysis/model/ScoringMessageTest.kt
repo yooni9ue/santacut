@@ -1,36 +1,35 @@
 package com.santacut.domain.analysis.model
 
 import org.junit.jupiter.api.Test
-import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+/**
+ * 대화문에서 빼는 첨부·삭제 안내와 뜻을 잃지 않는 본문 정규화를 확인한다.
+ */
 class ScoringMessageTest {
     private val noon = LocalDateTime.of(2026, 11, 14, 12, 0)
 
     @Test
-    fun `웃음, 울음, 기호, 이모지, 공백을 빼고 2자보다 짧으면 표본 가치가 낮다`() {
-        listOf("ㅋㅋㅋㅋ", "ㅎㅎ", "ㅠㅠ", "응", "ㅇ", "!!", "😂😂", "👍🏻", "❤️", "  ", "응ㅋㅋ").forEach {
-            assertTrue(message(it).isLowSignal(), it)
+    fun `첨부와 삭제 안내만 있는 메시지는 자리표시다`() {
+        listOf("사진", "사진 3장", "동영상", "이모티콘", "파일: 자료.pdf", "삭제된 메시지입니다.", " 사진 ").forEach {
+            assertTrue(message(it).isPlaceholder(), it)
         }
-        listOf("고마워", "ㅋㅋ 진짜?", "ok", "잘자😊").forEach { assertFalse(message(it).isLowSignal(), it) }
+        listOf("사진 보내줘", "고마워", "동영상 봤어?").forEach { assertFalse(message(it).isPlaceholder(), it) }
     }
 
     @Test
-    fun `주는 월요일에 시작한다`() {
-        val monday = LocalDate.of(2026, 11, 9)
-
-        assertEquals(monday, ScoringMessage(LocalDateTime.of(2026, 11, 9, 0, 0), "a").weekStart())
-        assertEquals(monday, ScoringMessage(LocalDateTime.of(2026, 11, 15, 23, 59), "a").weekStart())
-        assertEquals(monday.plusWeeks(1), ScoringMessage(LocalDateTime.of(2026, 11, 16, 0, 0), "a").weekStart())
+    fun `반복 글자는 ㅋㅎ 세 개, ㅠㅜ와 문장 부호 두 개까지 줄이고 줄바꿈과 겹친 공백은 공백 하나로 바꾼다`() {
+        assertEquals("ㅋㅋㅋ 진짜?? 고마워ㅠㅠ !!", message("ㅋㅋㅋㅋㅋㅋ 진짜???? 고마워ㅠㅠㅠㅠ\n\n  !!!!").normalizedText())
+        assertEquals("ㅋㅋ 응", message("  ㅋㅋ   응 ").normalizedText())
     }
 
     @Test
-    fun `자른 메시지는 최대 길이를 넘지 않는다`() {
-        assertEquals("가나", message("가나다라").truncated(2).text)
-        assertEquals("가나", message("가나").truncated(5).text)
+    fun `화자를 주지 않으면 본인이다`() {
+        assertTrue(message("고마워").isSelf())
+        assertFalse(ScoringMessage(noon, "고마워", "상대").isSelf())
     }
 
     private fun message(text: String): ScoringMessage = ScoringMessage(noon, text)

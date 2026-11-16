@@ -91,7 +91,7 @@ class AnalysisWorkerFacade(
         val answer = analysisScoringService.ask(digest, prompt.content)
         transactionTemplate.executeWithoutResult { aiBudgetService.record(answer.usage, clock.instant()) }
         try {
-            return answer.toScore(digest.sampleSize()).also { logUsage(job, prompt, digest, answer, SCORED_OUTCOME) }
+            return answer.toScore(digest.lineCount()).also { logUsage(job, prompt, digest, answer, SCORED_OUTCOME) }
         } catch (exception: SantaCutException) {
             logUsage(job, prompt, digest, answer, exception.errorCode.name)
             if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
@@ -101,13 +101,13 @@ class AnalysisWorkerFacade(
         }
     }
 
-    /** 호출 한 번의 숫자만 남긴다. 근거 보정은 범위 밖·겹친 근거 번호를 지운 수다. */
+    /** 호출 한 번의 숫자만 남긴다. 근거 보정은 범위 밖·겹친 근거 번호를 지운 수다. 대화문 줄 수와 길이 한도로 뺀 줄 수도 남긴다. */
     private fun logUsage(job: AnalysisJob, prompt: Prompt, digest: ScoringDigest, answer: ScoreAnswer, outcome: String) {
         val usage = answer.usage
         logger.info(
-            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 표본 {}줄 {}자, 입력 {} 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
-            job.id, prompt.version, digest.messageCount, digest.sampleSize(), digest.sample.totalLength(),
-            usage.inputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answer.discardedEvidence(digest.sampleSize()), outcome,
+            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 대화문 {}줄 {}자(뺀 줄 {}), 입력 {} 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
+            job.id, prompt.version, digest.messageCount, digest.lineCount(), digest.turns.totalLength(), digest.omittedTurns,
+            usage.inputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answer.discardedEvidence(digest.lineCount()), outcome,
         )
     }
 

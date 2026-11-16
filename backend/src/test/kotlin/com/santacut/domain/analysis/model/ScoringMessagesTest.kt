@@ -3,63 +3,40 @@ package com.santacut.domain.analysis.model
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
- * 본인 메시지 전체에서 세는 메시지 수와 항목별 낱말 신호를 확인한다.
+ * 메시지 전체로 대화문 줄을 만드는 규칙(자리표시 빼기, 같은 화자 잇기)을 확인한다.
  */
 class ScoringMessagesTest {
-    private val start = LocalDateTime.of(2026, 11, 1, 0, 0)
-    private val messages = ScoringMessages(
-        listOf(
-            at(0, "고마워 정말 고마워"),
-            at(0, "미안 내일 같이 만나"),
-            at(1, "괜찮아? 걱정돼"),
-            at(8, "어제 고마웠어"),
-            at(15, "밥 먹었어"),
-            at(16, "안 괜찮아 진짜"),
-        ),
-    )
-    private val signals = messages.signals(SampleMessages(listOf(at(0, "고마워 정말 고마워")))).toList()
+    private val start = LocalDateTime.of(2026, 11, 1, 9, 0)
 
     @Test
-    fun `메시지 수를 센다`() {
-        assertEquals(6, messages.size())
-        assertEquals(0, ScoringMessages(emptyList()).size())
+    fun `같은 화자가 3시간 안에 잇달아 보낸 메시지는 한 줄로 잇는다`() {
+        val turns = ScoringMessages(
+            listOf(
+                at(0, "상대", "오늘 발표 망했어"),
+                at(1, "나", "헐 괜찮아?"),
+                at(2, "나", "끝나고 밥 먹자"),
+                at(MERGE_GAP_MINUTES + 2, "나", "잘 들어갔어?"),
+            ),
+        ).toTurns()
+
+        assertEquals(listOf("상대|오늘 발표 망했어", "나|헐 괜찮아? / 끝나고 밥 먹자", "나|잘 들어갔어?"), linesOf(turns))
     }
 
     @Test
-    fun `신호는 항목 순서대로 하나씩 만든다`() {
-        assertEquals(ScoreDimension.entries.toList(), signals.map { signal -> signal.dimension })
-        assertEquals(listOf(1, 2, 1, 1), signals.map { signal -> signal.hits })
+    fun `자리표시와 정규화 뒤 빈 메시지는 빼고 그 앞뒤 같은 화자 메시지를 잇는다`() {
+        val messages = ScoringMessages(listOf(at(0, "나", "이거 봐"), at(1, "상대", "사진"), at(2, "나", "  "), at(3, "나", "귀엽지")))
+
+        assertEquals(listOf("나|이거 봐 / 귀엽지"), linesOf(messages.toTurns()))
+        assertEquals(2, messages.selfCount())
     }
 
-    @Test
-    fun `항목마다 낱말이 든 메시지 수, 부정 낱말 수, 그런 주 수, 전체 주 수, 표본에서 낱말이 든 줄 수를 센다`() {
-        assertEquals(DimensionSignal(ScoreDimension.POSITIVITY_SUPPORT, 2, 0, 2, 4, 1), signals[1])
-        assertEquals(DimensionSignal(ScoreDimension.CARE_EMPATHY, 1, 1, 1, 4, 0), signals[0])
-    }
+    private fun linesOf(turns: TranscriptTurns): List<String> = turns.mapNumbered { _, turn, _ -> "${turn.speaker}|${turn.text}" }
 
-    @Test
-    fun `낱말 앞뒤에 부정이나 반어가 붙으면 부정 낱말로 센다`() {
-        listOf("안 괜찮아", "괜찮지 않아", "못 만나", "고맙긴 뭐가", "같이 못 가").forEach { text ->
-            assertTrue(ScoreTheme.entries.any { theme -> theme.isNegatedIn(text) }, text)
-        }
-        listOf("안녕 고마워", "괜찮아 걱정 마", "내일 같이 만나", "미안해").forEach { text ->
-            assertTrue(ScoreTheme.entries.none { theme -> theme.isNegatedIn(text) }, text)
-        }
-    }
-
-    @Test
-    fun `낱말은 어간이라 활용형도 센다`() {
-        assertTrue(ScoreTheme.CHEER.isMentionedIn("고마웠어"))
-        assertTrue(ScoreTheme.CARE.isMentionedIn("아프지 마"))
-        assertTrue(ScoreTheme.TOGETHER.isMentionedIn("언제 만날까"))
-    }
-
-    private fun at(day: Long, text: String): ScoringMessage = ScoringMessage(start.plusDays(day).withHour(NINE), text)
+    private fun at(minutes: Long, speaker: String, text: String): ScoringMessage = ScoringMessage(start.plusMinutes(minutes), text, speaker)
 
     companion object {
-        private const val NINE = 9
+        private const val MERGE_GAP_MINUTES = 180L
     }
 }

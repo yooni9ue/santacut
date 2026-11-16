@@ -1,49 +1,56 @@
 package com.santacut.domain.analysis.model
 
 import com.santacut.ErrorCodeAssertions.assertErrorCode
-import com.santacut.domain.analysis.model.ScoringDigest.Companion.MIN_SAMPLE_CHARS
-import com.santacut.domain.analysis.model.ScoringDigest.Companion.MIN_SAMPLE_LINES
+import com.santacut.domain.analysis.model.ScoringDigest.Companion.MAX_TRANSCRIPT_CHARS
+import com.santacut.domain.analysis.model.ScoringDigest.Companion.MIN_SELF_CHARS
+import com.santacut.domain.analysis.model.ScoringDigest.Companion.MIN_SELF_MESSAGES
 import com.santacut.domain.global.exception.ErrorCode
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 
 /**
- * 호출 전 차단 문턱(표본 8줄, 본문 300자)을 확인한다.
+ * 호출 전 차단 문턱(본인 메시지 8개, 본인 본문 300자)과 대화문 길이 한도를 확인한다.
  */
 class ScoringDigestTest {
-    private val noon = LocalDateTime.of(2026, 11, 14, 12, 0)
+    private val start = LocalDateTime.of(2026, 11, 1, 9, 0)
 
     @Test
-    fun `표본이 8줄 이상이고 본문이 300자 이상이면 표본 크기가 근거 번호 상한이다`() {
-        val digest = digestOf(List(MIN_SAMPLE_LINES) { line(it, MIN_SAMPLE_CHARS / MIN_SAMPLE_LINES + 1) } + message("ㅋㅋㅋ"))
+    fun `본인 메시지가 8개 이상이고 본인 본문이 300자 이상이면 대화문 줄 수가 근거 번호 상한이다`() {
+        val digest = digestOf(exchanges(MIN_SELF_MESSAGES, MIN_SELF_CHARS / MIN_SELF_MESSAGES + 1))
 
-        assertEquals(MIN_SAMPLE_LINES, digest.verifySampled().sampleSize())
-        assertEquals(MIN_SAMPLE_LINES + 1, digest.messageCount)
-    }
-
-    @Test
-    fun `표본이 8줄보다 적으면 AI를 부르지 않고 INSUFFICIENT_EVIDENCE다`() {
-        val digest = digestOf(List(MIN_SAMPLE_LINES - 1) { line(it, MIN_SAMPLE_CHARS) })
-
-        assertErrorCode(ErrorCode.INSUFFICIENT_EVIDENCE) { digest.verifySampled() }
+        assertEquals(MIN_SELF_MESSAGES * 2, digest.verifyEnough().lineCount())
+        assertEquals(0, digest.omittedTurns)
     }
 
     @Test
-    fun `표본 본문이 300자보다 짧으면 AI를 부르지 않고 INSUFFICIENT_EVIDENCE다`() {
-        val digest = digestOf(List(MIN_SAMPLE_LINES * 2) { line(it, MIN_SAMPLE_CHARS / (MIN_SAMPLE_LINES * 2) - 1) })
+    fun `본인 메시지가 8개보다 적으면 AI를 부르지 않고 INSUFFICIENT_EVIDENCE다`() {
+        val digest = digestOf(exchanges(MIN_SELF_MESSAGES - 1, MIN_SELF_CHARS))
 
-        assertErrorCode(ErrorCode.INSUFFICIENT_EVIDENCE) { digest.verifySampled() }
+        assertErrorCode(ErrorCode.INSUFFICIENT_EVIDENCE) { digest.verifyEnough() }
     }
 
-    /** [number]를 앞에 붙여 [length]자로 맞춘 메시지. */
-    private fun line(number: Int, length: Int): ScoringMessage = message("$number".padEnd(length, '가'))
+    @Test
+    fun `본인 본문이 300자보다 짧으면 상대 말이 길어도 AI를 부르지 않고 INSUFFICIENT_EVIDENCE다`() {
+        val digest = digestOf(exchanges(MIN_SELF_MESSAGES * 2, MIN_SELF_CHARS / (MIN_SELF_MESSAGES * 2) - 1))
 
-    private fun message(text: String): ScoringMessage = ScoringMessage(noon, text)
-
-    private fun digestOf(messages: List<ScoringMessage>): ScoringDigest {
-        val scoringMessages = ScoringMessages(messages)
-        val sample = scoringMessages.sample()
-        return ScoringDigest(scoringMessages.size(), scoringMessages.signals(sample), sample)
+        assertErrorCode(ErrorCode.INSUFFICIENT_EVIDENCE) { digest.verifyEnough() }
     }
+
+    @Test
+    fun `대화문이 길이 한도를 넘으면 최근 줄만 남기고 뺀 줄 수를 적는다`() {
+        val length = 1000
+        val digest = digestOf(exchanges(MAX_TRANSCRIPT_CHARS / length, length))
+
+        assertEquals(MAX_TRANSCRIPT_CHARS / length, digest.lineCount())
+        assertEquals(MAX_TRANSCRIPT_CHARS / length, digest.omittedTurns)
+    }
+
+    /** 상대 한 줄과 본인 한 줄([length]자)을 [count]번 주고받은 대화. */
+    private fun exchanges(count: Int, length: Int): List<ScoringMessage> = (0 until count).flatMap { index ->
+        val time = start.plusMinutes(index * 2L)
+        listOf(ScoringMessage(time, "가".repeat(length), "상대"), ScoringMessage(time.plusMinutes(1), "$index".padEnd(length, '나')))
+    }
+
+    private fun digestOf(messages: List<ScoringMessage>): ScoringDigest = ScoringDigest.of(ScoringMessages(messages))
 }

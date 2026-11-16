@@ -12,10 +12,6 @@ class AnalysisSubmission(
 ) {
     fun verifyAcceptableAt(now: Instant) = events.verifyAcceptableAt(now)
 
-    /** 채점 입력(활동 통계, 항목별 낱말 신호, 표본)을 한국 시각 기준으로 만든다. 이벤트 원문 전체는 AI에 보내지 않는다. */
-    fun toScoringDigest(): ScoringDigest {
-        val messages = events.toScoringMessages(SeoulTime.ZONE)
-        val sample = messages.sample()
-        return ScoringDigest(messages.size(), messages.signals(sample), sample)
-    }
+    /** 채점 입력(정규화한 대화문)을 한국 시각 기준으로 만든다. */
+    fun toScoringDigest(): ScoringDigest = ScoringDigest.of(events.toScoringMessages(SeoulTime.ZONE))
 }

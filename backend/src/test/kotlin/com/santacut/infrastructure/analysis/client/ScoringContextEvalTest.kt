@@ -22,6 +22,8 @@ import org.springframework.beans.factory.config.YamlPropertiesFactoryBean
 import org.springframework.core.io.ClassPathResource
 import tools.jackson.databind.json.JsonMapper
 import java.io.File
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.abs
@@ -30,20 +32,49 @@ import kotlin.test.assertEquals
 
 /**
  * 채점 입력이 맥락을 잃는 정도를 재는 수동 평가. 기본 `check`에서는 빠지고 `./gradlew eval`로만 돈다.
- * 짝 대화 확인은 API를 부르지 않고, 안정성·전체 맥락 비교는 환경 변수 GEMINI_API_KEY로 실제 Gemini를 부른다.
+ * 짝 대화 확인은 API를 부르지 않고, 안정성·전체 맥락 비교와 긴 대화 토큰 세기는 환경 변수 GEMINI_API_KEY로 실제 Gemini를 부른다.
+ * 반복 횟수는 환경 변수 EVAL_REPETITIONS(기본 3)로 바꾼다.
  * 결과 표는 `build/eval/`에 남긴다.
  */
 @Tag("eval")
 class ScoringContextEvalTest {
     @Test
-    fun `짝 대화는 상대 맥락이 달라도 모델 입력이 같다`() {
+    fun `짝 대화는 상대 맥락이 다르면 모델 입력도 다르다`() {
         val blocks = blocksOf(resource("pairs.txt"))
-        val identical = (1..PAIR_COUNT).count { pair ->
-            Sha256.hex(modelInputOf(blocks.getValue("${pair}A"))) == Sha256.hex(modelInputOf(blocks.getValue("${pair}B")))
+        val distinguished = (1..PAIR_COUNT).count { pair ->
+            Sha256.hex(modelInputOf(blocks.getValue("${pair}A"))) != Sha256.hex(modelInputOf(blocks.getValue("${pair}B")))
         }
-        report("pairs.txt", "pair-identical: $identical/$PAIR_COUNT")
-        assertEquals(PAIR_COUNT, identical)
+        report("pairs.txt", "pair-distinguished: $distinguished/$PAIR_COUNT")
+        assertEquals(PAIR_COUNT, distinguished)
     }
+
+    @Test
+    fun `이벤트 2,000개짜리 긴 대화의 입력 토큰을 센다`() {
+        val client = Client.builder().apiKey(System.getenv("GEMINI_API_KEY")).build()
+        val model = ScoreModelProperties().model
+        val corpus = (1..CHAT_COUNT).flatMap { messagesOf(resource("chat-$it.txt")) }
+        val now = Instant.now()
+        val start = now.minus(Duration.ofDays(LONG_CHAT_DAYS))
+        val step = Duration.ofDays(LONG_CHAT_DAYS).dividedBy(LONG_CHAT_EVENTS.toLong())
+        val messages = List(LONG_CHAT_EVENTS) { index ->
+            val source = corpus[index % corpus.size]
+            ChatMessage(source.speaker, start.plus(step.multipliedBy(index.toLong())), source.text)
+        }
+        val events = ChatMessages(messages).eventsFor(SELF).recentAt(now)
+        val digest = AnalysisSubmission(DataSource.KAKAO, events).toScoringDigest()
+        val input = ScoreModelInput.from(digest)
+        val systemPrompt = latestScorePrompt()
+        val counted = countTokens(client, model, systemPrompt) + countTokens(client, model, input.toText())
+        val estimated = ScoreClient.estimatedTokens(systemPrompt.length + input.toText().length)
+        report(
+            "long-chat.txt",
+            "events=${events.size()} lines=${digest.lineCount()} omitted=${digest.omittedTurns} chars=${systemPrompt.length + input.toText().length} " +
+                "counted-input-tokens=$counted estimated=$estimated",
+        )
+    }
+
+    private fun countTokens(client: Client, model: String, text: String): Int =
+        client.models.countTokens(model, text, null).totalTokens().orElse(0)
 
     @Test
     fun `실제 Gemini로 반복 안정성과 전체 맥락 대비 오차를 잰다`() {
@@ -60,7 +91,7 @@ class ScoringContextEvalTest {
         val deviations = mutableListOf<Double>()
         (1..CHAT_COUNT).forEach { chat ->
             val messages = messagesOf(resource("chat-$chat.txt"))
-            val input = ScoreModelInput.from(submissionOf(messages).toScoringDigest().verifySampled()).toText()
+            val input = ScoreModelInput.from(submissionOf(messages).toScoringDigest().verifyEnough()).toText()
             val pipeline = List(REPETITIONS) { call(pipelineModel, systemPrompt, input) }
             val full = List(REPETITIONS) { call(fullModel, FULL_CONTEXT_PROMPT, transcriptOf(messages)) }
             calls += pipeline
@@ -78,6 +109,8 @@ class ScoringContextEvalTest {
         lines += "mae-vs-full mean=%.2f over ${errors.size / ScoreDimension.entries.size} scored chats".format(errors.average())
         lines += "thought-tokens mean=%.1f max=%d".format(calls.map { it.thoughtTokens }.average(), calls.maxOf { it.thoughtTokens })
         lines += "max-tokens-finishes=${calls.count { it.finishReason == "MAX_TOKENS" }}/${calls.size} no-scores(insufficient/unreadable)=${calls.count { it.scores.isEmpty() }}"
+        lines += "insufficient-evidence=${calls.count { it.insufficient }}/${calls.size} weak-dimensions=${calls.sumOf { it.weakDimensions }}"
+        lines += "input-tokens mean=%.0f max=%d".format(calls.map { it.inputTokens }.average(), calls.maxOf { it.inputTokens })
         report("stability.txt", lines.joinToString("\n"))
     }
 
@@ -98,15 +131,16 @@ class ScoringContextEvalTest {
         val text = response.result?.output?.text.orEmpty()
         val start = text.indexOf('{')
         val end = text.lastIndexOf('}')
-        val scores = if (start in 0..<end) {
-            runCatching { JSON.readTree(text.substring(start, end + 1)).path("scores") }.getOrNull()
-                ?.let { node -> ScoreDimension.entries.filter { node.has(it.key) }.associateWith { node.path(it.key).asDouble() } }
-                .orEmpty()
-        } else {
-            emptyMap()
-        }
+        val tree = if (start in 0..<end) runCatching { JSON.readTree(text.substring(start, end + 1)) }.getOrNull() else null
+        val scores = tree?.path("scores")
+            ?.let { node -> ScoreDimension.entries.filter { node.has(it.key) }.associateWith { node.path(it.key).asDouble() } }
+            .orEmpty()
+        val evidence = tree?.path("evidence")
+        val weak = ScoreDimension.entries.count { evidence?.path(it.key)?.let { node -> node.isArray && node.isEmpty } == true }
         return Call(
             scores,
+            tree?.path("sufficient")?.asBoolean(true) == false,
+            weak,
             usage.promptTokens.toLong(),
             usage.completionTokens.toLong(),
             ((usage as? GoogleGenAiUsage)?.thoughtsTokenCount ?: 0).toLong(),
@@ -127,7 +161,7 @@ class ScoringContextEvalTest {
     private fun modelInputOf(messages: List<ChatMessage>): String = ScoreModelInput.from(submissionOf(messages).toScoringDigest()).toText()
 
     private fun submissionOf(messages: List<ChatMessage>): AnalysisSubmission =
-        AnalysisSubmission(DataSource.KAKAO, ChatMessages(messages).sortedByTime().eventsWrittenBy(SELF))
+        AnalysisSubmission(DataSource.KAKAO, ChatMessages(messages).sortedByTime().eventsFor(SELF))
 
     private fun transcriptOf(messages: List<ChatMessage>): String =
         messages.joinToString("\n") { "${TIME_FORMAT.format(it.occurredAt.atZone(SeoulTime.ZONE))} ${it.speaker}: ${it.text}" }
@@ -156,6 +190,8 @@ class ScoringContextEvalTest {
 
     private data class Call(
         val scores: Map<ScoreDimension, Double>,
+        val insufficient: Boolean,
+        val weakDimensions: Int,
         val inputTokens: Long,
         val outputTokens: Long,
         val thoughtTokens: Long,
@@ -170,7 +206,9 @@ class ScoringContextEvalTest {
         private const val SELF = "나"
         private const val PAIR_COUNT = 8
         private const val CHAT_COUNT = 5
-        private const val REPETITIONS = 3
+        private const val LONG_CHAT_EVENTS = 2000
+        private const val LONG_CHAT_DAYS = 89L
+        private val REPETITIONS = System.getenv("EVAL_REPETITIONS")?.toIntOrNull() ?: 3
         private const val TEMPERATURE = 0.1
         private const val JSON_MIME_TYPE = "application/json"
         private const val FULL_CONTEXT_MAX_OUTPUT_TOKENS = 1024

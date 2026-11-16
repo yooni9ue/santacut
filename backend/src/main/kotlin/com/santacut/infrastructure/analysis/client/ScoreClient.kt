@@ -15,7 +15,7 @@ import tools.jackson.databind.ObjectMapper
 /**
  * Gemini 모델(Google GenAI)에 항목별 점수와 근거 번호를 묻고, 응답 JSON을 [ScoreAnswer]로 읽는다.
  * 시스템 프롬프트는 호출하는 쪽이 DB에서 읽어 넘긴다. 점수 검증과 합산은 도메인 모델이 한다.
- * 사용자 메시지에는 이벤트 원문 전체가 아니라 항목별 낱말 신호와 작은 표본만 담는다([ScoreModelInput]).
+ * 사용자 메시지에는 분석 기간의 대화 전체를 정규화한 대화문을 담는다([ScoreModelInput]).
  * 응답 메타데이터의 토큰 사용량(생각 토큰 포함)과 종료 사유는 [ModelUsage]로 넘긴다. 프롬프트, 사용자 메시지, 모델 응답은 로그에 남기지 않는다.
  * JSON 응답 모드를 켜 두지만, 모델이 JSON을 코드 블록으로 감싸 보내도 읽도록 첫 `{`부터 마지막 `}`까지만 읽는다.
  */
@@ -34,7 +34,7 @@ class ScoreClient(
         "${scoreModelProperties.model}$KEY_SEPARATOR$promptVersion$KEY_SEPARATOR${ScoreModelInput.from(digest).toText()}"
 
     /**
-     * [systemPrompt]를 시스템 메시지로, [digest]의 신호와 번호 붙인 표본을 사용자 메시지로 보낸다.
+     * [systemPrompt]를 시스템 메시지로, [digest]의 번호 붙인 대화문을 사용자 메시지로 보낸다.
      * 제공자가 권한 거부, 요청 한도, 서버 오류, 시간 초과로 막으면 [ScoreAnswer.providerUnavailable]이다. 그 밖의 호출 오류는 그대로 던진다.
      */
     fun requestAnswer(digest: ScoringDigest, systemPrompt: String): ScoreAnswer =
