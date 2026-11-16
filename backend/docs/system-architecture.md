@@ -27,16 +27,16 @@ Kotlin + Spring Boot 모듈형 모놀리스 한 개와 SQLite 파일 DB를 단�
 
 ```mermaid
 flowchart LR
-  U[브라우저 / 공유 링크 크롤러] -->|HTTPS 443| C[Caddy]
+  U[브라우저 / 공유 링크 크롤러] -->|HTTP 80, 도메인 뒤 HTTPS 443| C[Caddy]
   C -->|내부 네트워크| A[Kotlin Spring Boot API]
   A --> P[(SQLite 파일 DB)]
   A --> V[(원본 파일: analysis_uploads BLOB)]
   A --> G[공유 HTML / PNG]
   W[제한된 분석 Worker] --> P
-  W -->|HTTPS / 고정 공급자 URL| AI[AI API]
+  W -->|HTTPS / Bedrock Converse| AI[Amazon Bedrock]
   A --- W
-  P --> B[암호화 백업]
-  B --> O[서버 밖 저장소]
+  P --> B[매시 SQLite 백업]
+  B --> O[S3, SSE-KMS]
   GH[GitHub Actions] --> R[GHCR 이미지]
   R -->|검증된 digest 배포| A
 ```
@@ -58,7 +58,7 @@ flowchart LR
 | --- | --- |
 | identity | 닉네임 정규화, 참가자, 세션 소유권 |
 | ingestion | 업로드 제한, 출처별 parser, 본인 화자 선택, 보관 기한 |
-| assessment | AI 호출, 구조화 응답 검증, 점수 계산, 비용 한도 |
+| assessment | AI 호출(DB의 최신 채점 프롬프트 판), 구조화 응답 검증, 점수 계산 |
 | ranking | 시즌, 동점 처리, 안정적인 배송 순번, 스냅샷 |
 | delivery | 지역 거리, 근무 달력, 누적 작업량, ETA |
 | sharing | 공개 토큰, 고정 결과, HTML/PNG, 폐기 |
@@ -157,7 +157,7 @@ season current_snapshot_id는 계산 완료 후 짧은 트랜잭션으로 교체
 
 공유 페이지·PNG 문구에는 서버 측 escaping과 길이 제한을 적용한다. 브라우저가 보내는 Host 헤더로 og:url을 만들지 않고 운영 PUBLIC_BASE_URL만 사용한다. forwarded 헤더는 신뢰하는 reverse proxy 경로에서만 해석한다.
 
-DB 비밀번호·AI 키·SSH 키·backup 암호는 저장소·Docker image·workflow 로그에 넣지 않는다. 서버 `.env`는 0600, 앱 container는 non-root, Docker socket은 앱에 mount하지 않는다. Docker 권한이 있는 배포 계정은 사실상 root 권한이므로 전용 키·관리 경로로 제한한다.
+AWS 키·SSH 키 같은 비밀값은 저장소·Docker image·workflow 로그에 넣지 않는다. 앱 설정은 서버 디스크에 두지 않는다. 서버가 부팅 때 KMS로 풀어 tmpfs `/run/santacut/app.env`(600)에 둔다. 앱 container는 non-root이고, Docker socket은 앱에 mount하지 않는다. Docker 권한이 있는 배포 계정은 사실상 root 권한이므로 전용 키·관리 경로로 제한한다.
 
 ## 9. 초저예산 서버·도메인 예산
 
@@ -165,7 +165,8 @@ DB 비밀번호·AI 키·SSH 키·backup 암호는 저장소·Docker image·work
 
 | 선택 | 월 서버 비용 | 결정 |
 | --- | ---: | --- |
-| AWS Lightsail Linux / public IPv4 / 2GB / 2vCPU / 60GB | USD 12 | 최소 시작안. worker 1개, 단일 JVM, 부하 검증 필수 |
+| AWS Lightsail `nano_3_0` / public IPv4 / 512MB / 2vCPU / 20GB | USD 5 | 현재 선택. worker 1개, 단일 JVM, 스왑 1GB, 부하 검증 필수 |
+| AWS Lightsail Linux / public IPv4 / 2GB / 2vCPU / 60GB | USD 12 | 메모리가 모자랄 때 먼저 올릴 번들 |
 | AWS Lightsail Linux / public IPv4 / 4GB / 2vCPU / 80GB | USD 24 | 예산 증액 시 확장안. 현재 월 2만원 제약의 기본 선택이 아님 |
 | Hetzner CX23 / 4GB / 2vCPU | EUR 5.49 기준, IPv4·VAT 별도 | 초저예산 대안. 유럽 지연과 현재 재고·최종 견적 확인 필요 |
 
@@ -173,11 +174,11 @@ Lightsail 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/
 
 도메인은 사용자 선택에 따라 [가비아](https://domain.gabia.com/)에서 구매한다. `.com` 우선 검색 후 실제 구매 가능 이름을 정한다. 연간 등록비와 갱신가·VAT는 결제 화면에서 확인하며 현재 확정 견적은 없다. 첫해 할인보다 갱신가·등록 소유자·MFA·자동갱신을 확인한다. DNS는 가비아에서 직접 관리할 수 있고, 향후 Cloudflare DNS를 쓰더라도 등록기관은 가비아로 유지할 수 있다.
 
-서울 지연을 우선한 기본 후보는 Lightsail $12이나 환율·VAT·백업을 더해 20,000원을 넘으면 이 예산을 충족한다고 표시하지 않는다. [Hetzner 공식 2026-06 가격 조정 안내](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) 검색 결과는 CX23 EUR 5.49를 제시한다. 직접 페이지 fetch가 404여서 주문 시 재확인하며 현재 제품 페이지에는 가용성 제한도 보인다. 서버 월 예산 산식은 VM + public IPv4 + 세금/환율 + 외부 백업 저장·요청·전송료다. 도메인 연납은 별도로 계산한다. AI 비용은 `분석 수 × (입력 토큰 × 입력 단가 + 출력 토큰 × 출력 단가)`로 별도 한도를 둔다. 사용량을 정하기 전 총비용을 월 몇천 원으로 약속하지 않는다.
+서울 지연을 우선해 Lightsail 서울 `nano_3_0`($5)으로 시작한다. 큰 번들로 올릴 때 환율·VAT·백업을 더해 20,000원을 넘으면 이 예산을 충족한다고 표시하지 않는다. [Hetzner 공식 2026-06 가격 조정 안내](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) 검색 결과는 CX23 EUR 5.49를 제시한다. 직접 페이지 fetch가 404여서 주문 시 재확인하며 현재 제품 페이지에는 가용성 제한도 보인다. 서버 월 예산 산식은 VM + public IPv4 + 세금/환율 + 외부 백업 저장·요청·전송료다. 도메인 연납은 별도로 계산한다. AI 비용은 `분석 수 × (입력 토큰 × 입력 단가 + 출력 토큰 × 출력 단가)`로 따로 계산한다. 앱에는 AI 호출 한도가 없고, AWS Bedrock 예산 차단(santacut-infra)이 막는다. 사용량을 정하기 전 총비용을 월 몇천 원으로 약속하지 않는다.
 
 [GitHub Actions 공식 안내](https://docs.github.com/en/actions/concepts/billing-and-usage)에 따라 공개 저장소의 standard hosted runner 사용은 무료다. 비공개 저장소·larger runner·artifact/package 저장 비용은 계정 조건을 확인한다. artifact 보관 기간을 짧게 하고 오래된 container image는 롤백 후보를 남긴 뒤 정리한다.
 
-2GB 메모리 계획 시작점: JVM heap 512MB, metaspace/native 포함 앱 최대 900MB, SQLite와 Caddy/OS/페이지캐시 나머지. 숫자는 부하 테스트로 검증하며 swap은 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
+512MB 메모리 예산: 앱 컨테이너 `mem_limit: 400m`, JVM `-Xms128m -Xmx256m`(metaspace 최대 128MB, SerialGC), Caddy `mem_limit: 64m`, 나머지는 OS와 페이지캐시다. 자세한 값은 [배포 운영서](deployment.md)에 있다. 숫자는 부하 테스트로 검증한다. 스왑 1GB는 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
 
 ## 10. CI/CD와 배포 계약
 
@@ -205,8 +206,8 @@ GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:
 2. Linux LTS VPS와 고정 public IPv4, 비root 관리자 키를 준비한다.
 3. OS 업데이트·시간 동기화·Docker/Compose 설치, 방화벽과 SSH 설정을 완료한다.
 4. DNS A 레코드를 고정 IP로 연결한다. IPv6를 실제 설정하지 않았다면 AAAA를 추가하지 않는다.
-5. 서버 환경변수에 도메인·DB 비밀번호·AI 설정·시즌·출발 좌표를 넣는다.
-6. compose로 DB/Caddy/app을 시작하고 Caddy가 80/443을 통해 TLS 인증서를 발급받게 한다. `www`를 쓴다면 canonical host로 redirect한다.
+5. 앱 설정(도메인·AI 설정·시즌·출발 좌표)을 인프라 레포 `scripts/put-secrets.sh`로 KMS 암호화해 S3에 올린다. 서버는 부팅 때 tmpfs `/run/santacut/app.env`로 받는다.
+6. compose로 Caddy/app을 시작하고 Caddy가 80/443을 통해 TLS 인증서를 발급받게 한다. `www`를 쓴다면 canonical host로 redirect한다.
 7. 외부에서 HTTPS·인증서·세션 쿠키·CSRF·업로드 제한·공유 HTML/PNG를 확인한다.
 8. 오프호스트 백업 업로드와 복원 리허설을 완료한다.
 9. GitHub production secrets를 연결하고 배포 dry run 및 실제 첫 배포를 확인한다.
@@ -227,7 +228,7 @@ GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:
 
 출시 차단 조건: 실제 플랫폼 샘플 parser 미검증, mock AI 운영 활성화, 세션/CSRF 우회, 사용자 간 데이터 접근, 미검증 점수 저장, 무한 retry·무제한 비용, 공유 XSS/원문 노출, backup 복원 실패, readiness 실패.
 
-부하 목표는 최초 기준으로 조회 20 RPS·분석 동시성 1·1만 참가자 전체 재계산을 측정한다. 이는 보장 성능이 아니며 p95 응답·heap·DB lock·계산 시간을 기록해 예산과 맞춘다. 2GB에서 OOM 또는 빈번한 swap이 생기면 먼저 4GB로 올린다.
+부하 목표는 최초 기준으로 조회 20 RPS·분석 동시성 1·1만 참가자 전체 재계산을 측정한다. 이는 보장 성능이 아니며 p95 응답·heap·DB lock·계산 시간을 기록해 예산과 맞춘다. 512MB에서 OOM 또는 빈번한 swap이 생기면 먼저 2GB 번들로 올린다.
 
 이후 확장은 원본/공유 파일을 S3 호환 저장소로 분리 → 분석 worker를 별도 프로세스로 분리 → DB를 별도 서버로 분리 순이다. 지속적인 큐 지연과 비용 근거가 생기기 전 Kafka·Kubernetes를 도입하지 않는다.
 

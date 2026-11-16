@@ -32,7 +32,7 @@
 
 1. 페이지 로드 시 `GET /v1/me`를 호출한다. `200`이면 로그인 상태, `401`이면 미등록 상태다.
 2. 쓰기 요청(`POST`, `PATCH`, `DELETE`) 직전에 `GET /v1/csrf`를 호출한다. 응답 `{ headerName, token }`의 `token`을 `headerName`(기본 `X-XSRF-TOKEN`) 헤더로 보낸다. 같은 응답이 `XSRF-TOKEN` 쿠키도 설정하므로 쿠키를 지우지 않는다.
-3. `POST /v1/participants`로 등록하면 세션이 HttpOnly 쿠키(`sc_session`, 운영은 `__Host-sc_session`)로 설정된다. 세션은 30일간 유효하며 JSON 응답에는 세션 값이 없다.
+3. `POST /v1/participants`로 등록하면 세션이 HttpOnly 쿠키로 설정된다. 쿠키 이름은 지금 서버처럼 도메인 없이 HTTP로 띄울 때(`SESSION_SECURE=false`) `sc_session`이고, 도메인과 HTTPS를 갖춘 뒤(`SESSION_SECURE=true`) `__Host-sc_session`이다. 프론트엔드는 HttpOnly라 쿠키를 직접 읽지 않으므로 이름에 기대지 않는다. 세션은 30일간 유효하며 JSON 응답에는 세션 값이 없다.
 4. 이후 요청은 쿠키가 자동으로 실려 인증된다. 세션이 없거나 만료되면 `401`이다.
 
 ## 4. API 목록

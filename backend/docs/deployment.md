@@ -73,7 +73,7 @@ Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보�
 
 ### 지역 시드
 
-지역 데이터는 앱이 뜰 때마다 들어간다. `schema.sql`이 테이블과 서울 26행을 만들고, 이어서 `spring.sql.init.data-locations: classpath:regions.sql`이 나머지 시·도와 시·군·구를 넣는다(모두 271개). 둘 다 `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어간다. `regions.parent_code`는 앱 시작 때 `RegionFacade`가 채운다. 별도 마이그레이션 단계는 없다. 이미 있는 지역의 이름·좌표를 바꾸려면 시드만으로는 안 되고 DB를 직접 고쳐야 한다.
+지역 데이터는 앱이 뜰 때마다 들어간다. `schema.sql`이 테이블과 서울 26행을 만들고, 이어서 `spring.sql.init.data-locations: classpath:regions.sql,classpath:prompts.sql`이 돈다. `regions.sql`은 나머지 시·도와 시·군·구를 넣고(모두 271개), `prompts.sql`은 채점 프롬프트(`score`) 1판을 넣는다. 셋 다 `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어가고, 이미 있는 프롬프트 판은 건드리지 않는다. `regions.parent_code`는 앱 시작 때 `RegionFacade`가 채운다. 별도 마이그레이션 단계는 없다. 이미 있는 지역의 이름·좌표를 바꾸려면 시드만으로는 안 되고 DB를 직접 고쳐야 한다.
 
 ## SQLite 백업과 복구
 
