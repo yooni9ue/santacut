@@ -73,10 +73,10 @@ spring.ai:
     # Gemini Developer API 키. 환경 변수로만 넣는다. 시간 상한(60초)과 재시도 끔은 GeminiClientConfiguration이 정한다.
     api-key: ${GEMINI_API_KEY:}
     chat:
-      model: gemini-2.5-flash
+      # 채점 모델. GEMINI_MODEL로 바꿀 수 있고, 비우면 AI 분석을 끈다.
+      model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
       temperature: 0.1
       # 정상 답(근거 항목당 1~3개)은 100토큰 안팎이다. 폭주해도 비용이 크지 않게 낮게 둔다.
       max-output-tokens: 250
-      # 생각(thinking) 토큰은 출력 단가로 매겨지므로 꺼서 비용을 예측할 수 있게 한다.
-      thinking-budget: 0
+      # 3.5 Flash-Lite는 생각(thinking)이 기본으로 꺼져 있고 thinkingBudget을 보내면 400으로 거절한다. 그래서 생각 설정은 두지 않는다.
       response-mime-type: application/json

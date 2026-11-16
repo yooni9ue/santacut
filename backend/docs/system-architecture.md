@@ -8,7 +8,7 @@
 - 저장소 코드는 Spring Data JPA Repository만 사용한다. 분석 큐, 점수, 순위 스냅샷, 공유도 JPA 엔티티로 관리한다.
 - Swagger UI와 OpenAPI 3 명세는 `/swagger-ui.html`과 `/v3/api-docs`에서 제공한다. 각 API의 설명은 endpoint 전용 `@Operation` 메타 애노테이션에 두고, 요청·응답 모델에는 필드별 스키마 설명을 둔다.
 - 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
-- AI 호출은 Spring AI Google GenAI로 Gemini 2.5 Flash(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 본인 메시지로 만든 항목별 신호와 표본(최대 120줄, 본문 6,000자)뿐이다.
+- AI 호출은 Spring AI Google GenAI로 Gemini 3.5 Flash-Lite(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 본인 메시지로 만든 항목별 신호와 표본(최대 120줄, 본문 6,000자)뿐이다.
 - 분석 API는 원본 파일 업로드(`POST /v1/analyses/files`)와 정규화된 이벤트 JSON(`POST /v1/analyses`)을 둘 다 받는다. 카카오톡 TXT(PC·모바일)와 인스타그램 `message_1.json` 파서가 있다. 다만 공개 내보내기 예시로 만든 것이라 실제 샘플 검증은 출시 전에 해야 한다.
 - 지역은 전국 시·도 16개와 시·군·구 255개(모두 271개)다. 서울은 `schema.sql`이, 나머지는 `regions.sql`이 앱 시작 때마다 넣는다(`INSERT OR IGNORE`).
 - 분석 진행 상태는 진행 상황 스트림(`GET /v1/analyses/{id}/events`, SSE)으로 받거나 폴링(`GET /v1/analyses/{id}`, `GET /v1/me/analysis`)으로 읽는다. 스트림 상한에 걸리면 폴링으로 바꾼다. 결과는 `GET /v1/me/result`로 따로 읽는다.
@@ -33,7 +33,7 @@ flowchart LR
   A --> V[(원본 파일: analysis_uploads BLOB)]
   A --> G[공유 HTML / PNG]
   W[제한된 분석 Worker] --> P
-  W -->|HTTPS / Gemini API| AI[Gemini 2.5 Flash]
+  W -->|HTTPS / Gemini API| AI[Gemini 3.5 Flash-Lite]
   A --- W
   P --> B[매시 SQLite 백업]
   B --> O[S3, SSE-KMS]
