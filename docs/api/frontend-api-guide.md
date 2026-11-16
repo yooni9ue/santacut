@@ -233,13 +233,14 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 - `ranking_pending`이 `true`면 새 심사가 아직 순위에 반영되지 않았다. 이전 스냅숏이 있으면 그 점수·순위를 그대로 보여주고 반영 중임을 따로 알린다.
 - 첫 순위 계산 전이면 `rank`, `delivery_sequence`, `eta`, `computed_at`이 `null`이다. 점수·판정을 먼저 보여주고 순위·도착일은 `계산 중`으로 둔다.
 - 점수가 나온 심사가 없으면 `404`(`RESULT_NOT_FOUND`)다.
-- `low_confidence_dimensions`는 근거가 부족해 중립 점수(55점)를 준 채점 항목 키 배열이다(`care_empathy`, `positivity_support`, `respectful_communication`, `cooperation_sharing`). 없으면 빈 배열이다. 화면은 이 항목에 "대화에서 판단할 근거가 적었어요"처럼 신뢰도가 낮다는 표시를 붙인다. 이 필드가 생기기 전 평가는 빈 배열이다.
+- `low_confidence_dimensions`는 근거가 부족해 중립 점수를 준 채점 항목 키 배열이다(`care_empathy`, `positivity_support`, `respectful_communication`, `cooperation_sharing`). 없으면 빈 배열이다. 화면은 이 항목에 "대화에서 판단할 근거가 적었어요"처럼 신뢰도가 낮다는 표시를 붙인다. 이 필드가 생기기 전 평가는 빈 배열이다.
 - 아래 필드는 2026-11-17에 더했다. 기존 필드는 그대로다. 모두 재미용 꾸밈이고 점수·순위에는 영향이 없다.
   - `archetype`: `{ code, name }`. 산타 유형 10가지 가운데 하나다(예: `{"code":"HOT_COCOA_COURIER","name":"핫초코 배달부"}`). `code`로 일러스트를 고른다. 코드 목록은 OpenAPI 스키마에 있다.
   - `dimension_scores`: 항목 막대 4개 배열. 각 원소는 `{ key, label, score }`이고 순서는 공감·응원·존중·협력이다. `score`는 0~100, 소수 둘째 자리까지다. 이 필드가 생기기 전 평가도 저장한 항목 점수로 채운다.
   - `weakest_dimension`: 점수가 가장 낮은 항목 하나(`{ key, label, score }`).
   - `top_percent`: 상위 몇 %(1~100, 올림)다. 순위 계산 참가자가 100명보다 적거나 첫 순위 계산 전이면 `null`이다. `null`이면 숨긴다.
-  - `archetype_share_percent`: 같은 유형인 참가자 비율(%)이다. "참가자 중 8%만 이 유형" 같은 희귀도 표시에 쓴다.
+  - `archetype_share_percent`: 같은 유형인 참가자 비율(%)이다. "참가자 중 8%만 이 유형" 같은 희귀도 표시에 쓴다. 점수를 받은 참가자가 30명보다 적으면 `null`이고, 이때는 숨긴다.
+  - 유형은 위 두 항목 점수 차이로 고른다. 차이가 3점보다 작으면 균형형, 7점 이상이면 가장 높은 항목의 유형이고, 그 사이는 수축 전 평균의 차이(6점 미만이면 균형형)와 순서로 가른다. 같은 대화를 다시 채점할 때 생기는 작은 점수 흔들림으로 유형이 바뀌는 일을 줄이려는 규칙이다.
   - `badges`: 본인 말에서 낱말 횟수로 받은 배지 라벨 배열이다(예: `고마워 12회 · 감사 자판기`, `미안 0회 · 사과 품절`). 없으면 빈 배열이다. 앞 원소가 우선이다.
   - `quote`: 본인 근거 줄에서 고른 20자 이하 한마디다. 상대 말은 절대 들어가지 않는다. 없으면 `null`이다. 내 결과 화면에만 보여 주고, 공유 카드에는 사용자가 고를 때만 싣는다(아래 공유).
 
