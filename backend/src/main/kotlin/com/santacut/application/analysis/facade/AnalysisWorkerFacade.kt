@@ -88,6 +88,8 @@ class AnalysisWorkerFacade(
      * 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
      */
     private fun askAndScore(job: AnalysisJob, lease: String, prompt: Prompt, digest: ScoringDigest, digestHash: String): Score {
+        val estimate = analysisScoringService.estimateUsage(digest, prompt.content)
+        transactionTemplate.executeWithoutResult { aiBudgetService.verifyAffordable(estimate, clock.instant()) }
         val answer = analysisScoringService.ask(digest, prompt.content)
         transactionTemplate.executeWithoutResult { aiBudgetService.record(answer.usage, clock.instant()) }
         try {

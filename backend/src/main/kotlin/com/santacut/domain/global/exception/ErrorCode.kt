@@ -38,5 +38,6 @@ enum class ErrorCode(val status: Int, val message: String) {
     AI_SCORE_OUT_OF_RANGE(502, "AI 응답 점수가 0~100 범위를 벗어났거나 소수점 셋째 자리 이하 값이 있습니다."),
     AI_NOT_CONFIGURED(503, "AI 모델이 설정되지 않았습니다."),
     AI_PROVIDER_UNAVAILABLE(503, "AI 제공자가 호출을 막았거나 잠시 쓸 수 없습니다."),
+    AI_BUDGET_EXCEEDED(503, "이번 호출의 어림 비용을 더하면 AI 비용 한도를 넘습니다."),
     ANALYSIS_STREAM_LIMIT(503, "지금은 진행 상황 스트림을 더 열 수 없습니다. 상태 조회로 진행 상황을 확인해 주세요."),
 }

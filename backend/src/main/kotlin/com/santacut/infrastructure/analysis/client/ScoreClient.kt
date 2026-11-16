@@ -34,6 +34,16 @@ class ScoreClient(
         "${scoreModelProperties.model}$KEY_SEPARATOR$promptVersion$KEY_SEPARATOR${ScoreModelInput.from(digest).toText()}"
 
     /**
+     * 호출 한 번의 어림 사용량. 입력은 시스템 프롬프트와 사용자 메시지 글자 수로([estimatedTokens]), 출력은 출력 토큰 상한으로 잡는다.
+     * 비용 가드가 호출 전에 이 값으로 한도를 넘지 않을지 확인한다.
+     */
+    fun estimateUsage(digest: ScoringDigest, systemPrompt: String): ModelUsage = ModelUsage(
+        estimatedTokens(systemPrompt.length + ScoreModelInput.from(digest).toText().length),
+        scoreModelProperties.maxOutputTokens.toLong(),
+        ESTIMATED_FINISH_REASON,
+    )
+
+    /**
      * [systemPrompt]를 시스템 메시지로, [digest]의 번호 붙인 대화문을 사용자 메시지로 보낸다.
      * 제공자가 권한 거부, 요청 한도, 서버 오류, 시간 초과로 막으면 [ScoreAnswer.providerUnavailable]이다. 그 밖의 호출 오류는 그대로 던진다.
      */
@@ -101,5 +111,14 @@ class ScoreClient(
         private const val JSON_OBJECT_START = '{'
         private const val JSON_OBJECT_END = '}'
         private const val KEY_SEPARATOR = "\n"
+        private const val ESTIMATED_FINISH_REASON = "ESTIMATE"
+
+        /** 어림 토큰 수 = 글자 수 × 3 / 4(올림). 한국어 대화문 실측(2,000개 대화 53,132자 → 37,838토큰)보다 조금 넉넉하게 잡았다. */
+        private const val TOKENS_PER_CHARS_NUMERATOR = 3L
+        private const val TOKENS_PER_CHARS_DENOMINATOR = 4L
+
+        /** 글자 [chars]개를 보낼 때의 어림 입력 토큰 수. */
+        fun estimatedTokens(chars: Int): Long =
+            (chars * TOKENS_PER_CHARS_NUMERATOR + TOKENS_PER_CHARS_DENOMINATOR - 1) / TOKENS_PER_CHARS_DENOMINATOR
     }
 }

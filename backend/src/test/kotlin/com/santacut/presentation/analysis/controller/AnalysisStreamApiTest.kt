@@ -102,6 +102,7 @@ class AnalysisStreamApiTest @Autowired constructor(
         given(scoreClient.isEnabled()).willReturn(true)
         given(scoreClient.cacheKey(anyDigest(), anyInt())).willReturn(CACHE_KEY)
         given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
+        given(scoreClient.estimateUsage(anyDigest(), anyString())).willReturn(USAGE)
     }
 
     @Test

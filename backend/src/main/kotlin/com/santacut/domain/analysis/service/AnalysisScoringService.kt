@@ -2,6 +2,7 @@ package com.santacut.domain.analysis.service
 
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
+import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoreAnswer
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.domain.global.exception.ErrorCode
@@ -28,6 +29,9 @@ class AnalysisScoringService(
      */
     fun digest(job: AnalysisJob): ScoringDigest =
         objectMapper.readValue(job.requirePayload(), AnalysisSubmission::class.java).toScoringDigest().verifyEnough()
+
+    /** 호출 전 비용 확인에 쓰는 어림 사용량. */
+    fun estimateUsage(digest: ScoringDigest, systemPrompt: String): ModelUsage = scoreClient.estimateUsage(digest, systemPrompt)
 
     /** 같은 채점 입력인지 가리는 해시. 모델 ID, 프롬프트 판, AI 사용자 메시지가 모두 같아야 같다. */
     fun fingerprint(digest: ScoringDigest, promptVersion: Int): String = Sha256.hex(scoreClient.cacheKey(digest, promptVersion))
