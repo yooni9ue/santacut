@@ -88,6 +88,19 @@ class DimensionScoresTest {
         )
     }
 
+    @Test
+    fun `유형을 고르는 수축 전 평균도 근거 없는 항목에 표시 점수와 같은 본인 수준 사전값을 준다`() {
+        val readings = readingsOf(listOf(90, 10, 70, 80), listOf(listOf(1), emptyList(), listOf(3), listOf(4)), listOf(2, 0, 1, 2))
+        val shrinkage = ScoreShrinkage(BigDecimal("0.25"), 5, personalPrior = true)
+
+        val means = readings.meanScores(shrinkage)
+
+        assertEquals(listOf(BigDecimal(90), BigDecimal(70), BigDecimal(80)), listOf(means[0], means[2], means[3]))
+        assertEquals(0, readings.shrunkScores(shrinkage, SELF_TURNS)[1].compareTo(means[1]))
+        assertEquals(0, BigDecimal("73.75").compareTo(means[1]))
+        assertEquals(DimensionScores.NEUTRAL_SCORE, readings.meanScores(ScoreShrinkage(BigDecimal("0.25"), 5, personalPrior = false))[1])
+    }
+
     private fun readingsOf(scores: List<Int>, evidence: List<List<Int>>, opportunities: List<Int?>): DimensionReadings =
         DimensionScores(scores.map(::BigDecimal)).toReadings(EvidenceIndices(evidence), DimensionOpportunities(opportunities), SELF_TURNS)
 
