@@ -33,7 +33,7 @@ services:
       test: [CMD, curl, --fail, --silent, http://localhost:8080/actuator/health/readiness]
       interval: 10s
       timeout: 3s
-      retries: 18
+      retries: 36
       start_period: 120s
     logging: &logging
       driver: json-file
