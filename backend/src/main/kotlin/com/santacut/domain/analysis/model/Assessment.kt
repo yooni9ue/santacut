@@ -77,5 +77,11 @@ class Assessment(
                 verdict.title, verdict.comment, componentsJson, recordedAt, promptVersion,
             )
         }
+
+        /** 같은 채점 입력으로 이미 받은 평가([previous])를 AI 없이 이 작업의 새 평가로 옮겨 적는다. */
+        fun reuse(job: AnalysisJob, previous: Assessment, recordedAt: Instant): Assessment = Assessment(
+            UUID.randomUUID().toString(), job.userId, job.source, previous.scoreHundredths,
+            previous.verdict, previous.comment, previous.components, recordedAt, previous.promptVersion,
+        )
     }
 }
