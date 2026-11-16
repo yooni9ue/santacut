@@ -17,7 +17,7 @@ import java.time.Instant
  * @property dimensionBars 항목 막대 4개
  * @property weakestDimension 점수가 가장 낮은 항목
  * @property topPercent 상위 몇 %. 참가자 100명 미만이거나 순위가 없으면 null이다.
- * @property archetypeSharePercent 같은 유형 참가자 비율(%)
+ * @property archetypeSharePercent 같은 유형 참가자 비율(%). 참가자가 30명보다 적으면 null이다.
  * @property badges 본인 말에서 받은 배지 라벨
  * @property quote 본인 근거 줄의 20자 이하 한마디. 없으면 null이다.
  */
@@ -38,7 +38,7 @@ data class MyRankingResult(
     val dimensionBars: DimensionBarResults,
     val weakestDimension: DimensionBarResult,
     val topPercent: Int?,
-    val archetypeSharePercent: Int,
+    val archetypeSharePercent: Int?,
     val badges: List<String>,
     val quote: String?,
 ) {

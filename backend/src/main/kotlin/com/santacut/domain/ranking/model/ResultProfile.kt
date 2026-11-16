@@ -1,6 +1,7 @@
 package com.santacut.domain.ranking.model
 
 import com.santacut.domain.analysis.model.Archetype
+import com.santacut.domain.analysis.model.ArchetypeCounts
 import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoreDimension
@@ -10,7 +11,7 @@ import com.santacut.domain.analysis.model.ScoreDimension
  * 장난기 기준값과 유형 비율은 가장 최근 순위 계산 때 저장한 [ResultPopulation], 상위 비율은 그 순위의 참가자 수로 낸다.
  *
  * @property topPercent 상위 몇 %인지. 참가자가 [MIN_PARTICIPANTS_FOR_TOP_PERCENT]명보다 적거나 순위가 없으면 null이다.
- * @property archetypeSharePercent 같은 유형인 참가자 비율(%)
+ * @property archetypeSharePercent 같은 유형인 참가자 비율(%). 참가자가 [ArchetypeCounts.MIN_PARTICIPANTS_FOR_SHARE]명보다 적으면 null이다.
  * @property badges 본인 말에서 받은 배지 라벨
  * @property quote 본인 근거 줄의 20자 이하 한마디. 상대 말은 들어가지 않는다.
  */
@@ -18,7 +19,7 @@ class ResultProfile(
     val archetype: Archetype,
     val dimensionScores: ScoreComponents,
     val topPercent: Int?,
-    val archetypeSharePercent: Int,
+    val archetypeSharePercent: Int?,
     val badges: List<String>,
     val quote: String?,
 ) {
