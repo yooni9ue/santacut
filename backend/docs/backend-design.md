@@ -237,7 +237,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 
 ### 8.2 현재 구현
 
-[`schema.sql`](../src/main/resources/schema.sql)과 JPA 엔티티가 기준이다. SQLite 테이블은 10개이고, Hibernate `ddl-auto: update`가 엔티티에 맞춰 컬럼을 더한다. 시각은 모두 UTC 텍스트로 저장한다.
+[`schema.sql`](../src/main/resources/schema.sql)과 JPA 엔티티가 기준이다. SQLite 테이블은 9개이고, Hibernate `ddl-auto: update`가 엔티티에 맞춰 컬럼을 더한다. 시각은 모두 UTC 텍스트로 저장한다.
 
 | 테이블 | 필드·제약 |
 | --- | --- |
@@ -247,7 +247,6 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | analysis_jobs | id PK, user_id FK CASCADE, idempotency_key, request_hash, source, payload NULL, status, attempts, lease_token, lease_until, error_code, assessment_id FK→assessments SET NULL, created_at, finished_at; UNIQUE(user_id, idempotency_key) |
 | analysis_uploads | job_id PK FK→analysis_jobs CASCADE, source, self_speaker, content BLOB, created_at; created_at 색인 |
 | assessments | id PK, user_id FK CASCADE, source CHECK(KAKAO, INSTAGRAM), score_hundredths CHECK 0..10000, verdict, comment, components, created_at, prompt_version NULL |
-| ai_daily_budget | day PK, calls CHECK ≥ 0 |
 | result_snapshots | id PK, user_id FK CASCADE, assessment_id FK CASCADE, rank, delivery_sequence, eta, computed_at, tied |
 | prompts | id PK, name, version CHECK ≥ 1, content, created_at; UNIQUE(name, version) |
 | shares | token PK, user_id FK CASCADE, snapshot_id FK→result_snapshots CASCADE, nickname, score_hundredths, rank, eta, verdict, comment, computed_at, revoked_at NULL, tied, stage, created_at NULL; 활성 링크는 (user_id, snapshot_id)당 하나 |
@@ -367,7 +366,7 @@ stateDiagram-v2
 - 작업자는 둘이고 같은 JVM에서 `@Scheduled`로 돈다. 검증 작업자(`santacut.upload.poll-delay-ms`, 기본 1초)와 분석 작업자(`santacut.ai.poll-delay-ms`, 기본 3초)다.
 - 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 `EXPIRED`로 끝낸다. 분석 작업자는 AI 모델이 꺼져 있어도 만료 정리부터 하고 쉰다. 검증 작업자도 돌 때마다 같은 정리를 한다.
 - 참가자 한 명은 최근 24시간 동안 3번까지 제출할 수 있다. 두 제출 API를 합쳐서 센다. 넘으면 `429 DAILY_USER_LIMIT`이고, 본문 `retry_at`과 `Retry-After` 헤더로 다시 낼 수 있는 시각을 알린다.
-- AI 호출은 서울 날짜로 하루 `santacut.ai.daily-call-limit`(기본 100)번까지다. 다 쓰면 작업을 꺼내지 않고 기다린다.
+- 앱에는 AI 호출 수 한도가 없다. AI 비용은 AWS Bedrock 예산 차단(santacut-infra)으로만 막는다. 참가자별 24시간 3회 제출 한도는 비용 장치가 아니라 제품 규칙이라 남긴다(점수를 거듭 다시 뽑지 못하게).
 - 검증 작업자는 만료 정리, 원본 꺼내기, 결과 기록을 트랜잭션 셋으로 나눈다. 파싱은 트랜잭션 밖에서 하므로 그동안 DB 커넥션을 쥐지 않는다.
 - 검증을 세 번 넘게 시작하면 `RETRY_EXHAUSTED`로 끝낸다. 통과하면 점수 산정 시도 횟수를 0부터 센다.
 - 원본과 본인 이름은 검증이 끝나는 트랜잭션에서 지운다. 24시간 넘게 남은 원본은 지우고 그 작업은 `EXPIRED`로 끝낸다.

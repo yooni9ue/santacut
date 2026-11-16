@@ -9,7 +9,7 @@
 
 ## 한눈에 보기
 
-<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 17개(dev 전용 3개 별도), 테이블 10개, 자동 테스트 311개, 오류 코드 30개, 지역 271개, 참가자당 하루 3회. 검증 작업자 1초, 분석 작업자 3초, 작업 임대 3분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
+<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 17개(dev 전용 3개 별도), 테이블 9개, 자동 테스트 309개, 오류 코드 30개, 지역 271개, 참가자당 하루 3회(AI 호출 한도는 없음). 검증 작업자 1초, 분석 작업자 3초, 작업 임대 3분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
 
 ## 할 수 있는 일
 
@@ -41,7 +41,7 @@
 
 ## 데이터 모델
 
-<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, ai_daily_budget, result_snapshots, shares, prompts 10개 테이블과 외래 키 관계" width="100%"></p>
+<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, result_snapshots, shares, prompts 9개 테이블과 외래 키 관계" width="100%"></p>
 
 - 기준은 [`schema.sql`](src/main/resources/schema.sql)이다.
 - 원본 파일은 `analysis_uploads`에 잠깐 머문다. 검증이 끝나면 지운다.
@@ -54,7 +54,7 @@
 - 원본은 접수 때 한 번, 검증 작업자가 한 번 더 본다.
 - 빈 파일·zip·바이너리는 바로 `422`. 20MB를 넘으면 `413`.
 - 평가 저장과 순위 계산은 한 트랜잭션이다.
-- 하루 예산을 넘으면 워커가 작업을 꺼내지 않는다.
+- 앱에는 AI 호출 수 한도가 없다. AI 비용은 AWS Bedrock 예산 차단(인프라)으로만 막는다.
 - 24시간 넘게 기다린 작업은 만료된다. AI가 꺼져 있어도.
 
 <details>
@@ -78,7 +78,7 @@ sequenceDiagram
     V->>V: 파싱 · 본인 메시지만
     V->>DB: 작업 QUEUED · 원본 삭제
     loop 3초마다
-        W->>DB: 예산 확인 · 작업 임대
+        W->>DB: 작업 임대 · 최신 프롬프트 읽기
     end
     W->>AI: 채점 요청
     AI-->>W: 구조화 점수

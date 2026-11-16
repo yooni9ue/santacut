@@ -40,7 +40,6 @@ import kotlin.test.assertEquals
         "app.season-year=${AnalysisWorkerFacadeTest.SEASON_YEAR}",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
-        "santacut.ai.daily-call-limit=${AnalysisWorkerFacadeTest.DAILY_CALL_LIMIT}",
     ],
 )
 @Import(WorkerTestClockConfiguration::class)

@@ -14,7 +14,6 @@ import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
-import com.santacut.domain.analysis.model.DailyBudget
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ScoreAnswer
 import com.santacut.domain.prompt.model.Prompt
@@ -22,7 +21,6 @@ import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AssessmentRepository
-import com.santacut.infrastructure.analysis.repository.DailyBudgetRepository
 import com.santacut.infrastructure.prompt.repository.PromptRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -45,7 +43,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
- * 분석 작업자가 AI 점수 클라이언트를 바꿔 끼운 상태에서 성공, 실패, 예산 소진, 시즌 마감을 처리하는지 확인한다.
+ * 분석 작업자가 AI 점수 클라이언트를 바꿔 끼운 상태에서 성공, 실패, 연속 처리, 시즌 마감을 처리하는지 확인한다.
  * AI 호출마다 DB의 최신 채점 프롬프트를 쓰는지도 확인한다.
  * 대기열 전체를 보는 작업자라 다른 통합 테스트와 섞이지 않게 `build/worker-test.db`를 따로 쓰고 테스트마다 비운다.
  */
@@ -55,7 +53,6 @@ import kotlin.test.assertNull
         "app.season-year=${AnalysisWorkerFacadeTest.SEASON_YEAR}",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
-        "santacut.ai.daily-call-limit=${AnalysisWorkerFacadeTest.DAILY_CALL_LIMIT}",
     ],
 )
 @Import(WorkerTestClockConfiguration::class)
@@ -68,7 +65,6 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private val scoreClient: ScoreClient,
     private val clock: MutableClock,
     private val analysisJobRepository: AnalysisJobRepository,
-    private val dailyBudgetRepository: DailyBudgetRepository,
     private val promptRepository: PromptRepository,
     private val assessmentRepository: AssessmentRepository,
 ) {
@@ -77,7 +73,6 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     @BeforeEach
     fun setUp() {
         analysisJobRepository.deleteAll()
-        dailyBudgetRepository.deleteAll()
         promptRepository.deleteAll()
         promptRepository.save(Prompt.initial(Prompt.SCORE, FIRST_PROMPT, OPEN_TIME))
         clock.moveTo(OPEN_TIME)
@@ -114,14 +109,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `오늘 AI 예산을 다 썼으면 작업을 건드리지 않고 AI도 부르지 않는다`() {
-        dailyBudgetRepository.save(DailyBudget(DailyBudget.dayOf(OPEN_TIME), DAILY_CALL_LIMIT))
-        val job = submitAnalysis()
+    fun `AI 호출 수 한도 없이 하루에 여러 작업을 연달아 채점한다`() {
+        given(scoreClient.requestAnswer(anySubmission(), anyString())).willReturn(fullAnswer())
+        val jobs = List(CONSECUTIVE_JOB_COUNT) { submitAnalysis() }
 
-        analysisWorkerFacade.processNextJob()
+        repeat(CONSECUTIVE_JOB_COUNT) { analysisWorkerFacade.processNextJob() }
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
-        verify(scoreClient, never()).requestAnswer(anySubmission(), anyString())
+        assertEquals(List(CONSECUTIVE_JOB_COUNT) { "SUCCEEDED" }, jobs.map { analysisFacade.getStatus(it).status })
     }
 
     @Test
@@ -200,7 +194,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     companion object {
         const val SEASON_YEAR = 2099
-        const val DAILY_CALL_LIMIT = 5
+        private const val CONSECUTIVE_JOB_COUNT = 6
         private const val EVENT_COUNT = 20
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
         private const val LATEST_PROMPT = "채점 프롬프트 2판"

@@ -93,7 +93,7 @@
     <rect class="card" x="40" y="536" width="340" height="130" rx="16"/>
     <circle cx="70" cy="566" r="14" fill="#3DDC97"/><text class="n" x="70" y="571" text-anchor="middle">7</text>
     <text class="h" x="94" y="572">작업 임대</text>
-    <text class="s" x="62" y="604">하루 AI 호출 100회 예산</text>
+    <text class="s" x="62" y="604">DB에서 최신 채점 프롬프트 읽기</text>
     <text class="s" x="62" y="626">임대 3분 · 최대 3번 시도</text>
     <text class="s" x="62" y="648">상태 ANALYZING</text>
   </g>

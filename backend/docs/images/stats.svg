@@ -29,12 +29,12 @@
   <text class="xs" x="62" y="244">OpenAPI 기준 · dev 전용 3개는 따로</text>
   <rect class="card" x="325" y="110" width="265" height="150" rx="16"/>
   <rect x="347" y="132" width="34" height="5" rx="2.5" fill="#3DDC97"/>
-  <text class="big" x="347" y="194" style="fill:#3DDC97">10<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="347" y="194" style="fill:#3DDC97">9<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="347" y="224">SQLite 테이블</text>
   <text class="xs" x="347" y="244">schema.sql 하나</text>
   <rect class="card" x="610" y="110" width="265" height="150" rx="16"/>
   <rect x="632" y="132" width="34" height="5" rx="2.5" fill="#7F52FF"/>
-  <text class="big" x="632" y="194" style="fill:#7F52FF">311<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="632" y="194" style="fill:#7F52FF">309<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="632" y="224">자동 테스트</text>
   <text class="xs" x="632" y="244">gradlew check 통과</text>
   <rect class="card" x="895" y="110" width="265" height="150" rx="16"/>
@@ -51,7 +51,7 @@
   <rect x="347" y="302" width="34" height="5" rx="2.5" fill="#8FB4D9"/>
   <text class="big" x="347" y="364" style="fill:#8FB4D9">3<tspan class="unit" dx="6">회/일</tspan></text>
   <text class="lb" x="347" y="394">참가자당 분석 제출</text>
-  <text class="xs" x="347" y="414">AI 호출은 하루 100회</text>
+  <text class="xs" x="347" y="414">AI 비용은 Bedrock 예산으로 막음</text>
   <rect class="card" x="610" y="280" width="550" height="150" rx="16"/>
   <text class="lb" x="632" y="314">시간 설정</text>
   <rect class="cell" x="632.0" y="330" width="119.0" height="82" rx="12"/>
