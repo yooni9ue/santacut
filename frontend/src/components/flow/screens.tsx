@@ -1,0 +1,142 @@
+"use client";
+
+import Link from "next/link";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FlowFrame, InfoNote, NextLink } from "./frame";
+import { sourceName, usePreview, type Source } from "./preview-context";
+
+export function StartScreen() {
+  const { update } = usePreview();
+  const router = useRouter();
+  function choose(source: Source) {
+    update({ source, fileName: "" });
+    router.push("/prepare");
+  }
+  return <FlowFrame step={0} title={<>산타한테 뭘<br />보여줄 건데?</>} description="말로만 착했다고 하면 산타도 곤란해.">
+    <div className="flow-source-list">
+      <button className="flow-source" onClick={() => choose("KAKAO")}><span className="flow-source-icon">K</span><span><b>카카오톡 대화</b><small>내 말투와 대화 속 행동으로 심사받기</small><em>TXT · JSON</em></span><i>↗</i></button>
+      <button className="flow-source" onClick={() => choose("INSTAGRAM")}><span className="flow-source-icon flow-instagram">◎</span><span><b>인스타그램 활동</b><small>내보낸 활동 기록으로 심사받기</small><em>JSON</em></span><i>↗</i></button>
+    </div>
+    <InfoNote>두 경로 모두 현재 화면 미리보기예요. 실제 파일 지원 범위는 출시 전에 안내할게요.</InfoNote>
+    <div className="flow-side-note"><span aria-hidden="true">( •_• )</span><p>하나만 내도 돼.<br />두 개 낸다고 선물 두 개 아님.</p></div>
+  </FlowFrame>;
+}
+
+export function PrepareScreen() {
+  const { data } = usePreview();
+  const isKakao = data.source === "KAKAO";
+  const instructions = isKakao ? [
+    ["심사받을 대화를 골라요", "내가 참여한 대화방의 기록을 준비해 주세요."],
+    ["대화 내용을 내보내요", "기기별 내보내기 메뉴에서 대화 파일을 저장해요. 자세한 안내는 출시 전에 제공할게요."],
+    ["파일을 가져와요", "미리보기에서는 TXT 또는 JSON 파일의 이름과 크기만 확인해요."],
+  ] : [
+    ["내 정보 내보내기를 찾아요", "인스타그램 계정 센터의 내 정보 내보내기를 이용해 주세요."],
+    ["JSON 형식으로 준비해요", "파일 생성까지 기다려야 할 수 있어요. 평가 가능한 활동 범위는 검증 후 안내할게요."],
+    ["준비된 파일을 가져와요", "현재 화면에서는 파일을 전송하거나 내용을 분석하지 않아요."],
+  ];
+  return <FlowFrame back="/start" step={0} title={<>기록 좀<br />꺼내볼까요.</>} description={`${sourceName(data.source)} 파일을 준비해 주세요.`} action={<NextLink href="/upload">파일 준비됐어요</NextLink>}>
+    <div className="flow-guide-top"><span>{isKakao ? "K" : "◎"}</span><div><b>{sourceName(data.source)}</b><p>파일을 이미 갖고 있다면 바로 넘어가도 돼요.</p></div></div>
+    <ol className="flow-guide-list">{instructions.map(([title, detail], index) => <li key={title}><b>{String(index + 1).padStart(2, "0")}</b><div><h2>{title}</h2><p>{detail}</p></div></li>)}</ol>
+    <InfoNote>파일은 최대 20MB까지 선택할 수 있어요. 이 미리보기에서는 파일이 서버로 전송되지 않아요.</InfoNote>
+    <Link className="flow-text-link" href="/start">다른 기록으로 바꾸기 ↗</Link>
+  </FlowFrame>;
+}
+
+export function UploadScreen() {
+  const { data, update } = usePreview();
+  const [error, setError] = useState("");
+  const allowed = data.source === "KAKAO" ? ["txt", "json"] : ["json"];
+  function selectFile(file?: File) {
+    if (!file) return;
+    if (!allowed.includes(file.name.split(".").pop()?.toLowerCase() ?? "")) {
+      update({ fileName: "" }); setError(`${allowed.join(", ").toUpperCase()} 파일을 선택해 주세요.`); return;
+    }
+    if (file.size === 0 || file.size > 20 * 1024 * 1024) {
+      update({ fileName: "" }); setError("내용이 있는 20MB 이하 파일을 선택해 주세요."); return;
+    }
+    setError(""); update({ fileName: file.name });
+  }
+  return <FlowFrame back="/prepare" step={0} title={<>증거물,<br />여기 놓으세요.</>} description="착한 척은 끝. 이제 기록 차례." action={data.fileName ? <NextLink href="/join">이 파일로 계속</NextLink> : <button className="flow-primary" disabled>파일을 먼저 선택해 주세요</button>}>
+    <label className={`flow-upload ${data.fileName ? "has-file" : ""}`}><input type="file" aria-label="분석 파일 선택" accept={allowed.map((extension) => `.${extension}`).join(",")} onChange={(event) => selectFile(event.target.files?.[0])} /><span className="flow-upload-icon" aria-hidden="true">{data.fileName ? "✓" : "↑"}</span><b>{data.fileName || "파일 선택하기"}</b><small>{data.fileName ? "다시 누르면 파일을 바꿀 수 있어요" : `${allowed.join(" · ").toUpperCase()} / 최대 20MB`}</small></label>
+    {error && <p className="flow-error" role="alert">{error}</p>}
+    <button className="flow-sample-button" onClick={() => { setError(""); update({ fileName: data.source === "KAKAO" ? "산타와의_대화_예시.txt" : "인스타_활동_예시.json" }); }}>파일 없이 예시로 둘러보기 →</button>
+    {data.source === "KAKAO" && data.fileName && <div className="flow-field"><label htmlFor="speaker">이 대화에서 나는? <span>선택 화면 예시</span></label><select id="speaker" value={data.speaker} onChange={(event) => update({ speaker: event.target.value })}><option>나</option><option>루돌프</option></select><p>실제 화자 목록은 파일 분석 기능과 연결할 때 제공돼요.</p></div>}
+    <InfoNote>지금은 파일 선택 화면을 확인하는 단계예요. 파일을 읽거나 서버로 보내지 않아요.</InfoNote>
+  </FlowFrame>;
+}
+
+const districts: Record<string, string[]> = { 서울: ["강남구", "마포구", "서초구", "송파구", "종로구"], 경기: ["성남시", "수원시", "고양시"], 부산: ["해운대구", "수영구", "동래구"] };
+
+export function JoinScreen() {
+  const { data, update } = usePreview();
+  const [error, setError] = useState("");
+  const router = useRouter();
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const nickname = data.nickname.normalize("NFKC").trim();
+    if (!/^[가-힣a-zA-Z0-9_]{2,16}$/.test(nickname)) { setError("닉네임은 한글·영문·숫자·밑줄로 2~16자 입력해 주세요."); return; }
+    update({ nickname }); router.push("/review");
+  }
+  return <FlowFrame back="/upload" step={1} title={<>선물 받을 분,<br />성함이?</>} description="실명 말고 닉네임. 산타도 사생활은 지켜.">
+    <form id="participant-form" onSubmit={submit}>
+      <div className="flow-field"><label htmlFor="nickname">닉네임</label><input id="nickname" value={data.nickname} maxLength={32} placeholder="예: 루돌프인턴" autoComplete="nickname" aria-invalid={Boolean(error)} aria-describedby={error ? "nickname-error" : "nickname-help"} onChange={(event) => { update({ nickname: event.target.value }); setError(""); }} />{error ? <p className="flow-error" id="nickname-error" role="alert">{error}</p> : <p id="nickname-help">2~16자 · 한글, 영문, 숫자, 밑줄. 중복 확인은 실제 등록 시 제공돼요.</p>}</div>
+      <div className="flow-field"><label htmlFor="province">사는 지역 <span>선택 화면 예시</span></label><div className="flow-select-row"><select id="province" aria-label="시·도" value={data.province} onChange={(event) => update({ province: event.target.value, district: districts[event.target.value][0] })}>{Object.keys(districts).map((province) => <option key={province}>{province}</option>)}</select><select aria-label="시·군·구" value={data.district} onChange={(event) => update({ district: event.target.value })}>{districts[data.province].map((district) => <option key={district}>{district}</option>)}</select></div><p>상세 주소는 받지 않아요. 지금은 일부 지역을 예시로 보여드려요.</p></div>
+      <InfoNote>닉네임은 결과·랭킹에 표시되고, 지역은 도착일 계산에 사용돼요. 미리보기 입력은 서버에 등록되지 않아요.</InfoNote>
+      <div className="flow-action"><button className="flow-primary" type="submit">다음 <span aria-hidden="true">↗</span></button></div>
+    </form>
+  </FlowFrame>;
+}
+
+export function ReviewScreen() {
+  const { data } = usePreview();
+  const [agreed, setAgreed] = useState(false);
+  return <FlowFrame back="/join" step={2} title={<>마지막 확인.<br />변명은 지금 해.</>} description="산타에게 보여줄 내용을 확인해 주세요." action={<NextLinkGuard enabled={agreed} href="/analysis">심사 화면 보기</NextLinkGuard>}>
+    <dl className="flow-summary"><div><dt>참가자</dt><dd>{data.nickname || "루돌프인턴"}<Link href="/join">수정</Link></dd></div><div><dt>거주 지역</dt><dd>{data.province} {data.district}</dd></div><div><dt>기록 출처</dt><dd>{sourceName(data.source)}</dd></div><div><dt>파일</dt><dd className="flow-filename">{data.fileName || "대화_예시.txt"}<Link href="/upload">변경</Link></dd></div>{data.source === "KAKAO" && <div><dt>본인 화자</dt><dd>{data.speaker}</dd></div>}</dl>
+    <div className="flow-privacy"><h2>산타도 지킬 건 지켜요.</h2><ul><li>대화 원문과 상대방 이름은 결과에 공개하지 않아요.</li><li>닉네임·점수·순위·판정이 공개되는 구성이에요.</li><li>재미용 판정이며 실제 선물을 배송하지 않아요.</li></ul></div>
+    <label className="flow-checkbox"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} /><span>미리보기임을 확인하고 예시 심사 화면을 볼게요.</span></label>
+    <p className="flow-fine-print">실제 분석 동의나 파일 전송은 발생하지 않아요. 운영용 분석·보관 정책은 기능 출시 시 별도로 안내합니다.</p>
+  </FlowFrame>;
+}
+
+function NextLinkGuard({ enabled, href, children }: { enabled: boolean; href: string; children: React.ReactNode }) {
+  return enabled ? <NextLink href={href}>{children}</NextLink> : <button className="flow-primary" disabled>{children}<span aria-hidden="true">↗</span></button>;
+}
+
+export function AnalysisScreen() {
+  const [status, setStatus] = useState("analyzing");
+  const failed = status === "failed" || status === "insufficient";
+  const title = status === "queued" ? "산타 앞에 줄 서는 중." : status === "failed" ? "산타가 잠깐 멈췄어요." : status === "insufficient" ? "기록이 조금 더 필요해요." : "산타가 기록을 읽는 중.";
+  return <FlowFrame back="/review" step={2} title={<>판정 중에는<br />얌전히 계세요.</>} description="이 화면은 심사 상태를 보여주는 예시예요." action={failed ? <button className="flow-primary" onClick={() => setStatus("analyzing")}>다시 시도하는 화면 보기 <span aria-hidden="true">↻</span></button> : <NextLink href="/result">예시 결과 보기</NextLink>}>
+    <div className={`flow-analysis ${failed ? "is-failed" : ""}`}><span className="flow-analysis-face" aria-hidden="true">{failed ? "( •_• )" : "( ◉_◉ )"}</span><span className="flow-status-pill">상태 예시</span><h2 aria-live="polite">{title}</h2><p>{status === "insufficient" ? "근거가 부족하면 낮은 점수를 주는 대신 다른 기록을 요청해요." : status === "failed" ? "일시적인 오류예요. 이전에 받은 정상 결과는 유지돼요." : "진짜 분석은 아직 시작되지 않았어요. 아래에서 결과 화면을 미리 확인해 보세요."}</p></div>
+    <div className="flow-state-preview"><p>다른 심사 상태 보기</p><div>{[["queued", "대기"], ["analyzing", "심사 중"], ["failed", "오류"], ["insufficient", "근거 부족"]].map(([value, label]) => <button key={value} aria-pressed={status === value} onClick={() => setStatus(value)}>{label}</button>)}</div></div>
+    {failed && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}
+  </FlowFrame>;
+}
+
+export function ResultScreen() {
+  const { data } = usePreview();
+  const shareRef = useRef<HTMLDialogElement>(null);
+  const shareButton = useRef<HTMLButtonElement>(null);
+  const nickname = data.nickname || "루돌프인턴";
+  return <FlowFrame back="/analysis" title={<>산타의 판정이<br />도착했습니다.</>} description={`${nickname} 님, 마음의 준비 됐죠?`} action={<button ref={shareButton} className="flow-primary" onClick={() => shareRef.current?.showModal()}>공유 카드 보기 <span aria-hidden="true">↗</span></button>}>
+    <div className="flow-result-card"><span className="flow-status-pill">가상 결과</span><span className="flow-result-face" aria-hidden="true">◉‿◉</span><h2>산타 친자 의혹</h2><p className="flow-score">97.82<span>점</span></p><p className="flow-verdict">“이 정도면 선물 말고<br />상속을 기다려라.”</p><div className="flow-result-stats"><div><small>통합 순위</small><b>12<span>위</span></b></div><div><small>선물 도착 예정</small><b className="flow-eta">12월 26일<span>오전 03:24</span></b></div></div><p className="flow-fine-print">점수·순위·도착일 모두 화면 확인용 예시입니다.</p></div>
+    <details className="flow-breakdown"><summary>산타가 본 네 가지 항목 <span>＋</span></summary><dl>{[["배려·공감", "98.40"], ["긍정·응원", "97.20"], ["존중하는 소통", "98.00"], ["나눔·협력", "97.50"]].map(([name, score]) => <div key={name}><dt>{name}</dt><dd>{score}<span>점 · 예시</span></dd></div>)}</dl><p>실제 평가가 아닌 화면 확인용 점수입니다.</p></details>
+    <NextLink href="/ranking" secondary>전체 랭킹 둘러보기</NextLink><Link className="flow-text-link" href="/start">다른 기록으로 다시 시작 ↗</Link>
+    <InfoNote>출발 전에는 참가자와 순위에 따라 도착 예정일이 바뀔 수 있어요. 실제 선물은 오지 않습니다.</InfoNote>
+    <dialog ref={shareRef} className="flow-share-dialog" onClose={() => shareButton.current?.focus()} aria-labelledby="share-title"><button className="flow-close" aria-label="공유 카드 닫기" onClick={() => shareRef.current?.close()} autoFocus>×</button><p className="flow-kicker">SANTA CUT / 공유 카드 예시</p><h2 id="share-title">{nickname}의 산타컷</h2><span className="flow-result-face" aria-hidden="true">◉‿◉</span><strong>산타 친자 의혹</strong><p className="flow-score">97.82<span>점</span></p><p>12위 · 12월 26일 도착 예정</p><p className="flow-fine-print">공개 링크 생성·이미지 저장은 준비 중입니다.</p><button className="flow-primary" onClick={() => shareRef.current?.close()}>확인했어요 <span aria-hidden="true">↗</span></button></dialog>
+  </FlowFrame>;
+}
+
+export function RankingScreen() {
+  const { data } = usePreview();
+  const [expanded, setExpanded] = useState(false);
+  const entries = [["1", "산타아들아님", "99.91"], ["2", "착한말수집가", "99.20"], ["2", "루돌프주주", "99.20"], ["4", "굴뚝관리인", "98.74"], ["5", "선물은못참지", "98.60"], ["6", "북극인턴", "98.45"], ["7", "산타연차반려", "98.33"], ["8", "귤두개드림", "98.25"]];
+  return <FlowFrame back="/result" title={<>착한 사람들,<br />왜 이렇게 많아.</>} description="2026 산타컷 통합 랭킹" action={<NextLink href="/result">내 결과 보기</NextLink>}>
+    <section className="flow-ranking-me" aria-label="나의 순위"><span>나의 예시 순위</span><div><strong>12<small>위</small></strong><p>{data.nickname || "루돌프인턴"}<b>97.82점</b></p><i>↗</i></div></section>
+    <div className="flow-ranking-caption"><b>전체 랭킹</b><span>가상 참가자 · 예시 데이터</span></div>
+    <ol className="flow-ranking-list">{entries.slice(0, expanded ? undefined : 5).map(([rank, name, score], index) => <li key={name}><span className={index === 0 ? "is-first" : ""}>{rank === "2" ? "공동 2" : rank}</span><b>{name}</b><strong>{score}<small>점</small></strong></li>)}</ol>
+    {!expanded && <button className="flow-load-more" onClick={() => setExpanded(true)}>예시 랭킹 더 보기 ＋</button>}
+    <InfoNote>점수가 같으면 공동 순위가 될 수 있어요. 공동 순위여도 배송 순서에 따라 도착 시간이 다를 수 있습니다.</InfoNote>
+  </FlowFrame>;
+}

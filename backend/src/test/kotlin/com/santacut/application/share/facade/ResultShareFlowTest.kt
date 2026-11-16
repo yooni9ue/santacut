@@ -183,7 +183,7 @@ class ResultShareFlowTest @Autowired constructor(
     ) {
         val score = Score.weighted(scores.map { BigDecimal(it) })
         transactionTemplate.executeWithoutResult {
-            assessmentService.record(emptyJob(participantId, assessedAt), score, assessedAt)
+            assessmentService.record(emptyJob(participantId, assessedAt), score, PROMPT_VERSION, assessedAt)
             if (rebuild) rankingService.rebuild(assessedAt, shareService.findAll())
         }
     }
@@ -200,6 +200,7 @@ class ResultShareFlowTest @Autowired constructor(
 
     companion object {
         private const val EXPECTED_SCORE = 7600
+        private const val PROMPT_VERSION = 1
         private val HIGH_SCORES = listOf(80, 90, 70, 60)
 
         /** 순위 계산 전 결과용 낮은 점수. 다른 테스트의 1위 참가자보다 늘 뒤에 선다. */

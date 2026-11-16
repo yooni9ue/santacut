@@ -1,108 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-label="SantaCut 백엔드 요청 흐름">
-  <title>SantaCut 백엔드 요청 흐름</title>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 650" width="1200" height="650" role="img" aria-label="요청 흐름: 클라이언트가 Caddy(지금 HTTP 80, 도메인을 산 뒤 TLS 443)를 거쳐 Spring Boot 앱의 4계층으로 들어간다. 작업자 둘이 원본 검증과 AI 채점을 하고, SQLite에 저장하고, Gemini 3.5 Flash-Lite를 부른다. SQLite는 매시 S3로 백업한다. 앱은 공유 HTML과 PNG를 그린다">
+  <title>요청 흐름: 클라이언트가 Caddy(지금 HTTP 80, 도메인을 산 뒤 TLS 443)를 거쳐 Spring Boot 앱의 4계층으로 들어간다. 작업자 둘이 원본 검증과 AI 채점을 하고, SQLite에 저장하고, Gemini 3.5 Flash-Lite를 부른다. SQLite는 매시 S3로 백업한다. 앱은 공유 HTML과 PNG를 그린다</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0B1426"/><stop offset="1" stop-color="#0F1F33"/>
+      <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
     </linearGradient>
-    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#8FB4D9"/>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B4C4D8"/>
     </marker>
-    <marker id="arrAi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#9C8CFF"/>
+    <marker id="arrLater" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8DA3BE"/>
     </marker>
-    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
-      <path d="M0,0 L10,5 L0,10 z" fill="#3DDC97"/>
-    </marker>
+    <symbol id="flake" viewBox="-10 -10 20 20" overflow="visible"><g fill="none" stroke-width="1.3" stroke-linecap="round"><g transform="rotate(0)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(60)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(120)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g></g></symbol>
+    
     <style>
-      text { font-family: Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Segoe UI', sans-serif; fill: #E6EDF7; }
-      .card { fill: #16233B; stroke: #2A3B5A; stroke-width: 1.5; }
-      .inner { fill: #1D2D49; stroke: #33476B; stroke-width: 1; }
-      .t { font-size: 24px; font-weight: 800; }
+      text { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; }
+      text:not([fill]) { fill: #F5F8FC; }
+      .card { fill: #12263F; stroke: #1E3A5C; stroke-width: 1.5; }
+      .inner { fill: #183152; stroke: #2B4A70; stroke-width: 1; }
+      .ghost { fill: #0C1B2E; stroke: #8DA3BE; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .dev { fill: #0E3328; stroke: #134236; stroke-width: 1.5; }
       .h { font-size: 17px; font-weight: 700; }
-      .s { font-size: 14px; fill: #A9BAD3; }
-      .line { stroke: #8FB4D9; stroke-width: 2; fill: none; }
-      .ailine { stroke: #9C8CFF; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
-      .gline { stroke: #3DDC97; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      .s { font-size: 14px; fill: #B4C4D8; }
+      .code { font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace; font-size: 14px; fill: #8ECDF5; }
+      .line { stroke: #B4C4D8; stroke-width: 2; fill: none; }
+      .later { stroke: #8DA3BE; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      
     </style>
   </defs>
-  <rect width="1200" height="660" rx="24" fill="url(#bg)"/>
-  <text class="t" x="40" y="54">요청 흐름</text>
-  <text class="s" x="40" y="80">동기 API, 분석 작업 큐, 상태 폴링, 공유 렌더링</text>
-
-  <!-- 클라이언트 -->
-  <rect class="card" x="40" y="250" width="150" height="130" rx="16"/>
-  <rect x="85" y="276" width="60" height="40" rx="6" fill="none" stroke="#3E8BFF" stroke-width="3"/>
-  <rect x="105" y="316" width="20" height="8" fill="#3E8BFF"/>
-  <text class="h" x="115" y="350" text-anchor="middle">클라이언트</text>
-  <text class="s" x="115" y="370" text-anchor="middle">웹·공유 링크</text>
-  <path class="line" d="M190,315 H232" marker-end="url(#arr)"/>
-
-  <!-- Caddy -->
-  <rect class="card" x="236" y="250" width="130" height="130" rx="16"/>
-  <rect x="283" y="282" width="36" height="28" rx="4" fill="none" stroke="#F5B83D" stroke-width="3"/>
-  <path d="M289,282 V272 a12,12 0 0 1 24,0 V282" fill="none" stroke="#F5B83D" stroke-width="3"/>
-  <text class="h" x="301" y="350" text-anchor="middle">Caddy</text>
-  <text class="s" x="301" y="370" text-anchor="middle">TLS 종료</text>
-  <path class="line" d="M366,315 H404" marker-end="url(#arr)"/>
-
-  <!-- Spring Boot -->
-  <rect class="card" x="408" y="110" width="440" height="510" rx="18"/>
-  <rect x="408" y="110" width="440" height="40" rx="18" fill="#6DB33F" fill-opacity="0.16"/>
-  <text class="h" x="428" y="137">Spring Boot 앱</text>
-  <text class="s" x="828" y="137" text-anchor="end">Lightsail 인스턴스</text>
-
-  <rect class="inner" x="428" y="166" width="400" height="70" rx="12"/>
-  <text class="h" x="446" y="194">presentation</text>
-  <text class="s" x="446" y="220">컨트롤러 · 세션 필터 · CSRF</text>
-  <path class="line" d="M628,236 V256" marker-end="url(#arr)"/>
-  <rect class="inner" x="428" y="260" width="400" height="70" rx="12"/>
-  <text class="h" x="446" y="288">application</text>
-  <text class="s" x="446" y="314">facade · 트랜잭션 경계</text>
-  <path class="line" d="M628,330 V350" marker-end="url(#arr)"/>
-  <rect class="inner" x="428" y="354" width="400" height="70" rx="12"/>
-  <text class="h" x="446" y="382">domain</text>
-  <text class="s" x="446" y="408">엔티티 · 값 객체 · 일급 컬렉션 · service</text>
-  <path class="line" d="M628,424 V444" marker-end="url(#arr)"/>
-  <rect class="inner" x="428" y="448" width="400" height="70" rx="12"/>
-  <text class="h" x="446" y="476">infrastructure</text>
-  <text class="s" x="446" y="502">JPA 리포지토리 · AI 클라이언트 · 렌더러</text>
-
-  <!-- 워커 -->
-  <rect x="428" y="534" width="400" height="70" rx="12" fill="#3DDC97" fill-opacity="0.1" stroke="#3DDC97" stroke-width="1.5"/>
-  <circle cx="460" cy="569" r="14" fill="none" stroke="#3DDC97" stroke-width="3"/>
-  <path d="M460,560 V569 H468" fill="none" stroke="#3DDC97" stroke-width="3"/>
-  <text class="h" x="488" y="563">검증 · 분석 워커</text>
-  <text class="s" x="488" y="588">@Scheduled 검증 1초 · 분석 3초 · 임대 3분</text>
-
-  <!-- SQLite -->
-  <rect class="card" x="930" y="150" width="230" height="150" rx="16"/>
-  <ellipse cx="985" cy="196" rx="26" ry="9" fill="none" stroke="#3E8BFF" stroke-width="3"/>
-  <path d="M959,196 V226 a26,9 0 0 0 52,0 V196" fill="none" stroke="#3E8BFF" stroke-width="3"/>
-  <text class="h" x="1026" y="202">SQLite</text>
-  <text class="s" x="1026" y="224">파일 DB</text>
-  <text class="s" x="950" y="262">커넥션 풀 1개</text>
-  <text class="s" x="950" y="284">테이블 9개 · 작업 큐 포함</text>
-  <path class="line" d="M828,483 H880 V225 H926" marker-end="url(#arr)"/>
-
-  <!-- AI -->
-  <rect class="card" x="930" y="340" width="230" height="150" rx="16"/>
-  <polygon points="985,368 1003,386 985,404 967,386" fill="none" stroke="#9C8CFF" stroke-width="3"/>
-  <circle cx="985" cy="386" r="4" fill="#9C8CFF"/>
-  <text class="h" x="1026" y="384">AI 채점</text>
-  <text class="s" x="1026" y="406">Spring AI</text>
-  <text class="s" x="950" y="446">현재: Ollama</text>
-  <text class="s" x="950" y="468">운영 계획: Bedrock</text>
-  <path class="ailine" d="M828,560 H900 V415 H926" marker-end="url(#arrAi)"/>
-
-  <!-- 공유 -->
-  <rect class="card" x="930" y="520" width="230" height="100" rx="16"/>
-  <rect x="954" y="544" width="34" height="26" rx="4" fill="none" stroke="#FF5A5F" stroke-width="3"/>
-  <circle cx="964" cy="553" r="3" fill="#FF5A5F"/>
-  <text class="h" x="1004" y="563">공유 페이지</text>
-  <text class="s" x="954" y="600">/s/{token} HTML · PNG</text>
-
-  <path d="M828,505 H852 V592 H926" fill="none" stroke="#FF5A5F" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arr)"/>
-  <!-- 폴링 -->
-  <path class="gline" d="M428,201 H396 V420 H115 V386" marker-end="url(#arrG)"/>
-  <text class="s" x="210" y="444" fill="#3DDC97">화면이 상태를 폴링</text>
+  <rect width="1200" height="650" rx="24" fill="url(#bg)"/>
+  <path d="M0,626 Q300,610 600,622 T1200,620 V626 A24,24 0 0 1 1176,650 H24 A24,24 0 0 1 0,626 z" fill="#F5F8FC" opacity="0.05"/>
+  <g fill="#F5F8FC"><circle cx="579" cy="348" r="1.7" opacity="0.37"/><circle cx="638" cy="364" r="1.0" opacity="0.38"/><circle cx="770" cy="487" r="0.9" opacity="0.33"/><circle cx="188" cy="497" r="1.5" opacity="0.26"/><circle cx="1151" cy="589" r="1.5" opacity="0.4"/><circle cx="260" cy="23" r="1.3" opacity="0.26"/><circle cx="295" cy="158" r="0.8" opacity="0.37"/></g>
+  <path d="M40,0 H64 V56 L52,47 L40,56 z" fill="#B5123E"/>
+  <path d="M43.5,0 V50 M60.5,0 V50" stroke="#E9B949" stroke-width="1" opacity="0.75"/>
+  <text x="82" y="48" font-size="28" font-weight="800">요청 흐름</text>
+  <text x="1160" y="48" text-anchor="end" font-size="16" fill="#B4C4D8">동기 API, 작업 큐, 폴링, 공유 렌더링</text><use href="#flake" xlink:href="#flake" x="1150" y="600" width="16" height="16" stroke="#F5F8FC" opacity="0.35"/><rect class="card" x="40" y="110" width="160" height="120" rx="16"/><text x="120" y="150" class="h" text-anchor="middle">클라이언트</text><text x="120" y="174" class="s" text-anchor="middle">웹 화면</text><text x="120" y="194" class="s" text-anchor="middle">공유 링크 크롤러</text><text x="120" y="214" class="s" text-anchor="middle">몇 초마다 폴링</text><path class="line" d="M200,170 H232" marker-end="url(#arr)"/><rect class="card" x="236" y="110" width="160" height="120" rx="16"/><text x="316" y="156" class="h" text-anchor="middle">Caddy</text><text x="316" y="180" class="s" text-anchor="middle">지금 HTTP :80</text><text x="316" y="200" class="s" text-anchor="middle">/actuator는 404</text><rect class="ghost" x="236" y="246" width="160" height="62" rx="12"/><text x="316" y="272" class="h" text-anchor="middle">TLS :443</text><text x="316" y="294" class="s" text-anchor="middle">도메인을 산 뒤</text><path class="later" d="M316,230 V242" marker-end="url(#arrLater)"/><path class="line" d="M396,170 H428" marker-end="url(#arr)"/><rect class="card" x="432" y="84" width="420" height="474" rx="18"/><text x="452" y="114" class="h">Spring Boot 앱</text><text x="834" y="114" class="s" text-anchor="end">Lightsail nano_3_0, 512MB</text><rect class="inner" x="452" y="132" width="380" height="66" rx="12"/><text x="470" y="160" class="code">presentation</text><text x="470" y="182" class="s">컨트롤러, 세션 필터, CSRF, Swagger</text><path class="line" d="M800,198 V208" marker-end="url(#arr)"/><rect class="inner" x="452" y="210" width="380" height="66" rx="12"/><text x="470" y="238" class="code">application</text><text x="470" y="260" class="s">facade, 트랜잭션 경계</text><path class="line" d="M800,276 V286" marker-end="url(#arr)"/><rect class="inner" x="452" y="288" width="380" height="66" rx="12"/><text x="470" y="316" class="code">domain</text><text x="470" y="338" class="s">엔티티, 값 객체, 일급 컬렉션, service</text><path class="line" d="M800,354 V364" marker-end="url(#arr)"/><rect class="inner" x="452" y="366" width="380" height="66" rx="12"/><text x="470" y="394" class="code">infrastructure</text><text x="470" y="416" class="s">JPA 리포지토리, AI 클라이언트, 렌더러</text><rect class="inner" x="452" y="456" width="380" height="84" rx="12"/><text x="470" y="484" class="h">작업자 둘(@Scheduled)</text><text x="470" y="506" class="s">원본 검증 1초, AI 채점 3초 간격</text><text x="470" y="526" class="s">작업 임대 3분, 최대 3번 시도</text><rect class="card" x="892" y="84" width="268" height="88" rx="16"/><text x="912" y="116" class="h">S3 백업</text><text x="912" y="138" class="s">매시 sqlite3 .backup</text><text x="912" y="158" class="s">버킷이 KMS로 암호화(SSE-KMS)</text><rect class="card" x="892" y="212" width="268" height="152" rx="16"/><g transform="translate(912,232)"><ellipse cx="11" cy="4" rx="11" ry="4" fill="#E9B949"/><path d="M0,4 V24 A11,4 0 0 0 22,24 V4" fill="#E9B949" fill-opacity="0.55"/></g><text x="944" y="252" class="h">SQLite 파일 DB</text><text x="912" y="290" class="s">커넥션 풀 1개</text><text x="912" y="312" class="s">테이블 9개, 작업 큐 포함</text><text x="912" y="334" class="s">채점 프롬프트 판(prompts)</text><path class="line" d="M1026,212 V176" marker-end="url(#arr)"/><text x="1036" y="198" class="s">매시</text><path class="line" d="M832,423 H860 V288 H888" marker-end="url(#arr)"/><rect class="card" x="892" y="440" width="268" height="118" rx="16" stroke="#8ECDF5"/><text x="912" y="472" class="h" fill="#8ECDF5">Google Gemini</text><text x="912" y="496" class="s">Gemini 3.5 Flash-Lite</text><text x="912" y="518" class="s">Spring AI 2.0.0, API 키</text><text x="912" y="540" class="s">비용은 앱 비용 가드가 막는다</text><path class="line" d="M832,498 H888" marker-end="url(#arr)"/><rect class="card" x="40" y="352" width="356" height="106" rx="16"/><text x="60" y="384" class="h">공유 페이지와 이미지</text><text x="60" y="408" class="code">/s/{token} HTML, image.png</text><text x="60" y="432" class="s">Open Graph 태그를 첫 응답에 넣는다</text><path class="line" d="M432,404 H400" marker-end="url(#arr)"/><path class="line" d="M40,604 H84"/><text x="94" y="609" class="s">지금 켜 있음</text><path class="later" d="M210,604 H254"/><text x="264" y="609" class="s">도메인을 산 뒤 켬</text>
 </svg>

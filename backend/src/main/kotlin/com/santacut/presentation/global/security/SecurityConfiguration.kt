@@ -1,7 +1,9 @@
 package com.santacut.presentation.global.security
 
 import com.santacut.application.session.facade.SessionFacade
+import com.santacut.presentation.global.config.CorsProperties
 import com.santacut.presentation.global.config.SessionCookieProperties
+import jakarta.servlet.DispatcherType
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.beans.factory.annotation.Qualifier
@@ -15,6 +17,9 @@ import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import org.springframework.web.servlet.HandlerExceptionResolver
 
 /**
@@ -22,11 +27,13 @@ import org.springframework.web.servlet.HandlerExceptionResolver
  *
  * 세션 필터는 HTTP 진입점이라 controller처럼 [SessionFacade]로 세션을 확인한다.
  * 인증 실패는 [HandlerExceptionResolver]로 넘겨 다른 오류와 같은 JSON 본문(code NOT_AUTHENTICATED)으로 응답한다.
+ * 프론트엔드(www.santacut.me)와 API(api.santacut.me)는 출처가 달라 CORS로 허용한 출처에만 쿠키를 실은 요청을 연다.
  */
 @Configuration
 class SecurityConfiguration(
     private val sessionFacade: SessionFacade,
     private val sessionCookieProperties: SessionCookieProperties,
+    private val corsProperties: CorsProperties,
     @param:Qualifier(HANDLER_EXCEPTION_RESOLVER) private val handlerExceptionResolver: HandlerExceptionResolver,
 ) {
     @Bean
@@ -35,6 +42,7 @@ class SecurityConfiguration(
             it.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .sessionAuthenticationStrategy(NullAuthenticatedSessionStrategy())
         }
+            .cors { it.configurationSource(corsConfigurationSource()) }
             .csrf { it.csrfTokenRepository(csrfTokenRepository()) }
             .authorizeHttpRequests(::authorizeRequests)
             .addFilterBefore(sessionFilter(), AnonymousAuthenticationFilter::class.java)
@@ -43,16 +51,33 @@ class SecurityConfiguration(
         return http.build()
     }
 
-    /** 공개 경로는 열어 두고 나머지는 로그인 세션을 요구한다. */
+    /**
+     * 공개 경로는 열어 두고 나머지는 로그인 세션을 요구한다. 공개 경로도 쓰기 요청은 CSRF 토큰이 있어야 한다.
+     * 비동기 디스패치(SSE 스트림이 끝날 때 다시 들어오는 요청)는 처음 요청에서 이미 인증했으므로 다시 검사하지 않는다.
+     */
     private fun authorizeRequests(
         registry: AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry,
     ) {
-        registry.requestMatchers(*PUBLIC_PATHS).permitAll()
+        registry.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
+            .requestMatchers(*PUBLIC_PATHS).permitAll()
             .anyRequest().authenticated()
     }
 
     private fun csrfTokenRepository(): CookieCsrfTokenRepository = CookieCsrfTokenRepository().apply {
-        setCookieCustomizer { it.secure(sessionCookieProperties.sessionSecure).sameSite(SAME_SITE).path(ROOT_PATH) }
+        setCookieCustomizer { it.secure(sessionCookieProperties.sessionSecure).sameSite(sessionCookieProperties.sessionSameSite).path(ROOT_PATH) }
+    }
+
+    /** 허용 출처에서 오는 쿠키 실은 요청을 연다. CSRF 헤더를 받고 Retry-After를 읽을 수 있게 한다. */
+    private fun corsConfigurationSource(): CorsConfigurationSource {
+        val configuration = CorsConfiguration().apply {
+            allowedOrigins = corsProperties.allowedOrigins
+            allowedMethods = CORS_METHODS
+            allowedHeaders = CORS_HEADERS
+            exposedHeaders = CORS_EXPOSED_HEADERS
+            allowCredentials = true
+            maxAge = CORS_MAX_AGE_SECONDS
+        }
+        return UrlBasedCorsConfigurationSource().apply { registerCorsConfiguration(ALL_PATHS, configuration) }
     }
 
     private fun rejectUnauthenticated(
@@ -68,12 +93,18 @@ class SecurityConfiguration(
 
     companion object {
         private const val HANDLER_EXCEPTION_RESOLVER = "handlerExceptionResolver"
-        private const val SAME_SITE = "Strict"
         private const val ROOT_PATH = "/"
+        private const val ALL_PATHS = "/**"
+        private val CORS_METHODS = listOf("GET", "POST", "PATCH", "DELETE")
+        private val CORS_HEADERS = listOf("Content-Type", "X-XSRF-TOKEN", "Last-Event-ID")
+        private val CORS_EXPOSED_HEADERS = listOf("Retry-After")
+        private const val CORS_MAX_AGE_SECONDS = 3600L
         private val PUBLIC_PATHS = arrayOf(
             "/error", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
             "/v1/csrf", "/v1/regions", "/v1/nicknames/availability",
             "/v1/participants", "/v1/participants/**", "/v1/rankings", "/s/**",
+            // dev 전용 프롬프트 관리 API. 꺼져 있으면 컨트롤러가 없어 404다. 쓰기 요청은 다른 경로처럼 CSRF를 검사한다.
+            "/v1/admin/prompts/**",
         )
         private const val CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; " +
             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; " +

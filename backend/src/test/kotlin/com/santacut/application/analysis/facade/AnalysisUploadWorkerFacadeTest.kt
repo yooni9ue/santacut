@@ -17,7 +17,6 @@ import com.santacut.domain.analysis.service.AnalysisUploadService
 import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AnalysisUploadRepository
-import com.santacut.infrastructure.analysis.repository.DailyBudgetRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
@@ -45,7 +44,6 @@ import kotlin.test.assertTrue
         "app.season-year=${AnalysisWorkerFacadeTest.SEASON_YEAR}",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
-        "santacut.ai.daily-call-limit=${AnalysisWorkerFacadeTest.DAILY_CALL_LIMIT}",
     ],
 )
 @Import(WorkerTestClockConfiguration::class)
@@ -59,14 +57,12 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     private val clock: MutableClock,
     private val analysisJobRepository: AnalysisJobRepository,
     private val analysisUploadRepository: AnalysisUploadRepository,
-    private val dailyBudgetRepository: DailyBudgetRepository,
     private val analysisUploadService: AnalysisUploadService,
 ) {
     @BeforeEach
     fun setUp() {
         analysisUploadRepository.deleteAll()
         analysisJobRepository.deleteAll()
-        dailyBudgetRepository.deleteAll()
         clock.moveTo(OPEN_TIME)
         given(scoreClient.isEnabled()).willReturn(true)
     }

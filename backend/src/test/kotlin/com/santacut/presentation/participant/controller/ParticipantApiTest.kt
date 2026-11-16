@@ -61,7 +61,7 @@ class ParticipantApiTest @Autowired constructor(
             .andExpect(jsonPath("$.regionCode").value(REGION_CODE))
             .andReturn().response.getHeader(HttpHeaders.SET_COOKIE).orEmpty()
         assertTrue(setCookie.startsWith("$SESSION_COOKIE="))
-        assertTrue(setCookie.contains("HttpOnly") && setCookie.contains("SameSite=Strict") && setCookie.contains("Path=/"))
+        assertTrue(setCookie.contains("HttpOnly") && setCookie.contains("SameSite=Lax") && setCookie.contains("Path=/"))
         return setCookie.substringAfter("$SESSION_COOKIE=").substringBefore(";")
     }
 

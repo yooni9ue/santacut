@@ -5,15 +5,18 @@ import com.santacut.domain.analysis.model.AnalysisEvents.Companion.MAX_EVENTS
 import com.santacut.domain.analysis.model.AnalysisEvents.Companion.MIN_EVENTS
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
+import com.santacut.domain.global.model.SeoulTime
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class AnalysisEventsTest {
     private val now = Instant.parse("2026-11-15T12:00:00Z")
+    private val utcNoon = Instant.parse("2026-11-01T12:00:00Z")
 
     @Test
     fun `최근 90일 안이고 5분 뒤까지의 이벤트는 받아들인다`() {
@@ -56,9 +59,13 @@ class AnalysisEventsTest {
     }
 
     @Test
-    fun `이벤트마다 제출 순서대로 1부터 번호를 붙인다`() {
-        val events = AnalysisEvents(listOf(AnalysisEvent(now, "첫째"), AnalysisEvent(now, "둘째")))
-        assertEquals(listOf("1:첫째", "2:둘째"), events.mapNumbered { number, event -> "$number:${event.text}" })
+    fun `채점용 메시지로 바꿀 때 시각을 주어진 시간대로 옮기고 본문과 순서를 지킨다`() {
+        val events = AnalysisEvents(listOf(AnalysisEvent(utcNoon, "첫째"), AnalysisEvent(utcNoon, "둘째")))
+
+        val sample = events.toScoringMessages(SeoulTime.ZONE).sample().toList()
+
+        assertEquals(listOf("첫째", "둘째"), sample.map { it.text })
+        assertEquals(LocalDateTime.of(2026, 11, 1, 21, 0), sample.first().localTime)
     }
 
     @Test

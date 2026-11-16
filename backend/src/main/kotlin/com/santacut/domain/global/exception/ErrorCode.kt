@@ -20,6 +20,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     PARTICIPANT_NOT_FOUND(404, "세션의 참가자가 더 이상 존재하지 않습니다."),
     RESULT_NOT_FOUND(404, "아직 점수가 나온 결과가 없습니다."),
     SHARE_NOT_FOUND(404, "공유 링크가 없거나 취소되었습니다."),
+    PROMPT_NOT_FOUND(404, "이 이름의 프롬프트가 없습니다."),
     SEASON_FROZEN(409, "시즌이 마감되어 이번 시즌 결과와 배송 계획이 확정되었습니다."),
     IDEMPOTENCY_CONFLICT(409, "같은 Idempotency-Key로 다른 요청 본문을 보냈습니다."),
     NICKNAME_TAKEN(409, "이미 사용 중인 닉네임입니다."),
@@ -33,7 +34,9 @@ enum class ErrorCode(val status: Int, val message: String) {
     ANALYSIS_JOB_STATE_INVALID(500, "분석 작업의 현재 상태에서는 할 수 없는 상태 변경입니다."),
     AI_RESPONSE_INVALID(502, "AI 응답이 비어 있거나 너무 깁니다."),
     AI_RESPONSE_SCHEMA_INVALID(502, "AI 응답 형식이 올바르지 않습니다."),
-    AI_EVIDENCE_INVALID(502, "AI 응답의 근거 번호가 입력 이벤트 범위를 벗어났습니다."),
+    AI_EVIDENCE_INVALID(502, "AI 응답의 근거 번호를 정리하고 나니 근거가 없는 항목이 있습니다."),
     AI_SCORE_OUT_OF_RANGE(502, "AI 응답 점수가 0~100 범위를 벗어났거나 소수점 셋째 자리 이하 값이 있습니다."),
     AI_NOT_CONFIGURED(503, "AI 모델이 설정되지 않았습니다."),
+    AI_PROVIDER_UNAVAILABLE(503, "AI 제공자가 호출을 막았거나 잠시 쓸 수 없습니다."),
+    ANALYSIS_STREAM_LIMIT(503, "지금은 진행 상황 스트림을 더 열 수 없습니다. 상태 조회로 진행 상황을 확인해 주세요."),
 }

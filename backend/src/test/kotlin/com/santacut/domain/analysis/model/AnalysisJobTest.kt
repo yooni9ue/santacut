@@ -254,6 +254,47 @@ class AnalysisJobTest {
         assertEquals(AnalysisFailureCode.ANALYSIS_FAILED, AnalysisFailureCode.fromValidationFailure(IllegalStateException()))
     }
 
+    @Test
+    fun `제공자가 호출을 막으면 리스를 풀고 대기열로 되돌리며 이번 시도는 세지 않는다`() {
+        val job = newJob()
+        job.startAttempt(LEASE, createdAt)
+
+        job.releaseLease()
+
+        assertEquals(AnalysisJobStatus.QUEUED, job.status)
+        assertEquals(0, job.attempts)
+        assertNull(job.leaseUntil)
+        assertFalse(job.isHeldBy(LEASE))
+        assertEquals(payload.json, job.requirePayload())
+        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.releaseLease() }
+    }
+
+    @Test
+    fun `채점 입력 해시와 함께 끝낸 작업은 다시 쓸 결과를 알려 준다`() {
+        val succeeded = newJob().apply { startAttempt(LEASE, createdAt) }
+        val failed = newJob().apply { startAttempt(LEASE, createdAt) }
+
+        succeeded.succeed("assessment-1", createdAt, DIGEST_HASH)
+        failed.fail(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, createdAt, DIGEST_HASH)
+
+        assertEquals(DIGEST_HASH, succeeded.digestHash)
+        assertEquals("assessment-1", succeeded.reusableAssessmentId())
+        assertNull(succeeded.reusableFailure())
+        assertNull(failed.reusableAssessmentId())
+        assertEquals(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, failed.reusableFailure())
+    }
+
+    @Test
+    fun `근거 부족과 응답 오류만 같은 입력에 다시 쓸 수 있는 실패다`() {
+        val reusable = listOf(
+            ErrorCode.INSUFFICIENT_EVIDENCE, ErrorCode.AI_RESPONSE_INVALID, ErrorCode.AI_RESPONSE_SCHEMA_INVALID,
+            ErrorCode.AI_EVIDENCE_INVALID, ErrorCode.AI_SCORE_OUT_OF_RANGE,
+        )
+        reusable.forEach { assertTrue(AnalysisFailureCode.isReusableScoringFailure(SantaCutException(it)), it.name) }
+        assertFalse(AnalysisFailureCode.isReusableScoringFailure(SantaCutException(ErrorCode.AI_PROVIDER_UNAVAILABLE)))
+        assertFalse(AnalysisFailureCode.isReusableScoringFailure(IllegalStateException()))
+    }
+
     private fun newUpload(): AnalysisJob = AnalysisJob.receive(
         UUID.randomUUID(),
         IdempotencyKey.from("key-0123456789abcdef"),
@@ -273,5 +314,6 @@ class AnalysisJobTest {
     companion object {
         private const val LEASE = "lease-1"
         private const val FILE_HASH = "file-hash"
+        private const val DIGEST_HASH = "digest-hash"
     }
 }
