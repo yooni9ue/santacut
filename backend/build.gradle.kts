@@ -47,6 +47,11 @@ kotlin {
 	}
 }
 
+// 로컬 실행에서는 dev처럼 프롬프트 관리 API를 켠다. 운영 이미지(bootJar)의 기본값은 꺼짐이다.
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+	systemProperty("santacut.prompt-admin.enabled", "true")
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 	// 통합 테스트가 매번 빈 데이터베이스에서 시작하도록 이전 테스트 DB 파일을 지운다.

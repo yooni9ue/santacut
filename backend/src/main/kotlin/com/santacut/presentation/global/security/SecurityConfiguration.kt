@@ -43,7 +43,7 @@ class SecurityConfiguration(
         return http.build()
     }
 
-    /** 공개 경로는 열어 두고 나머지는 로그인 세션을 요구한다. */
+    /** 공개 경로는 열어 두고 나머지는 로그인 세션을 요구한다. 공개 경로도 쓰기 요청은 CSRF 토큰이 있어야 한다. */
     private fun authorizeRequests(
         registry: AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry,
     ) {
@@ -74,6 +74,8 @@ class SecurityConfiguration(
             "/error", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**",
             "/v1/csrf", "/v1/regions", "/v1/nicknames/availability",
             "/v1/participants", "/v1/participants/**", "/v1/rankings", "/s/**",
+            // dev 전용 프롬프트 관리 API. 꺼져 있으면 컨트롤러가 없어 404다. 쓰기 요청은 다른 경로처럼 CSRF를 검사한다.
+            "/v1/admin/prompts/**",
         )
         private const val CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; " +
             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; " +
