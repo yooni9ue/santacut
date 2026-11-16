@@ -29,16 +29,12 @@ class Assessments(private val values: List<Assessment>) {
         return known[known.size / 2]
     }
 
-    /** 유형이 [archetype]인 평가의 비율(%, 반올림). 평가가 없으면 0이다. */
-    fun archetypeSharePercent(archetype: Archetype, playfulnessSplit: Int): Int {
-        if (values.isEmpty()) return 0
-        val same = values.count { assessment -> assessment.archetype(playfulnessSplit) == archetype }
-        return (same * PERCENT + values.size / 2) / values.size
-    }
+    /** 장난기 기준값 [playfulnessSplit]으로 고른 유형별 평가 수. */
+    fun archetypeCounts(playfulnessSplit: Int): ArchetypeCounts =
+        ArchetypeCounts(values.groupingBy { assessment -> assessment.archetype(playfulnessSplit) }.eachCount())
 
     companion object {
         const val MIN_PARTICIPANTS_FOR_MEDIAN = 30
         const val DEFAULT_PLAYFULNESS_SPLIT = 50
-        private const val PERCENT = 100
     }
 }
