@@ -46,5 +46,13 @@ class AiBudgetTest {
         assertTrue(budget.isExhausted(today, thisMonth))
     }
 
+    @Test
+    fun `이번 달 비용이 한 달 한도 바로 아래면 막지 않는다`() {
+        val today = days(ModelUsage(1_000, 0, ""))
+        val thisMonth = days(ModelUsage(3_999_999, 1_000_000, ""))
+
+        assertFalse(budget.isExhausted(today, thisMonth))
+    }
+
     private fun days(usage: ModelUsage): AiUsageDays = AiUsageDays(listOf(AiUsageDay("2026-11-16").apply { add(usage) }))
 }
