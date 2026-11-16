@@ -5,6 +5,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 
 class AssessmentTest {
@@ -28,6 +29,22 @@ class AssessmentTest {
         assertEquals(COMPONENTS_JSON, assessment.components)
         assertEquals(recordedAt, assessment.createdAt)
         assertEquals(PROMPT_VERSION, assessment.promptVersion)
+    }
+
+    @Test
+    fun `같은 채점 입력의 지난 평가를 새 ID와 기록 시각으로 옮겨 적고 점수, 판정, 판 번호는 그대로 둔다`() {
+        val previous = Assessment("assessment-previous", "user", DataSource.KAKAO, 7000, "판정", "한마디", "[]", recordedAt, PROMPT_VERSION)
+        val reusedAt = recordedAt.plusSeconds(60)
+
+        val reused = Assessment.reuse(job, previous, reusedAt)
+
+        assertNotEquals(previous.id, reused.id)
+        assertEquals(participantId.toString(), reused.userId)
+        assertEquals(reusedAt, reused.createdAt)
+        assertEquals(
+            listOf(previous.scoreHundredths, previous.verdict, previous.comment, previous.components, previous.promptVersion),
+            listOf(reused.scoreHundredths, reused.verdict, reused.comment, reused.components, reused.promptVersion),
+        )
     }
 
     @Test

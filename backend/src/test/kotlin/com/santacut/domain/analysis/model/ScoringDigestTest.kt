@@ -19,7 +19,7 @@ class ScoringDigestTest {
         val digest = digestOf(List(MIN_SAMPLE_LINES) { line(it, MIN_SAMPLE_CHARS / MIN_SAMPLE_LINES + 1) } + message("ㅋㅋㅋ"))
 
         assertEquals(MIN_SAMPLE_LINES, digest.verifySampled().sampleSize())
-        assertEquals(MIN_SAMPLE_LINES + 1, digest.features.eventCount)
+        assertEquals(MIN_SAMPLE_LINES + 1, digest.messageCount)
     }
 
     @Test
@@ -44,6 +44,6 @@ class ScoringDigestTest {
     private fun digestOf(messages: List<ScoringMessage>): ScoringDigest {
         val scoringMessages = ScoringMessages(messages)
         val sample = scoringMessages.sample()
-        return ScoringDigest(DataSource.KAKAO, scoringMessages.toFeatures(), scoringMessages.signals(sample), sample)
+        return ScoringDigest(scoringMessages.size(), scoringMessages.signals(sample), sample)
     }
 }
