@@ -99,8 +99,8 @@ class AnalysisScoringServiceTest @Autowired constructor(
         private const val SELF = "나"
         private const val PARTNER = "상대"
         private const val GAP_LINE_PREFIX = "("
-        /** 모든 구간 80점, 기회 수 모름(n=2), 본인 턴 충분(w=2), C=0.5면 (27.5 + 160) / 2.5 = 75점이다. */
-        private const val EXPECTED_HUNDREDTHS = 7500
+        /** 모든 구간 80점, 기회 수 모름(n=2), 본인 턴 충분(w=2), C=0.25면 (13.75 + 160) / 2.25 = 77.22점이다. */
+        private const val EXPECTED_HUNDREDTHS = 7722
 
         private const val LONG_MESSAGE_EVERY = 50
         private const val LONG_MESSAGE_REPEAT = 20
