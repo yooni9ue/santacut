@@ -78,5 +78,7 @@ spring.ai:
       temperature: 0.1
       # 정상 답(근거 항목당 1~3개)은 100토큰 안팎이다. 폭주해도 비용이 크지 않게 낮게 둔다.
       max-output-tokens: 250
-      # 3.5 Flash-Lite는 생각(thinking)이 기본으로 꺼져 있고 thinkingBudget을 보내면 400으로 거절한다. 그래서 생각 설정은 두지 않는다.
+      # 3.5 Flash-Lite는 생각(thinking)을 끌 수 없고 기본 수준이 MINIMAL이다. 기본값이 바뀌어도 그대로이도록 수준을 적어 둔다.
+      # thinking-budget은 이 모델이 400으로 거절하므로 쓰지 않는다. 생각 토큰은 출력 단가로 청구되고 max-output-tokens를 함께 쓴다.
+      thinking-level: MINIMAL
       response-mime-type: application/json

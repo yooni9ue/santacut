@@ -105,9 +105,9 @@ class AnalysisWorkerFacade(
     private fun logUsage(job: AnalysisJob, prompt: Prompt, digest: ScoringDigest, answer: ScoreAnswer, outcome: String) {
         val usage = answer.usage
         logger.info(
-            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 표본 {}줄 {}자, 입력 {} 출력 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
+            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 표본 {}줄 {}자, 입력 {} 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
             job.id, prompt.version, digest.messageCount, digest.sampleSize(), digest.sample.totalLength(),
-            usage.inputTokens, usage.outputTokens, usage.finishReason, answer.discardedEvidence(digest.sampleSize()), outcome,
+            usage.inputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answer.discardedEvidence(digest.sampleSize()), outcome,
         )
     }
 

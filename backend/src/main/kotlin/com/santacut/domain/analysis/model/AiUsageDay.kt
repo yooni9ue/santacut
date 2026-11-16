@@ -34,10 +34,10 @@ class AiUsageDay(
     var calls: Int = 0
         protected set
 
-    /** AI 호출 한 번의 사용량을 더한다. */
+    /** AI 호출 한 번의 사용량을 더한다. 출력 토큰에는 같은 단가로 청구되는 생각 토큰을 함께 더한다. */
     fun add(usage: ModelUsage) {
         inputTokens += usage.inputTokens
-        outputTokens += usage.outputTokens
+        outputTokens += usage.billedOutputTokens()
         calls++
     }
 
