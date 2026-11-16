@@ -109,15 +109,25 @@ class AnalysisJobService(
     fun findHeld(jobId: String, lease: String): AnalysisJob? =
         analysisJobRepository.findById(jobId).orElse(null)?.takeIf { it.isHeldBy(lease) }
 
-    fun succeed(job: AnalysisJob, assessmentId: String, finishedAt: Instant) {
-        job.succeed(assessmentId, finishedAt)
+    fun succeed(job: AnalysisJob, assessmentId: String, finishedAt: Instant, digestHash: String? = null) {
+        job.succeed(assessmentId, finishedAt, digestHash)
         analysisJobRepository.save(job)
     }
 
-    fun fail(job: AnalysisJob, code: AnalysisFailureCode, finishedAt: Instant) {
-        job.fail(code, finishedAt)
+    fun fail(job: AnalysisJob, code: AnalysisFailureCode, finishedAt: Instant, digestHash: String? = null) {
+        job.fail(code, finishedAt, digestHash)
         analysisJobRepository.save(job)
     }
+
+    /** AI 제공자가 호출을 막아 작업을 대기열로 되돌린다. */
+    fun releaseLease(job: AnalysisJob) {
+        job.releaseLease()
+        analysisJobRepository.save(job)
+    }
+
+    /** 같은 참가자가 같은 채점 입력([digestHash])으로 낸 작업 가운데 가장 최근에 끝난 것. */
+    fun findSameDigest(job: AnalysisJob, digestHash: String): AnalysisJob? =
+        analysisJobRepository.findFirstByUserIdAndDigestHashAndFinishedAtIsNotNullOrderByFinishedAtDesc(job.userId, digestHash)
 
     /**
      * 검증 중인 작업의 검증을 한 번 더 시작한다. 작업이 없거나 이미 끝났으면 null이다.

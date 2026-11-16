@@ -20,6 +20,7 @@ import java.util.UUID
  * 원본 파일로 받은 작업은 검증 → 대기 순서로 시작하고, 검증에 실패하면 대기를 거치지 않고 끝난다.
  * 너무 오래 기다린 검증·대기 작업은 실행을 거치지 않고 만료(실패)로 끝난다.
  * 작업자는 리스 토큰을 쥔 동안만 결과를 기록할 수 있다.
+ * 같은 채점 입력으로 다시 낸 작업이 AI를 또 부르지 않도록, 결과가 입력에 따라 정해지는 작업에는 채점 입력 해시([digestHash])를 남긴다.
  */
 @Entity
 @Table(name = "analysis_jobs")
@@ -96,6 +97,11 @@ class AnalysisJob(
     var finishedAt: Instant? = null
         protected set
 
+    /** 모델 ID, 프롬프트 판, AI 사용자 메시지를 이은 값의 SHA-256. 성공·근거 부족·응답 오류로 끝난 작업에만 있다. */
+    @Column(name = "digest_hash")
+    var digestHash: String? = null
+        protected set
+
     fun matchesRequestHash(hash: String): Boolean = requestHash == hash
 
     fun isValidating(): Boolean = status == AnalysisJobStatus.VALIDATING
@@ -114,19 +120,39 @@ class AnalysisJob(
         leaseUntil = now.plus(LEASE_DURATION)
     }
 
-    /** 실행 중인 작업만 성공으로 끝낼 수 있다. */
-    fun succeed(assessmentId: String, finishedAt: Instant) {
+    /** 실행 중인 작업만 성공으로 끝낼 수 있다. [digestHash]가 있으면 같은 입력의 재제출에 이 결과를 다시 쓴다. */
+    fun succeed(assessmentId: String, finishedAt: Instant, digestHash: String? = null) {
         verifyTransition(status == AnalysisJobStatus.RUNNING)
         status = AnalysisJobStatus.SUCCEEDED
         this.assessmentId = assessmentId
+        this.digestHash = digestHash
         finish(finishedAt)
     }
 
-    /** 실행 중인 작업만 실패로 끝낼 수 있다. */
-    fun fail(code: AnalysisFailureCode, finishedAt: Instant) {
+    /** 실행 중인 작업만 실패로 끝낼 수 있다. [digestHash]가 있으면 같은 입력의 재제출도 AI 없이 같은 이유로 끝낸다. */
+    fun fail(code: AnalysisFailureCode, finishedAt: Instant, digestHash: String? = null) {
         verifyTransition(status == AnalysisJobStatus.RUNNING)
+        this.digestHash = digestHash
         finishWith(code, finishedAt)
     }
+
+    /**
+     * AI 제공자가 호출을 막았을 때 작업을 실패시키지 않고 대기열로 되돌린다. 이번 시도는 세지 않는다.
+     * 오래 밀리면 대기 만료([QUEUE_EXPIRY])가 정리한다.
+     */
+    fun releaseLease() {
+        verifyTransition(status == AnalysisJobStatus.RUNNING)
+        status = AnalysisJobStatus.QUEUED
+        attempts = maxOf(attempts - 1, 0)
+        leaseToken = null
+        leaseUntil = null
+    }
+
+    /** 같은 입력으로 성공한 작업이면 다시 쓸 평가 ID. */
+    fun reusableAssessmentId(): String? = assessmentId.takeIf { status == AnalysisJobStatus.SUCCEEDED }
+
+    /** 같은 입력으로 실패한 작업이면 다시 쓸 실패 이유. */
+    fun reusableFailure(): AnalysisFailureCode? = errorCode.takeIf { status != AnalysisJobStatus.SUCCEEDED }
 
     /** 너무 오래 기다린 작업을 [AnalysisFailureCode.EXPIRED]로 끝낸다. 검증 중이거나 대기 중인 작업만 만료할 수 있다. */
     fun expire(finishedAt: Instant) {

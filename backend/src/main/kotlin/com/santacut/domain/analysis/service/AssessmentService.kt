@@ -21,6 +21,10 @@ class AssessmentService(
         return assessmentRepository.save(Assessment.record(job, score, componentsJson, promptVersion, recordedAt))
     }
 
+    /** [previousAssessmentId] 평가를 이 작업의 새 평가로 다시 저장한다. */
+    fun reuse(job: AnalysisJob, previousAssessmentId: String, recordedAt: Instant): Assessment =
+        assessmentRepository.save(Assessment.reuse(job, get(previousAssessmentId), recordedAt))
+
     fun get(assessmentId: String): Assessment =
         assessmentRepository.findById(assessmentId).orElse(null)
             ?: throw SantaCutException(ErrorCode.RESULT_NOT_FOUND)

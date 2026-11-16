@@ -18,6 +18,11 @@ interface AnalysisJobRepository : JpaRepository<AnalysisJob, String> {
 
     fun findFirstByStatusOrderByCreatedAtAsc(status: AnalysisJobStatus): AnalysisJob?
 
+    fun findFirstByUserIdAndDigestHashAndFinishedAtIsNotNullOrderByFinishedAtDesc(
+        userId: String,
+        digestHash: String,
+    ): AnalysisJob?
+
     fun findFirstByStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
         statuses: Collection<AnalysisJobStatus>,
         createdAt: Instant,
