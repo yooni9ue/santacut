@@ -48,10 +48,13 @@ class AnalysisScoringService(
 
     /**
      * 대화문을 구간으로 나눠([ScoringChunks]) 구간마다 [systemPrompt]와 함께 AI에 묻는다.
+     * 구간 호출이 끝날 때마다 그 호출의 사용량을 [recordUsage]에 넘긴다. 뒤 구간이 실패해도 이미 과금된 호출은 기록된다.
      * 점수 검증과 합산은 [score]가 한다.
      */
-    fun ask(digest: ScoringDigest, systemPrompt: String): ScoringChunkAnswers =
-        ScoringChunks.of(digest).ask { chunk -> scoreClient.requestAnswer(chunk, systemPrompt) }
+    fun ask(digest: ScoringDigest, systemPrompt: String, recordUsage: (ModelUsage) -> Unit): ScoringChunkAnswers =
+        ScoringChunks.of(digest).ask { chunk ->
+            scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> recordUsage(answer.usage) }
+        }
 
     /** 구간 답을 합치고 설정한 수축 규칙으로 점수를 낸다. */
     fun score(answers: ScoringChunkAnswers): Score = answers.toScore(shrinkage)
