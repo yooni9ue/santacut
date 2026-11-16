@@ -25,8 +25,12 @@ class RecordingChatModel(var reply: String) : ChatModel {
     var lastPrompt: Prompt? = null
         private set
 
+    /** 받은 모든 프롬프트. 긴 대화는 구간마다 한 번씩 부른다. */
+    val prompts = mutableListOf<Prompt>()
+
     override fun call(prompt: Prompt): ChatResponse {
         lastPrompt = prompt
+        prompts += prompt
         failure?.let { throw it }
         val generation = Generation(AssistantMessage(reply), ChatGenerationMetadata.builder().finishReason(FINISH_REASON).build())
         return ChatResponse(listOf(generation), ChatResponseMetadata.builder().usage(usage).build())

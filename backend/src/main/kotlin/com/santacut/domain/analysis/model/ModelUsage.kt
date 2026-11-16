@@ -16,10 +16,26 @@ data class ModelUsage(
     /** 출력 단가로 청구되는 토큰 수. 답 본문 토큰과 생각 토큰의 합이다. */
     fun billedOutputTokens(): Long = outputTokens + thoughtTokens
 
+    /** 두 호출(구간)의 사용량 합. 종료 사유는 쉼표로 잇는다. */
+    operator fun plus(other: ModelUsage): ModelUsage = ModelUsage(
+        inputTokens + other.inputTokens,
+        outputTokens + other.outputTokens,
+        joinedFinishReason(other.finishReason),
+        thoughtTokens + other.thoughtTokens,
+    )
+
+    private fun joinedFinishReason(next: String): String = when {
+        finishReason.isEmpty() -> next
+        next.isEmpty() -> finishReason
+        else -> "$finishReason$FINISH_REASON_SEPARATOR$next"
+    }
+
     /** 사용량을 실제로 받은 호출인지. [NONE]은 비용 합계에 더하지 않는다. */
     fun isMeasured(): Boolean = this != NONE
 
     companion object {
+        private const val FINISH_REASON_SEPARATOR = ","
+
         /** 호출하지 못했거나 사용량을 받지 못했을 때. */
         val NONE = ModelUsage(0, 0, "")
     }

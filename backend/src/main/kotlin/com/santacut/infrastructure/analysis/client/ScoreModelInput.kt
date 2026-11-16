@@ -1,9 +1,9 @@
 package com.santacut.infrastructure.analysis.client
 
-import com.santacut.domain.analysis.model.ScoringDigest
+import com.santacut.domain.analysis.model.ScoringChunk
 
 /**
- * AI 모델에 보내는 사용자 메시지 본문. 정규화한 대화문을 한 줄에 한 턴씩 보낸다.
+ * AI 모델에 보내는 사용자 메시지 본문. 정규화한 대화문(긴 대화는 그 한 구간)을 한 줄에 한 턴씩 보낸다.
  * 길이 한도로 앞선 줄을 뺐으면 머리에 그 수를 적는다.
  *
  * ```text
@@ -30,7 +30,8 @@ class ScoreModelInput(
         private const val OMITTED_SUFFIX = "줄은 길이 한도로 뺐다)"
         private const val LINE_SEPARATOR = "\n"
 
-        fun from(digest: ScoringDigest): ScoreModelInput =
-            ScoreModelInput(digest.omittedTurns, ScoreModelLines.from(digest.turns))
+        /** 채점 구간 하나의 사용자 메시지. 줄 번호는 대화문 전체 기준이다. */
+        fun from(chunk: ScoringChunk): ScoreModelInput =
+            ScoreModelInput(chunk.omittedTurns, ScoreModelLines.from(chunk.turns, chunk.firstNumber))
     }
 }

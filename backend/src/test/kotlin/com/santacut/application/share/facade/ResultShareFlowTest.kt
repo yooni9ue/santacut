@@ -21,7 +21,11 @@ import com.santacut.domain.analysis.model.AnalysisPayload
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.IdempotencyKey
+import com.santacut.domain.analysis.model.BadgeRule
+import com.santacut.domain.analysis.model.EarnedBadge
+import com.santacut.domain.analysis.model.EarnedBadges
 import com.santacut.domain.analysis.model.Score
+import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.ranking.service.RankingService
@@ -94,6 +98,7 @@ class ResultShareFlowTest @Autowired constructor(
 
         shareFacade.revokeShare(RevokeShareCommand(participantId, link.token))
         assertErrorCode(ErrorCode.SHARE_NOT_FOUND) { shareFacade.getPublicPage(PublicShareCommand(link.token)) }
+        shareFacade.revokeShare(RevokeShareCommand(participantId, quoted.token))
     }
 
     @Test
@@ -183,7 +188,7 @@ class ResultShareFlowTest @Autowired constructor(
     ) {
         val score = Score.weighted(scores.map { BigDecimal(it) })
         transactionTemplate.executeWithoutResult {
-            assessmentService.record(emptyJob(participantId, assessedAt), score, PROMPT_VERSION, assessedAt)
+            assessmentService.record(emptyJob(participantId, assessedAt), ScoredAssessment(score, PROMPT_VERSION, QUOTE, BADGES), assessedAt)
             if (rebuild) rankingService.rebuild(assessedAt, shareService.findAll())
         }
     }
@@ -200,6 +205,8 @@ class ResultShareFlowTest @Autowired constructor(
 
     companion object {
         private const val EXPECTED_SCORE = 7600
+        private const val QUOTE = "덕분에 살았다"
+        private val BADGES = EarnedBadges(listOf(EarnedBadge(BadgeRule.THANKS_MACHINE, 12)))
         private const val PROMPT_VERSION = 1
         private val HIGH_SCORES = listOf(80, 90, 70, 60)
 
