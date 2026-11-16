@@ -4,7 +4,7 @@ on:
   pull_request:
     paths: ['backend/**', '.github/workflows/backend.yml']
   push:
-    branches: [main]
+    branches: [main, develop]
     paths: ['backend/**', '.github/workflows/backend.yml']
   workflow_dispatch:
     inputs:
@@ -51,7 +51,9 @@ jobs:
 
   publish:
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || (github.ref == 'refs/heads/develop' && github.event_name == 'push'))
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
@@ -80,7 +82,9 @@ jobs:
           file: backend/ci-cd/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          tags: |
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/develop' && format('{0}:develop', steps.image.outputs.name) || '' }}
           provenance: true
           sbom: true
       - name: Release reference
@@ -125,3 +129,93 @@ jobs:
           scp -o BatchMode=yes -o StrictHostKeyChecking=yes release.tgz "$DEPLOY_USER@$DEPLOY_HOST:/opt/santacut/releases/${GITHUB_SHA}.tgz"
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /opt/santacut/releases/${GITHUB_SHA} && tar -xzf /opt/santacut/releases/${GITHUB_SHA}.tgz -C /opt/santacut/releases/${GITHUB_SHA} && bash /opt/santacut/releases/${GITHUB_SHA}/scripts/deploy.sh '${IMAGE}@${DIGEST}' '/opt/santacut/releases/${GITHUB_SHA}'"
 
+  deploy-dev:
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: dev
+      url: https://api-dev.santacut.me
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: dev-deploy
+      cancel-in-progress: false
+    env:
+      AWS_REGION: ap-northeast-2
+      INSTANCE: santacut-dev-app
+      OPERATOR_CIDR: ${{ vars.DEV_OPERATOR_SSH_CIDR }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ap-northeast-2
+      - name: Open SSH for runner IP
+        id: ssh
+        run: |
+          set -euo pipefail
+          ip=$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')
+          [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]
+          echo "cidr=${ip}/32" >> "$GITHUB_OUTPUT"
+          aws lightsail open-instance-public-ports --instance-name "$INSTANCE" \
+            --port-info "fromPort=22,toPort=22,protocol=TCP,cidrs=${ip}/32" >/dev/null
+          aws lightsail get-instance-port-states --instance-name "$INSTANCE" \
+            --query 'portStates[?fromPort==`22`].cidrs[]' --output text
+          for _ in $(seq 1 30); do
+            nc -z -w 2 "$DEPLOY_HOST" 22 && exit 0
+            sleep 2
+          done
+          echo "::error::SSH port did not open" && exit 1
+        env:
+          DEPLOY_HOST: ${{ vars.DEV_DEPLOY_HOST }}
+      - name: Deploy verified image digest
+        env:
+          DEPLOY_HOST: ${{ vars.DEV_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEV_DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEV_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEV_DEPLOY_KNOWN_HOSTS }}
+          IMAGE: ${{ needs.publish.outputs.image }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/id_ed25519' EXIT
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p /opt/santacut/releases'
+          tar -czf release.tgz -C backend/ci-cd deploy/compose.yml deploy/Caddyfile scripts/deploy.sh scripts/backup.sh
+          scp -o BatchMode=yes -o StrictHostKeyChecking=yes release.tgz "$DEPLOY_USER@$DEPLOY_HOST:/opt/santacut/releases/${GITHUB_SHA}.tgz"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /opt/santacut/releases/${GITHUB_SHA} && tar -xzf /opt/santacut/releases/${GITHUB_SHA}.tgz -C /opt/santacut/releases/${GITHUB_SHA} && bash /opt/santacut/releases/${GITHUB_SHA}/scripts/deploy.sh '${IMAGE}@${DIGEST}' '/opt/santacut/releases/${GITHUB_SHA}'"
+          deployed=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" 'cat /opt/santacut/current-image')
+          echo "current-image: $deployed"
+          [[ "$deployed" == "${IMAGE}@${DIGEST}" ]]
+      - name: Smoke test
+        run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null https://api-dev.santacut.me/v3/api-docs
+      - name: Close SSH for runner IP
+        if: always() && steps.ssh.outputs.cidr != ''
+        env:
+          RUNNER_CIDR: ${{ steps.ssh.outputs.cidr }}
+        run: |
+          set -euo pipefail
+          aws lightsail close-instance-public-ports --instance-name "$INSTANCE" \
+            --port-info "fromPort=22,toPort=22,protocol=TCP,cidrs=${RUNNER_CIDR}" >/dev/null
+          cidrs=$(aws lightsail get-instance-port-states --instance-name "$INSTANCE" \
+            --query 'portStates[?fromPort==`22`].cidrs[]' --output text)
+          echo "port 22 after close: ${cidrs:-<closed>}"
+          if grep -qwF "$RUNNER_CIDR" <<<"$cidrs"; then
+            echo "::error::runner CIDR still open on port 22"; exit 1
+          fi
+          if [[ -n "$OPERATOR_CIDR" ]] && ! grep -qwF "$OPERATOR_CIDR" <<<"$cidrs"; then
+            echo "::warning::operator CIDR missing, restoring"
+            aws lightsail open-instance-public-ports --instance-name "$INSTANCE" \
+              --port-info "fromPort=22,toPort=22,protocol=TCP,cidrs=${OPERATOR_CIDR}" >/dev/null
+          fi
