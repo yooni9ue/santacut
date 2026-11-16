@@ -13,6 +13,7 @@ import com.santacut.domain.ranking.model.RankingBoard
 import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.model.RankingRows
 import com.santacut.domain.ranking.model.RankingStage
+import com.santacut.domain.ranking.model.ResultPopulation
 import com.santacut.domain.ranking.model.ResultProfile
 import com.santacut.domain.ranking.model.ResultSnapshot
 import com.santacut.domain.ranking.model.ResultSnapshots
@@ -21,6 +22,7 @@ import com.santacut.domain.share.model.Shares
 import com.santacut.infrastructure.analysis.repository.AssessmentRepository
 import com.santacut.infrastructure.participant.repository.ParticipantRepository
 import com.santacut.infrastructure.participant.repository.RegionRepository
+import com.santacut.infrastructure.ranking.repository.ResultPopulationRepository
 import com.santacut.infrastructure.ranking.repository.ResultSnapshotRepository
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -32,24 +34,28 @@ class RankingService(
     private val participantRepository: ParticipantRepository,
     private val regionRepository: RegionRepository,
     private val resultSnapshotRepository: ResultSnapshotRepository,
+    private val resultPopulationRepository: ResultPopulationRepository,
     private val appProperties: AppProperties,
 ) {
     /**
      * 참가자별 최신 평가로 순위와 배송 예정 시각을 새로 계산해 저장한다.
      * 배송이 시작된 뒤에는 순위를 고정한다. 동시에 두 번 계산하지 않도록 직렬화한다.
+     * 결과 화면이 쓰는 장난기 기준값과 유형 분포([ResultPopulation])도 같은 평가로 함께 센다.
      * [shares]는 지우면 안 되는 스냅숏을 알려 주는 현재 공유 링크 목록이다.
      */
     @Synchronized
     fun rebuild(computedAt: Instant, shares: Shares) {
         val season = season()
         if (season.isClosedAt(computedAt)) return
-        val entries = Assessments(assessmentRepository.findLatestForEachUser()).toRankingEntries(
+        val latest = Assessments(assessmentRepository.findLatestForEachUser())
+        val entries = latest.toRankingEntries(
             Participants(participantRepository.findAll()),
             Regions(regionRepository.findAll()),
         )
         val snapshots = entries.toSnapshots(origin(), season.deliveryStart(), computedAt)
         pruneSnapshots(shares)
         resultSnapshotRepository.saveAll(snapshots.toList())
+        resultPopulationRepository.save(ResultPopulation.of(latest))
     }
 
     fun findLatestSnapshot(participantId: UUID): ResultSnapshot? =
@@ -69,11 +75,14 @@ class RankingService(
 
     /**
      * [assessment]와 그 순위 [snapshot]의 재미용 꾸밈 값(유형, 항목 막대, 상위 비율, 배지, 한마디).
-     * 장난기 기준값과 유형 비율은 지금 참가자별 최신 평가로, 상위 비율은 그 순위 계산의 참가자 수로 계산한다.
+     * 장난기 기준값과 유형 비율은 순위 계산 때 저장한 값을 읽는다. 배포 직후처럼 저장한 값이 아직 없을 때만 평가 전체로 센다.
+     * 상위 비율은 그 순위 계산의 참가자 수로 낸다.
      */
     fun findProfile(assessment: Assessment, snapshot: ResultSnapshot?): ResultProfile {
         val participantCount = snapshot?.let { resultSnapshotRepository.countByComputedAt(it.computedAt) } ?: 0
-        return ResultProfile.of(assessment, snapshot, Assessments(assessmentRepository.findLatestForEachUser()), participantCount)
+        val population = resultPopulationRepository.findById(ResultPopulation.LATEST_ID).orElse(null)
+            ?: ResultPopulation.of(Assessments(assessmentRepository.findLatestForEachUser()))
+        return ResultProfile.of(assessment, snapshot, population, participantCount)
     }
 
     /** 가장 최근 순위 계산 결과의 한 페이지와 참가자 수, 계산 시각, 확정 상태. */

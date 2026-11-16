@@ -2,13 +2,12 @@ package com.santacut.domain.ranking.model
 
 import com.santacut.domain.analysis.model.Archetype
 import com.santacut.domain.analysis.model.Assessment
-import com.santacut.domain.analysis.model.Assessments
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoreDimension
 
 /**
  * 결과 화면과 공유 카드에 보여 줄 재미용 꾸밈 값. 순위와 점수에는 영향을 주지 않는다.
- * 장난기 기준값, 유형 비율, 상위 비율은 읽는 시점의 참가자 전체로 계산한다.
+ * 장난기 기준값과 유형 비율은 가장 최근 순위 계산 때 저장한 [ResultPopulation], 상위 비율은 그 순위의 참가자 수로 낸다.
  *
  * @property topPercent 상위 몇 %인지. 참가자가 [MIN_PARTICIPANTS_FOR_TOP_PERCENT]명보다 적거나 순위가 없으면 null이다.
  * @property archetypeSharePercent 같은 유형인 참가자 비율(%)
@@ -34,15 +33,14 @@ class ResultProfile(
         private const val PERCENT = 100
 
         /**
-         * [assessment]와 그 순위 [snapshot]으로 꾸밈 값을 만든다. [population]은 참가자별 최신 평가,
+         * [assessment]와 그 순위 [snapshot]으로 꾸밈 값을 만든다. [population]은 저장한 장난기 기준값과 유형 분포,
          * [participantCount]는 그 순위 계산에 든 참가자 수다.
          */
-        fun of(assessment: Assessment, snapshot: ResultSnapshot?, population: Assessments, participantCount: Long): ResultProfile {
-            val split = population.playfulnessSplit()
-            val archetype = assessment.archetype(split)
+        fun of(assessment: Assessment, snapshot: ResultSnapshot?, population: ResultPopulation, participantCount: Long): ResultProfile {
+            val archetype = population.archetypeOf(assessment)
             return ResultProfile(
                 archetype, assessment.dimensionScores(), topPercentOf(snapshot?.rank, participantCount),
-                population.archetypeSharePercent(archetype, split), assessment.badgeLabels(), assessment.quote,
+                population.sharePercentOf(archetype), assessment.badgeLabels(), assessment.quote,
             )
         }
 

@@ -16,16 +16,16 @@ class ResultProfileTest {
         val mine = assessment("me", "[90,70,70,70]", 70)
         val population = Assessments(listOf(mine))
 
-        assertNull(ResultProfile.of(mine, snapshot(3), population, 99).topPercent)
-        assertEquals(3, ResultProfile.of(mine, snapshot(3), population, 100).topPercent)
-        assertEquals(1, ResultProfile.of(mine, snapshot(1), population, 1000).topPercent)
+        assertNull(ResultProfile.of(mine, snapshot(3), ResultPopulation.of(population), 99).topPercent)
+        assertEquals(3, ResultProfile.of(mine, snapshot(3), ResultPopulation.of(population), 100).topPercent)
+        assertEquals(1, ResultProfile.of(mine, snapshot(1), ResultPopulation.of(population), 1000).topPercent)
     }
 
     @Test
     fun `장난기를 아는 참가자가 30명보다 적으면 기준값 50, 이상이면 중앙값으로 유형을 가른다`() {
         val mine = assessment("me", "[90,70,70,70]", 60)
-        val few = Assessments(listOf(mine))
-        val many = Assessments(List(30) { assessment("u$it", "[60,60,60,90]", 70) } + mine)
+        val few = ResultPopulation.of(Assessments(listOf(mine)))
+        val many = ResultPopulation.of(Assessments(List(30) { assessment("u$it", "[60,60,60,90]", 70) } + mine))
 
         assertEquals(Archetype.HOT_COCOA_COURIER, ResultProfile.of(mine, null, few, 0).archetype)
         assertEquals(Archetype.FIREPLACE_KEEPER, ResultProfile.of(mine, null, many, 0).archetype)
@@ -36,7 +36,7 @@ class ResultProfileTest {
     fun `가장 약한 항목은 점수가 가장 낮은 항목이다`() {
         val mine = assessment("me", "[90,70,40,70]", 50)
 
-        assertEquals(ScoreDimension.RESPECTFUL_COMMUNICATION, ResultProfile.of(mine, null, Assessments(listOf(mine)), 0).weakestDimension())
+        assertEquals(ScoreDimension.RESPECTFUL_COMMUNICATION, ResultProfile.of(mine, null, ResultPopulation.of(Assessments(listOf(mine))), 0).weakestDimension())
     }
 
     private fun assessment(id: String, components: String, playfulness: Int): Assessment =
