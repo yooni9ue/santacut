@@ -7,6 +7,7 @@ object ApiDocs {
     const val JSON = "application/json"
     const val MULTIPART = "multipart/form-data"
     const val HTML = "text/html"
+    const val EVENT_STREAM = "text/event-stream"
     const val SESSION_SECURITY = "sessionCookie"
     const val CSRF_HEADER = "X-XSRF-TOKEN"
     const val CSRF_HEADER_DESCRIPTION = "GET /v1/csrf가 돌려준 토큰"
