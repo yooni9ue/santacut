@@ -79,7 +79,7 @@ class AnalysisWorkerFacade(
         val digest = analysisScoringService.digest(job)
         val digestHash = analysisScoringService.fingerprint(digest, prompt.version)
         if (transactionTemplate.execute { reuseIfSameDigest(job.id, lease, digestHash) } == true) return
-        val answers = askAll(job, lease, prompt, digest, digestHash)
+        val answers = askAll(prompt, digest)
         val score = scoreOf(job, lease, prompt, digest, answers, digestHash)
         val quote = answers.quoteOf(score)
         val badges = analysisScoringService.badges(digest)
@@ -88,28 +88,22 @@ class AnalysisWorkerFacade(
     }
 
     /**
-     * 모든 구간 호출의 어림 비용을 한 번에 확인한 뒤 구간마다 AI에 묻고, 받은 사용량을 합쳐 기록한다.
+     * 모든 구간 호출의 어림 비용을 한 번에 확인한 뒤 구간마다 AI에 묻는다.
+     * 사용량은 구간 호출마다 바로 기록해, 뒤 구간이 실패해도 이미 과금된 호출이 비용 가드에 잡힌다.
      */
-    private fun askAll(job: AnalysisJob, lease: String, prompt: Prompt, digest: ScoringDigest, digestHash: String): ScoringChunkAnswers {
+    private fun askAll(prompt: Prompt, digest: ScoringDigest): ScoringChunkAnswers {
         val estimate = analysisScoringService.estimateUsage(digest, prompt.content)
         transactionTemplate.executeWithoutResult { aiBudgetService.verifyAffordable(estimate, clock.instant()) }
-        val answers = analysisScoringService.ask(digest, prompt.content)
-        transactionTemplate.executeWithoutResult { aiBudgetService.record(answers.usage(), clock.instant()) }
-        return answers
+        return analysisScoringService.ask(digest, prompt.content) { usage ->
+            transactionTemplate.executeWithoutResult { aiBudgetService.record(usage, clock.instant()) }
+        }
     }
 
     /**
      * 구간 답을 합쳐 점수로 바꾼다. 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는
      * 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
      */
-    private fun scoreOf(
-        job: AnalysisJob,
-        lease: String,
-        prompt: Prompt,
-        digest: ScoringDigest,
-        answers: ScoringChunkAnswers,
-        digestHash: String,
-    ): Score {
+    private fun scoreOf(job: AnalysisJob, lease: String, prompt: Prompt, digest: ScoringDigest, answers: ScoringChunkAnswers, digestHash: String): Score {
         try {
             return analysisScoringService.score(answers).also { logUsage(job, prompt, digest, answers, SCORED_OUTCOME) }
         } catch (exception: SantaCutException) {

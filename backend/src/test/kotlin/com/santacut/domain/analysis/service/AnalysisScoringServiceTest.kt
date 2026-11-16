@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
+import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoringChunks
 import com.santacut.infrastructure.analysis.client.RecordingChatModel
 import org.junit.jupiter.api.Test
@@ -36,12 +37,14 @@ class AnalysisScoringServiceTest @Autowired constructor(
         val payload = objectMapper.writeValueAsString(largeSubmission())
 
         val digest = analysisScoringService.digest(jobWith(payload))
-        val answers = analysisScoringService.ask(digest, SYSTEM_PROMPT)
+        val recorded = mutableListOf<ModelUsage>()
+        val answers = analysisScoringService.ask(digest, SYSTEM_PROMPT) { usage -> recorded += usage }
 
         val texts = recordingChatModel.prompts.map { it.userMessage.text.orEmpty() }
         val lines = texts.flatMap { text -> text.substringAfter(TRANSCRIPT_HEADER).lines().filterNot { it.startsWith(GAP_LINE_PREFIX) } }
         assertEquals(EXPECTED_HUNDREDTHS, analysisScoringService.score(answers).hundredths)
         assertTrue(texts.size in 2..ScoringChunks.MAX_CHUNKS, "chunks=${texts.size}")
+        assertEquals(texts.size, recorded.size)
         assertEquals((1..digest.lineCount()).toList(), lines.map { it.substringBefore("|").toInt() }.distinct().sorted())
         assertEquals(setOf(SELF, PARTNER), lines.map { it.split("|")[1] }.toSet())
         assertTrue(texts.all { it.length < payload.length / 2 }, "payload=${payload.length}")
