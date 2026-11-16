@@ -11,7 +11,7 @@
 - AI 호출은 Spring AI Bedrock Converse로 Claude Haiku 4.5(`global.` 추론 프로파일, 서울 리전)를 부른다. 자격 증명은 AWS 기본 체인(환경 변수)에서 읽는다. 보내는 것은 본인 메시지로 만든 항목별 신호와 표본(최대 120줄, 본문 6,000자)뿐이다.
 - 분석 API는 원본 파일 업로드(`POST /v1/analyses/files`)와 정규화된 이벤트 JSON(`POST /v1/analyses`)을 둘 다 받는다. 카카오톡 TXT(PC·모바일)와 인스타그램 `message_1.json` 파서가 있다. 다만 공개 내보내기 예시로 만든 것이라 실제 샘플 검증은 출시 전에 해야 한다.
 - 지역은 전국 시·도 16개와 시·군·구 255개(모두 271개)다. 서울은 `schema.sql`이, 나머지는 `regions.sql`이 앱 시작 때마다 넣는다(`INSERT OR IGNORE`).
-- 분석 진행 상태는 폴링(`GET /v1/analyses/{id}`, `GET /v1/me/analysis`)으로 읽는다. 결과는 `GET /v1/me/result`로 따로 읽는다.
+- 분석 진행 상태는 진행 상황 스트림(`GET /v1/analyses/{id}/events`, SSE)으로 받거나 폴링(`GET /v1/analyses/{id}`, `GET /v1/me/analysis`)으로 읽는다. 스트림 상한에 걸리면 폴링으로 바꾼다. 결과는 `GET /v1/me/result`로 따로 읽는다.
 - 내보내기 안내 UI, 실제 도메인과 서버는 아직 출시 전 작업이다.
 - 백엔드 코드는 `presentation → application → domain → infrastructure` 4계층 레이어드 아키텍처를 따른다. 의존은 위에서 아래로만 흐르고 포트·어댑터는 쓰지 않는다. 규칙은 [백엔드 코드 컨벤션](backend-conventions.md)에 정의한다.
 
@@ -71,7 +71,7 @@ flowchart LR
 1. 같은 origin에서 참가자 세션을 발급하고 CSRF 토큰을 받는다.
 2. 닉네임과 지역 코드를 등록한다. 닉네임 가용성 조회 후에도 DB UNIQUE 충돌을 처리한다.
 3. 데이터 받기 화면에서 출처를 고르고 내보내기 절차를 안내한다.
-4. 원본 파일(multipart)이나 정규화한 이벤트 JSON을 서버에 제출하고 작업 ID를 202로 받는다. HTTP 요청은 검증이나 AI 완료를 기다리지 않는다. 화면은 작업 상태를 몇 초마다 폴링한다.
+4. 원본 파일(multipart)이나 정규화한 이벤트 JSON을 서버에 제출하고 작업 ID를 202로 받는다. HTTP 요청은 검증이나 AI 완료를 기다리지 않는다. 화면은 진행 상황 스트림(`GET /v1/analyses/{id}/events`)으로 바뀐 상태를 받고, 스트림을 쓸 수 없으면 몇 초마다 폴링한다.
 5. worker가 유효한 데이터를 확인해 AI를 호출한다.
 6. schema와 근거를 검증하고 점수를 서버에서 계산한다. 최신 요청만 활성 결과로 게시한다.
 7. 랭킹·ETA 스냅샷을 재계산한다. 완료 스냅샷을 한 번에 바꾼다.
