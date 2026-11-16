@@ -11,7 +11,7 @@ import java.time.Instant
  *
  * @property stage 순위 확정 상태 이름(PREVIEW, FINAL)
  * @property rankingPending 최신 평가가 아직 순위에 반영되지 않았는지
- * @property lowConfidenceDimensions 최신 평가에서 근거가 부족해 중립 점수를 준 항목 키
+ * @property lowConfidenceDimensions 최신 평가에서 근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 항목 키
  * @property archetypeCode 재미용 산타 유형 코드([com.santacut.domain.analysis.model.Archetype] 이름)
  * @property archetypeName 산타 유형 한국어 이름
  * @property dimensionBars 항목 막대 4개

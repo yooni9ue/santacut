@@ -1,7 +1,7 @@
 package com.santacut.domain.analysis.model
 
 /**
- * 근거가 부족해 중립 점수([DimensionScores.NEUTRAL_SCORE])를 준 채점 항목. [ScoreDimension] 순서다.
+ * 근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 채점 항목. [ScoreDimension] 순서다.
  * 평가 행에는 항목 키를 쉼표로 이어 저장한다.
  */
 data class LowConfidenceDimensions(private val values: List<ScoreDimension>) {

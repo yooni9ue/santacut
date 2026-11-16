@@ -8,7 +8,7 @@ import java.math.BigDecimal
 class DimensionReadings(private val values: List<DimensionReading>) {
     operator fun plus(other: DimensionReadings): DimensionReadings = DimensionReadings(values + other.values)
 
-    /** 어느 구간에도 근거가 없는 항목. 사전 평균(중립 점수)을 준다. */
+    /** 어느 구간에도 근거가 없는 항목. 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준다. */
     fun lowConfidence(): LowConfidenceDimensions =
         LowConfidenceDimensions(ScoreDimension.entries.filter { dimension -> supporting(dimension).isEmpty() })
 

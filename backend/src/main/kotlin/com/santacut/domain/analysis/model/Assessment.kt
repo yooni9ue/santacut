@@ -16,7 +16,7 @@ import java.util.UUID
  *
  * @property components 항목별 점수를 담은 JSON 배열
  * @property promptVersion 점수를 매길 때 쓴 채점 프롬프트(`score`) 판 번호. 프롬프트를 DB로 옮기기 전 평가는 null이다.
- * @property lowConfidence 근거가 부족해 중립 점수를 준 항목 키를 쉼표로 이은 값([LowConfidenceDimensions]). 이 값이 생기기 전 평가는 null이다.
+ * @property lowConfidence 근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 항목 키를 쉼표로 이은 값([LowConfidenceDimensions]). 이 값이 생기기 전 평가는 null이다.
  * @property playfulness 순위에 쓰지 않는 장난기 성향(0~100). 유형을 고를 때 쓴다. 이 값이 생기기 전 평가는 null이다.
  * @property scoreRuleVersion 점수 규칙 판([Score.RULE_VERSION]). 1판(구간 합산·수축 전) 평가는 null이다.
  * @property quote 본인 근거 줄에서 고른 20자 이하 한마디. 본인 결과에만 보이고 공유 카드에는 본인이 고를 때만 싣는다.
@@ -115,7 +115,7 @@ class Assessment(
     /** 받은 배지 라벨 목록. */
     fun badgeLabels(): List<String> = EarnedBadges.fromColumn(badges).labels()
 
-    /** 근거가 부족해 중립 점수를 준 항목 키 목록. */
+    /** 근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 항목 키 목록. */
     fun lowConfidenceKeys(): List<String> = LowConfidenceDimensions.fromColumn(lowConfidence).toKeys()
 
     companion object {

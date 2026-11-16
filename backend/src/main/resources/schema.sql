@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT N
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
 CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, source TEXT NOT NULL CHECK(source IN ('KAKAO','INSTAGRAM')), score_hundredths INTEGER NOT NULL CHECK(score_hundredths BETWEEN 0 AND 10000), verdict TEXT NOT NULL, comment TEXT NOT NULL, components TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), prompt_version INTEGER);
 -- prompt_version은 기존 DB에 Hibernate(ddl-auto: update)가 이 스크립트 다음에 더한다. 프롬프트를 DB로 옮기기 전 평가는 NULL이다.
--- low_confidence(근거가 부족해 중립 점수를 준 항목 키를 쉼표로 이은 값)도 기존 DB에 Hibernate가 더한다. 그 전 평가는 NULL이다.
+-- low_confidence(근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 항목 키를 쉼표로 이은 값)도 기존 DB에 Hibernate가 더한다. 그 전 평가는 NULL이다.
 -- playfulness(장난기 0~100), score_rule_version(점수 규칙 판, 2판부터), quote(본인 한마디), badges(배지 코드:횟수)도 Hibernate가 더한다. 그 전 평가는 NULL이다.
 CREATE INDEX IF NOT EXISTS assessments_user ON assessments(user_id,created_at DESC);
 CREATE TABLE IF NOT EXISTS analysis_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, idempotency_key TEXT NOT NULL, request_hash TEXT NOT NULL, source TEXT NOT NULL, payload TEXT, status TEXT NOT NULL DEFAULT 'QUEUED', attempts INTEGER NOT NULL DEFAULT 0, lease_token TEXT, lease_until TEXT, error_code TEXT, assessment_id TEXT REFERENCES assessments(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), finished_at TEXT, digest_hash TEXT, UNIQUE(user_id,idempotency_key));

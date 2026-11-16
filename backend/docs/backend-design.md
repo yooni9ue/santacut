@@ -182,10 +182,10 @@
 
 1. 항목마다 근거가 있는 구간 점수를 `본인 턴 수 × (n + 1)` 무게로 평균한다(x).
 2. 근거 무게 w = 구간 중 가장 큰 n × min(1, 본인 턴 수 / 5)이다. 본인 턴이 5개보다 적은 아주 짧은 대화만 덜 믿는다.
-3. x' = (C·m + w·x) / (C + w). m은 중립 점수 55(`DimensionScores.NEUTRAL_SCORE`, 근거 없는 항목 점수와 같은 상수), C = 0.25다(`santacut.score.shrinkage`). 기회가 없으면(n=0) m 그대로다. 어느 구간에도 근거가 없는 항목은 m과 근거 있는 항목들의 x를 함께 평균한 본인 수준 사전값을 주고 `low_confidence_dimensions`로 알린다(`santacut.score.shrinkage.personal-prior`, §14.12). 모든 항목에 근거가 없으면 근거 부족 실패다.
+3. x' = (C·m + w·x) / (C + w). m은 중립 점수 55(`DimensionScores.NEUTRAL_SCORE`), C = 0.25다(`santacut.score.shrinkage`). 기회가 없으면(n=0) m 그대로다. 어느 구간에도 근거가 없는 항목은 m과 근거 있는 항목들의 x를 함께 평균한 본인 수준 사전값을 주고 `low_confidence_dimensions`로 알린다(`santacut.score.shrinkage.personal-prior`, §14.12). 유형을 고르는 수축 전 평균도 같은 사전값을 쓴다(점수 규칙 7판). 모든 항목에 근거가 없으면 근거 부족 실패다.
 4. 총점은 정밀 x'에 가중치(30/25/25/20)를 곱해 더한 뒤 한 번만 반올림한다. 저장·표시하는 항목 점수는 소수 둘째 자리로 반올림한다.
 
-C와 본인 턴 기준은 같은 답에 여러 값을 적용해 비교해 골랐다(§14.10). C가 클수록 반복 표준편차와 위치 차이는 줄지만, 수축하지 않은 전체 맥락 기준과의 MAE는 커진다. C=0.25에 본인 턴 5는 위치 차이를 10점 안에 두면서 MAE가 가장 작은 조합이다. 점수 규칙 판은 6이다(`assessments.score_rule_version`, 1판 평가는 NULL, 2판은 C=0.5에 본인 턴 20, 3판은 C=0.25에 본인 턴 5, 4판은 짧은 대화 중앙값, 5판은 본인 수준 사전값, 6판은 구간 6,700자·최대 6구간). 판이 바뀌면 같은 채점 입력도 AI를 다시 불러 채점한다.
+C와 본인 턴 기준은 같은 답에 여러 값을 적용해 비교해 골랐다(§14.10). C가 클수록 반복 표준편차와 위치 차이는 줄지만, 수축하지 않은 전체 맥락 기준과의 MAE는 커진다. C=0.25에 본인 턴 5는 위치 차이를 10점 안에 두면서 MAE가 가장 작은 조합이다. 점수 규칙 판은 7이다(`assessments.score_rule_version`, 1판 평가는 NULL, 2판은 C=0.5에 본인 턴 20, 3판은 C=0.25에 본인 턴 5, 4판은 짧은 대화 중앙값, 5판은 본인 수준 사전값, 6판은 구간 6,700자·최대 6구간, 7판은 유형 입력에도 본인 수준 사전값). 판이 바뀌면 같은 채점 입력도 AI를 다시 불러 채점한다.
 
 **장난기와 유형.** 모델은 순위에 쓰지 않는 장난기(`playfulness`, 0~100)도 돌려준다. 구간 값은 본인 턴 수로 평균한다. 유형(`Archetype`)은 결과를 읽을 때 정한다.
 
@@ -456,7 +456,7 @@ stateDiagram-v2
     VALIDATING --> QUEUED: 검증 통과
     VALIDATING --> FAILED: 형식·화자 오류, 검증 3회 초과, 24시간 만료
     VALIDATING --> INSUFFICIENT_DATA: 본인 메시지 20개 미만
-    QUEUED --> RUNNING: 작업 임대(5분)
+    QUEUED --> RUNNING: 작업 임대(7분)
     QUEUED --> FAILED: 24시간 만료(EXPIRED)
     RUNNING --> RUNNING: 임대 만료 뒤 재시도(최대 3회)
     RUNNING --> SUCCEEDED: 평가 저장 + 순위 재계산
