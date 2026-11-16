@@ -82,13 +82,12 @@ class ParticipantController(
         ResponseCookie.from(SessionCookie.name(sessionCookieProperties.sessionSecure), token)
             .httpOnly(true)
             .secure(sessionCookieProperties.sessionSecure)
-            .sameSite(SAME_SITE)
+            .sameSite(sessionCookieProperties.sessionSameSite)
             .path(ROOT_PATH)
             .maxAge(lifetime)
             .build()
 
     companion object {
-        private const val SAME_SITE = "Strict"
         private const val ROOT_PATH = "/"
 
         /** 쿠키를 지울 때 넣는 빈 값. 브라우저는 Max-Age=0 쿠키를 바로 버린다. */
