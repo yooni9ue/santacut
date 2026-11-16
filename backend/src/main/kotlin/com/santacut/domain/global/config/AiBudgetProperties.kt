@@ -18,8 +18,8 @@ import java.time.Duration
 data class AiBudgetProperties(
     val dailyUsd: BigDecimal = BigDecimal("0.5"),
     val monthlyUsd: BigDecimal = BigDecimal("9"),
-    val inputUsdPerMillionTokens: BigDecimal = BigDecimal("1"),
-    val outputUsdPerMillionTokens: BigDecimal = BigDecimal("5"),
+    val inputUsdPerMillionTokens: BigDecimal = BigDecimal("0.3"),
+    val outputUsdPerMillionTokens: BigDecimal = BigDecimal("2.5"),
     val pause: Duration = Duration.ofMinutes(15),
     val maxConsecutiveFailures: Int = 3,
 )

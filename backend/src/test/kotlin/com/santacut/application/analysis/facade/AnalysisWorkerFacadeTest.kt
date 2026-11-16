@@ -326,7 +326,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private val USAGE = ModelUsage(4_000, 90, "end_turn")
 
         /** 입력 60만 토큰. 단가(100만 토큰당 1달러)로 0.6달러라 하루 한도 0.5달러를 넘는다. */
-        private val EXPENSIVE_USAGE = ModelUsage(600_000, 0, "end_turn")
+        private val EXPENSIVE_USAGE = ModelUsage(2_000_000, 0, "end_turn")
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
 
         private const val MAX_CONSECUTIVE_FAILURES = 3

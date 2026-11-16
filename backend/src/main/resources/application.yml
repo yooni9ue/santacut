@@ -47,8 +47,8 @@ santacut:
   ai.budget:
     daily-usd: ${AI_BUDGET_DAILY_USD:0.5}
     monthly-usd: ${AI_BUDGET_MONTHLY_USD:9}
-    input-usd-per-million-tokens: 1
-    output-usd-per-million-tokens: 5
+    input-usd-per-million-tokens: 0.3
+    output-usd-per-million-tokens: 2.5
     # 제공자가 호출을 막았거나(권한, 요청 한도) 연달아 3번 실패하면 이만큼 작업 잡기를 멈춘다.
     pause: 15m
     max-consecutive-failures: 3
