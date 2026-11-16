@@ -34,7 +34,7 @@ class ShareFacade(
         val snapshot = rankingService.findLatestSnapshot(command.participantId)
             ?: throw SantaCutException(ErrorCode.NO_RANKED_RESULT)
         val share = shareService.findActive(command.participantId, snapshot)
-            ?: issueShare(command.participantId, snapshot)
+            ?: issueShare(command.participantId, snapshot, command.includeQuote)
         return ShareLinkResult.from(shareService.linkOf(share))
     }
 
@@ -52,10 +52,11 @@ class ShareFacade(
     fun getPublicImage(command: PublicShareCommand): ShareImageResult =
         ShareImageResult(shareService.renderImage(ShareToken.from(command.token)))
 
-    private fun issueShare(participantId: UUID, snapshot: ResultSnapshot): Share {
+    private fun issueShare(participantId: UUID, snapshot: ResultSnapshot, includeQuote: Boolean): Share {
         val participant = participantService.get(participantId)
         val assessment = assessmentService.get(snapshot.assessmentId)
+        val profile = rankingService.findProfile(assessment, snapshot)
         val now = clock.instant()
-        return shareService.issue(participant, snapshot, assessment, rankingService.stageAt(now), now)
+        return shareService.issue(participant, snapshot, assessment, rankingService.stageAt(now), now, profile, includeQuote)
     }
 }

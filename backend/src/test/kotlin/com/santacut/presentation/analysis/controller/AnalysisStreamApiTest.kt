@@ -16,7 +16,9 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.domain.analysis.model.ScoringChunk
 import com.santacut.domain.analysis.model.ScoringDigest
+import com.santacut.domain.analysis.model.TranscriptTurns
 import com.santacut.domain.analysis.service.AiBudgetService
 import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.prompt.model.PromptName
@@ -101,8 +103,8 @@ class AnalysisStreamApiTest @Autowired constructor(
         aiBudgetService.recordSuccess()
         given(scoreClient.isEnabled()).willReturn(true)
         given(scoreClient.cacheKey(anyDigest(), anyInt())).willReturn(CACHE_KEY)
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
-        given(scoreClient.estimateUsage(anyDigest(), anyString())).willReturn(USAGE)
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        given(scoreClient.estimateUsage(anyChunk(), anyString())).willReturn(USAGE)
     }
 
     @Test
@@ -219,6 +221,8 @@ class AnalysisStreamApiTest @Autowired constructor(
 
     private fun fullAnswer(): ScoreAnswer =
         ScoreAnswer.of(List(DIMENSION_COUNT) { BigDecimal(SCORE) }, List(DIMENSION_COUNT) { listOf(1) }, "test", USAGE)
+
+    private fun anyChunk(): ScoringChunk = any(ScoringChunk::class.java) ?: ScoringChunk(TranscriptTurns(emptyList()), 1, 0, 0)
 
     private fun anyDigest(): ScoringDigest =
         any(ScoringDigest::class.java) ?: AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())).toScoringDigest()

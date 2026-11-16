@@ -17,7 +17,9 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.domain.analysis.model.ScoringChunk
 import com.santacut.domain.analysis.model.ScoringDigest
+import com.santacut.domain.analysis.model.TranscriptTurns
 import com.santacut.domain.analysis.service.AiBudgetService
 import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.prompt.model.PromptName
@@ -65,6 +67,10 @@ import kotlin.test.assertTrue
         "app.season-year=${AnalysisWorkerFacadeTest.SEASON_YEAR}",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
+        // 시작 직후 예약 폴링이 목을 부르면 이 스레드의 스텁이 다른 메서드에 붙는다. 작업자는 테스트가 직접 부른다.
+        "santacut.scheduling.enabled=false",
+        // 호출 수와 사용량을 세는 검증은 한 번 묻는 예전 흐름 기준이다. 중앙값 반복은 ScoringChunksTest·ScoreAnswersTest가 본다.
+        "santacut.score.sampling.samples=1",
     ],
 )
 @Import(WorkerTestClockConfiguration::class)
@@ -94,12 +100,12 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         aiBudgetService.recordSuccess()
         given(scoreClient.isEnabled()).willReturn(true)
         given(scoreClient.cacheKey(anyDigest(), anyInt())).willReturn(CACHE_KEY)
-        given(scoreClient.estimateUsage(anyDigest(), anyString())).willReturn(ESTIMATE)
+        given(scoreClient.estimateUsage(anyChunk(), anyString())).willReturn(ESTIMATE)
     }
 
     @Test
     fun `점수를 받으면 평가를 저장하고 순위를 다시 계산해 작업을 성공으로 끝낸다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -114,7 +120,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `점수 산정 중 예외가 나면 작업을 ANALYSIS_FAILED로 끝낸다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willThrow(IllegalStateException("AI 장애"))
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willThrow(IllegalStateException("AI 장애"))
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -128,7 +134,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `여러 작업을 연달아 채점한다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         val jobs = List(CONSECUTIVE_JOB_COUNT) { submitAnalysis() }
 
         repeat(CONSECUTIVE_JOB_COUNT) { analysisWorkerFacade.processNextJob() }
@@ -147,13 +153,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val status = analysisFacade.getStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("EXPIRED", status.errorCode)
-        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
     fun `점수를 받은 사이에 시즌이 마감되면 평가를 저장하지 않고 SEASON_FROZEN으로 끝낸다`() {
         clock.moveTo(seasonClose.minus(Duration.ofMinutes(1)))
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willAnswer {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
             clock.moveTo(seasonClose)
             fullAnswer()
         }
@@ -171,7 +177,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     fun `AI를 부를 때마다 채점 프롬프트의 최신 판을 보내고 평가에 그 판 번호를 남긴다`() {
         val first = checkNotNull(promptRepository.findFirstByNameOrderByVersionDesc(PromptName.SCORE.value))
         val latest = promptRepository.save(first.next(LATEST_PROMPT, OPEN_TIME))
-        given(scoreClient.requestAnswer(anyDigest(), eq(LATEST_PROMPT) ?: LATEST_PROMPT)).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anyChunk(), eq(LATEST_PROMPT) ?: LATEST_PROMPT)).willReturn(fullAnswer())
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -191,7 +197,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val status = analysisFacade.getStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("ANALYSIS_FAILED", status.errorCode)
-        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
@@ -203,12 +209,12 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val status = analysisFacade.getStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("INSUFFICIENT_EVIDENCE", status.errorCode)
-        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
     fun `같은 참가자가 같은 채점 입력으로 다시 내면 AI를 다시 부르지 않고 지난 점수를 새 평가로 옮겨 적는다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         val first = submitAnalysis()
         analysisWorkerFacade.processNextJob()
         val second = submitAnalysis(first.participantId)
@@ -219,12 +225,12 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertEquals("SUCCEEDED", status.status)
         assertNotEquals(analysisFacade.getStatus(first).assessmentId, status.assessmentId)
         assertEquals(EXPECTED_SCORE_HUNDREDTHS, resultFacade.getMyResult(MyResultCommand(second.participantId)).scoreHundredths)
-        verify(scoreClient, times(1)).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
     fun `같은 채점 입력이 근거 부족으로 끝났으면 다시 내도 AI 없이 근거 부족으로 끝낸다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(ScoreAnswer.insufficient(USAGE))
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(ScoreAnswer.insufficient(USAGE))
         val first = submitAnalysis()
         analysisWorkerFacade.processNextJob()
         val second = submitAnalysis(first.participantId)
@@ -233,37 +239,37 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         assertEquals("INSUFFICIENT_EVIDENCE", analysisFacade.getStatus(first).errorCode)
         assertEquals("INSUFFICIENT_EVIDENCE", analysisFacade.getStatus(second).errorCode)
-        verify(scoreClient, times(1)).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
     fun `다른 참가자의 같은 채점 입력은 다시 쓰지 않는다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         submitAnalysis()
         submitAnalysis()
 
         repeat(2) { analysisWorkerFacade.processNextJob() }
 
-        verify(scoreClient, times(2)).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, times(2)).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     fun `제공자가 호출을 막으면 작업을 실패시키지 않고 대기열로 되돌린 뒤 멈춘다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(ScoreAnswer.providerUnavailable())
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(ScoreAnswer.providerUnavailable())
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
         analysisWorkerFacade.processNextJob()
 
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
-        verify(scoreClient, times(1)).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     fun `분석 오류가 3번 연달아 나면 멈춰서 다음 작업을 잡지 않는다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willThrow(IllegalStateException("AI 장애"))
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willThrow(IllegalStateException("AI 장애"))
         val jobs = List(MAX_CONSECUTIVE_FAILURES + 1) { submitAnalysis() }
 
         repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
@@ -274,7 +280,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `근거 부족은 연달아 나도 멈추지 않는다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(ScoreAnswer.insufficient(USAGE))
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(ScoreAnswer.insufficient(USAGE))
         val jobs = List(MAX_CONSECUTIVE_FAILURES + 1) { submitAnalysis() }
 
         repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
@@ -284,7 +290,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `한 달 비용 한도에 닿으면 다음 작업을 잡지 않고 대기열에 둔다`() {
-        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(fullAnswer(EXPENSIVE_USAGE))
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer(EXPENSIVE_USAGE))
         val first = submitAnalysis()
         val second = submitAnalysis()
 
@@ -298,13 +304,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     fun `호출 전 어림 비용을 더하면 한도를 넘을 때는 AI를 부르지 않고 대기열로 되돌린 뒤 멈춘다`() {
-        given(scoreClient.estimateUsage(anyDigest(), anyString())).willReturn(OVER_BUDGET_ESTIMATE)
+        given(scoreClient.estimateUsage(anyChunk(), anyString())).willReturn(OVER_BUDGET_ESTIMATE)
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
 
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
-        verify(scoreClient, never()).requestAnswer(anyDigest(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
         assertTrue(aiBudgetService.isBlocked(clock.instant()))
     }
 
@@ -318,13 +324,19 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private fun registerParticipant(): UUID =
         participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
 
-    /** 모든 항목 80점, 근거는 첫 표본 줄. 가중 합계는 8,000(80.00점)이다. */
+    /**
+     * 모든 항목 100점, 근거는 첫 표본 줄. 기회 수가 없는 예전 형식이라 n=2로 보고,
+     * 본인 턴이 20개 이상이라 근거 무게 w=2다. C=0.5로 수축하면 항목마다 (0.5×55 + 2×100) / 2.5 = 91점, 합계 9,100이다.
+     */
     private fun fullAnswer(usage: ModelUsage = USAGE): ScoreAnswer =
         ScoreAnswer.of(List(DIMENSION_COUNT) { DIMENSION_SCORE }, List(DIMENSION_COUNT) { listOf(1) }, "test", usage)
 
     /** Kotlin의 null 불가 매개변수에도 쓸 수 있도록 매처를 등록한 뒤 null 대신 빈 제출의 채점 입력을 돌려준다. */
     private fun anyDigest(): ScoringDigest =
         any(ScoringDigest::class.java) ?: AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())).toScoringDigest()
+
+    /** 매처를 등록한 뒤 null 대신 빈 제출 전체를 한 구간으로 돌려준다. */
+    private fun anyChunk(): ScoringChunk = any(ScoringChunk::class.java) ?: ScoringChunk(TranscriptTurns(emptyList()), 1, 0, 0)
 
     companion object {
         const val SEASON_YEAR = 2099
@@ -339,8 +351,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
         private const val DIMENSION_COUNT = 4
-        private const val EXPECTED_SCORE_HUNDREDTHS = 8000
-        private val DIMENSION_SCORE = BigDecimal("80")
+        private const val EXPECTED_SCORE_HUNDREDTHS = 9500
+        private val DIMENSION_SCORE = BigDecimal("100")
         private val USAGE = ModelUsage(4_000, 90, "end_turn")
 
         /** 입력 60만 토큰. 단가(100만 토큰당 1달러)로 0.6달러라 하루 한도 0.5달러를 넘는다. */

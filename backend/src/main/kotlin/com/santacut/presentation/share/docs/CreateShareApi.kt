@@ -17,7 +17,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
     operationId = "createShare",
     summary = "내 최신 결과 공유 링크 만들기",
     description = "현재 결과의 스냅숏을 담은, 취소할 수 있는 공개 링크를 만들거나 기존 링크를 다시 씁니다. " +
-        "JSON 응답에는 HTML 페이지 주소와 1200×630 PNG 이미지 주소가 들어 있습니다. 먼저 CSRF 토큰을 받아야 합니다.",
+        "JSON 응답에는 HTML 페이지 주소와 1200×630 PNG 이미지 주소가 들어 있습니다. 먼저 CSRF 토큰을 받아야 합니다. " +
+        "본문은 생략할 수 있고, include_quote=true면 본인 한마디를 카드에 싣습니다(기본 false). 같은 결과로 이미 만든 링크가 있으면 그 링크를 그대로 돌려주고 " +
+        "include_quote는 바뀌지 않습니다. 카드에는 유형, 점수, 판정, 순위, 상위 %, 도착 예정일, 항목 막대 4개, 배지 1개, 가장 약한 항목이 들어가며 상대 말은 들어가지 않습니다.",
     tags = ["Sharing"],
     security = [SecurityRequirement(name = ApiDocs.SESSION_SECURITY)],
     parameters = [Parameter(name = ApiDocs.CSRF_HEADER, `in` = ParameterIn.HEADER, required = true, description = ApiDocs.CSRF_HEADER_DESCRIPTION)],

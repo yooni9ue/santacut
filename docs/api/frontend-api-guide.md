@@ -130,7 +130,7 @@
 - 창을 닫아도 심사는 계속된다. 재방문하면 `GET /v1/me/analysis`로 가장 최근 작업 상태를 읽는다. 진행 중이면 심사 화면, `SUCCEEDED`면 결과 화면으로 보낸다. 낸 작업이 없으면 `404`(`NOT_FOUND`)다.
 - 오래 걸려도 새 분석을 자동으로 만들지 않는다. 같은 `id`를 다시 조회한다.
 - 서버의 AI 비용 한도에 닿았거나 AI 제공자가 잠시 막으면 작업이 `QUEUED`에 오래 머물 수 있다. 24시간이 지나면 `EXPIRED`로 끝난다.
-- 본인 메시지가 8개 또는 300자보다 적으면 AI를 부르지 않고 `INSUFFICIENT_EVIDENCE`로 끝난다. 이 밖의 근거 부족 실패는 본인 말이 거의 없어 어느 항목도 판단할 수 없을 때만 난다. 한두 항목만 근거가 약하면 실패하지 않고 그 항목을 중립 점수로 매긴다(§7 `low_confidence_dimensions`).
+- 본인 메시지가 8개 또는 300자보다 적으면 AI를 부르지 않고 `INSUFFICIENT_EVIDENCE`로 끝난다. 이 밖의 근거 부족 실패는 본인 말이 거의 없어 어느 항목도 판단할 수 없을 때만 난다. 한두 항목만 근거가 약하면 실패하지 않고 그 항목을 사전값(중립 점수와 본인의 다른 항목 평균)으로 매긴다(§7 `low_confidence_dimensions`).
 - 같은 참가자가 같은 내용으로 다시 내면 AI를 다시 부르지 않고 지난번과 같은 결과(점수 또는 근거 부족)로 끝난다.
 
 ### 6.0 진행 상황 스트림 `GET /v1/analyses/{id}/events`
@@ -233,7 +233,16 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 - `ranking_pending`이 `true`면 새 심사가 아직 순위에 반영되지 않았다. 이전 스냅숏이 있으면 그 점수·순위를 그대로 보여주고 반영 중임을 따로 알린다.
 - 첫 순위 계산 전이면 `rank`, `delivery_sequence`, `eta`, `computed_at`이 `null`이다. 점수·판정을 먼저 보여주고 순위·도착일은 `계산 중`으로 둔다.
 - 점수가 나온 심사가 없으면 `404`(`RESULT_NOT_FOUND`)다.
-- `low_confidence_dimensions`는 근거가 부족해 중립 점수(55점)를 준 채점 항목 키 배열이다(`care_empathy`, `positivity_support`, `respectful_communication`, `cooperation_sharing`). 없으면 빈 배열이다. 화면은 이 항목에 "대화에서 판단할 근거가 적었어요"처럼 신뢰도가 낮다는 표시를 붙인다. 이 필드가 생기기 전 평가는 빈 배열이다.
+- `low_confidence_dimensions`는 근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 채점 항목 키 배열이다(`care_empathy`, `positivity_support`, `respectful_communication`, `cooperation_sharing`). 없으면 빈 배열이다. 화면은 이 항목에 "대화에서 판단할 근거가 적었어요"처럼 신뢰도가 낮다는 표시를 붙인다. 이 필드가 생기기 전 평가는 빈 배열이다.
+- 아래 필드는 2026-11-17에 더했다. 기존 필드는 그대로다. 모두 재미용 꾸밈이고 점수·순위에는 영향이 없다.
+  - `archetype`: `{ code, name }`. 산타 유형 10가지 가운데 하나다(예: `{"code":"HOT_COCOA_COURIER","name":"핫초코 배달부"}`). `code`로 일러스트를 고른다. 코드 목록은 OpenAPI 스키마에 있다.
+  - `dimension_scores`: 항목 막대 4개 배열. 각 원소는 `{ key, label, score }`이고 순서는 공감·응원·존중·협력이다. `score`는 0~100, 소수 둘째 자리까지다. 이 필드가 생기기 전 평가도 저장한 항목 점수로 채운다.
+  - `weakest_dimension`: 점수가 가장 낮은 항목 하나(`{ key, label, score }`).
+  - `top_percent`: 상위 몇 %(1~100, 올림)다. 순위 계산 참가자가 100명보다 적거나 첫 순위 계산 전이면 `null`이다. `null`이면 숨긴다.
+  - `archetype_share_percent`: 같은 유형인 참가자 비율(%)이다. "참가자 중 8%만 이 유형" 같은 희귀도 표시에 쓴다. 점수를 받은 참가자가 30명보다 적으면 `null`이고, 이때는 숨긴다.
+  - 유형은 위 두 항목 점수 차이로 고른다. 차이가 3점보다 작으면 균형형, 7점 이상이면 가장 높은 항목의 유형이고, 그 사이는 수축 전 평균의 차이(6점 미만이면 균형형)와 순서로 가른다. 같은 대화를 다시 채점할 때 생기는 작은 점수 흔들림으로 유형이 바뀌는 일을 줄이려는 규칙이다.
+  - `badges`: 본인 말에서 낱말 횟수로 받은 배지 라벨 배열이다(예: `고마워 12회 · 감사 자판기`, `미안 0회 · 사과 품절`). 없으면 빈 배열이다. 앞 원소가 우선이다.
+  - `quote`: 본인 근거 줄에서 고른 20자 이하 한마디다. 상대 말은 절대 들어가지 않는다. 없으면 `null`이다. 내 결과 화면에만 보여 주고, 공유 카드에는 사용자가 고를 때만 싣는다(아래 공유).
 
 ### 랭킹 `GET /v1/rankings`
 
@@ -251,6 +260,27 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 - 링크가 없거나 취소됐을 때 `Accept`에 `text/html`이 있는 요청은 `404`와 "더 이상 볼 수 없는 결과" HTML을 받는다. 시작 링크(`내 산타 점수 알아보기`)가 있다. 공개 페이지(`/s/{token}`)와 이미지(`/s/{token}/image.png`) 모두 같다. 브라우저 주소창에서 이미지 주소를 열 때도 `Accept`에 `text/html`이 들어가므로 이 HTML이 온다.
 - 같은 경우 그 밖의 요청(`fetch`, `<img>` 등 `Accept`에 `text/html`이 없는 요청)은 지금처럼 `404` JSON(`SHARE_NOT_FOUND`)이다.
 - 링크를 비활성화해도 이미 저장·전달된 이미지는 회수할 수 없다.
+- 요청 본문은 생략할 수 있다. `{"include_quote": true}`를 보내면 내 한마디(`quote`)를 카드에 싣는다. 기본은 `false`다. 같은 결과로 이미 만든 링크가 있으면 그 링크를 그대로 돌려주고 `include_quote`는 바뀌지 않는다. 바꾸려면 링크를 폐기하고 다시 만든다.
+- 서버가 그리는 카드(PNG, 공개 페이지)에는 유형, 점수, 판정, 순위, 상위 %, 도착 예정일, 항목 막대 4개 요약, 배지 1개, 가장 약한 항목이 들어간다. 상대 말은 어떤 경우에도 들어가지 않는다.
+
+#### 공유 카드 구성 안내
+
+앱 안에서 카드를 직접 그릴 때도 같은 구성을 쓴다. 값은 `GET /v1/me/result`에서 읽는다.
+
+| 자리 | 필드 | 비고 |
+| --- | --- | --- |
+| 유형 이름과 일러스트 자리 | `archetype.name`, `archetype.code` | 일러스트는 `code`별로 준비한다. 희귀도는 `archetype_share_percent` |
+| 점수 | `score_hundredths` | 100으로 나눠 소수 둘째 자리 |
+| 판정 | `verdict` | |
+| 순위 | `rank`, `tied` | `공동 N위` |
+| 상위 % | `top_percent` | `null`이면 숨김 |
+| 도착 예정일 | `eta` | `Asia/Seoul` |
+| 항목 막대 4개 | `dimension_scores` | `label`과 `score` |
+| 배지 1개 | `badges[0]` | 없으면 숨김 |
+| 가장 약한 항목 | `weakest_dimension.label` | "아쉬운 항목" 같은 가벼운 문구 |
+| 한마디(선택) | `quote` | 사용자가 켰을 때만. 기본은 끔 |
+
+- 카드에는 상대 말을 넣지 않는다. 대화 원문은 `quote`(본인 말, 사용자 선택)만 쓴다.
 
 ## 8. 오류 응답
 

@@ -4,7 +4,9 @@ import com.santacut.application.global.Facade
 import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.Score
-import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.domain.analysis.model.ScoredAssessment
+import com.santacut.domain.analysis.model.ScoringAttempt
+import com.santacut.domain.analysis.model.ScoringChunkAnswers
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.analysis.service.AiBudgetService
@@ -78,38 +80,53 @@ class AnalysisWorkerFacade(
         val digest = analysisScoringService.digest(job)
         val digestHash = analysisScoringService.fingerprint(digest, prompt.version)
         if (transactionTemplate.execute { reuseIfSameDigest(job.id, lease, digestHash) } == true) return
-        val score = askAndScore(job, lease, prompt, digest, digestHash)
-        transactionTemplate.executeWithoutResult { complete(job.id, lease, score, prompt.version, digestHash) }
+        val attempt = ScoringAttempt(job, lease, prompt, digest, digestHash)
+        val answers = askAll(prompt, digest)
+        val score = scoreOf(attempt, answers)
+        val quote = answers.quoteOf(score)
+        val badges = analysisScoringService.badges(digest)
+        val scored = ScoredAssessment(score, prompt.version, quote, badges)
+        transactionTemplate.executeWithoutResult { complete(job.id, lease, scored, digestHash) }
         aiBudgetService.recordSuccess()
     }
 
     /**
-     * AI에 묻고 사용량을 기록한 뒤 답을 점수로 바꾼다. 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는
-     * 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
+     * 모든 구간 호출의 어림 비용을 한 번에 확인한 뒤 구간마다 AI에 묻는다.
+     * 사용량은 구간 호출마다 바로 기록해, 뒤 구간이 실패해도 이미 과금된 호출이 비용 가드에 잡힌다.
      */
-    private fun askAndScore(job: AnalysisJob, lease: String, prompt: Prompt, digest: ScoringDigest, digestHash: String): Score {
+    private fun askAll(prompt: Prompt, digest: ScoringDigest): ScoringChunkAnswers {
         val estimate = analysisScoringService.estimateUsage(digest, prompt.content)
         transactionTemplate.executeWithoutResult { aiBudgetService.verifyAffordable(estimate, clock.instant()) }
-        val answer = analysisScoringService.ask(digest, prompt.content)
-        transactionTemplate.executeWithoutResult { aiBudgetService.record(answer.usage, clock.instant()) }
+        return analysisScoringService.ask(digest, prompt.content) { usage ->
+            transactionTemplate.executeWithoutResult { aiBudgetService.record(usage, clock.instant()) }
+        }
+    }
+
+    /**
+     * 구간 답을 합쳐 점수로 바꾼다. 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는
+     * 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
+     */
+    private fun scoreOf(attempt: ScoringAttempt, answers: ScoringChunkAnswers): Score {
         try {
-            return answer.toScore(digest.lineCount()).also { logUsage(job, prompt, digest, answer, SCORED_OUTCOME) }
+            return analysisScoringService.score(answers).also { logUsage(attempt, answers, SCORED_OUTCOME) }
         } catch (exception: SantaCutException) {
-            logUsage(job, prompt, digest, answer, exception.errorCode.name)
+            logUsage(attempt, answers, exception.errorCode.name)
             if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
-                transactionTemplate.executeWithoutResult { finishIfHeld(job.id, lease, ScoringFailure.of(exception), digestHash) }
+                val failure = ScoringFailure.of(exception)
+                transactionTemplate.executeWithoutResult { finishIfHeld(attempt.job.id, attempt.lease, failure, attempt.digestHash) }
             }
             throw exception
         }
     }
 
-    /** 호출 한 번의 숫자만 남긴다. 근거 보정은 범위 밖·겹친 근거 번호를 지운 수다. 대화문 줄 수와 길이 한도로 뺀 줄 수도 남긴다. */
-    private fun logUsage(job: AnalysisJob, prompt: Prompt, digest: ScoringDigest, answer: ScoreAnswer, outcome: String) {
-        val usage = answer.usage
+    /** 숫자만 남긴다. 사용량은 모든 구간 호출의 합이고, 근거 보정은 범위 밖·겹친 근거 번호를 지운 수다. */
+    private fun logUsage(attempt: ScoringAttempt, answers: ScoringChunkAnswers, outcome: String) {
+        val usage = answers.usage()
+        val digest = attempt.digest
         logger.info(
-            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 대화문 {}줄 {}자(뺀 줄 {}), 입력 {} 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
-            job.id, prompt.version, digest.messageCount, digest.lineCount(), digest.turns.totalLength(), digest.omittedTurns,
-            usage.inputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answer.discardedEvidence(digest.lineCount()), outcome,
+            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 대화문 {}줄 {}자(뺀 줄 {}), 구간 {}개, 입력 {} 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
+            attempt.job.id, attempt.prompt.version, digest.messageCount, digest.lineCount(), digest.turns.totalLength(), digest.omittedTurns, answers.size(),
+            usage.inputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answers.discardedEvidence(), outcome,
         )
     }
 
@@ -154,11 +171,11 @@ class AnalysisWorkerFacade(
      * 평가를 저장하고 같은 트랜잭션에서 순위를 다시 계산한다. 순위 계산이 실패하면 둘 다 롤백된다.
      * 시즌이 이미 마감됐으면 작업 쪽 규칙에 따라 실패로 끝내고 평가를 저장하지 않는다.
      */
-    private fun complete(jobId: String, lease: String, score: Score, promptVersion: Int, digestHash: String) {
+    private fun complete(jobId: String, lease: String, scored: ScoredAssessment, digestHash: String) {
         val job = analysisJobService.findHeld(jobId, lease) ?: return
         val completedAt = clock.instant()
         if (analysisJobService.freezeIfSeasonClosed(job, completedAt)) return
-        val assessment = assessmentService.record(job, score, promptVersion, completedAt)
+        val assessment = assessmentService.record(job, scored, completedAt)
         analysisJobService.succeed(job, assessment.id, completedAt, digestHash)
         rankingService.rebuild(completedAt, shareService.findAll())
     }

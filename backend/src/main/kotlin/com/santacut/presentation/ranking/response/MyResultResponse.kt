@@ -36,19 +36,56 @@ data class MyResultResponse(
     @field:JsonProperty("low_confidence_dimensions")
     @field:ArraySchema(
         arraySchema = Schema(
-            description = "근거가 부족해 중립 점수(55점)를 준 채점 항목 키. 이 항목 점수는 신뢰도가 낮습니다. 없으면 빈 배열입니다.",
+            description = "근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 채점 항목 키. 이 항목 점수는 신뢰도가 낮습니다. 없으면 빈 배열입니다.",
         ),
         schema = Schema(
             allowableValues = ["care_empathy", "positivity_support", "respectful_communication", "cooperation_sharing"],
         ),
     )
     val lowConfidenceDimensions: List<String>,
+    @field:Schema(description = "재미용 산타 유형. 가장 높은 항목과 장난기로 정하며 순위에는 영향이 없습니다.")
+    val archetype: ArchetypeResponse,
+    @field:JsonProperty("dimension_scores")
+    @field:ArraySchema(
+        arraySchema = Schema(description = "항목 막대 4개(공감·응원·존중·협력 순서). 수축을 거친 항목 점수입니다."),
+        schema = Schema(implementation = DimensionBarResponse::class),
+    )
+    val dimensionScores: DimensionBarResponses,
+    @field:JsonProperty("weakest_dimension")
+    @field:Schema(description = "점수가 가장 낮은 항목")
+    val weakestDimension: DimensionBarResponse,
+    @field:JsonProperty("top_percent")
+    @field:Schema(
+        description = "상위 몇 %인지(1~100, 올림). 순위 계산 참가자가 100명 미만이거나 첫 순위 계산 전이면 null입니다.",
+        nullable = true,
+        example = "12",
+    )
+    val topPercent: Int?,
+    @field:JsonProperty("archetype_share_percent")
+    @field:Schema(
+        description = "같은 유형인 참가자 비율(%, 반올림). 희귀도 표시에 씁니다. 점수를 받은 참가자가 30명보다 적으면 null이며, 이때는 숨깁니다.",
+        nullable = true,
+        example = "8",
+    )
+    val archetypeSharePercent: Int?,
+    @field:ArraySchema(
+        arraySchema = Schema(description = "본인 말에서 낱말 횟수로 받은 재미용 배지 라벨. 점수에는 영향이 없습니다. 없으면 빈 배열입니다."),
+        schema = Schema(example = "고마워 12회 · 감사 자판기"),
+    )
+    val badges: List<String>,
+    @field:Schema(
+        description = "본인 근거 줄에서 고른 20자 이하 한마디. 상대 말은 들어가지 않습니다. 본인 결과에만 보이며 없으면 null입니다.",
+        nullable = true,
+    )
+    val quote: String?,
 ) {
     companion object {
         fun from(result: MyRankingResult): MyResultResponse = MyResultResponse(
             result.rank, result.tied, result.deliverySequence, result.eta?.toString(), result.computedAt?.toString(),
             result.scoreHundredths, result.verdict, result.comment, result.stage, result.rankingPending,
-            result.lowConfidenceDimensions,
+            result.lowConfidenceDimensions, ArchetypeResponse(result.archetypeCode, result.archetypeName),
+            DimensionBarResponses.from(result.dimensionBars), DimensionBarResponse.from(result.weakestDimension),
+            result.topPercent, result.archetypeSharePercent, result.badges, result.quote,
         )
     }
 }

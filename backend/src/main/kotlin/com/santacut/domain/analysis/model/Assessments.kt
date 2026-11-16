@@ -18,4 +18,23 @@ class Assessments(private val values: List<Assessment>) {
         val region = regions.find(participant.regionCode) ?: return null
         return RankingCandidate(assessment, participant, region)
     }
+
+    /**
+     * 장난기 높낮이를 가르는 기준값. 장난기를 아는 평가가 [MIN_PARTICIPANTS_FOR_MEDIAN]개 이상이면 그 중앙값,
+     * 그보다 적으면 [DEFAULT_PLAYFULNESS_SPLIT]이다. 참가자가 적을 때 유형이 한쪽으로 쏠리지 않게 하기 위해서다.
+     */
+    fun playfulnessSplit(): Int {
+        val known = values.mapNotNull { assessment -> assessment.playfulness }.sorted()
+        if (known.size < MIN_PARTICIPANTS_FOR_MEDIAN) return DEFAULT_PLAYFULNESS_SPLIT
+        return known[known.size / 2]
+    }
+
+    /** 장난기 기준값 [playfulnessSplit]으로 고른 유형별 평가 수. */
+    fun archetypeCounts(playfulnessSplit: Int): ArchetypeCounts =
+        ArchetypeCounts(values.groupingBy { assessment -> assessment.archetype(playfulnessSplit) }.eachCount())
+
+    companion object {
+        const val MIN_PARTICIPANTS_FOR_MEDIAN = 30
+        const val DEFAULT_PLAYFULNESS_SPLIT = 50
+    }
 }

@@ -15,6 +15,7 @@ import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
+import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
@@ -31,8 +32,10 @@ class AnalysisJobService(
     private val appProperties: AppProperties,
     private val eventPublisher: ApplicationEventPublisher,
     analysisStreamProperties: AnalysisStreamProperties,
+    scoreModelProperties: ScoreModelProperties,
 ) {
     private val streamLimit = AnalysisStreamLimit(analysisStreamProperties.maxOpenStreams, analysisStreamProperties.retryAfter)
+    private val leaseDuration = AnalysisJob.leaseDurationFor(scoreModelProperties.callTimeout)
 
     fun toPayload(submission: AnalysisSubmission): AnalysisPayload =
         AnalysisPayload(objectMapper.writeValueAsString(submission))
@@ -118,7 +121,7 @@ class AnalysisJobService(
             )
 
     fun startAttempt(job: AnalysisJob, lease: String, now: Instant): AnalysisJob {
-        job.startAttempt(lease, now)
+        job.startAttempt(lease, now, leaseDuration)
         return save(job)
     }
 

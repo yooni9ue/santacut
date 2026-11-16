@@ -27,6 +27,9 @@ data class TranscriptTurn(
     fun absorbed(message: ScoringMessage): TranscriptTurn =
         copy(endedAt = message.localTime, text = text + MERGE_SEPARATOR + message.normalizedText())
 
+    /** 잇달아 보낸 메시지를 이은 본문을 다시 메시지별 토막으로 나눈다. */
+    fun pieces(): List<String> = text.split(MERGE_SEPARATOR)
+
     /** [previous] 줄이 끝난 뒤 이 줄이 시작하기까지의 간격. */
     fun gapAfter(previous: TranscriptTurn): Duration = Duration.between(previous.endedAt, startedAt)
 

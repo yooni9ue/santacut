@@ -6,6 +6,7 @@ import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.participant.model.Participant
 import com.santacut.domain.ranking.model.RankingStage
+import com.santacut.domain.ranking.model.ResultProfile
 import com.santacut.domain.ranking.model.ResultSnapshot
 import com.santacut.domain.share.model.Share
 import com.santacut.domain.share.model.ShareLink
@@ -36,7 +37,9 @@ class ShareService(
         assessment: Assessment,
         stage: RankingStage,
         issuedAt: Instant,
-    ): Share = shareRepository.save(Share.issue(participant, snapshot, assessment, stage, issuedAt))
+        profile: ResultProfile,
+        includeQuote: Boolean,
+    ): Share = shareRepository.save(Share.issue(participant, snapshot, assessment, stage, issuedAt, profile, includeQuote))
 
     /** 지금 남아 있는 모든 공유 링크. 순위 스냅숏 정리에서 지우면 안 되는 스냅숏을 가려내는 데 쓴다. */
     fun findAll(): Shares = Shares(shareRepository.findAll())
@@ -62,6 +65,7 @@ class ShareService(
     private fun cardOf(share: Share): ShareCard = ShareCard(
         share.token, share.nickname, share.displayScore(), share.displayRank(), share.verdict, share.displayEta(),
         share.comment, share.displayComputedAt(), share.displayStage(), share.displaySharedAt(),
+        share.displayArchetype(), share.displayBars(), share.displayHighlights(), share.quote,
     )
 
     private fun findPublic(token: ShareToken): Share =

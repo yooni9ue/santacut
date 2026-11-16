@@ -2,41 +2,56 @@ package com.santacut.infrastructure.analysis.client
 
 import com.google.genai.Client
 import com.santacut.domain.analysis.model.AnalysisSubmission
+import com.santacut.domain.analysis.model.Archetype
 import com.santacut.domain.analysis.model.ChatMessage
 import com.santacut.domain.analysis.model.ChatMessages
 import com.santacut.domain.analysis.model.DataSource
+import com.santacut.domain.analysis.model.Score
 import com.santacut.domain.analysis.model.ScoreDimension
+import com.santacut.domain.analysis.model.ScoreShrinkage
+import com.santacut.domain.analysis.model.ScoringChunk
+import com.santacut.domain.analysis.model.ScoringChunkAnswer
+import com.santacut.domain.analysis.model.ScoringChunkAnswers
+import com.santacut.domain.analysis.model.ScoringChunks
+import com.santacut.domain.analysis.model.ScoringDigest
+import com.santacut.domain.global.config.ScoreShrinkageProperties
 import com.santacut.domain.global.model.SeoulTime
 import com.santacut.domain.global.model.Sha256
 import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.google.genai.GoogleGenAiChatModel
 import org.springframework.ai.google.genai.GoogleGenAiChatOptions
 import org.springframework.ai.google.genai.common.GoogleGenAiThinkingLevel
-import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean
 import org.springframework.core.io.ClassPathResource
 import tools.jackson.databind.json.JsonMapper
 import java.io.File
+import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Collections
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.test.assertEquals
 
 /**
- * 채점 입력이 맥락을 잃는 정도를 재는 수동 평가. 기본 `check`에서는 빠지고 `./gradlew eval`로만 돈다.
- * 짝 대화 확인은 API를 부르지 않고, 안정성·전체 맥락 비교와 긴 대화 토큰 세기는 환경 변수 GEMINI_API_KEY로 실제 Gemini를 부른다.
- * 반복 횟수는 환경 변수 EVAL_REPETITIONS(기본 3)로 바꾼다. 긴 대화 위치 평가는 EVAL_LONG_REPETITIONS(기본 0, 건너뜀)로 켠다.
- * 기준(전체 맥락) 평균은 build/eval/full-baseline.txt에 두고 다음 실행에서 다시 쓴다.
- * 결과 표는 `build/eval/`에 남긴다.
+ * 채점 파이프라인(구간 나누기 → 구간별 호출 → 코드 합산 → 수축)을 실제 Gemini로 재는 수동 평가.
+ * 기본 `check`에서는 빠지고 `./gradlew eval`로만 돈다. 짝 대화 확인만 API를 부르지 않는다.
+ *
+ * 환경 변수: GEMINI_API_KEY(필수), EVAL_REPETITIONS(짧은 대화 반복, 기본 3), EVAL_SAMPLES(한 구간 대화의 중앙값 호출 수, 기본 1), EVAL_LONG_REPETITIONS(긴 대화 위치, 기본 0=건너뜀),
+ * EVAL_VARIANT_REPETITIONS(길이 불변·단체 대화 감싸기, 기본 0=건너뜀), EVAL_PROMPT_FILE(채점 프롬프트를 이 파일로 바꿈).
+ * 수축 규칙은 [SHRINKAGES](세기 C, 근거 무게를 깎지 않는 본인 턴 수 F)를 같은 답에 모두 적용해 비교한다(추가 호출 없음).
+ * 길이 불변은 기준 프롬프트로 원래·반 대화도 채점해, 모델의 길이별 변화가 기준의 변화와 얼마나 다른지도 잰다.
+ * 결과는 `build/eval/`에 남는다.
+ * 기준(전체 맥락) 평균은 build/eval/full-baseline.txt를 다시 쓴다(5판 평가 때 잰 값).
  */
 @Tag("eval")
 class ScoringContextEvalTest {
@@ -51,125 +66,226 @@ class ScoringContextEvalTest {
     }
 
     @Test
-    fun `이벤트 2,000개짜리 긴 대화의 입력 토큰을 센다`() {
-        val client = Client.builder().apiKey(System.getenv("GEMINI_API_KEY")).build()
-        val model = ScoreModelProperties().model
-        val corpus = (1..CHAT_COUNT).flatMap { messagesOf(resource("chat-$it.txt")) }
-        val now = Instant.now()
-        val start = now.minus(Duration.ofDays(LONG_CHAT_DAYS))
-        val step = Duration.ofDays(LONG_CHAT_DAYS).dividedBy(LONG_CHAT_EVENTS.toLong())
-        val messages = List(LONG_CHAT_EVENTS) { index ->
-            val source = corpus[index % corpus.size]
-            ChatMessage(source.speaker, start.plus(step.multipliedBy(index.toLong())), source.text)
-        }
-        val events = ChatMessages(messages).eventsFor(SELF).recentAt(now)
-        val digest = AnalysisSubmission(DataSource.KAKAO, events).toScoringDigest()
-        val input = ScoreModelInput.from(digest)
-        val systemPrompt = latestScorePrompt()
-        val counted = countTokens(client, model, systemPrompt) + countTokens(client, model, input.toText())
-        val estimated = ScoreClient.estimatedTokens(systemPrompt.length + input.toText().length)
-        report(
-            "long-chat.txt",
-            "events=${events.size()} lines=${digest.lineCount()} omitted=${digest.omittedTurns} chars=${systemPrompt.length + input.toText().length} " +
-                "counted-input-tokens=$counted estimated=$estimated",
-        )
-    }
-
-    private fun countTokens(client: Client, model: String, text: String): Int =
-        client.models.countTokens(model, text, null).totalTokens().orElse(0)
-
-    @Test
-    fun `실제 Gemini로 반복 안정성과 전체 맥락 대비 오차를 잰다`() {
-        val config = YamlPropertiesFactoryBean().apply { setResources(ClassPathResource("application.yml")) }.getObject()!!
-        val maxOutputTokens = config.getProperty("spring.ai.google.genai.chat.max-output-tokens").toInt()
-        val thinkingLevel = config.getProperty("spring.ai.google.genai.chat.thinking-level")?.let(GoogleGenAiThinkingLevel::valueOf)
-        val client = Client.builder().apiKey(System.getenv("GEMINI_API_KEY")).build()
-        val pipelineModel = chatModel(client, maxOutputTokens, thinkingLevel)
-        val fullModel = chatModel(client, FULL_CONTEXT_MAX_OUTPUT_TOKENS, thinkingLevel)
-        val systemPrompt = latestScorePrompt()
-        val lines = mutableListOf("max-output-tokens=$maxOutputTokens thinking-level=$thinkingLevel")
-        val calls = mutableListOf<Call>()
-        val errors = mutableListOf<Double>()
-        val deviations = mutableListOf<Double>()
-        val cachedFull = fullBaselineCache()
-        val fullMeans = mutableMapOf<String, Double>()
-        (1..CHAT_COUNT).forEach { chat ->
-            val messages = messagesOf(resource("chat-$chat.txt"))
-            val input = ScoreModelInput.from(submissionOf(messages).toScoringDigest().verifyEnough()).toText()
-            val pipeline = List(REPETITIONS) { call(pipelineModel, systemPrompt, input) }
-            val full = cachedFull.filterKeys { it.startsWith("chat-$chat|") }.ifEmpty {
-                fullMeansOf(List(REPETITIONS) { call(fullModel, FULL_CONTEXT_PROMPT, transcriptOf(messages)) })
-                    .mapKeys { (key, _) -> "chat-$chat|$key" }
+    fun `짧은 대화의 반복 안정성, 기준 대비 오차, 유형 안정성을 잰다`() {
+        val full = fullBaseline()
+        val lines = mutableListOf("prompt=${promptLabel()} samples=$SAMPLES max-output-tokens=${scoreModelProperties().maxOutputTokens}")
+        val runsByChat = (1..CHAT_COUNT).associateWith { chat -> List(REPETITIONS) { run(digestOf(chatMessages(chat))) } }
+        SHRINKAGES.forEach { shrinkage ->
+            val errors = mutableListOf<Double>()
+            val deviations = mutableListOf<Double>()
+            val gaps = mutableListOf<String>()
+            runsByChat.forEach { (chat, runs) ->
+                val scores = runs.mapNotNull { it.score(shrinkage) }
+                val totals = scores.map { it.hundredths / 100.0 }
+                if (totals.size >= 2) deviations += standardDeviation(totals)
+                ScoreDimension.entries.forEach { dimension ->
+                    val expected = full["chat-$chat|${dimension.key}"] ?: return@forEach
+                    if (scores.isNotEmpty()) errors += abs(scores.map { it.components.scoreOf(dimension).toDouble() }.average() - expected)
+                }
+                gaps += "chat-$chat=${totals.map { "%.1f".format(it) }} gap=%+.2f".format(totals.average() - full.getValue("chat-$chat|total"))
             }
-            fullMeans += full
-            calls += pipeline
-            val totals = pipeline.mapNotNull { it.total() }
-            if (totals.size == REPETITIONS) deviations += standardDeviation(totals)
-            val dimensionErrors = ScoreDimension.entries.mapNotNull { dimension ->
-                val scored = meanOf(pipeline, dimension) ?: return@mapNotNull null
-                abs(scored - (full["chat-$chat|${dimension.key}"] ?: return@mapNotNull null)).also { errors += it }
-            }
-            val fullTotal = full.getValue("chat-$chat|total")
-            lines += "chat-$chat totals=$totals full-mean=%.2f gap=%+.2f ".format(fullTotal, totals.average() - fullTotal) +
-                "mae=${dimensionErrors.map { "%.1f".format(it) }} finish=${pipeline.map { it.finishReason }} " +
-                "tone-ordered=${pipeline.count { it.toneOrdered }}/${pipeline.size} " +
-                "tokens(in/out/thought/total)=${pipeline.map { "${it.inputTokens}/${it.outputTokens}/${it.thoughtTokens}/${it.totalTokens}" }}"
+            lines += "${label(shrinkage)} mae=%.2f std-mean=%.2f std-max=%.2f ".format(errors.average(), deviations.average(), deviations.max()) + gaps
         }
-        if (cachedFull.isEmpty()) {
-            File(FULL_BASELINE_FILE).apply { parentFile.mkdirs() }.writeText(fullMeans.entries.joinToString("\n") { "${it.key}=${it.value}" })
+        val flips = mutableListOf<FlipCount>()
+        runsByChat.forEach { (chat, runs) ->
+            val scores = runs.mapNotNull { it.score(DEFAULT_SHRINKAGE) }
+            val archetypes = scores.map { score -> Archetype.of(score.components, score.playfulness, PLAYFULNESS_SPLIT, score.rawMeans) }
+            val legacy = scores.map { score -> legacyArchetype(score) }
+            flips += FlipCount(legacy.distinct().size > 1, archetypes.distinct().size > 1, disagreeingPairs(legacy), disagreeingPairs(archetypes), pairs(legacy.size))
+            val stable = archetypes.groupingBy { it }.eachCount().values.maxOrNull() ?: 0
+            lines += "chat-$chat archetypes=$archetypes legacy=$legacy stable=$stable/${runs.size} playfulness=${runs.map { it.score(DEFAULT_SHRINKAGE)?.playfulness }} " +
+                "shrunk=${runs.map { it.score(DEFAULT_SHRINKAGE)?.components?.toList()?.joinToString("/") }} raw=${runs.map { it.rawLine() }} tokens(in/out)=${runs.map { "${it.inputTokens()}/${it.outputTokens()}" }} finish=${runs.map { it.finish() }}"
         }
-        lines += "total-std-dev mean=%.2f max=%.2f".format(deviations.average(), deviations.max())
-        lines += "mae-vs-full mean=%.2f over ${errors.size / ScoreDimension.entries.size} scored chats".format(errors.average())
-        lines += "thought-tokens mean=%.1f max=%d".format(calls.map { it.thoughtTokens }.average(), calls.maxOf { it.thoughtTokens })
-        lines += "max-tokens-finishes=${calls.count { it.finishReason == "MAX_TOKENS" }}/${calls.size} no-scores(insufficient/unreadable)=${calls.count { it.scores.isEmpty() }}"
-        lines += "insufficient-evidence=${calls.count { it.insufficient }}/${calls.size} weak-dimensions=${calls.sumOf { it.weakDimensions }}"
-        lines += "input-tokens mean=%.0f max=%d".format(calls.map { it.inputTokens }.average(), calls.maxOf { it.inputTokens })
+        lines += "archetype-flip before(chats)=${flips.count { it.legacyFlipped }}/${flips.size} after(chats)=${flips.count { it.flipped }}/${flips.size} " +
+            "before(pairs)=${flips.sumOf { it.legacyPairs }}/${flips.sumOf { it.pairs }} after(pairs)=${flips.sumOf { it.disagreeingPairs }}/${flips.sumOf { it.pairs }}"
+        val all = runsByChat.values.flatten()
+        lines += "per-analysis tokens in=%.0f out=%.0f cost-usd=%.5f".format(all.map { it.inputTokens() }.average(), all.map { it.outputTokens() }.average(), all.map { it.cost() }.average())
         report("stability.txt", lines.joinToString("\n"))
     }
-
-    /** 기준(전체 맥락) 프롬프트는 단계마다 같으므로 처음 잰 평균을 [FULL_BASELINE_FILE]에 두고 다시 쓴다. 지우면 새로 잰다. */
-    private fun fullBaselineCache(): Map<String, Double> =
-        File(FULL_BASELINE_FILE).takeIf { it.exists() }?.readLines()?.filter { it.contains('=') }
-            ?.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() }.orEmpty()
-
-    private fun fullMeansOf(full: List<Call>): Map<String, Double> =
-        ScoreDimension.entries.mapNotNull { dimension -> meanOf(full, dimension)?.let { dimension.key to it } }.toMap() +
-            ("total" to full.mapNotNull { it.total() }.average())
 
     @Test
     fun `긴 대화에서 비꼬는 구간의 위치에 따라 점수가 달라지는지 잰다`() {
         assumeTrue(LONG_REPETITIONS > 0, "EVAL_LONG_REPETITIONS가 0이면 건너뛴다")
-        val config = YamlPropertiesFactoryBean().apply { setResources(ClassPathResource("application.yml")) }.getObject()!!
-        val maxOutputTokens = config.getProperty("spring.ai.google.genai.chat.max-output-tokens").toInt()
-        val thinkingLevel = config.getProperty("spring.ai.google.genai.chat.thinking-level")?.let(GoogleGenAiThinkingLevel::valueOf)
-        val model = chatModel(Client.builder().apiKey(System.getenv("GEMINI_API_KEY")).build(), maxOutputTokens, thinkingLevel)
-        val systemPrompt = latestScorePrompt()
-        val filler = (1..CHAT_COUNT).filter { it != SARCASTIC_CHAT }.flatMap { messagesOf(resource("chat-$it.txt")) }
-        val sarcastic = messagesOf(resource("chat-$SARCASTIC_CHAT.txt"))
+        val filler = (1..CHAT_COUNT).filter { it != SARCASTIC_CHAT }.flatMap { chatMessages(it) }
+        val sarcastic = chatMessages(SARCASTIC_CHAT)
         val fillerCount = LONG_CHAT_EVENTS - sarcastic.size
         val variants = mapOf("start" to 0, "middle" to fillerCount / 2, "end" to fillerCount, "control" to null)
-            .filter { (name, _) -> name != "control" || LONG_CONTROL }
-        val lines = mutableListOf<String>()
-        val means = mutableMapOf<String, Double>()
-        variants.forEach { (name, at) ->
+        val lines = mutableListOf("prompt=${promptLabel()}")
+        val runsByVariant = variants.mapValues { (_, at) ->
             val base = List(if (at == null) LONG_CHAT_EVENTS else fillerCount) { filler[it % filler.size] }
             val messages = if (at == null) base else base.take(at) + sarcastic + base.drop(at)
-            val digest = longSubmissionOf(messages).toScoringDigest()
-            val input = ScoreModelInput.from(digest).toText()
-            val repetitions = if (at == null) maxOf(1, LONG_REPETITIONS / 2) else LONG_REPETITIONS
-            val calls = List(repetitions) { call(model, systemPrompt, input) }
-            val totals = calls.mapNotNull { it.total() }
-            means[name] = totals.average()
-            lines += "$name lines=${digest.lineCount()} omitted=${digest.omittedTurns} totals=$totals mean=%.2f std=%.2f ".format(totals.average(), standardDeviation(totals)) +
-                "in-tokens=${calls.map { it.inputTokens }} out=${calls.map { it.outputTokens }} finish=${calls.map { it.finishReason }} " +
-                "tone-ordered=${calls.count { it.toneOrdered }}/${calls.size}"
+            val digest = spreadSubmission(messages).toScoringDigest()
+            List(if (at == null) 1 else LONG_REPETITIONS) { run(digest) }
         }
-        val positions = listOf("start", "middle", "end").map { means.getValue(it) }
-        lines += "position-gap(max-min)=%.2f middle-vs-ends=%+.2f".format(positions.max() - positions.min(), positions[1] - (positions[0] + positions[2]) / 2)
+        SHRINKAGES.forEach { shrinkage ->
+            val means = runsByVariant.mapValues { (_, runs) -> runs.mapNotNull { it.score(shrinkage)?.hundredths?.div(100.0) }.average() }
+            val positions = listOf("start", "middle", "end").map { means.getValue(it) }
+            lines += "${label(shrinkage)} means=${means.mapValues { "%.2f".format(it.value) }} position-spread=%.2f".format(positions.max() - positions.min())
+        }
+        runsByVariant.forEach { (name, runs) ->
+            lines += "$name chunks=${runs.first().chunkCount()} chunk-positivity=${runs.map { it.chunkScores(ScoreDimension.POSITIVITY_SUPPORT) }} " +
+                "tokens(in/out)=${runs.map { "${it.inputTokens()}/${it.outputTokens()}" }} cost-usd=${runs.map { "%.5f".format(it.cost()) }} finish=${runs.map { it.finish() }}"
+        }
         report("long-chat-positions.txt", lines.joinToString("\n"))
     }
 
-    private fun longSubmissionOf(messages: List<ChatMessage>): AnalysisSubmission {
+    @Test
+    fun `같은 대화를 반으로 자르거나 두 번 이어도, 단체 대화로 감싸도 총점이 비슷한지 잰다`() {
+        assumeTrue(VARIANT_REPETITIONS > 0, "EVAL_VARIANT_REPETITIONS가 0이면 건너뛴다")
+        val lines = mutableListOf("prompt=${promptLabel()}")
+        val deltas = SHRINKAGES.associateWith { mutableMapOf<String, MutableList<Double>>() }
+        val baseline = cachedScores(LENGTH_BASELINE_FILE)
+        (1..CHAT_COUNT).forEach { chat ->
+            val messages = chatMessages(chat)
+            val variants = mapOf(
+                "original" to messages,
+                "half" to messages.take(messages.size / 2),
+                "double" to messages + messages.map { ChatMessage(it.speaker, it.occurredAt.plus(DUPLICATE_SHIFT), it.text) },
+                "group" to asGroup(messages),
+            ).filterKeys { name -> name == "original" || name in VARIANT_NAMES }
+            val runs = variants.mapValues { (_, variant) -> List(VARIANT_REPETITIONS) { run(digestOf(variant, verify = false)) } }
+            val baseOriginal = baseline.getOrPut("chat-$chat|original") { baselineTotal(messages) }
+            val baseHalf = baseline.getOrPut("chat-$chat|half") { baselineTotal(variants.getValue("half")) }
+            lines += "baseline chat-$chat original=%.2f half=%.2f".format(baseOriginal, baseHalf)
+            SHRINKAGES.forEach { shrinkage ->
+                val means = runs.mapValues { (_, list) -> list.mapNotNull { it.score(shrinkage)?.hundredths?.div(100.0) }.average() }
+                variants.keys.filter { name -> name != "original" }.forEach { name ->
+                    deltas.getValue(shrinkage).getOrPut(name) { mutableListOf() } += abs(means.getValue(name) - means.getValue("original"))
+                }
+                val modelChange = means.getValue("half") - means.getValue("original")
+                deltas.getValue(shrinkage).getOrPut("half-vs-baseline") { mutableListOf() } += abs(modelChange - (baseHalf - baseOriginal))
+                lines += "${label(shrinkage)} chat-$chat means=${means.mapValues { "%.2f".format(it.value) }}"
+            }
+            runs.forEach { (name, list) -> lines += "raw chat-$chat $name ${list.map { it.answerLine() }}" }
+        }
+        writeScores(LENGTH_BASELINE_FILE, baseline)
+        deltas.forEach { (shrinkage, byName) ->
+            lines += "${label(shrinkage)} " + byName.entries.joinToString(" ") { (name, list) -> "$name-delta mean=%.2f max=%.2f".format(list.average(), list.max()) }
+        }
+        report("invariance.txt", lines.joinToString("\n"))
+    }
+
+    /** 상대 줄을 두 사람(민수, 지영)이 번갈아 말한 단체 대화로 바꾼다. 본인 줄은 그대로다. */
+    private fun asGroup(messages: List<ChatMessage>): List<ChatMessage> {
+        var partnerTurn = 0
+        return messages.map { message ->
+            if (message.speaker == SELF) message else ChatMessage(GROUP_MEMBERS[partnerTurn++ % GROUP_MEMBERS.size], message.occurredAt, message.text)
+        }
+    }
+
+    /**
+     * 띠를 두기 전 규칙: 저장한 항목 점수의 위 두 항목 차이가 5점보다 작으면 균형형이다.
+     * 수축 전 평균을 넘기지 않으면 띠 안에서도 저장한 점수의 5점 기준으로 가르므로 예전 규칙과 같다.
+     */
+    private fun legacyArchetype(score: Score): Archetype =
+        Archetype.of(score.components, score.playfulness, PLAYFULNESS_SPLIT)
+
+    private fun disagreeingPairs(archetypes: List<Archetype>): Int =
+        archetypes.indices.sumOf { left -> (left + 1 until archetypes.size).count { right -> archetypes[left] != archetypes[right] } }
+
+    private fun pairs(size: Int): Int = size * (size - 1) / 2
+
+    private class FlipCount(val legacyFlipped: Boolean, val flipped: Boolean, val legacyPairs: Int, val disagreeingPairs: Int, val pairs: Int)
+
+    private fun run(digest: ScoringDigest): Run {
+        val captured = Collections.synchronizedList(mutableListOf<ScoringChunkAnswer>())
+        val answers = ScoringChunks.of(digest).ask(SAMPLES, ScoreAnswerCalls::concurrently) { chunk ->
+            scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> captured += ScoringChunkAnswer(chunk, answer) }
+        }
+        return Run(answers, captured)
+    }
+
+    private class Run(private val answers: ScoringChunkAnswers, private val chunks: List<ScoringChunkAnswer>) {
+        fun score(shrinkage: ScoreShrinkage): Score? = runCatching { answers.toScore(shrinkage) }.getOrNull()
+
+        fun rawLine(): String = score(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false))?.components?.toList()?.joinToString("/").orEmpty()
+
+        fun chunkCount(): Int = chunks.size
+
+        fun answerLine(): String = chunks.joinToString(" | ") { chunkAnswer ->
+            "turns=${chunkAnswer.chunk.selfTurnCount()} " + ScoreDimension.entries.indices.joinToString(" ") { position ->
+                "${chunkAnswer.answer.scoreAt(position)}/n${chunkAnswer.answer.opportunityAt(position)}/e${chunkAnswer.answer.evidenceAt(position).size}"
+            }
+        }
+
+        fun chunkScores(dimension: ScoreDimension): List<String> = chunks.map { chunkAnswer ->
+            runCatching { ScoringChunkAnswers(listOf(chunkAnswer)).toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)).components.scoreOf(dimension).toPlainString() }
+                .getOrDefault("-")
+        }
+
+        fun inputTokens(): Long = answers.usage().inputTokens
+
+        fun outputTokens(): Long = answers.usage().billedOutputTokens()
+
+        fun finish(): String = answers.usage().finishReason
+
+        fun cost(): Double = inputTokens() * INPUT_USD_PER_TOKEN + outputTokens() * OUTPUT_USD_PER_TOKEN
+    }
+
+    private val scoreClient: ScoreClient by lazy {
+        val properties = scoreModelProperties()
+        ScoreClient(JsonMapper.builder().build(), ChatClient.builder(chatModel(properties)), properties)
+    }
+
+    private val systemPrompt: String by lazy {
+        System.getenv("EVAL_PROMPT_FILE")?.let { File(it).readText() }
+            ?: PROMPT_ROW.findAll(resource("prompts.sql")).maxBy { it.groupValues[1].toInt() }.groupValues[2].replace("''", "'")
+    }
+
+    private fun promptLabel(): String = System.getenv("EVAL_PROMPT_FILE")?.let { File(it).name }
+        ?: "v${PROMPT_ROW.findAll(resource("prompts.sql")).maxOf { it.groupValues[1].toInt() }}"
+
+    private fun scoreModelProperties(): ScoreModelProperties {
+        val config = YamlPropertiesFactoryBean().apply { setResources(ClassPathResource("application.yml")) }.getObject()
+        val maxOutputTokens = config?.getProperty("spring.ai.google.genai.chat.max-output-tokens")?.toInt() ?: DEFAULT_MAX_OUTPUT_TOKENS
+        return ScoreModelProperties(ScoreModelProperties().model, maxOutputTokens)
+    }
+
+    private fun chatModel(properties: ScoreModelProperties): GoogleGenAiChatModel {
+        val options = GoogleGenAiChatOptions.builder()
+            .model(properties.model)
+            .temperature(TEMPERATURE)
+            .maxOutputTokens(properties.maxOutputTokens)
+            .responseMimeType(JSON_MIME_TYPE)
+            .thinkingLevel(GoogleGenAiThinkingLevel.MINIMAL)
+            .build() as GoogleGenAiChatOptions
+        val client = Client.builder().apiKey(System.getenv("GEMINI_API_KEY")).build()
+        return GoogleGenAiChatModel.builder().genAiClient(client).options(options).build()
+    }
+
+    private fun fullBaseline(): Map<String, Double> = cachedScores(FULL_BASELINE_FILE)
+
+    private fun cachedScores(path: String): MutableMap<String, Double> =
+        File(path).takeIf { it.exists() }?.readLines()?.filter { it.contains('=') }
+            ?.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() }.orEmpty().toMutableMap()
+
+    private fun writeScores(path: String, scores: Map<String, Double>) {
+        File(path).apply { parentFile.mkdirs() }.writeText(scores.entries.joinToString("\n") { "${it.key}=${it.value}" } + "\n")
+    }
+
+    private fun label(shrinkage: ScoreShrinkage): String = "C=${shrinkage.strength} F=${shrinkage.fullSelfTurns}" + if (shrinkage.personalPrior) " P" else ""
+
+    /** 기준(전체 맥락) 프롬프트로 [messages]를 [BASELINE_REPETITIONS]번 채점한 가중 총점 평균. 5판 평가 때와 같은 프롬프트다. */
+    private fun baselineTotal(messages: List<ChatMessage>): Double =
+        List(BASELINE_REPETITIONS) { baselineCall(messages) }.filterNotNull().average()
+
+    private fun baselineCall(messages: List<ChatMessage>): Double? {
+        val transcript = messages.joinToString("\n") { "${TIME_FORMAT.format(it.occurredAt.atZone(SeoulTime.ZONE))} ${it.speaker}: ${it.text}" }
+        val response = baselineModel.call(Prompt(listOf(SystemMessage(FULL_CONTEXT_PROMPT), UserMessage(transcript))))
+        val text = response.result?.output?.text.orEmpty()
+        val start = text.indexOf('{')
+        val end = text.lastIndexOf('}')
+        if (start !in 0..<end) return null
+        val scores = runCatching { JsonMapper.builder().build().readTree(text.substring(start, end + 1)).path("scores") }.getOrNull() ?: return null
+        if (!ScoreDimension.entries.all { scores.path(it.key).isNumber }) return null
+        return ScoreDimension.entries.sumOf { it.weight * scores.path(it.key).asDouble() } / ScoreDimension.TOTAL_WEIGHT
+    }
+
+    private val baselineModel: GoogleGenAiChatModel by lazy {
+        chatModel(ScoreModelProperties(ScoreModelProperties().model, BASELINE_MAX_OUTPUT_TOKENS))
+    }
+
+    private fun spreadSubmission(messages: List<ChatMessage>): AnalysisSubmission {
         val now = Instant.now()
         val start = now.minus(Duration.ofDays(LONG_CHAT_DAYS))
         val step = Duration.ofDays(LONG_CHAT_DAYS).dividedBy(messages.size.toLong())
@@ -177,60 +293,19 @@ class ScoringContextEvalTest {
         return AnalysisSubmission(DataSource.KAKAO, ChatMessages(timed).eventsFor(SELF).recentAt(now))
     }
 
-    private fun chatModel(client: Client, maxOutputTokens: Int, thinkingLevel: GoogleGenAiThinkingLevel?): GoogleGenAiChatModel {
-        val options = GoogleGenAiChatOptions.builder()
-            .model(ScoreModelProperties().model)
-            .temperature(TEMPERATURE)
-            .maxOutputTokens(maxOutputTokens)
-            .responseMimeType(JSON_MIME_TYPE)
-            .apply { thinkingLevel?.let { thinkingLevel(it) } }
-            .build() as GoogleGenAiChatOptions
-        return GoogleGenAiChatModel.builder().genAiClient(client).options(options).build()
-    }
-
-    private fun call(model: GoogleGenAiChatModel, systemPrompt: String, userText: String): Call {
-        val response = model.call(Prompt(listOf(SystemMessage(systemPrompt), UserMessage(userText))))
-        val usage = response.metadata.usage
-        val text = response.result?.output?.text.orEmpty()
-        val start = text.indexOf('{')
-        val end = text.lastIndexOf('}')
-        val tree = if (start in 0..<end) runCatching { JSON.readTree(text.substring(start, end + 1)) }.getOrNull() else null
-        val scores = tree?.path("scores")
-            ?.let { node -> ScoreDimension.entries.filter { node.has(it.key) }.associateWith { node.path(it.key).asDouble() } }
-            .orEmpty()
-        val evidence = tree?.path("evidence")
-        val toneAt = text.indexOf("\"tone\"")
-        val toneOrdered = toneAt > text.indexOf("\"evidence\"") && toneAt < text.indexOf("\"scores\"")
-        val weak = ScoreDimension.entries.count { evidence?.path(it.key)?.let { node -> node.isArray && node.isEmpty } == true }
-        return Call(
-            scores,
-            tree?.path("sufficient")?.asBoolean(true) == false,
-            weak,
-            usage.promptTokens.toLong(),
-            usage.completionTokens.toLong(),
-            ((usage as? GoogleGenAiUsage)?.thoughtsTokenCount ?: 0).toLong(),
-            response.result?.metadata?.finishReason.orEmpty(),
-            usage.totalTokens.toLong(),
-            toneOrdered,
-        )
-    }
-
-    private fun meanOf(calls: List<Call>, dimension: ScoreDimension): Double? =
-        calls.mapNotNull { it.scores[dimension] }.takeIf { it.isNotEmpty() }?.average()
-
     private fun standardDeviation(values: List<Double>): Double {
-        if (values.size < 2) return 0.0
         val mean = values.average()
         return sqrt(values.sumOf { (it - mean) * (it - mean) } / values.size)
     }
 
-    private fun modelInputOf(messages: List<ChatMessage>): String = ScoreModelInput.from(submissionOf(messages).toScoringDigest()).toText()
+    private fun digestOf(messages: List<ChatMessage>, verify: Boolean = true): ScoringDigest {
+        val digest = AnalysisSubmission(DataSource.KAKAO, ChatMessages(messages).sortedByTime().eventsFor(SELF)).toScoringDigest()
+        return if (verify) digest.verifyEnough() else digest
+    }
 
-    private fun submissionOf(messages: List<ChatMessage>): AnalysisSubmission =
-        AnalysisSubmission(DataSource.KAKAO, ChatMessages(messages).sortedByTime().eventsFor(SELF))
+    private fun modelInputOf(messages: List<ChatMessage>): String = ScoreModelInput.from(ScoringChunk.whole(digestOf(messages, verify = false))).toText()
 
-    private fun transcriptOf(messages: List<ChatMessage>): String =
-        messages.joinToString("\n") { "${TIME_FORMAT.format(it.occurredAt.atZone(SeoulTime.ZONE))} ${it.speaker}: ${it.text}" }
+    private fun chatMessages(chat: Int): List<ChatMessage> = messagesOf(resource("chat-$chat.txt"))
 
     private fun messagesOf(text: String): List<ChatMessage> =
         text.lines().filter { it.isNotBlank() && !it.startsWith("#") }.map { line ->
@@ -239,12 +314,7 @@ class ScoringContextEvalTest {
         }
 
     private fun blocksOf(text: String): Map<String, List<ChatMessage>> =
-        text.split(BLOCK_HEADER).drop(1).associate { block ->
-            block.substringBefore("\n").trim() to messagesOf(block.substringAfter("\n"))
-        }
-
-    private fun latestScorePrompt(): String =
-        PROMPT_ROW.findAll(resource("prompts.sql")).maxBy { it.groupValues[1].toInt() }.groupValues[2].replace("''", "'")
+        text.split(BLOCK_HEADER).drop(1).associate { block -> block.substringBefore("\n").trim() to messagesOf(block.substringAfter("\n")) }
 
     private fun resource(name: String): String =
         ClassPathResource(if (name.endsWith(".sql")) name else "eval/$name").getContentAsString(Charsets.UTF_8)
@@ -254,39 +324,36 @@ class ScoringContextEvalTest {
         File("build/eval").apply { mkdirs() }.resolve(name).writeText(text + "\n")
     }
 
-    private data class Call(
-        val scores: Map<ScoreDimension, Double>,
-        val insufficient: Boolean,
-        val weakDimensions: Int,
-        val inputTokens: Long,
-        val outputTokens: Long,
-        val thoughtTokens: Long,
-        val finishReason: String,
-        val totalTokens: Long,
-        val toneOrdered: Boolean,
-    ) {
-        fun total(): Double? =
-            if (scores.size == ScoreDimension.entries.size) scores.entries.sumOf { (dimension, score) -> score * dimension.weight } / 100 else null
-    }
-
     companion object {
         private const val SELF = "나"
+        private val GROUP_MEMBERS = listOf("민수", "지영")
         private const val PAIR_COUNT = 8
         private const val CHAT_COUNT = 5
         private const val LONG_CHAT_EVENTS = 2000
         private const val LONG_CHAT_DAYS = 89L
-        private val REPETITIONS = System.getenv("EVAL_REPETITIONS")?.toIntOrNull() ?: 3
-        private val LONG_REPETITIONS = System.getenv("EVAL_LONG_REPETITIONS")?.toIntOrNull() ?: 0
-        private val LONG_CONTROL = System.getenv("EVAL_LONG_CONTROL") != "0"
         private const val SARCASTIC_CHAT = 2
-        private const val FULL_BASELINE_FILE = "build/eval/full-baseline.txt"
-        private const val TEMPERATURE = 0.1
-        private const val JSON_MIME_TYPE = "application/json"
-        private const val FULL_CONTEXT_MAX_OUTPUT_TOKENS = 1024
-        private const val BLOCK_HEADER = "## "
-        private val JSON = JsonMapper.builder().build()
-        private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
-        private val PROMPT_ROW = Regex("'score',(\\d+),'((?:[^']++|'')*+)'\\)")
+        private val DUPLICATE_SHIFT: Duration = Duration.ofDays(1)
+        private val REPETITIONS = System.getenv("EVAL_REPETITIONS")?.toIntOrNull() ?: 3
+        private val SAMPLES = System.getenv("EVAL_SAMPLES")?.toIntOrNull() ?: 1
+        private val LONG_REPETITIONS = System.getenv("EVAL_LONG_REPETITIONS")?.toIntOrNull() ?: 0
+        private val VARIANT_REPETITIONS = System.getenv("EVAL_VARIANT_REPETITIONS")?.toIntOrNull() ?: 0
+        private val VARIANT_NAMES = System.getenv("EVAL_VARIANT_NAMES")?.split(",") ?: listOf("half", "double", "group")
+        private const val FULL_SELF_TURNS = 20
+        private val SHRINKAGES = listOf(
+            ScoreShrinkage(BigDecimal.ZERO, FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.5"), FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal.ONE, FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.25"), FULL_SELF_TURNS, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.5"), 10, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.5"), 5, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.25"), 10, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.25"), 5, personalPrior = false),
+            ScoreShrinkage(BigDecimal("0.25"), 5, personalPrior = true),
+        )
+        private val DEFAULT_SHRINKAGE = ScoreShrinkageProperties().toShrinkage()
+        private const val LENGTH_BASELINE_FILE = "build/eval/length-baseline.txt"
+        private val BASELINE_REPETITIONS = System.getenv("EVAL_BASELINE_REPETITIONS")?.toIntOrNull() ?: 3
+        private const val BASELINE_MAX_OUTPUT_TOKENS = 1024
         private val FULL_CONTEXT_PROMPT = """
             너는 재미용 산타 점수를 매기는 채점자다. 입력은 '나'와 '상대'의 대화 전체이며 각 줄 앞에 시각이 있다.
             '나'의 행동만 평가하고, 상대 메시지와 답장 간격은 '나'의 말을 이해하는 맥락으로 쓴다. 비꼬는 말은 근거가 아니다.
@@ -297,5 +364,15 @@ class ScoringContextEvalTest {
             항목마다 0~100 정수다. 평범한 대화는 50~65, 분명하고 반복되는 좋은 행동은 75 이상, 아주 두드러지면 90 이상, 반대 행동이 뚜렷하면 50 미만이다.
             마크다운 없이 JSON 하나만 돌려준다: {"scores":{"care_empathy":0,"positivity_support":0,"respectful_communication":0,"cooperation_sharing":0}}
         """.trimIndent()
+        private const val PLAYFULNESS_SPLIT = 50
+        private const val INPUT_USD_PER_TOKEN = 0.3 / 1_000_000
+        private const val OUTPUT_USD_PER_TOKEN = 2.5 / 1_000_000
+        private const val FULL_BASELINE_FILE = "build/eval/full-baseline.txt"
+        private const val TEMPERATURE = 0.1
+        private const val DEFAULT_MAX_OUTPUT_TOKENS = 250
+        private const val JSON_MIME_TYPE = "application/json"
+        private const val BLOCK_HEADER = "## "
+        private val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        private val PROMPT_ROW = Regex("'score',(\\d+),'((?:[^']++|'')*+)'\\)")
     }
 }
