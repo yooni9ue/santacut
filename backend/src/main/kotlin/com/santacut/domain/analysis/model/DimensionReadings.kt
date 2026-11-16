@@ -25,7 +25,7 @@ class DimensionReadings(private val values: List<DimensionReading>) {
 
     private fun shrunkScoreOf(dimension: ScoreDimension, shrinkage: ScoreShrinkage, selfTurns: Int): BigDecimal {
         val supported = supporting(dimension)
-        if (supported.isEmpty()) return shrinkage.prior
+        if (supported.isEmpty()) return DimensionScores.NEUTRAL_SCORE
         val totalWeight = supported.sumOf { reading -> reading.aggregationWeight() }
         val mean = supported.sumOf { reading -> reading.score * reading.aggregationWeight() }
             .divide(totalWeight, ScoreShrinkage.PRECISION)

@@ -122,9 +122,8 @@ class ScoreClient(
         )
     }
 
-    /** 0~100 숫자가 아니면 null이다. */
-    private fun playfulnessOf(node: JsonNode): Int? =
-        if (node.isNumber) node.asInt().takeIf { it in MIN_PLAYFULNESS..MAX_PLAYFULNESS } else null
+    /** 숫자가 아니면 null이다. 범위 확인은 [ScoreAnswer.of]가 한다. */
+    private fun playfulnessOf(node: JsonNode): Int? = if (node.isNumber) node.asInt() else null
 
     companion object {
         private const val MAX_RESPONSE_LENGTH = 100_000
@@ -135,8 +134,6 @@ class ScoreClient(
         private const val EVIDENCE_FIELD = "e"
         private const val OPPORTUNITY_FIELD = "n"
         private const val PLAYFULNESS_FIELD = "playfulness"
-        private const val MIN_PLAYFULNESS = 0
-        private const val MAX_PLAYFULNESS = 100
         private const val JSON_OBJECT_START = '{'
         private const val JSON_OBJECT_END = '}'
         private const val KEY_SEPARATOR = "\n"

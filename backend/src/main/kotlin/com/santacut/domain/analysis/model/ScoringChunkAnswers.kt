@@ -55,11 +55,9 @@ class ScoringChunkAnswers(private val values: List<ScoringChunkAnswer>) {
     /** 장난기를 돌려준 구간의 본인 턴 수 가중 평균(정수). 하나도 없으면 null이다. */
     private fun playfulnessOf(scored: List<ScoringChunkAnswer>): Int? {
         val rated = scored.filter { chunkAnswer -> chunkAnswer.answer.playfulness != null }
-        val weight = rated.sumOf { chunkAnswer -> chunkAnswer.chunk.selfTurnCount().coerceAtLeast(1) }
         if (rated.isEmpty()) return null
-        val sum = rated.sumOf { chunkAnswer ->
-            (chunkAnswer.answer.playfulness ?: 0) * chunkAnswer.chunk.selfTurnCount().coerceAtLeast(1)
-        }
+        val weight = rated.sumOf { chunkAnswer -> chunkAnswer.chunk.turnWeight() }
+        val sum = rated.sumOf { chunkAnswer -> (chunkAnswer.answer.playfulness ?: 0) * chunkAnswer.chunk.turnWeight() }
         return BigDecimal(sum).divide(BigDecimal(weight), 0, RoundingMode.HALF_UP).toInt()
     }
 

@@ -93,7 +93,7 @@ class ScoreAnswerTest {
     /** 본인 줄 [lines]개짜리 한 구간의 답으로 보고 수축 없이 점수를 낸다. */
     private fun ScoreAnswer.toScore(lines: Int): Score {
         val turns = TranscriptTurns(List(lines) { index -> TranscriptTurn(ScoringMessage.SELF, START, START, "말 $index") })
-        return ScoringChunkAnswers(listOf(ScoringChunkAnswer(ScoringChunk(turns, 1, 0, 0), this))).toScore(ScoreShrinkage.NONE)
+        return ScoringChunkAnswers(listOf(ScoringChunkAnswer(ScoringChunk(turns, 1, 0, 0), this))).toScore(ScoreShrinkage(BigDecimal.ZERO, 1))
     }
 
     private fun assertRejected(expected: ErrorCode, answer: ScoreAnswer) {

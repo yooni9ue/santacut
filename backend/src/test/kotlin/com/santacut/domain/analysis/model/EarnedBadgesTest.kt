@@ -14,7 +14,6 @@ class EarnedBadgesTest {
         val badges = EarnedBadges.countedIn(turns)
 
         assertEquals(listOf("고마워 5회 · 감사 자판기", "미안 0회 · 사과 품절"), badges.labels())
-        assertEquals("고마워 5회 · 감사 자판기", badges.firstLabel())
     }
 
     @Test

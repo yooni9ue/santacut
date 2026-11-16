@@ -108,9 +108,6 @@ class Assessment(
     /** 받은 배지 라벨 목록. */
     fun badgeLabels(): List<String> = EarnedBadges.fromColumn(badges).labels()
 
-    /** 공유 카드에 실을 첫 배지 라벨. 없으면 null이다. */
-    fun firstBadgeLabel(): String? = EarnedBadges.fromColumn(badges).firstLabel()
-
     /** 근거가 부족해 중립 점수를 준 항목 키 목록. */
     fun lowConfidenceKeys(): List<String> = LowConfidenceDimensions.fromColumn(lowConfidence).toKeys()
 

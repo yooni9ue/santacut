@@ -33,10 +33,10 @@ enum class Archetype(val koreanName: String) {
          * 장난기가 [playfulnessSplit](참가자 중앙값)보다 크면 장난기 높음이다. 장난기를 모르는 예전 평가는 낮음으로 본다.
          */
         fun of(components: ScoreComponents, playfulness: Int?, playfulnessSplit: Int): Archetype {
-            val ranked = components.rankedDimensions()
-            val gap = components.scoreOf(ranked[0]) - components.scoreOf(ranked[1])
+            val (top, runnerUp) = components.rankedDimensions()
+            val gap = components.scoreOf(top) - components.scoreOf(runnerUp)
             if (gap < BALANCED_GAP) return balanced(components.average())
-            return byDimension(ranked[0], (playfulness ?: playfulnessSplit) > playfulnessSplit)
+            return byDimension(top, (playfulness ?: playfulnessSplit) > playfulnessSplit)
         }
 
         private fun balanced(average: BigDecimal): Archetype =

@@ -18,6 +18,7 @@ class DimensionScoresTest {
     fun `점수가 0~100이고 소수 둘째 자리까지면 범위 안이다`() {
         assertTrue(DimensionScores(listOf(BigDecimal(0), BigDecimal(100), BigDecimal("70.25"), BigDecimal(10))).isWithinRange())
         assertFalse(DimensionScores(listOf(BigDecimal(101), BigDecimal(10), BigDecimal(10), BigDecimal(10))).isWithinRange())
+        assertFalse(DimensionScores(listOf(BigDecimal("10.005"), BigDecimal(10), BigDecimal(10), BigDecimal(10))).isWithinRange())
     }
 
     @Test
@@ -30,7 +31,7 @@ class DimensionScoresTest {
         assertEquals(listOf("positivity_support"), readings.lowConfidence().toKeys())
         assertEquals(
             listOf(BigDecimal(90), DimensionScores.NEUTRAL_SCORE, BigDecimal(70), BigDecimal(30)),
-            readings.shrunkScores(ScoreShrinkage.NONE, SELF_TURNS),
+            readings.shrunkScores(ScoreShrinkage(BigDecimal.ZERO, 1), SELF_TURNS),
         )
     }
 

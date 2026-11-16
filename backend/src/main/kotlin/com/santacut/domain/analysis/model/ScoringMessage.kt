@@ -25,8 +25,8 @@ data class ScoringMessage(
         text
             .replace(URL, LINK)
             .replace(WHITESPACE, SPACE)
-            .replace(REPEATED_LAUGH, "$1$1$1")
-            .replace(REPEATED_CRY_OR_MARK, "$1$1")
+            .replace(REPEATED_LAUGH, LAUGH_KEPT)
+            .replace(REPEATED_CRY_OR_MARK, CRY_OR_MARK_KEPT)
             .replace(REPEATED_EMOJI, "$1")
             .trim(),
     )
@@ -47,6 +47,12 @@ data class ScoringMessage(
         private val WHITESPACE = Regex("""\s+""")
         private val REPEATED_LAUGH = Regex("""([ㅋㅎ])\1{3,}""")
         private val REPEATED_CRY_OR_MARK = Regex("""([ㅠㅜ!?.~])\1{2,}""")
+
+        /** 잇단 ㅋ·ㅎ를 세 개로 줄인 치환 문자열(정규식 그룹 1을 세 번). */
+        private const val LAUGH_KEPT = "\$1\$1\$1"
+
+        /** 잇단 ㅠ·ㅜ와 문장 부호를 두 개로 줄인 치환 문자열(정규식 그룹 1을 두 번). */
+        private const val CRY_OR_MARK_KEPT = "\$1\$1"
         private const val LINK = "(링크)"
         private val URL = Regex("""(?:https?://|www\.)\S+""", RegexOption.IGNORE_CASE)
 

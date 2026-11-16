@@ -5,7 +5,7 @@ import java.math.BigDecimal
 import kotlin.test.assertEquals
 
 class ScoreShrinkageTest {
-    private val shrinkage = ScoreShrinkage(BigDecimal(55), BigDecimal.ONE, 20)
+    private val shrinkage = ScoreShrinkage(BigDecimal.ONE, 20)
 
     @Test
     fun `기회가 여러 번이고 본인 턴이 충분하면 근거 무게 2로 사전 평균 쪽으로 3분의 1만 당긴다`() {
@@ -24,6 +24,6 @@ class ScoreShrinkageTest {
 
     @Test
     fun `세기 0은 당기지 않는다`() {
-        assertEquals(BigDecimal(90), ScoreShrinkage.NONE.shrink(BigDecimal(90), 0, 0))
+        assertEquals(BigDecimal(90), ScoreShrinkage(BigDecimal.ZERO, 1).shrink(BigDecimal(90), 0, 0))
     }
 }

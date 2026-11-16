@@ -23,7 +23,7 @@ class AnalysisScoringService(
     private val objectMapper: ObjectMapper,
     shrinkageProperties: ScoreShrinkageProperties,
 ) {
-    private val shrinkage = ScoreShrinkage(shrinkageProperties.prior, shrinkageProperties.strength, shrinkageProperties.fullSelfTurns)
+    private val shrinkage = ScoreShrinkage(shrinkageProperties.strength, shrinkageProperties.fullSelfTurns)
 
     fun isEnabled(): Boolean = scoreClient.isEnabled()
 

@@ -8,7 +8,7 @@ class ScoringChunkAnswer(
     val answer: ScoreAnswer,
 ) {
     /** 근거 번호를 이 구간 줄 범위로 거른 항목별 점수. */
-    fun readings(): DimensionReadings = answer.readings(chunk.lineRange(), chunk.selfTurnCount())
+    fun readings(): DimensionReadings = answer.readings(chunk.lineRange(), chunk.turnWeight())
 
     /** 범위 밖·겹친 근거 번호 수. */
     fun discardedEvidence(): Int = answer.discardedEvidence(chunk.lineRange())
