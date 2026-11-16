@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
     operationId = "getPublicShareImage",
     summary = "공개 공유 이미지 받기",
     description = "소셜 공유용 1200×630 PNG 카드를 그려 돌려줍니다. 실시간 순위가 아니라 저장된 공유 스냅숏을 그립니다. " +
+        "카드에는 유형, 점수, 판정, 순위, 상위 %, 도착 예정일, 항목 막대 4개, 배지 1개, 가장 약한 항목과(만들 때 include_quote=true였다면) 본인 한마디가 들어가고 상대 말은 들어가지 않습니다. " +
         "링크가 없거나 취소됐을 때 Accept에 text/html이 있는 요청에는 공유 페이지와 같은 \"더 이상 볼 수 없는 결과\" HTML 페이지를, 그 밖의 요청에는 JSON 오류를 돌려줍니다.",
     tags = ["Public sharing"],
     parameters = [Parameter(name = "token", `in` = ParameterIn.PATH, required = true, description = ApiDocs.SHARE_TOKEN_DESCRIPTION)],

@@ -24,7 +24,7 @@ data class AnalysisStatusResponse(
     )
     val errorCode: String?,
     @field:JsonProperty("assessment_id")
-    @field:Schema(description = "분석이 성공하면 만들어지는 평가 UUID")
+    @field:Schema(description = "분석이 성공하면 만들어지는 평가 UUID. RANKING_PENDING과 SUCCEEDED에서만 있고, 그 전 단계나 FAILED에서는 null입니다.", format = "uuid")
     val assessmentId: String?,
     @field:JsonProperty("created_at")
     @field:Schema(description = "작업 생성 시각(UTC)", format = "date-time")

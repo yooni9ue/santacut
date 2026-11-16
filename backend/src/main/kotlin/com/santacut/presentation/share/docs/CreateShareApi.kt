@@ -25,6 +25,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
     parameters = [Parameter(name = ApiDocs.CSRF_HEADER, `in` = ParameterIn.HEADER, required = true, description = ApiDocs.CSRF_HEADER_DESCRIPTION)],
     responses = [
         ApiResponse(responseCode = "200", description = "공유 링크를 만들었거나 다시 씀", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = CreateShareResponse::class))]),
+        ApiResponse(responseCode = "400", description = "읽을 수 없는 JSON 본문이나 boolean이 아닌 include_quote(INVALID_REQUEST)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "401", description = ApiDocs.UNAUTHORIZED_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "403", description = ApiDocs.FORBIDDEN_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "404", description = "세션의 참가자가 더 이상 없음(PARTICIPANT_NOT_FOUND) 또는 공유할 결과의 평가를 찾지 못함(RESULT_NOT_FOUND)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
