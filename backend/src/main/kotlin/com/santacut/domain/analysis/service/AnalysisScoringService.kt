@@ -14,6 +14,7 @@ import com.santacut.domain.global.config.ScoreShrinkageProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.Sha256
+import com.santacut.infrastructure.analysis.client.ScoreAnswerCalls
 import com.santacut.infrastructure.analysis.client.ScoreClient
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
@@ -54,12 +55,12 @@ class AnalysisScoringService(
 
     /**
      * 대화문을 구간으로 나눠([ScoringChunks]) 구간마다 [systemPrompt]와 함께 AI에 묻는다.
-     * 한 구간이면 [samples]번 동시에 묻고 항목별 중앙값으로 합친다.
+     * 한 구간이면 [samples]번 동시에(가상 스레드, [ScoreAnswerCalls]) 묻고 항목별 중앙값으로 합친다.
      * 호출이 끝날 때마다 그 호출의 사용량을 [recordUsage]에 넘긴다. 다른 호출이 실패해도 이미 과금된 호출은 기록된다.
      * 점수 검증과 합산은 [score]가 한다.
      */
     fun ask(digest: ScoringDigest, systemPrompt: String, recordUsage: (ModelUsage) -> Unit): ScoringChunkAnswers =
-        ScoringChunks.of(digest).ask(samples) { chunk ->
+        ScoringChunks.of(digest).ask(samples, ScoreAnswerCalls::concurrently) { chunk ->
             scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> synchronized(usageLock) { recordUsage(answer.usage) } }
         }
 
