@@ -163,7 +163,7 @@
 - 분석 한 번은 이벤트 2,000개 대화가 4구간, 약 4만 2,800 입력 토큰(구간마다 시스템 프롬프트를 다시 보냄), 약 1.4센트다. 짧은 대화는 한 번 호출, 약 0.08센트다.
 - 선불 크레딧이 떨어지면 Gemini는 `429 RESOURCE_EXHAUSTED`("Your prepayment credits are depleted")로 막는다. 아래 제공자 차단과 같은 길을 타므로 작업은 실패하지 않고 `QUEUED`에 남는다. 크레딧을 채우면 멈춤이 풀린 뒤 이어서 처리한다.
 - 제공자가 권한 거부(403)·요청 한도와 크레딧 소진(429)·서버 오류(5xx)·시간 초과로 막으면 작업을 실패시키지 않는다. 리스를 풀어 `QUEUED`로 되돌리고 15분 동안 작업을 잡지 않는다. 근거 부족이 아닌 실패가 3번 연달아 나도 15분 멈춘다. 멈춤 상태는 앱 메모리에만 있다.
-- Gemini 호출 하나는 60초에서 끊고, SDK 재시도는 하지 않는다. 작업 리스(3분)보다 짧아야 리스가 끝난 뒤 다른 시도가 같은 작업을 또 부르지 않는다.
+- Gemini 호출 하나는 60초(`ScoreModelProperties.callTimeout`)에서 끊고, SDK 재시도는 하지 않는다. 작업 리스는 이 시간 상한 × 구간 수 상한(4) + 1분 = 5분이다. 네 구간이 모두 상한까지 걸려도 리스가 남아 있어서, 다른 시도가 같은 작업을 또 부르지 않는다.
 - 3.5 Flash-Lite는 생각(thinking)을 끌 수 없고 기본 수준이 `MINIMAL`이다. 기본값이 바뀌어도 그대로이도록 `thinking-level: MINIMAL`을 적어 둔다. `thinking-budget`은 이 모델이 거절하므로 쓰지 않는다.
 - 생각 토큰은 출력 단가로 청구되고 `max-output-tokens`(250)를 함께 쓴다. 응답의 `thoughtsTokenCount`를 사용량 로그에 남기고 비용 가드의 출력 토큰에 더한다.
 - 단가는 설정값이라 실제 청구와 다를 수 있다. Gemini 쪽에는 아직 앱 밖의 차단 장치가 없다.
@@ -173,15 +173,15 @@
 **구간 채점.** 긴 대화의 가운데에 있는 행동이 묻히지 않게(lost-in-the-middle) 대화문을 이어진 구간으로 나눠 따로 묻는다(`ScoringChunks`).
 
 - 본문 10,000자마다 한 구간, 최대 4구간이다. 경계는 본문 길이가 비슷하도록 잡는다. 10,000자 이하는 지금처럼 한 번 호출한다.
-- 구간 둘째부터는 앞 구간 마지막 4줄을 머리에 함께 싣는다. 줄 번호는 대화 전체 기준이라 근거 번호가 구간끼리 겹치지 않는다.
+- 구간 둘째부터는 앞 구간 마지막 4줄을 머리에 함께 싣는다. 줄 번호는 대화 전체 기준이다. 겹쳐 실은 줄은 앞 구간 몫이라 근거로 쓸 수 있는 범위에서 뺀다. 그래서 한 줄이 두 구간의 근거로 두 번 세어지지 않는다.
 - 구간은 차례로 부른다. 제공자 차단이나 읽기 실패가 한 구간이라도 나면 남은 구간은 부르지 않고 작업 전체가 그 이유로 끝나거나 대기열로 돌아간다(원자적). 근거 부족이라고 답한 구간은 빼고 합치며, 모든 구간이 근거 부족이면 `INSUFFICIENT_EVIDENCE`다.
-- 비용 가드는 모든 구간의 어림 비용을 합쳐 호출 전에 한 번 확인하고, 받은 사용량은 합쳐 한 번 기록한다.
+- 비용 가드는 모든 구간의 어림 비용을 합쳐 호출 전에 한 번 확인한다. 받은 사용량은 구간 호출이 끝날 때마다 바로 기록한다. 뒤 구간이 실패해도 이미 과금된 호출은 한도 계산에 들어간다.
 
 **합산과 수축.** 합산은 코드가 한다(`ScoringChunkAnswers`, `DimensionReadings`, `ScoreShrinkage`).
 
 1. 항목마다 근거가 있는 구간 점수를 `본인 턴 수 × (n + 1)` 무게로 평균한다(x).
 2. 근거 무게 w = 구간 중 가장 큰 n × min(1, 본인 턴 수 / 20)이다.
-3. x' = (C·m + w·x) / (C + w). m = 55, C = 0.5다(`santacut.score.shrinkage`). 기회가 없으면(n=0) m 그대로다. 어느 구간에도 근거가 없는 항목은 m을 주고 `low_confidence_dimensions`로 알린다.
+3. x' = (C·m + w·x) / (C + w). m은 중립 점수 55(`DimensionScores.NEUTRAL_SCORE`, 근거 없는 항목 점수와 같은 상수), C = 0.5다(`santacut.score.shrinkage`). 기회가 없으면(n=0) m 그대로다. 어느 구간에도 근거가 없는 항목은 m을 주고 `low_confidence_dimensions`로 알린다.
 4. 총점은 정밀 x'에 가중치(30/25/25/20)를 곱해 더한 뒤 한 번만 반올림한다. 저장·표시하는 항목 점수는 소수 둘째 자리로 반올림한다.
 
 C는 같은 답에 0, 0.5, 1, 2를 모두 적용해 비교해 골랐다(§14.9). C가 클수록 반복 표준편차와 위치 차이는 줄지만, 수축하지 않은 전체 맥락 기준과의 MAE는 커진다. 0.5는 MAE를 약 1점 내주고 표준편차를 약 35% 줄인다. 점수 규칙 판은 2다(`assessments.score_rule_version`, 1판 평가는 NULL).
@@ -197,7 +197,8 @@ C는 같은 답에 0, 0.5, 1, 2를 모두 적용해 비교해 골랐다(§14.9).
 
 - 위 두 항목 차이가 5점보다 작으면 균형형이다. 항목 평균이 60 이상이면 산타 후보생(`SANTA_CANDIDATE`), 아래면 그린치 견습생(`GRINCH_APPRENTICE`)이다.
 - 장난기 높음은 참가자 중앙값보다 클 때다. 장난기를 아는 참가자가 30명보다 적으면 기준값 50을 쓴다. 장난기가 없는 예전 평가는 낮음으로 본다.
-- 같은 유형 비율(`archetype_share_percent`)과 상위 비율(`top_percent`, 순위 계산 참가자 100명 이상일 때만)은 읽는 시점에 계산한다.
+- 장난기 기준값과 유형별 참가자 수는 순위를 다시 계산할 때 같은 평가로 세어 `result_populations`(행 하나)에 저장한다. 결과 화면은 저장한 값으로 같은 유형 비율(`archetype_share_percent`)을 내므로 요청마다 평가 전체를 읽지 않는다. 배포 직후처럼 저장한 값이 없을 때만 평가 전체로 센다.
+- 상위 비율(`top_percent`)은 순위 계산 참가자가 100명 이상일 때만 그 순위 계산의 참가자 수로 낸다.
 
 **배지와 한마디.** 둘 다 점수에 영향을 주지 않고, 본인 줄만 본다.
 
@@ -348,6 +349,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | analysis_uploads | job_id PK FK→analysis_jobs CASCADE, source, self_speaker, content BLOB, created_at; created_at 색인 |
 | assessments | id PK, user_id FK CASCADE, source CHECK(KAKAO, INSTAGRAM), score_hundredths CHECK 0..10000, verdict, comment, components, created_at, prompt_version NULL |
 | result_snapshots | id PK, user_id FK CASCADE, assessment_id FK CASCADE, rank, delivery_sequence, eta, computed_at, tied |
+| result_populations | id PK(항상 1), playfulness_split, archetype_counts(`유형:인원` 쉼표 목록). 순위를 다시 계산할 때 덮어쓴다 |
 | prompts | id PK, name, version CHECK ≥ 1, content, created_at; UNIQUE(name, version) |
 | shares | token PK, user_id FK CASCADE, snapshot_id FK→result_snapshots CASCADE, nickname, score_hundredths, rank, eta, verdict, comment, computed_at, revoked_at NULL, tied, stage, created_at NULL; 활성 링크는 (user_id, snapshot_id)당 하나 |
 
@@ -450,7 +452,7 @@ stateDiagram-v2
     VALIDATING --> QUEUED: 검증 통과
     VALIDATING --> FAILED: 형식·화자 오류, 검증 3회 초과, 24시간 만료
     VALIDATING --> INSUFFICIENT_DATA: 본인 메시지 20개 미만
-    QUEUED --> RUNNING: 작업 임대(3분)
+    QUEUED --> RUNNING: 작업 임대(5분)
     QUEUED --> FAILED: 24시간 만료(EXPIRED)
     RUNNING --> RUNNING: 임대 만료 뒤 재시도(최대 3회)
     RUNNING --> SUCCEEDED: 평가 저장 + 순위 재계산
