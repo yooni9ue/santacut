@@ -40,6 +40,9 @@ management:
         readiness:
           include: readinessState,db
       show-details: never
+santacut:
+  # dev 전용 프롬프트 관리 API(/v1/admin/prompts). 운영은 끈 채로 둔다(404).
+  prompt-admin.enabled: ${PROMPT_ADMIN_ENABLED:false}
 app:
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
   session-secure: ${APP_SESSION_SECURE:false}
