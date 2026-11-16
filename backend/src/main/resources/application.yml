@@ -43,6 +43,15 @@ management:
 santacut:
   # dev 전용 프롬프트 관리 API(/v1/admin/prompts). 운영은 끈 채로 둔다(404).
   prompt-admin.enabled: ${PROMPT_ADMIN_ENABLED:false}
+  # 앱 안의 AI 비용 가드. 기록한 토큰 수 × 단가로 하루·한 달 비용을 어림해 한도에 닿으면 작업을 잡지 않는다.
+  ai.budget:
+    daily-usd: ${AI_BUDGET_DAILY_USD:0.5}
+    monthly-usd: ${AI_BUDGET_MONTHLY_USD:9}
+    input-usd-per-million-tokens: 1
+    output-usd-per-million-tokens: 5
+    # 제공자가 호출을 막았거나(권한, 요청 한도) 연달아 3번 실패하면 이만큼 작업 잡기를 멈춘다.
+    pause: 15m
+    max-consecutive-failures: 3
 app:
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
   session-secure: ${APP_SESSION_SECURE:false}
