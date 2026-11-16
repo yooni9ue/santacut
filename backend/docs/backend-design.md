@@ -98,6 +98,8 @@
 
 모델, 프롬프트, 파서, 점수 규칙 버전을 저장한다. 낮은 temperature만으로 결정성을 보장하지 않으며 검증된 결과 캐시를 사용한다.
 
+현재 구현: 평가(`assessments.prompt_version`)에는 채점 프롬프트 판 번호만 남긴다. 모델·파서·점수 규칙 버전과 결과 캐시는 아직 없다(§14.5).
+
 캐시 키는 사용자 ID + 원본 해시 + 선택한 본인 화자 + 분석 범위 + 파서/모델/프롬프트/점수 버전이다. 원본이 같아도 화자가 다르면 같은 결과를 사용하지 않는다.
 
 사용자·시즌당 활성 점수는 하나다. 최신 업로드 요청이 성공하면 기존 결과를 교체한다. 실패 시 이전 정상 결과를 유지한다. 오래 걸린 이전 작업이 나중에 끝나 최신 요청 결과를 덮어쓰지 못하도록 요청 순번을 비교한다. 두 출처 모두 제출했다고 보너스나 점수 합산을 하지 않는다.
@@ -235,7 +237,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 
 ### 8.2 현재 구현
 
-[`schema.sql`](../src/main/resources/schema.sql)과 JPA 엔티티가 기준이다. SQLite 테이블은 9개이고, Hibernate `ddl-auto: update`가 엔티티에 맞춰 컬럼을 더한다. 시각은 모두 UTC 텍스트로 저장한다.
+[`schema.sql`](../src/main/resources/schema.sql)과 JPA 엔티티가 기준이다. SQLite 테이블은 10개이고, Hibernate `ddl-auto: update`가 엔티티에 맞춰 컬럼을 더한다. 시각은 모두 UTC 텍스트로 저장한다.
 
 | 테이블 | 필드·제약 |
 | --- | --- |
@@ -244,13 +246,16 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | sessions | token_hash PK, user_id FK→participants CASCADE, expires_at; 원본 세션 토큰은 저장하지 않음 |
 | analysis_jobs | id PK, user_id FK CASCADE, idempotency_key, request_hash, source, payload NULL, status, attempts, lease_token, lease_until, error_code, assessment_id FK→assessments SET NULL, created_at, finished_at; UNIQUE(user_id, idempotency_key) |
 | analysis_uploads | job_id PK FK→analysis_jobs CASCADE, source, self_speaker, content BLOB, created_at; created_at 색인 |
-| assessments | id PK, user_id FK CASCADE, source CHECK(KAKAO, INSTAGRAM), score_hundredths CHECK 0..10000, verdict, comment, components, created_at |
+| assessments | id PK, user_id FK CASCADE, source CHECK(KAKAO, INSTAGRAM), score_hundredths CHECK 0..10000, verdict, comment, components, created_at, prompt_version NULL |
 | ai_daily_budget | day PK, calls CHECK ≥ 0 |
 | result_snapshots | id PK, user_id FK CASCADE, assessment_id FK CASCADE, rank, delivery_sequence, eta, computed_at, tied |
+| prompts | id PK, name, version CHECK ≥ 1, content, created_at; UNIQUE(name, version) |
 | shares | token PK, user_id FK CASCADE, snapshot_id FK→result_snapshots CASCADE, nickname, score_hundredths, rank, eta, verdict, comment, computed_at, revoked_at NULL, tied, stage, created_at NULL; 활성 링크는 (user_id, snapshot_id)당 하나 |
 
 - 원본은 객체 저장소가 아니라 `analysis_uploads`에 둔다. 상태 폴링이 `analysis_jobs` 행을 자주 읽으므로 원본을 작업 행에 넣지 않는다.
 - `regions.parent_code`는 앱이 뜰 때 `RegionFacade`가 코드 접두어를 보고 채운다. 기존 DB에서는 Hibernate가 `schema.sql`보다 늦게 컬럼을 더하기 때문이다.
+- `prompts`는 AI 시스템 프롬프트의 판이다. 저장한 판은 바꾸지 않고 새 판을 더한다. `score` 1판은 `prompts.sql`이 앱 시작 때 넣는다(`INSERT OR IGNORE`).
+- `assessments.prompt_version`은 그 평가에 쓴 `score` 판 번호다. 기존 DB에는 Hibernate가 컬럼을 더하고, 그 전 평가는 NULL이다.
 - `shares`는 링크를 만든 순간의 닉네임·점수·순위·공동 순위·확정 상태·계산 시각을 복사해 둔다. 나중에 순위가 바뀌어도 링크 내용은 그대로다.
 
 닉네임은 NFKC 정규화·앞뒤 공백 제거·영문 대소문자 통일 후 nickname_key를 만든다. 기본안은 2~16자, 한글·영문·숫자·밑줄 허용이다. 정규화 후 검증하며 보이지 않는 문자와 중간 공백은 거부한다. 가용성 조회는 참고용이고 최종 등록은 UNIQUE 제약으로 동시 요청을 처리한다. 중복 충돌은 409를 반환한다.
@@ -279,7 +284,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | DELETE /v1/shares/{id} | 소유자의 공유 링크 비활성화 |
 | DELETE /v1/me | 계정·원본·공유 결과 삭제 요청 |
 
-### 9.2 현재 API (17개)
+### 9.2 현재 API (17개 + dev 전용 3개)
 
 OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-TOKEN` 헤더로 보낸다.
 
@@ -302,6 +307,18 @@ OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-T
 | DELETE | `/v1/shares/{token}` | 공유 링크 취소 (`204`) | 세션 · CSRF |
 | GET | `/s/{token}` | 공개 공유 HTML(Open Graph) | 공개 |
 | GET | `/s/{token}/image.png` | 공개 공유 PNG(1200×630) | 공개 |
+
+dev 전용 프롬프트 관리 API다. `santacut.prompt-admin.enabled=true`(`PROMPT_ADMIN_ENABLED`)일 때만 컨트롤러가 뜬다. 운영은 이 값을 두지 않으므로 세 경로 모두 `404`(code 없음)다. 로컬 `bootRun`과 테스트는 켠다. 인증은 없다. 프론트엔드용이 아니라 연동 가이드에는 넣지 않는다.
+
+| 메서드 | 경로 | 역할 | 인증 |
+| --- | --- | --- | --- |
+| POST | `/v1/admin/prompts/{name}` | 다음 판 저장 (`201`, `{name, version, created_at}`) | 공개 · CSRF |
+| GET | `/v1/admin/prompts/{name}` | 최신 판(본문 포함) | 공개 |
+| GET | `/v1/admin/prompts/{name}/versions` | 판 목록(본문 없음, 높은 판부터) | 공개 |
+
+- `name`은 `[a-z0-9-]{1,40}`, `content`는 1~20,000자다. 어기면 `400 INVALID_REQUEST`다.
+- 판 번호는 가장 높은 판 + 1이다. 커넥션 풀이 하나라 읽기와 쓰기 사이에 다른 트랜잭션이 끼지 못하고, `UNIQUE(name, version)`이 한 번 더 막는다.
+- 분석 작업자는 AI를 부를 때마다 `score`의 최신 판을 DB에서 읽는다. 캐시하지 않는다. 로그에는 이름과 판 번호만 남긴다. 판이 하나도 없으면 작업은 `ANALYSIS_FAILED`로 끝나고 로그 사유는 `PROMPT_NOT_FOUND`다.
 
 - 진행 상태는 폴링으로 읽는다. 상태 응답에는 결과가 없고, 결과는 `GET /v1/me/result` 하나로만 읽는다.
 - 없거나 취소된 공유 링크를 `Accept: text/html`로 열면 `/s/{token}`과 `/s/{token}/image.png` 모두 `404`와 함께 시작 링크가 있는 안내 HTML을 준다. 그 밖의 요청에는 `404` JSON(`SHARE_NOT_FOUND`)을 준다.
@@ -376,6 +393,7 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 | `PARTICIPANT_NOT_FOUND` | 404 | 세션의 참가자가 더 이상 없음 |
 | `RESULT_NOT_FOUND` | 404 | 점수가 나온 결과가 없음 |
 | `SHARE_NOT_FOUND` | 404 | 공유 링크가 없거나 취소됨 |
+| `PROMPT_NOT_FOUND` | 404 | 이 이름의 프롬프트 판이 없음(dev 전용 API, 작업자는 `ANALYSIS_FAILED`로 기록) |
 | `SEASON_FROZEN` | 409 | 시즌 마감 뒤 제출·지역 변경 |
 | `IDEMPOTENCY_CONFLICT` | 409 | 같은 Idempotency-Key로 다른 요청 |
 | `NICKNAME_TAKEN` | 409 | 이미 쓰는 닉네임 |
@@ -472,3 +490,10 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 
 - 공유 행에 `tied`, `stage`, `created_at`을 더했다. 카드와 페이지에 `공동 N위`, `미리보기`·`시즌 확정`, 계산 시각, 공유 시각이 나온다.
 - 취소됐거나 없는 링크를 브라우저로 열면 JSON 대신 시작 링크가 있는 안내 HTML(`share-inactive.html`)을 준다.
+
+### 14.5 프롬프트를 DB로 (2026-11-16)
+
+- 채점 프롬프트를 `resources/prompts/score-v1.txt`에서 `prompts` 테이블로 옮겼다. 1판은 같은 본문을 `prompts.sql`로 넣는다.
+- 시드를 앱 시작 이벤트가 아니라 SQL 초기화로 넣은 까닭은 순서다. SQL 초기화는 분석 작업자 스케줄보다 먼저 끝난다.
+- 새 판은 dev에서만 관리자 API로 만든다. 처음에는 헤더 토큰 인증을 검토했으나, 운영에서 아예 끄는 쪽으로 정했다(설정 `santacut.prompt-admin.enabled`).
+- 평가에 판 번호를 남겼다. 작업 행보다 결과(평가) 행이 자연스러운 자리라서 `assessments.prompt_version`에 둔다.

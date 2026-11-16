@@ -56,6 +56,7 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 | `spring.ai.bedrock.converse.chat.model` (`BEDROCK_MODEL_ID`) | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | Bedrock 추론 프로파일 ID. 비우면 AI 분석을 끈다 |
 | `spring.ai.bedrock.aws.region` (`AWS_REGION`) | `ap-northeast-2` | Bedrock 리전 |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | 없음 | 앱 IAM 사용자 키. 서버가 `app.env` 뒤에 붙인다 |
+| `santacut.prompt-admin.enabled` (`PROMPT_ADMIN_ENABLED`) | `false` | dev 전용 프롬프트 관리 API(`/v1/admin/prompts`). dev의 `app.env`에만 `true`를 둔다. 운영은 두지 않아 404다 |
 
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
 
