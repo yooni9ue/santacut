@@ -52,7 +52,7 @@ Axios는 상대 경로 `/v1`을 사용한다. 브라우저가 AWS API 도메인�
 ## 운영
 
 - 개발: `vercel pull --environment=preview --git-branch=develop` → `vercel build` → `vercel deploy --prebuilt` → 선택한 개발 도메인 alias 갱신.
-- 운영: `vercel pull --environment=production --git-branch=main` → `vercel build --prod` → `vercel deploy --prebuilt --prod`.
+- 운영: `vercel pull --environment=production` → `vercel build --prod` → `vercel deploy --prebuilt --prod`.
 - 브랜치별 Environment와 배포 concurrency 그룹을 사용한다. 개발과 운영은 독립적으로 실행하며 진행 중인 배포는 취소하지 않는다.
 - 자동 실행 경로는 frontend/**와 워크플로 파일이다. 공통 문서만 변경되면 배포하지 않으며 필요하면 수동 실행한다.
 - 실패한 배포는 Vercel에서 로그를 확인하고, 서비스 복구가 필요하면 이전 정상 deployment로 rollback한다.
