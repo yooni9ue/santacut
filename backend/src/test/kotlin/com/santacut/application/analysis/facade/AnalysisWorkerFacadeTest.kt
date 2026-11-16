@@ -347,7 +347,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
         private const val DIMENSION_COUNT = 4
-        private const val EXPECTED_SCORE_HUNDREDTHS = 9100
+        private const val EXPECTED_SCORE_HUNDREDTHS = 9500
         private val DIMENSION_SCORE = BigDecimal("100")
         private val USAGE = ModelUsage(4_000, 90, "end_turn")
 

@@ -9,10 +9,10 @@ import java.math.BigDecimal
  * 사전 평균 m은 설정이 아니라 중립 점수(`DimensionScores.NEUTRAL_SCORE`)다.
  *
  * @property strength 사전 평균의 무게 C. 평가(`./gradlew eval`)로 골랐고 근거는 backend-design.md에 있다.
- * @property fullSelfTurns 본인 턴이 이만큼 있으면 근거 무게를 깎지 않는다.
+ * @property fullSelfTurns 본인 턴이 이만큼 있으면 근거 무게를 깎지 않는다. 이보다 짧은 대화만 덜 믿는다.
  */
 @ConfigurationProperties(prefix = "santacut.score.shrinkage")
 data class ScoreShrinkageProperties(
-    val strength: BigDecimal = BigDecimal("0.5"),
-    val fullSelfTurns: Int = 20,
+    val strength: BigDecimal = BigDecimal("0.25"),
+    val fullSelfTurns: Int = 5,
 )
