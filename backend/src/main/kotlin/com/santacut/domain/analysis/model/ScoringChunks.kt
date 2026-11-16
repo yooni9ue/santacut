@@ -5,9 +5,27 @@ package com.santacut.domain.analysis.model
  * 본문이 [CHUNK_CHARS]자 이하면 한 구간이고, 길면 [MAX_CHUNKS]개까지 본문 길이가 비슷하게 나눈다.
  */
 class ScoringChunks(private val values: List<ScoringChunk>) {
-    /** 모든 구간 호출의 어림 사용량 합. 비용 가드가 호출 전에 한 번에 확인한다. */
-    fun estimate(estimator: (ScoringChunk) -> ModelUsage): ModelUsage =
-        values.fold(ModelUsage.NONE) { total, chunk -> total + estimator(chunk) }
+    /**
+     * 모든 호출의 어림 사용량 합. 비용 가드가 호출 전에 한 번에 확인한다.
+     * 한 구간이면 [samples]번 묻으므로 그만큼 곱한다.
+     */
+    fun estimate(samples: Int, estimator: (ScoringChunk) -> ModelUsage): ModelUsage {
+        val perRound = values.fold(ModelUsage.NONE) { total, chunk -> total + estimator(chunk) }
+        return List(callsPerChunk(samples)) { perRound }.fold(ModelUsage.NONE) { total, usage -> total + usage }
+    }
+
+    /**
+     * 한 구간이면 같은 구간을 [samples]번 동시에 따로 묻고 항목별 중앙값([ScoreAnswers.median])으로 합친다.
+     * 여러 구간이면 구간마다 한 번씩 묻는다([ask]). 구간 호출이 이미 잡음을 평균하기 때문이다. [samples]가 1이면 예전과 같다.
+     */
+    fun ask(samples: Int, asker: (ScoringChunk) -> ScoreAnswer): ScoringChunkAnswers {
+        if (callsPerChunk(samples) == 1) return ask(asker)
+        val chunk = values.single()
+        return ScoringChunkAnswers(listOf(ScoringChunkAnswer(chunk, ScoreAnswers.sampled(samples) { asker(chunk) }.median())))
+    }
+
+    /** 구간 하나를 몇 번 묻는지. 한 구간일 때만 [samples]번이고, 나머지는 한 번이다. */
+    private fun callsPerChunk(samples: Int): Int = if (values.size == 1) samples.coerceAtLeast(1) else 1
 
     /**
      * 구간을 차례로 묻는다. 한 구간이라도 쓸 수 없는 답(제공자 차단, 읽기 실패)이면 남은 구간은 묻지 않는다.
