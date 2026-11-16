@@ -8,7 +8,7 @@
 - 저장소 코드는 Spring Data JPA Repository만 사용한다. 분석 큐, 점수, 순위 스냅샷, 공유도 JPA 엔티티로 관리한다.
 - Swagger UI와 OpenAPI 3 명세는 `/swagger-ui.html`과 `/v3/api-docs`에서 제공한다. 각 API의 설명은 endpoint 전용 `@Operation` 메타 애노테이션에 두고, 요청·응답 모델에는 필드별 스키마 설명을 둔다.
 - 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
-- AI 호출은 Spring AI Bedrock Converse로 Claude Haiku 4.5(`global.` 추론 프로파일, 서울 리전)를 부른다. 자격 증명은 AWS 기본 체인(환경 변수)에서 읽는다. 보내는 것은 본인 메시지로 만든 항목별 신호와 표본(최대 120줄, 본문 6,000자)뿐이다.
+- AI 호출은 Spring AI Google GenAI로 Gemini 2.5 Flash(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 본인 메시지로 만든 항목별 신호와 표본(최대 120줄, 본문 6,000자)뿐이다.
 - 분석 API는 원본 파일 업로드(`POST /v1/analyses/files`)와 정규화된 이벤트 JSON(`POST /v1/analyses`)을 둘 다 받는다. 카카오톡 TXT(PC·모바일)와 인스타그램 `message_1.json` 파서가 있다. 다만 공개 내보내기 예시로 만든 것이라 실제 샘플 검증은 출시 전에 해야 한다.
 - 지역은 전국 시·도 16개와 시·군·구 255개(모두 271개)다. 서울은 `schema.sql`이, 나머지는 `regions.sql`이 앱 시작 때마다 넣는다(`INSERT OR IGNORE`).
 - 분석 진행 상태는 진행 상황 스트림(`GET /v1/analyses/{id}/events`, SSE)으로 받거나 폴링(`GET /v1/analyses/{id}`, `GET /v1/me/analysis`)으로 읽는다. 스트림 상한에 걸리면 폴링으로 바꾼다. 결과는 `GET /v1/me/result`로 따로 읽는다.
@@ -33,7 +33,7 @@ flowchart LR
   A --> V[(원본 파일: analysis_uploads BLOB)]
   A --> G[공유 HTML / PNG]
   W[제한된 분석 Worker] --> P
-  W -->|HTTPS / Bedrock Converse| AI[Amazon Bedrock]
+  W -->|HTTPS / Gemini API| AI[Gemini 2.5 Flash]
   A --- W
   P --> B[매시 SQLite 백업]
   B --> O[S3, SSE-KMS]
@@ -113,7 +113,7 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 - 사용자·시즌의 최신 request_sequence와 일치하는 정상 결과만 활성화한다. 이전 작업은 기록으로 남아도 활성 점수를 바꾸지 않는다.
 - 성공 결과 캐시 키에는 사용자, 파일 hash, source, 본인 화자, 정규화·표본 기간, parser/prompt/model/score 버전을 모두 포함한다.
 
-**[대체됨]** 처음에는 DB에 일별 예산 ledger를 두고 최악 토큰 비용을 먼저 reserve하는 방식을 계획했다. 지금 앱에는 AI 호출 수 한도가 없다. 대신 날짜별 토큰 합계로 하루 0.5달러, 한 달 9달러를 넘지 않게 막는 비용 가드가 있고, AWS Bedrock 예산 차단(santacut-infra)이 마지막 방어선이다. 앱에는 참가자별 24시간 3회 제출 한도와 이벤트 수·글자 수 제한만 남아 있다.
+**[대체됨]** 처음에는 DB에 일별 예산 ledger를 두고 최악 토큰 비용을 먼저 reserve하는 방식을 계획했다. 지금 앱에는 AI 호출 수 한도가 없다. 대신 날짜별 토큰 합계로 하루 0.5달러, 한 달 9달러를 넘지 않게 막는 비용 가드가 있다. 앱에는 참가자별 24시간 3회 제출 한도와 이벤트 수·글자 수 제한만 남아 있다.
 
 입력은 90일 이내 고정 표본, 최대 이벤트 수와 token budget을 둔다. 모델 이름을 바꾸면서 동일 버전 캐시를 재사용하지 않는다. provider URL은 운영 설정 allowlist만 허용하며 사용자 입력 URL로 데이터를 전송하지 않는다.
 
@@ -157,7 +157,7 @@ season current_snapshot_id는 계산 완료 후 짧은 트랜잭션으로 교체
 
 공유 페이지·PNG 문구에는 서버 측 escaping과 길이 제한을 적용한다. 브라우저가 보내는 Host 헤더로 og:url을 만들지 않고 운영 PUBLIC_BASE_URL만 사용한다. forwarded 헤더는 신뢰하는 reverse proxy 경로에서만 해석한다.
 
-AWS 키·SSH 키 같은 비밀값은 저장소·Docker image·workflow 로그에 넣지 않는다. 앱 설정은 서버 디스크에 두지 않는다. 서버가 부팅 때 KMS로 풀어 tmpfs `/run/santacut/app.env`(600)에 둔다. 앱 container는 non-root이고, Docker socket은 앱에 mount하지 않는다. Docker 권한이 있는 배포 계정은 사실상 root 권한이므로 전용 키·관리 경로로 제한한다.
+Gemini API 키·AWS 키·SSH 키 같은 비밀값은 저장소·Docker image·workflow 로그에 넣지 않는다. 앱 설정은 서버 디스크에 두지 않는다. 서버가 부팅 때 KMS로 풀어 tmpfs `/run/santacut/app.env`(600)에 둔다. 앱 container는 non-root이고, Docker socket은 앱에 mount하지 않는다. Docker 권한이 있는 배포 계정은 사실상 root 권한이므로 전용 키·관리 경로로 제한한다.
 
 ## 9. 초저예산 서버·도메인 예산
 
@@ -174,7 +174,7 @@ Lightsail 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/
 
 도메인은 사용자 선택에 따라 [가비아](https://domain.gabia.com/)에서 구매한다. `.com` 우선 검색 후 실제 구매 가능 이름을 정한다. 연간 등록비와 갱신가·VAT는 결제 화면에서 확인하며 현재 확정 견적은 없다. 첫해 할인보다 갱신가·등록 소유자·MFA·자동갱신을 확인한다. DNS는 가비아에서 직접 관리할 수 있고, 향후 Cloudflare DNS를 쓰더라도 등록기관은 가비아로 유지할 수 있다.
 
-서울 지연을 우선해 Lightsail 서울 `nano_3_0`($5)으로 시작한다. 큰 번들로 올릴 때 환율·VAT·백업을 더해 20,000원을 넘으면 이 예산을 충족한다고 표시하지 않는다. [Hetzner 공식 2026-06 가격 조정 안내](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) 검색 결과는 CX23 EUR 5.49를 제시한다. 직접 페이지 fetch가 404여서 주문 시 재확인하며 현재 제품 페이지에는 가용성 제한도 보인다. 서버 월 예산 산식은 VM + public IPv4 + 세금/환율 + 외부 백업 저장·요청·전송료다. 도메인 연납은 별도로 계산한다. AI 비용은 `분석 수 × (입력 토큰 × 입력 단가 + 출력 토큰 × 출력 단가)`로 따로 계산한다. 앱에는 AI 호출 한도가 없고, AWS Bedrock 예산 차단(santacut-infra)이 막는다. 사용량을 정하기 전 총비용을 월 몇천 원으로 약속하지 않는다.
+서울 지연을 우선해 Lightsail 서울 `nano_3_0`($5)으로 시작한다. 큰 번들로 올릴 때 환율·VAT·백업을 더해 20,000원을 넘으면 이 예산을 충족한다고 표시하지 않는다. [Hetzner 공식 2026-06 가격 조정 안내](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/) 검색 결과는 CX23 EUR 5.49를 제시한다. 직접 페이지 fetch가 404여서 주문 시 재확인하며 현재 제품 페이지에는 가용성 제한도 보인다. 서버 월 예산 산식은 VM + public IPv4 + 세금/환율 + 외부 백업 저장·요청·전송료다. 도메인 연납은 별도로 계산한다. AI 비용은 `분석 수 × (입력 토큰 × 입력 단가 + 출력 토큰 × 출력 단가)`로 따로 계산한다. 앱에는 AI 호출 한도가 없고, 토큰 비용 가드(하루 0.5달러, 한 달 9달러)가 막는다. 사용량을 정하기 전 총비용을 월 몇천 원으로 약속하지 않는다.
 
 [GitHub Actions 공식 안내](https://docs.github.com/en/actions/concepts/billing-and-usage)에 따라 공개 저장소의 standard hosted runner 사용은 무료다. 비공개 저장소·larger runner·artifact/package 저장 비용은 계정 조건을 확인한다. artifact 보관 기간을 짧게 하고 오래된 container image는 롤백 후보를 남긴 뒤 정리한다.
 

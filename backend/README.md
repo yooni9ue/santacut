@@ -12,7 +12,7 @@
   <img alt="Spring Boot 4.1.2" src="https://img.shields.io/badge/Spring%20Boot-4.1.2-B5123E?logo=springboot&logoColor=white">
   <img alt="Java 25" src="https://img.shields.io/badge/Java-25-12263F">
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-3.51.1-0C1B2E?logo=sqlite&logoColor=white">
-  <img alt="Amazon Bedrock" src="https://img.shields.io/badge/Amazon%20Bedrock-Claude%20Haiku%204.5-1E3A5C">
+  <img alt="Google Gemini" src="https://img.shields.io/badge/Google%20Gemini-2.5%20Flash-1E3A5C">
   <img alt="시즌 마감 2026-12-25" src="https://img.shields.io/badge/season-2026--12--25-8A6410">
 </p>
 
@@ -50,11 +50,11 @@
 
 ## 아키텍처
 
-<p align="center"><img src="docs/images/architecture.svg" alt="요청 흐름: 클라이언트가 Caddy(지금 HTTP 80, 도메인을 산 뒤 TLS 443)를 거쳐 Spring Boot 앱의 4계층으로 들어간다. 작업자 둘이 원본 검증과 AI 채점을 하고, SQLite에 저장하고, Amazon Bedrock Claude Haiku 4.5를 부른다. SQLite는 매시 S3로 백업한다" width="100%"></p>
+<p align="center"><img src="docs/images/architecture.svg" alt="요청 흐름: 클라이언트가 Caddy(지금 HTTP 80, 도메인을 산 뒤 TLS 443)를 거쳐 Spring Boot 앱의 4계층으로 들어간다. 작업자 둘이 원본 검증과 AI 채점을 하고, SQLite에 저장하고, Gemini 2.5 Flash를 부른다. SQLite는 매시 S3로 백업한다" width="100%"></p>
 
 - 분석은 큐에 넣는다. 화면은 진행 상태를 SSE 스트림(`/v1/analyses/{id}/events`)으로 받거나 폴링한다.
 - 작업자는 둘이다. 원본 검증은 1초, AI 채점은 3초 간격으로 돈다.
-- AI 채점은 Spring AI와 Amazon Bedrock(Claude Haiku 4.5, Converse API)이다.
+- AI 채점은 Spring AI와 Google Gemini 2.5 Flash(Gemini Developer API)다.
 - 채점 프롬프트는 DB(`prompts`)에 판으로 쌓인다. AI를 부를 때마다 최신 판을 읽는다.
 - AI에는 본인 메시지 전체가 아니라 항목별 낱말 신호 4줄과 표본(최대 120줄, 6,000자)만 보낸다. 같은 입력을 다시 내면 AI를 부르지 않는다.
 - 서버는 Lightsail `nano_3_0`(512MB) 한 대다. 지금은 도메인 없이 HTTP로 띄운다.
@@ -78,12 +78,12 @@
 
 ## 분석 흐름
 
-<p align="center"><img src="docs/images/analysis-flow.svg" alt="분석 흐름: 1 분석 제출, 2 접수 검사, 3 저장하고 202, 4 원본 꺼내기, 5 파싱과 정규화, 6 대기열로, 7 작업 임대, 8 최신 프롬프트 판으로 Bedrock Claude Haiku 4.5 채점, 9 평가 저장과 순위 재계산을 한 트랜잭션으로. 클라이언트는 VALIDATING부터 SUCCEEDED까지 폴링한다" width="100%"></p>
+<p align="center"><img src="docs/images/analysis-flow.svg" alt="분석 흐름: 1 분석 제출, 2 접수 검사, 3 저장하고 202, 4 원본 꺼내기, 5 파싱과 정규화, 6 대기열로, 7 작업 임대, 8 최신 프롬프트 판으로 Gemini 2.5 Flash 채점, 9 평가 저장과 순위 재계산을 한 트랜잭션으로. 클라이언트는 VALIDATING부터 SUCCEEDED까지 폴링한다" width="100%"></p>
 
 - 원본은 접수할 때 한 번 보고, 검증 작업자가 한 번 더 본다.
 - 빈 파일, zip, 바이너리는 바로 `422`다. 20MB를 넘으면 `413`이다.
 - 평가 저장과 순위 계산은 한 트랜잭션이다.
-- 앱 안의 비용 가드가 토큰 사용량으로 하루 0.5달러, 한 달 9달러를 넘지 않게 막는다. AWS Bedrock 예산 차단(인프라)이 마지막 방어선이다.
+- 앱 안의 비용 가드가 토큰 사용량으로 하루 0.5달러, 한 달 9달러를 넘지 않게 막는다. Gemini 쪽에는 아직 앱 밖의 차단 장치가 없다.
 - 24시간 넘게 기다린 작업은 만료된다. AI가 꺼져 있어도 마찬가지다.
 
 <details>
@@ -97,7 +97,7 @@ sequenceDiagram
     participant DB as SQLite
     participant V as 검증 워커
     participant W as 분석 워커
-    participant AI as Amazon Bedrock
+    participant AI as Gemini 2.5 Flash
     C->>API: POST /v1/analyses/files (multipart, Idempotency-Key)
     API->>DB: 원본 + 작업 저장 (VALIDATING)
     API-->>C: 202 Accepted
@@ -109,7 +109,7 @@ sequenceDiagram
     loop 3초마다
         W->>DB: 작업 임대 · 최신 프롬프트 읽기
     end
-    W->>AI: 채점 요청 (Converse, Claude Haiku 4.5)
+    W->>AI: 채점 요청 (Gemini 2.5 Flash)
     AI-->>W: 구조화 점수
     W->>DB: 평가 저장 + 순위 재계산 (한 트랜잭션)
     loop 화면이 몇 초마다
@@ -175,7 +175,7 @@ dev 전용(`PROMPT_ADMIN_ENABLED=true`일 때만 있고, 운영은 404):
 
 ## 실행
 
-JDK 25가 필요하다. AI 채점에는 Bedrock을 부를 AWS 자격 증명(기본 체인)이 필요하다. 자격 증명이 없으면 분석 작업은 실패로 끝나고, 나머지 API는 그대로 돈다.
+JDK 25가 필요하다. 앱을 띄우려면 환경 변수 `GEMINI_API_KEY`가 있어야 한다. 키가 틀리면 분석 작업만 실패하고 나머지 API는 그대로 돈다.
 
 ```powershell
 cd backend
