@@ -6,7 +6,15 @@ import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ModelUsage
+import com.santacut.domain.analysis.model.Score
+import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.domain.analysis.model.ScoreDimension
+import com.santacut.domain.analysis.model.ScoreShrinkage
+import com.santacut.domain.analysis.model.ScoringChunk
+import com.santacut.domain.analysis.model.ScoringChunkAnswer
+import com.santacut.domain.analysis.model.ScoringChunkAnswers
 import com.santacut.domain.analysis.model.ScoringDigest
+import java.math.BigDecimal
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.infrastructure.global.config.ScoreModelProperties
@@ -30,19 +38,19 @@ class ScoreClientTest {
 
     @Test
     fun `JSON 응답을 읽어 점수로 바꾼다`() {
-        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(digest(), SYSTEM_PROMPT).toScore(EVENT_COUNT).hundredths)
+        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).toScore(EVENT_COUNT).hundredths)
     }
 
     @Test
     fun `코드 블록으로 감싼 JSON도 읽는다`() {
         chatModel.reply = "```json\n$FULL_ANSWER\n```"
 
-        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(digest(), SYSTEM_PROMPT).toScore(EVENT_COUNT).hundredths)
+        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).toScore(EVENT_COUNT).hundredths)
     }
 
     @Test
     fun `응답 메타데이터의 토큰 사용량과 종료 사유를 답에 담는다`() {
-        val usage = scoreClient.requestAnswer(digest(), SYSTEM_PROMPT).usage
+        val usage = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).usage
 
         assertEquals(
             ModelUsage(
@@ -61,7 +69,7 @@ class ScoreClientTest {
             null, null, null, null, null, null, null, null,
         )
 
-        val usage = scoreClient.requestAnswer(digest(), SYSTEM_PROMPT).usage
+        val usage = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).usage
 
         assertEquals(THOUGHT_TOKENS.toLong(), usage.thoughtTokens)
         assertEquals((RecordingChatModel.OUTPUT_TOKENS + THOUGHT_TOKENS).toLong(), usage.billedOutputTokens())
@@ -72,7 +80,7 @@ class ScoreClientTest {
         listOf("점수를 매길 수 없습니다.", """{"sufficient":true,"evidence":{"care_empathy":[1}""").forEach { reply ->
             chatModel.reply = reply
 
-            val answer = scoreClient.requestAnswer(digest(), SYSTEM_PROMPT)
+            val answer = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT)
 
             assertEquals(ErrorCode.AI_RESPONSE_INVALID, assertThrows<SantaCutException> { answer.toScore(EVENT_COUNT) }.errorCode)
             assertEquals(RecordingChatModel.INPUT_TOKENS.toLong(), answer.usage.inputTokens)
@@ -83,7 +91,7 @@ class ScoreClientTest {
     fun `근거 부족 응답은 INSUFFICIENT_EVIDENCE다`() {
         chatModel.reply = """{"sufficient":false,"reason":"INSUFFICIENT_EVIDENCE"}"""
 
-        val exception = assertThrows<SantaCutException> { scoreClient.requestAnswer(digest(), SYSTEM_PROMPT).toScore(EVENT_COUNT) }
+        val exception = assertThrows<SantaCutException> { scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).toScore(EVENT_COUNT) }
 
         assertEquals(ErrorCode.INSUFFICIENT_EVIDENCE, exception.errorCode)
     }
@@ -92,7 +100,7 @@ class ScoreClientTest {
     fun `제공자가 요청 한도로 막으면 던지지 않고 AI_PROVIDER_UNAVAILABLE 답을 돌려준다`() {
         chatModel.failure = IllegalStateException("감싼 예외", ClientException(429, "RESOURCE_EXHAUSTED", "한도"))
 
-        val answer = scoreClient.requestAnswer(digest(), SYSTEM_PROMPT)
+        val answer = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT)
 
         assertEquals(ErrorCode.AI_PROVIDER_UNAVAILABLE, assertThrows<SantaCutException> { answer.toScore(EVENT_COUNT) }.errorCode)
         assertEquals(ModelUsage.NONE, answer.usage)
@@ -102,12 +110,12 @@ class ScoreClientTest {
     fun `그 밖의 호출 오류는 그대로 던진다`() {
         chatModel.failure = IllegalStateException("AI 장애")
 
-        assertThrows<IllegalStateException> { scoreClient.requestAnswer(digest(), SYSTEM_PROMPT) }
+        assertThrows<IllegalStateException> { scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT) }
     }
 
     @Test
     fun `넘겨받은 프롬프트를 시스템 메시지로, 번호와 화자를 붙인 대화문을 사용자 메시지로 보낸다`() {
-        scoreClient.requestAnswer(digest(), SYSTEM_PROMPT)
+        scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT)
 
         val prompt = checkNotNull(chatModel.lastPrompt)
         val userText = prompt.userMessage.text.orEmpty()
@@ -118,7 +126,7 @@ class ScoreClientTest {
     @Test
     fun `어림 사용량은 프롬프트와 대화문 글자 수의 4분의 3을 입력으로, 출력 상한을 출력으로 잡는다`() {
         val userText = "[대화]\n1|나|고마워 0\n2|상대|고마워 1\n3|나|고마워 2\n4|상대|고마워 3"
-        val estimate = scoreClient.estimateUsage(digest(), SYSTEM_PROMPT)
+        val estimate = scoreClient.estimateUsage(chunk(), SYSTEM_PROMPT)
 
         assertEquals(ScoreClient.estimatedTokens(SYSTEM_PROMPT.length + userText.length), estimate.inputTokens)
         assertEquals(MAX_OUTPUT_TOKENS, estimate.outputTokens)
@@ -139,6 +147,24 @@ class ScoreClientTest {
         assertFalse(disabled.isEnabled())
         assertTrue(scoreClient.isEnabled())
     }
+
+    @Test
+    fun `6판 형식은 항목마다 점수, 기회 수, 근거와 장난기를 읽는다`() {
+        chatModel.reply = """{"sufficient":true,"care_empathy":{"e":[1],"n":2,"s":90},"positivity_support":{"e":[2],"n":1,"s":70},""" +
+            """"respectful_communication":{"e":[],"n":0,"s":50},"cooperation_sharing":{"e":[4],"n":2,"s":30},"playfulness":70}"""
+
+        val score = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).toScore(EVENT_COUNT)
+
+        assertEquals(listOf("respectful_communication"), score.lowConfidence.toKeys())
+        assertEquals(70, score.playfulness)
+        assertEquals(BigDecimal(90), score.components.scoreOf(ScoreDimension.CARE_EMPATHY))
+    }
+
+    /** 이 구간 하나의 답으로 보고 수축 없이 점수를 낸다. */
+    private fun ScoreAnswer.toScore(@Suppress("UNUSED_PARAMETER") lines: Int): Score =
+        ScoringChunkAnswers(listOf(ScoringChunkAnswer(chunk(), this))).toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false))
+
+    private fun chunk(): ScoringChunk = ScoringChunk.whole(digest())
 
     private fun digest(): ScoringDigest = AnalysisSubmission(
         DataSource.KAKAO,

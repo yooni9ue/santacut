@@ -30,15 +30,25 @@ class ShareImageRenderer {
 
     private fun drawText(graphics: Graphics2D, card: ShareCard) {
         graphics.color = HEADLINE_COLOR
-        drawLine(graphics, ShareCardLine.HEADLINE, HEADLINE)
+        drawLine(graphics, ShareCardLine.HEADLINE, if (card.archetype.isEmpty()) HEADLINE else "$HEADLINE_PREFIX${card.archetype}")
         graphics.color = TEXT_COLOR
         drawLine(graphics, ShareCardLine.NICKNAME_SCORE, "${card.nickname}  ${card.score}점")
         drawLine(graphics, ShareCardLine.RANK_VERDICT, "${card.rank} · ${card.verdict}".take(MAX_VERDICT_LENGTH))
         drawLine(graphics, ShareCardLine.ETA, "선물 도착 예정: ${card.eta}")
-        drawLine(graphics, ShareCardLine.COMMENT, card.comment.take(MAX_COMMENT_LENGTH))
-        drawLine(graphics, ShareCardLine.META, "계산 ${card.computedAt} · ${card.stage}")
+        drawLine(graphics, ShareCardLine.COMMENT, summaryOf(card).take(MAX_COMMENT_LENGTH))
+        drawLine(graphics, ShareCardLine.META, metaOf(card).take(MAX_META_LENGTH))
         drawLine(graphics, ShareCardLine.FOOTER, FOOTER)
     }
+
+    /** 배지·상위 %·약한 항목 줄. 본인이 고른 한마디가 있으면 앞에 붙이고, 둘 다 없으면 재미용 한마디다. */
+    private fun summaryOf(card: ShareCard): String {
+        val parts = card.quoteAndHighlights()
+        return if (parts.isEmpty()) card.comment else parts.joinToString(SEPARATOR)
+    }
+
+    /** 항목 막대 요약과 순위 상태. 예전 링크처럼 막대가 없으면 계산 시각과 상태다. */
+    private fun metaOf(card: ShareCard): String =
+        if (card.bars.isEmpty()) "계산 ${card.computedAt} · ${card.stage}" else "${card.bars} · ${card.stage}"
 
     private fun drawLine(graphics: Graphics2D, line: ShareCardLine, text: String) {
         graphics.font = Font(FONT_FAMILY, line.style, line.size)
@@ -55,6 +65,9 @@ class ShareImageRenderer {
         private const val FOOTER = "산타컷 AI 심사 · 재미를 위한 결과"
         private const val MAX_VERDICT_LENGTH = 40
         private const val MAX_COMMENT_LENGTH = 42
+        private const val MAX_META_LENGTH = 56
+        private const val HEADLINE_PREFIX = "산타컷 · "
+        private const val SEPARATOR = " · "
         private val BACKGROUND_COLOR = Color(255, 247, 237)
         private val HEADLINE_COLOR = Color(185, 28, 28)
         private val TEXT_COLOR = Color(67, 40, 24)

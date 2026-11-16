@@ -1,7 +1,10 @@
 package com.santacut.infrastructure.analysis.client
 
 import com.santacut.domain.analysis.model.ModelUsage
+import com.santacut.domain.analysis.model.DimensionOpportunities
 import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.domain.analysis.model.ScoreDimension
+import com.santacut.domain.analysis.model.ScoringChunk
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.springframework.ai.chat.client.ChatClient
@@ -15,7 +18,9 @@ import tools.jackson.databind.ObjectMapper
 /**
  * Gemini 모델(Google GenAI)에 항목별 점수와 근거 번호를 묻고, 응답 JSON을 [ScoreAnswer]로 읽는다.
  * 시스템 프롬프트는 호출하는 쪽이 DB에서 읽어 넘긴다. 점수 검증과 합산은 도메인 모델이 한다.
- * 사용자 메시지에는 분석 기간의 대화 전체를 정규화한 대화문을 담는다([ScoreModelInput]).
+ * 사용자 메시지에는 분석 기간의 대화를 정규화한 대화문의 한 구간([ScoringChunk])을 담는다([ScoreModelInput]).
+ * 응답은 항목 키마다 `{"e":[근거 줄],"n":기회 수,"s":점수}`와 `playfulness`를 담은 6판 형식이다.
+ * 예전 형식(`scores`·`evidence` 객체)도 읽고, 그때 기회 수는 모르는 값([DimensionOpportunities.UNKNOWN])이 된다.
  * 응답 메타데이터의 토큰 사용량(생각 토큰 포함)과 종료 사유는 [ModelUsage]로 넘긴다. 프롬프트, 사용자 메시지, 모델 응답은 로그에 남기지 않는다.
  * JSON 응답 모드를 켜 두지만, 모델이 JSON을 코드 블록으로 감싸 보내도 읽도록 첫 `{`부터 마지막 `}`까지만 읽는다.
  */
@@ -31,25 +36,25 @@ class ScoreClient(
 
     /** 같은 입력인지 가리는 키. 모델 ID, 프롬프트 판, 사용자 메시지를 잇는다. 본문이 들어 있으므로 해시로만 저장한다. */
     fun cacheKey(digest: ScoringDigest, promptVersion: Int): String =
-        "${scoreModelProperties.model}$KEY_SEPARATOR$promptVersion$KEY_SEPARATOR${ScoreModelInput.from(digest).toText()}"
+        "${scoreModelProperties.model}$KEY_SEPARATOR$promptVersion$KEY_SEPARATOR${ScoreModelInput.from(ScoringChunk.whole(digest)).toText()}"
 
     /**
      * 호출 한 번의 어림 사용량. 입력은 시스템 프롬프트와 사용자 메시지 글자 수로([estimatedTokens]), 출력은 출력 토큰 상한으로 잡는다.
      * 비용 가드가 호출 전에 이 값으로 한도를 넘지 않을지 확인한다.
      */
-    fun estimateUsage(digest: ScoringDigest, systemPrompt: String): ModelUsage = ModelUsage(
-        estimatedTokens(systemPrompt.length + ScoreModelInput.from(digest).toText().length),
+    fun estimateUsage(chunk: ScoringChunk, systemPrompt: String): ModelUsage = ModelUsage(
+        estimatedTokens(systemPrompt.length + ScoreModelInput.from(chunk).toText().length),
         scoreModelProperties.maxOutputTokens.toLong(),
         ESTIMATED_FINISH_REASON,
     )
 
     /**
-     * [systemPrompt]를 시스템 메시지로, [digest]의 번호 붙인 대화문을 사용자 메시지로 보낸다.
+     * [systemPrompt]를 시스템 메시지로, [chunk]의 번호 붙인 대화문을 사용자 메시지로 보낸다.
      * 제공자가 권한 거부, 요청 한도, 서버 오류, 시간 초과로 막으면 [ScoreAnswer.providerUnavailable]이다. 그 밖의 호출 오류는 그대로 던진다.
      */
-    fun requestAnswer(digest: ScoringDigest, systemPrompt: String): ScoreAnswer =
+    fun requestAnswer(chunk: ScoringChunk, systemPrompt: String): ScoreAnswer =
         try {
-            answerOf(chatClient.prompt().system(systemPrompt).user(ScoreModelInput.from(digest).toText()).call().chatResponse())
+            answerOf(chatClient.prompt().system(systemPrompt).user(ScoreModelInput.from(chunk).toText()).call().chatResponse())
         } catch (exception: RuntimeException) {
             if (!ExceptionCauses.of(exception).isProviderUnavailable()) throw exception
             ScoreAnswer.providerUnavailable()
@@ -93,8 +98,22 @@ class ScoreClient(
 
     private fun toAnswer(response: JsonNode, usage: ModelUsage): ScoreAnswer {
         if (!response.path(SUFFICIENT_FIELD).asBoolean(false)) return ScoreAnswer.insufficient(usage)
-        val scores = response.path(SCORES_FIELD)
-        val evidence = response.path(EVIDENCE_FIELD)
+        if (response.has(LEGACY_SCORES_FIELD)) return legacyAnswer(response, usage)
+        val dimensions = ScoreDimensionNodes.of(response)
+        return ScoreAnswer.of(
+            dimensions.field(SCORE_FIELD).toScoreValues(),
+            dimensions.field(EVIDENCE_FIELD).toEvidenceIndices(),
+            "dimensions=${response.path(ScoreDimension.CARE_EMPATHY.key).nodeType}",
+            usage,
+            dimensions.field(OPPORTUNITY_FIELD).toOpportunities(),
+            playfulnessOf(response.path(PLAYFULNESS_FIELD)),
+        )
+    }
+
+    /** 5판까지의 형식. 기회 수와 장난기가 없다. */
+    private fun legacyAnswer(response: JsonNode, usage: ModelUsage): ScoreAnswer {
+        val scores = response.path(LEGACY_SCORES_FIELD)
+        val evidence = response.path(LEGACY_EVIDENCE_FIELD)
         return ScoreAnswer.of(
             ScoreDimensionNodes.of(scores).toScoreValues(),
             ScoreDimensionNodes.of(evidence).toEvidenceIndices(),
@@ -103,11 +122,18 @@ class ScoreClient(
         )
     }
 
+    /** 숫자가 아니면 null이다. 범위 확인은 [ScoreAnswer.of]가 한다. */
+    private fun playfulnessOf(node: JsonNode): Int? = if (node.isNumber) node.asInt() else null
+
     companion object {
         private const val MAX_RESPONSE_LENGTH = 100_000
         private const val SUFFICIENT_FIELD = "sufficient"
-        private const val SCORES_FIELD = "scores"
-        private const val EVIDENCE_FIELD = "evidence"
+        private const val LEGACY_SCORES_FIELD = "scores"
+        private const val LEGACY_EVIDENCE_FIELD = "evidence"
+        private const val SCORE_FIELD = "s"
+        private const val EVIDENCE_FIELD = "e"
+        private const val OPPORTUNITY_FIELD = "n"
+        private const val PLAYFULNESS_FIELD = "playfulness"
         private const val JSON_OBJECT_START = '{'
         private const val JSON_OBJECT_END = '}'
         private const val KEY_SEPARATOR = "\n"

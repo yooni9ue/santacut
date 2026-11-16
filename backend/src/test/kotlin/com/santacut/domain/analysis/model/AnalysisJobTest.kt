@@ -29,19 +29,19 @@ class AnalysisJobTest {
     }
 
     @Test
-    fun `시도를 시작하면 실행 상태가 되고 리스를 3분 동안 쥔다`() {
+    fun `시도를 시작하면 실행 상태가 되고 구간 수 상한만큼의 호출 시간에 여유를 더한 동안 리스를 쥔다`() {
         val job = newJob()
-        job.startAttempt(LEASE, createdAt)
+        job.startAttempt(LEASE, createdAt, LEASE_DURATION)
         assertEquals(AnalysisJobStatus.RUNNING, job.status)
         assertEquals(1, job.attempts)
-        assertEquals(createdAt.plus(Duration.ofMinutes(3)), job.leaseUntil)
+        assertEquals(createdAt.plus(Duration.ofMinutes(7)), job.leaseUntil)
         assertTrue(job.isHeldBy(LEASE))
         assertFalse(job.isHeldBy("other-lease"))
     }
 
     @Test
     fun `성공하면 평가 ID를 기록하고 제출 원문을 지운다`() {
-        val job = newJob().apply { startAttempt(LEASE, createdAt) }
+        val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         val finishedAt = createdAt.plusSeconds(30)
         job.succeed("assessment-1", finishedAt)
         assertEquals(AnalysisJobStatus.SUCCEEDED, job.status)
@@ -53,7 +53,7 @@ class AnalysisJobTest {
 
     @Test
     fun `근거 부족으로 끝나면 INSUFFICIENT_DATA 상태와 INSUFFICIENT_EVIDENCE 코드가 된다`() {
-        val job = newJob().apply { startAttempt(LEASE, createdAt) }
+        val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         job.fail(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, createdAt)
         assertEquals(AnalysisJobStatus.INSUFFICIENT_DATA, job.status)
         assertEquals(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, job.errorCode)
@@ -67,7 +67,7 @@ class AnalysisJobTest {
             AnalysisFailureCode.RETRY_EXHAUSTED, AnalysisFailureCode.ANALYSIS_FAILED,
         )
         codes.forEach { code ->
-            val job = newJob().apply { startAttempt(LEASE, createdAt) }
+            val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
             job.fail(code, createdAt)
             assertEquals(AnalysisJobStatus.FAILED, job.status)
             assertEquals(code, job.errorCode)
@@ -86,11 +86,11 @@ class AnalysisJobTest {
 
     @Test
     fun `리스가 끝난 실행 작업은 다시 잡을 수 있지만 리스가 남았으면 잡을 수 없다`() {
-        val job = newJob().apply { startAttempt(LEASE, createdAt) }
-        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.startAttempt("other-lease", createdAt) }
-        val afterLease = createdAt.plus(Duration.ofMinutes(3)).plusMillis(1)
+        val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
+        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.startAttempt("other-lease", createdAt, LEASE_DURATION) }
+        val afterLease = createdAt.plus(LEASE_DURATION).plusMillis(1)
         assertTrue(job.isClaimableAt(afterLease))
-        job.startAttempt("other-lease", afterLease)
+        job.startAttempt("other-lease", afterLease, LEASE_DURATION)
         assertEquals(2, job.attempts)
         assertTrue(job.isHeldBy("other-lease"))
     }
@@ -99,7 +99,7 @@ class AnalysisJobTest {
     fun `끝난 작업은 다시 잡을 수 없다`() {
         val job = newJob().apply { expire(createdAt) }
         assertFalse(job.isClaimableAt(createdAt))
-        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.startAttempt(LEASE, createdAt) }
+        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.startAttempt(LEASE, createdAt, LEASE_DURATION) }
     }
 
     @Test
@@ -109,7 +109,7 @@ class AnalysisJobTest {
         assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) {
             queued.fail(AnalysisFailureCode.ANALYSIS_FAILED, createdAt)
         }
-        val succeeded = newJob().apply { startAttempt(LEASE, createdAt) }
+        val succeeded = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         succeeded.succeed("assessment-1", createdAt)
         assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) {
             succeeded.fail(AnalysisFailureCode.ANALYSIS_FAILED, createdAt)
@@ -119,7 +119,7 @@ class AnalysisJobTest {
 
     @Test
     fun `대기 중이 아닌 작업은 만료할 수 없다`() {
-        val running = newJob().apply { startAttempt(LEASE, createdAt) }
+        val running = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { running.expire(createdAt) }
         assertEquals(AnalysisJobStatus.RUNNING, running.status)
     }
@@ -137,7 +137,7 @@ class AnalysisJobTest {
     fun `진행 단계는 대기, 실행, 실패를 응답 어휘로 바꾼다`() {
         val job = newJob()
         assertEquals(AnalysisProgress.QUEUED, job.progress(null))
-        job.startAttempt(LEASE, createdAt)
+        job.startAttempt(LEASE, createdAt, LEASE_DURATION)
         assertEquals(AnalysisProgress.ANALYZING, job.progress(null))
         job.fail(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, createdAt)
         assertEquals(AnalysisProgress.FAILED, job.progress(null))
@@ -145,7 +145,7 @@ class AnalysisJobTest {
 
     @Test
     fun `성공한 작업은 완료 시각 이후 순위가 계산됐을 때만 성공이고 아니면 순위 계산 대기다`() {
-        val job = newJob().apply { startAttempt(LEASE, createdAt) }
+        val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         val finishedAt = createdAt.plusSeconds(30)
         job.succeed("assessment-1", finishedAt)
         assertEquals(AnalysisProgress.RANKING_PENDING, job.progress(null))
@@ -170,7 +170,7 @@ class AnalysisJobTest {
 
     @Test
     fun `완료 시점에 시즌이 마감됐으면 시즌 마감 실패로 끝낸다`() {
-        val job = newJob().apply { startAttempt(LEASE, createdAt) }
+        val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         val christmas = Season(2026).deliveryStart().toInstant()
         assertTrue(job.freezeIfSeasonClosed(Season(2026), christmas))
         assertEquals(AnalysisJobStatus.FAILED, job.status)
@@ -180,7 +180,7 @@ class AnalysisJobTest {
 
     @Test
     fun `완료 시점에 시즌이 열려 있으면 상태를 바꾸지 않는다`() {
-        val job = newJob().apply { startAttempt(LEASE, createdAt) }
+        val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         assertFalse(job.freezeIfSeasonClosed(Season(2026), createdAt))
         assertEquals(AnalysisJobStatus.RUNNING, job.status)
         assertNull(job.errorCode)
@@ -257,7 +257,7 @@ class AnalysisJobTest {
     @Test
     fun `제공자가 호출을 막으면 리스를 풀고 대기열로 되돌리며 이번 시도는 세지 않는다`() {
         val job = newJob()
-        job.startAttempt(LEASE, createdAt)
+        job.startAttempt(LEASE, createdAt, LEASE_DURATION)
 
         job.releaseLease()
 
@@ -271,8 +271,8 @@ class AnalysisJobTest {
 
     @Test
     fun `채점 입력 해시와 함께 끝낸 작업은 다시 쓸 결과를 알려 준다`() {
-        val succeeded = newJob().apply { startAttempt(LEASE, createdAt) }
-        val failed = newJob().apply { startAttempt(LEASE, createdAt) }
+        val succeeded = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
+        val failed = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
 
         succeeded.succeed("assessment-1", createdAt, DIGEST_HASH)
         failed.fail(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, createdAt, DIGEST_HASH)
@@ -315,5 +315,6 @@ class AnalysisJobTest {
         private const val LEASE = "lease-1"
         private const val FILE_HASH = "file-hash"
         private const val DIGEST_HASH = "digest-hash"
+        private val LEASE_DURATION: Duration = AnalysisJob.leaseDurationFor(Duration.ofSeconds(60))
     }
 }

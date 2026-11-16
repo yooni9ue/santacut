@@ -111,13 +111,13 @@ class AnalysisJob(
     /** 대기 중이거나, 실행 중이지만 리스가 끝나 다른 작업자가 다시 잡을 수 있는지. */
     fun isClaimableAt(now: Instant): Boolean = status == AnalysisJobStatus.QUEUED || isLeaseExpiredAt(now)
 
-    /** 작업자가 리스를 잡고 한 번 더 시도한다. 대기 중이거나 리스가 끝난 실행 작업만 잡을 수 있다. */
-    fun startAttempt(lease: String, now: Instant) {
+    /** 작업자가 리스를 [leaseDuration] 동안 잡고 한 번 더 시도한다. 대기 중이거나 리스가 끝난 실행 작업만 잡을 수 있다. */
+    fun startAttempt(lease: String, now: Instant, leaseDuration: Duration) {
         verifyTransition(isClaimableAt(now))
         status = AnalysisJobStatus.RUNNING
         attempts++
         leaseToken = lease
-        leaseUntil = now.plus(LEASE_DURATION)
+        leaseUntil = now.plus(leaseDuration)
     }
 
     /** 실행 중인 작업만 성공으로 끝낼 수 있다. [digestHash]가 있으면 같은 입력의 재제출에 이 결과를 다시 쓴다. */
@@ -246,7 +246,15 @@ class AnalysisJob(
          */
         val QUEUE_EXPIRY: Duration = Duration.ofHours(24)
 
-        private val LEASE_DURATION: Duration = Duration.ofMinutes(3)
+        /** 구간 호출이 모두 시간 상한까지 걸린 뒤 결과를 기록할 여유. */
+        private val LEASE_MARGIN: Duration = Duration.ofMinutes(1)
+
+        /**
+         * AI 호출 하나의 시간 상한이 [callTimeout]일 때의 작업 리스 길이. 구간 수 상한([ScoringChunks.MAX_CHUNKS])만큼 호출이 모두
+         * 상한까지 걸려도 리스가 남아 있어야 다른 작업자가 같은 작업을 다시 잡지 않는다.
+         */
+        fun leaseDurationFor(callTimeout: Duration): Duration =
+            callTimeout.multipliedBy(ScoringChunks.MAX_CHUNKS.toLong()).plus(LEASE_MARGIN)
 
         /** 이 시각보다 먼저 만든 대기 작업은 [QUEUE_EXPIRY]를 넘겨 만료 대상이다. */
         fun queueExpiryCutoff(now: Instant): Instant = now.minus(QUEUE_EXPIRY)

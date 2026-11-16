@@ -17,8 +17,9 @@ class ScoreModelLines(private val values: List<String>) {
         private val MIN_GAP: Duration = TranscriptTurn.MERGE_GAP
         private const val HOURS_PER_DAY = 24L
 
-        fun from(turns: TranscriptTurns): ScoreModelLines =
-            ScoreModelLines(turns.mapNumbered(::linesOf).flatten())
+        /** [firstNumber]부터 줄 번호를 붙인다. */
+        fun from(turns: TranscriptTurns, firstNumber: Int): ScoreModelLines =
+            ScoreModelLines(turns.mapNumbered(firstNumber, ::linesOf).flatten())
 
         private fun linesOf(number: Int, turn: TranscriptTurn, previous: TranscriptTurn?): List<String> =
             listOfNotNull(previous?.let { gapLine(turn.gapAfter(it)) }, "$number$SEPARATOR${turn.speaker}$SEPARATOR${turn.text}")
