@@ -82,3 +82,13 @@ spring.ai:
       # thinking-budget은 이 모델이 400으로 거절하므로 쓰지 않는다. 생각 토큰은 출력 단가로 청구되고 max-output-tokens를 함께 쓴다.
       thinking-level: MINIMAL
       response-mime-type: application/json
+---
+# 운영에서는 같은 compose 네트워크의 Caddy가 TLS를 끝내고 X-Forwarded-For·X-Forwarded-Proto를 붙인다.
+# 이 헤더를 읽어야 요청이 https로 보이고 Swagger "Servers"가 https 주소가 된다(http로 부르면 Caddy가 308로 돌려 POST가 깨진다).
+# 앱 포트는 compose에서 127.0.0.1에만 열려 있다. 헤더는 루프백과 Docker 브리지 대역(172.16.0.0/12)에서 온 요청만 믿는다.
+spring.config.activate.on-profile: production
+server:
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      internal-proxies: '127\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1|::1'
