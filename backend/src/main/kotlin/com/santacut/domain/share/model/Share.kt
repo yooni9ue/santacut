@@ -1,6 +1,7 @@
 package com.santacut.domain.share.model
 
 import com.santacut.domain.analysis.model.Archetype
+import com.santacut.domain.analysis.model.ArchetypeConverter
 import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoreDimension
@@ -28,7 +29,7 @@ import java.time.format.DateTimeFormatter
  * 취소하면 행을 지운다(소프트 삭제를 쓰지 않는다).
  * 카드에는 상대 말을 싣지 않는다. 본인 한마디([quote])도 본인이 고를 때만 싣는다.
  *
- * @property archetype 공유 당시 산타 유형. 이 컬럼이 생기기 전 링크는 null이다.
+ * @property archetype 공유 당시 산타 유형. 이 컬럼이 생기기 전 링크와 지금은 없는 유형 코드는 null이다.
  * @property topPercent 공유 당시 상위 몇 %. 참가자 100명 미만이었으면 null이다.
  * @property badge 공유 당시 첫 배지 라벨
  * @property weakestDimension 공유 당시 가장 약한 항목. 컬럼에는 항목 키로 저장한다.
@@ -121,7 +122,7 @@ class Share(
     var createdAt: Instant? = createdAt
         protected set
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = ArchetypeConverter::class)
     @Column(name = "archetype")
     var archetype: Archetype? = archetype
         protected set
