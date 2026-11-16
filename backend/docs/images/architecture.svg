@@ -90,8 +90,8 @@
   <circle cx="985" cy="386" r="4" fill="#9C8CFF"/>
   <text class="h" x="1026" y="384">AI 채점</text>
   <text class="s" x="1026" y="406">Spring AI</text>
-  <text class="s" x="950" y="446">현재: Ollama</text>
-  <text class="s" x="950" y="468">운영 계획: Bedrock</text>
+  <text class="s" x="950" y="446">Amazon Bedrock</text>
+  <text class="s" x="950" y="468">Claude Haiku 4.5</text>
   <path class="ailine" d="M828,560 H900 V415 H926" marker-end="url(#arrAi)"/>
 
   <!-- 공유 -->
