@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 test("sample Kakao flow keeps input through review, result and ranking", async ({ page }) => {
+  let registrationRequests = 0;
+  page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).pathname === "/v1/participants") registrationRequests++; });
   await page.goto("/start");
   await page.getByRole("button", { name: /카카오톡 대화/ }).click();
   await page.getByRole("link", { name: "파일 준비됐어요" }).click();
@@ -24,6 +26,7 @@ test("sample Kakao flow keeps input through review, result and ranking", async (
   await expect(page.getByRole("region", { name: "나의 순위" })).toContainText("루돌프테스터");
   await page.getByRole("button", { name: "예시 랭킹 더 보기" }).click();
   await expect(page.getByText("귤두개드림", { exact: true })).toBeVisible();
+  expect(registrationRequests).toBe(0);
 });
 
 test("invalid files and nicknames show actionable errors", async ({ page }) => {

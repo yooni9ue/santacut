@@ -20,7 +20,7 @@ export const isValidNickname = (value: string) => /^[가-힣a-zA-Z0-9_]{2,16}$/.
 
 export async function getParticipant(signal?: AbortSignal): Promise<Participant | null> {
   try {
-    return (await api.get<Participant>("/me", { signal, headers: { "Cache-Control": "no-cache" } })).data;
+    return (await api.get<Participant>("/me", { signal })).data;
   } catch (error) {
     if (isAxiosError(error) && [401, 404].includes(error.response?.status ?? 0)) return null;
     throw error;
