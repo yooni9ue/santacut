@@ -22,7 +22,7 @@
 
 ## 한눈에 보기
 
-<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: HTTP 엔드포인트 17개(dev 전용 3개 별도), SQLite 테이블 9개, 자동 테스트 321개, 오류 코드 30개, 지역 271개, 참가자당 24시간 3회 제출(앱 AI 호출 한도 없음). 검증 작업자 1초, 분석 작업자 3초, 작업 임대 3분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
+<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: HTTP 엔드포인트 18개(dev 전용 3개 별도), SQLite 테이블 10개, 자동 테스트 392개, 오류 코드 32개, 지역 271개, 참가자당 24시간 3회 제출(AI 비용은 앱 안의 토큰 가드가 막음). 검증 작업자 1초, 분석 작업자 3초, 작업 임대 3분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
 
 ## 할 수 있는 일
 
@@ -31,7 +31,7 @@
 - 카카오톡 TXT나 인스타그램 JSON 원본을 그대로 올린다. 20MB까지 받는다.
 - 서버가 원본을 파싱하고, 본인 메시지만 AI에 보낸다.
 - AI가 점수를 매긴다. 순위와 선물 도착 시각은 서버가 계산한다.
-- 진행 상태는 폴링으로 본다. 창을 닫았다가 다시 와도 이어서 본다.
+- 진행 상태는 SSE 스트림으로 받고, 안 되면 폴링으로 본다. 창을 닫았다가 다시 와도 이어서 본다.
 - 순위표는 공개다. 50줄씩 cursor로 넘기고, 동점은 `공동 N위`로 보인다.
 - 공유 링크는 그 순간의 결과를 고정한다. 취소한 링크는 안내 페이지로 바뀐다.
 - 시즌 마감 전에는 지역을 바꿀 수 있다. 내 데이터는 언제든 지운다.
@@ -52,7 +52,7 @@
 
 <p align="center"><img src="docs/images/architecture.svg" alt="요청 흐름: 클라이언트가 Caddy(지금 HTTP 80, 도메인을 산 뒤 TLS 443)를 거쳐 Spring Boot 앱의 4계층으로 들어간다. 작업자 둘이 원본 검증과 AI 채점을 하고, SQLite에 저장하고, Amazon Bedrock Claude Haiku 4.5를 부른다. SQLite는 매시 S3로 백업한다" width="100%"></p>
 
-- 분석은 큐에 넣는다. 화면은 진행 상태를 폴링한다.
+- 분석은 큐에 넣는다. 화면은 진행 상태를 SSE 스트림(`/v1/analyses/{id}/events`)으로 받거나 폴링한다.
 - 작업자는 둘이다. 원본 검증은 1초, AI 채점은 3초 간격으로 돈다.
 - AI 채점은 Spring AI와 Amazon Bedrock(Claude Haiku 4.5, Converse API)이다.
 - 채점 프롬프트는 DB(`prompts`)에 판으로 쌓인다. AI를 부를 때마다 최신 판을 읽는다.
@@ -123,7 +123,7 @@ sequenceDiagram
 
 ## API
 
-<p align="center"><img src="docs/images/api.svg" alt="API 지도: 엔드포인트 17개와 dev 전용 프롬프트 관리 3개를 도메인별 카드로 보여 준다. 카드마다 메서드, 하는 일, 경로, 성공 코드, 공개·세션·CSRF·멱등키 표시가 있다. 프롬프트 관리 API는 dev에서만 켜지고 운영은 404다" width="100%"></p>
+<p align="center"><img src="docs/images/api.svg" alt="API 지도: 엔드포인트 18개와 dev 전용 프롬프트 관리 3개를 도메인별 카드로 보여 준다. 카드마다 메서드, 하는 일, 경로, 성공 코드, 공개·세션·CSRF·멱등키 표시가 있다. 프롬프트 관리 API는 dev에서만 켜지고 운영은 404다" width="100%"></p>
 
 - 필드 정의는 Swagger(`/swagger-ui.html`)가 기준이다.
 - 호출 순서는 [API 연동 가이드](../docs/frontend-api-guide.md)에 있다.
@@ -165,7 +165,7 @@ dev 전용(`PROMPT_ADMIN_ENABLED=true`일 때만 있고, 운영은 404):
 
 ## 품질 게이트
 
-<p align="center"><img src="docs/images/quality.svg" alt="품질 게이트: 1 gradlew check(테스트 321개, bootJar), 2 ArchUnit과 파일당 타입 1개 구조 테스트, 3 컨벤션 확인 명령, 4 9인 리뷰 패널" width="100%"></p>
+<p align="center"><img src="docs/images/quality.svg" alt="품질 게이트: 1 gradlew check(테스트 392개, bootJar), 2 ArchUnit과 파일당 타입 1개 구조 테스트, 3 컨벤션 확인 명령, 4 9인 리뷰 패널" width="100%"></p>
 
 - 자동 검사를 통과한 뒤 리뷰어 9명이 판정한다.
 
