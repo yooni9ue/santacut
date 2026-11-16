@@ -9,6 +9,7 @@ import com.santacut.domain.analysis.model.ScoreDimension
 import com.santacut.domain.global.model.SeoulTime
 import com.santacut.domain.global.model.Sha256
 import com.santacut.infrastructure.global.config.ScoreModelProperties
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.ai.chat.messages.SystemMessage
@@ -33,7 +34,8 @@ import kotlin.test.assertEquals
 /**
  * 채점 입력이 맥락을 잃는 정도를 재는 수동 평가. 기본 `check`에서는 빠지고 `./gradlew eval`로만 돈다.
  * 짝 대화 확인은 API를 부르지 않고, 안정성·전체 맥락 비교와 긴 대화 토큰 세기는 환경 변수 GEMINI_API_KEY로 실제 Gemini를 부른다.
- * 반복 횟수는 환경 변수 EVAL_REPETITIONS(기본 3)로 바꾼다.
+ * 반복 횟수는 환경 변수 EVAL_REPETITIONS(기본 3)로 바꾼다. 긴 대화 위치 평가는 EVAL_LONG_REPETITIONS(기본 0, 건너뜀)로 켠다.
+ * 기준(전체 맥락) 평균은 build/eval/full-baseline.txt에 두고 다음 실행에서 다시 쓴다.
  * 결과 표는 `build/eval/`에 남긴다.
  */
 @Tag("eval")
@@ -89,21 +91,32 @@ class ScoringContextEvalTest {
         val calls = mutableListOf<Call>()
         val errors = mutableListOf<Double>()
         val deviations = mutableListOf<Double>()
+        val cachedFull = fullBaselineCache()
+        val fullMeans = mutableMapOf<String, Double>()
         (1..CHAT_COUNT).forEach { chat ->
             val messages = messagesOf(resource("chat-$chat.txt"))
             val input = ScoreModelInput.from(submissionOf(messages).toScoringDigest().verifyEnough()).toText()
             val pipeline = List(REPETITIONS) { call(pipelineModel, systemPrompt, input) }
-            val full = List(REPETITIONS) { call(fullModel, FULL_CONTEXT_PROMPT, transcriptOf(messages)) }
+            val full = cachedFull.filterKeys { it.startsWith("chat-$chat|") }.ifEmpty {
+                fullMeansOf(List(REPETITIONS) { call(fullModel, FULL_CONTEXT_PROMPT, transcriptOf(messages)) })
+                    .mapKeys { (key, _) -> "chat-$chat|$key" }
+            }
+            fullMeans += full
             calls += pipeline
             val totals = pipeline.mapNotNull { it.total() }
             if (totals.size == REPETITIONS) deviations += standardDeviation(totals)
             val dimensionErrors = ScoreDimension.entries.mapNotNull { dimension ->
                 val scored = meanOf(pipeline, dimension) ?: return@mapNotNull null
-                abs(scored - (meanOf(full, dimension) ?: return@mapNotNull null)).also { errors += it }
+                abs(scored - (full["chat-$chat|${dimension.key}"] ?: return@mapNotNull null)).also { errors += it }
             }
-            lines += "chat-$chat totals=$totals full=${full.mapNotNull { it.total() }} " +
+            val fullTotal = full.getValue("chat-$chat|total")
+            lines += "chat-$chat totals=$totals full-mean=%.2f gap=%+.2f ".format(fullTotal, totals.average() - fullTotal) +
                 "mae=${dimensionErrors.map { "%.1f".format(it) }} finish=${pipeline.map { it.finishReason }} " +
+                "tone-ordered=${pipeline.count { it.toneOrdered }}/${pipeline.size} " +
                 "tokens(in/out/thought/total)=${pipeline.map { "${it.inputTokens}/${it.outputTokens}/${it.thoughtTokens}/${it.totalTokens}" }}"
+        }
+        if (cachedFull.isEmpty()) {
+            File(FULL_BASELINE_FILE).apply { parentFile.mkdirs() }.writeText(fullMeans.entries.joinToString("\n") { "${it.key}=${it.value}" })
         }
         lines += "total-std-dev mean=%.2f max=%.2f".format(deviations.average(), deviations.max())
         lines += "mae-vs-full mean=%.2f over ${errors.size / ScoreDimension.entries.size} scored chats".format(errors.average())
@@ -112,6 +125,56 @@ class ScoringContextEvalTest {
         lines += "insufficient-evidence=${calls.count { it.insufficient }}/${calls.size} weak-dimensions=${calls.sumOf { it.weakDimensions }}"
         lines += "input-tokens mean=%.0f max=%d".format(calls.map { it.inputTokens }.average(), calls.maxOf { it.inputTokens })
         report("stability.txt", lines.joinToString("\n"))
+    }
+
+    /** 기준(전체 맥락) 프롬프트는 단계마다 같으므로 처음 잰 평균을 [FULL_BASELINE_FILE]에 두고 다시 쓴다. 지우면 새로 잰다. */
+    private fun fullBaselineCache(): Map<String, Double> =
+        File(FULL_BASELINE_FILE).takeIf { it.exists() }?.readLines()?.filter { it.contains('=') }
+            ?.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() }.orEmpty()
+
+    private fun fullMeansOf(full: List<Call>): Map<String, Double> =
+        ScoreDimension.entries.mapNotNull { dimension -> meanOf(full, dimension)?.let { dimension.key to it } }.toMap() +
+            ("total" to full.mapNotNull { it.total() }.average())
+
+    @Test
+    fun `긴 대화에서 비꼬는 구간의 위치에 따라 점수가 달라지는지 잰다`() {
+        assumeTrue(LONG_REPETITIONS > 0, "EVAL_LONG_REPETITIONS가 0이면 건너뛴다")
+        val config = YamlPropertiesFactoryBean().apply { setResources(ClassPathResource("application.yml")) }.getObject()!!
+        val maxOutputTokens = config.getProperty("spring.ai.google.genai.chat.max-output-tokens").toInt()
+        val thinkingLevel = config.getProperty("spring.ai.google.genai.chat.thinking-level")?.let(GoogleGenAiThinkingLevel::valueOf)
+        val model = chatModel(Client.builder().apiKey(System.getenv("GEMINI_API_KEY")).build(), maxOutputTokens, thinkingLevel)
+        val systemPrompt = latestScorePrompt()
+        val filler = (1..CHAT_COUNT).filter { it != SARCASTIC_CHAT }.flatMap { messagesOf(resource("chat-$it.txt")) }
+        val sarcastic = messagesOf(resource("chat-$SARCASTIC_CHAT.txt"))
+        val fillerCount = LONG_CHAT_EVENTS - sarcastic.size
+        val variants = mapOf("start" to 0, "middle" to fillerCount / 2, "end" to fillerCount, "control" to null)
+            .filter { (name, _) -> name != "control" || LONG_CONTROL }
+        val lines = mutableListOf<String>()
+        val means = mutableMapOf<String, Double>()
+        variants.forEach { (name, at) ->
+            val base = List(if (at == null) LONG_CHAT_EVENTS else fillerCount) { filler[it % filler.size] }
+            val messages = if (at == null) base else base.take(at) + sarcastic + base.drop(at)
+            val digest = longSubmissionOf(messages).toScoringDigest()
+            val input = ScoreModelInput.from(digest).toText()
+            val repetitions = if (at == null) maxOf(1, LONG_REPETITIONS / 2) else LONG_REPETITIONS
+            val calls = List(repetitions) { call(model, systemPrompt, input) }
+            val totals = calls.mapNotNull { it.total() }
+            means[name] = totals.average()
+            lines += "$name lines=${digest.lineCount()} omitted=${digest.omittedTurns} totals=$totals mean=%.2f std=%.2f ".format(totals.average(), standardDeviation(totals)) +
+                "in-tokens=${calls.map { it.inputTokens }} out=${calls.map { it.outputTokens }} finish=${calls.map { it.finishReason }} " +
+                "tone-ordered=${calls.count { it.toneOrdered }}/${calls.size}"
+        }
+        val positions = listOf("start", "middle", "end").map { means.getValue(it) }
+        lines += "position-gap(max-min)=%.2f middle-vs-ends=%+.2f".format(positions.max() - positions.min(), positions[1] - (positions[0] + positions[2]) / 2)
+        report("long-chat-positions.txt", lines.joinToString("\n"))
+    }
+
+    private fun longSubmissionOf(messages: List<ChatMessage>): AnalysisSubmission {
+        val now = Instant.now()
+        val start = now.minus(Duration.ofDays(LONG_CHAT_DAYS))
+        val step = Duration.ofDays(LONG_CHAT_DAYS).dividedBy(messages.size.toLong())
+        val timed = messages.mapIndexed { index, source -> ChatMessage(source.speaker, start.plus(step.multipliedBy(index.toLong())), source.text) }
+        return AnalysisSubmission(DataSource.KAKAO, ChatMessages(timed).eventsFor(SELF).recentAt(now))
     }
 
     private fun chatModel(client: Client, maxOutputTokens: Int, thinkingLevel: GoogleGenAiThinkingLevel?): GoogleGenAiChatModel {
@@ -136,6 +199,8 @@ class ScoringContextEvalTest {
             ?.let { node -> ScoreDimension.entries.filter { node.has(it.key) }.associateWith { node.path(it.key).asDouble() } }
             .orEmpty()
         val evidence = tree?.path("evidence")
+        val toneAt = text.indexOf("\"tone\"")
+        val toneOrdered = toneAt > text.indexOf("\"evidence\"") && toneAt < text.indexOf("\"scores\"")
         val weak = ScoreDimension.entries.count { evidence?.path(it.key)?.let { node -> node.isArray && node.isEmpty } == true }
         return Call(
             scores,
@@ -146,6 +211,7 @@ class ScoringContextEvalTest {
             ((usage as? GoogleGenAiUsage)?.thoughtsTokenCount ?: 0).toLong(),
             response.result?.metadata?.finishReason.orEmpty(),
             usage.totalTokens.toLong(),
+            toneOrdered,
         )
     }
 
@@ -197,6 +263,7 @@ class ScoringContextEvalTest {
         val thoughtTokens: Long,
         val finishReason: String,
         val totalTokens: Long,
+        val toneOrdered: Boolean,
     ) {
         fun total(): Double? =
             if (scores.size == ScoreDimension.entries.size) scores.entries.sumOf { (dimension, score) -> score * dimension.weight } / 100 else null
@@ -209,6 +276,10 @@ class ScoringContextEvalTest {
         private const val LONG_CHAT_EVENTS = 2000
         private const val LONG_CHAT_DAYS = 89L
         private val REPETITIONS = System.getenv("EVAL_REPETITIONS")?.toIntOrNull() ?: 3
+        private val LONG_REPETITIONS = System.getenv("EVAL_LONG_REPETITIONS")?.toIntOrNull() ?: 0
+        private val LONG_CONTROL = System.getenv("EVAL_LONG_CONTROL") != "0"
+        private const val SARCASTIC_CHAT = 2
+        private const val FULL_BASELINE_FILE = "build/eval/full-baseline.txt"
         private const val TEMPERATURE = 0.1
         private const val JSON_MIME_TYPE = "application/json"
         private const val FULL_CONTEXT_MAX_OUTPUT_TOKENS = 1024
