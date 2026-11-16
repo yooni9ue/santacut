@@ -1,4 +1,6 @@
-﻿plugins {
+﻿import org.springframework.boot.gradle.tasks.run.BootRun
+
+plugins {
 	kotlin("jvm") version "2.3.21"
 	kotlin("plugin.spring") version "2.3.21"
 	kotlin("plugin.jpa") version "2.3.21"
@@ -48,7 +50,7 @@ kotlin {
 }
 
 // 로컬 실행에서는 dev처럼 프롬프트 관리 API를 켠다. 운영 이미지(bootJar)의 기본값은 꺼짐이다.
-tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+tasks.named<BootRun>("bootRun") {
 	systemProperty("santacut.prompt-admin.enabled", "true")
 }
 
