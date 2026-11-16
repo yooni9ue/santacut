@@ -25,21 +25,21 @@ class ScoreClientTest {
 
     @Test
     fun `JSON 응답을 읽어 점수로 바꾼다`() {
-        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(submission()).toScore(EVENT_COUNT).hundredths)
+        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(submission(), SYSTEM_PROMPT).toScore(EVENT_COUNT).hundredths)
     }
 
     @Test
     fun `코드 블록으로 감싼 JSON도 읽는다`() {
         chatModel.reply = "```json\n$FULL_ANSWER\n```"
 
-        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(submission()).toScore(EVENT_COUNT).hundredths)
+        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(submission(), SYSTEM_PROMPT).toScore(EVENT_COUNT).hundredths)
     }
 
     @Test
     fun `JSON 객체가 없는 응답은 AI_RESPONSE_INVALID다`() {
         chatModel.reply = "점수를 매길 수 없습니다."
 
-        val exception = assertThrows<SantaCutException> { scoreClient.requestAnswer(submission()).toScore(EVENT_COUNT) }
+        val exception = assertThrows<SantaCutException> { scoreClient.requestAnswer(submission(), SYSTEM_PROMPT).toScore(EVENT_COUNT) }
 
         assertEquals(ErrorCode.AI_RESPONSE_INVALID, exception.errorCode)
     }
@@ -48,17 +48,17 @@ class ScoreClientTest {
     fun `근거 부족 응답은 INSUFFICIENT_EVIDENCE다`() {
         chatModel.reply = """{"sufficient":false,"reason":"INSUFFICIENT_EVIDENCE"}"""
 
-        val exception = assertThrows<SantaCutException> { scoreClient.requestAnswer(submission()).toScore(EVENT_COUNT) }
+        val exception = assertThrows<SantaCutException> { scoreClient.requestAnswer(submission(), SYSTEM_PROMPT).toScore(EVENT_COUNT) }
 
         assertEquals(ErrorCode.INSUFFICIENT_EVIDENCE, exception.errorCode)
     }
 
     @Test
-    fun `시스템 메시지로 채점 프롬프트를, 사용자 메시지로 번호 붙인 이벤트를 보낸다`() {
-        scoreClient.requestAnswer(submission())
+    fun `넘겨받은 프롬프트를 시스템 메시지로, 번호 붙인 이벤트를 사용자 메시지로 보낸다`() {
+        scoreClient.requestAnswer(submission(), SYSTEM_PROMPT)
 
         val prompt = checkNotNull(chatModel.lastPrompt)
-        assertTrue(prompt.systemMessage.text.orEmpty().contains(PROMPT_MARKER))
+        assertEquals(SYSTEM_PROMPT, prompt.systemMessage.text)
         assertTrue(prompt.userMessage.text.orEmpty().contains("\"index\":1"))
     }
 
@@ -78,7 +78,7 @@ class ScoreClientTest {
     companion object {
         private const val EVENT_COUNT = 4
         private const val EXPECTED_HUNDREDTHS = 8000
-        private const val PROMPT_MARKER = "SantaCut Scorer"
+        private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
         private val OCCURRED_AT: Instant = Instant.parse("2026-11-01T00:00:00Z")
         private const val FULL_ANSWER = """{"sufficient":true,""" +
             """"scores":{"care_empathy":80,"positivity_support":80,"respectful_communication":80,"cooperation_sharing":80},""" +

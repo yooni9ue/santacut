@@ -17,13 +17,18 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DailyBudget
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ScoreAnswer
+import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
+import com.santacut.infrastructure.analysis.repository.AssessmentRepository
 import com.santacut.infrastructure.analysis.repository.DailyBudgetRepository
+import com.santacut.infrastructure.prompt.repository.PromptRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.BDDMockito.given
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
@@ -41,6 +46,7 @@ import kotlin.test.assertNull
 
 /**
  * 분석 작업자가 AI 점수 클라이언트를 바꿔 끼운 상태에서 성공, 실패, 예산 소진, 시즌 마감을 처리하는지 확인한다.
+ * AI 호출마다 DB의 최신 채점 프롬프트를 쓰는지도 확인한다.
  * 대기열 전체를 보는 작업자라 다른 통합 테스트와 섞이지 않게 `build/worker-test.db`를 따로 쓰고 테스트마다 비운다.
  */
 @SpringBootTest(
@@ -63,6 +69,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private val clock: MutableClock,
     private val analysisJobRepository: AnalysisJobRepository,
     private val dailyBudgetRepository: DailyBudgetRepository,
+    private val promptRepository: PromptRepository,
+    private val assessmentRepository: AssessmentRepository,
 ) {
     private val seasonClose: Instant = Season(SEASON_YEAR).deliveryStart().toInstant()
 
@@ -70,13 +78,15 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     fun setUp() {
         analysisJobRepository.deleteAll()
         dailyBudgetRepository.deleteAll()
+        promptRepository.deleteAll()
+        promptRepository.save(Prompt.initial(Prompt.SCORE, FIRST_PROMPT, OPEN_TIME))
         clock.moveTo(OPEN_TIME)
         given(scoreClient.isEnabled()).willReturn(true)
     }
 
     @Test
     fun `점수를 받으면 평가를 저장하고 순위를 다시 계산해 작업을 성공으로 끝낸다`() {
-        given(scoreClient.requestAnswer(anySubmission())).willReturn(fullAnswer())
+        given(scoreClient.requestAnswer(anySubmission(), anyString())).willReturn(fullAnswer())
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -91,7 +101,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `점수 산정 중 예외가 나면 작업을 ANALYSIS_FAILED로 끝낸다`() {
-        given(scoreClient.requestAnswer(anySubmission())).willThrow(IllegalStateException("AI 장애"))
+        given(scoreClient.requestAnswer(anySubmission(), anyString())).willThrow(IllegalStateException("AI 장애"))
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -111,7 +121,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         analysisWorkerFacade.processNextJob()
 
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
-        verify(scoreClient, never()).requestAnswer(anySubmission())
+        verify(scoreClient, never()).requestAnswer(anySubmission(), anyString())
     }
 
     @Test
@@ -125,13 +135,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val status = analysisFacade.getStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("EXPIRED", status.errorCode)
-        verify(scoreClient, never()).requestAnswer(anySubmission())
+        verify(scoreClient, never()).requestAnswer(anySubmission(), anyString())
     }
 
     @Test
     fun `점수를 받은 사이에 시즌이 마감되면 평가를 저장하지 않고 SEASON_FROZEN으로 끝낸다`() {
         clock.moveTo(seasonClose.minus(Duration.ofMinutes(1)))
-        given(scoreClient.requestAnswer(anySubmission())).willAnswer {
+        given(scoreClient.requestAnswer(anySubmission(), anyString())).willAnswer {
             clock.moveTo(seasonClose)
             fullAnswer()
         }
@@ -143,6 +153,33 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertEquals("FAILED", status.status)
         assertEquals("SEASON_FROZEN", status.errorCode)
         assertNull(status.assessmentId)
+    }
+
+    @Test
+    fun `AI를 부를 때마다 채점 프롬프트의 최신 판을 보내고 평가에 그 판 번호를 남긴다`() {
+        val first = checkNotNull(promptRepository.findFirstByNameOrderByVersionDesc(Prompt.SCORE))
+        val latest = promptRepository.save(first.next(LATEST_PROMPT, OPEN_TIME))
+        given(scoreClient.requestAnswer(anySubmission(), eq(LATEST_PROMPT) ?: LATEST_PROMPT)).willReturn(fullAnswer())
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("SUCCEEDED", analysisFacade.getStatus(job).status)
+        val assessment = assessmentRepository.findFirstByUserIdOrderByCreatedAtDescIdDesc(job.participantId.toString())
+        assertEquals(latest.version, assessment?.promptVersion)
+    }
+
+    @Test
+    fun `채점 프롬프트가 하나도 없으면 AI를 부르지 않고 작업을 ANALYSIS_FAILED로 끝낸다`() {
+        promptRepository.deleteAll()
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        val status = analysisFacade.getStatus(job)
+        assertEquals("FAILED", status.status)
+        assertEquals("ANALYSIS_FAILED", status.errorCode)
+        verify(scoreClient, never()).requestAnswer(anySubmission(), anyString())
     }
 
     private fun submitAnalysis(): AnalysisJobCommand {
@@ -165,6 +202,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         const val SEASON_YEAR = 2099
         const val DAILY_CALL_LIMIT = 5
         private const val EVENT_COUNT = 20
+        private const val FIRST_PROMPT = "채점 프롬프트 1판"
+        private const val LATEST_PROMPT = "채점 프롬프트 2판"
         private const val DIMENSION_COUNT = 4
         private const val EXPECTED_SCORE_HUNDREDTHS = 8000
         private val DIMENSION_SCORE = BigDecimal("80")
