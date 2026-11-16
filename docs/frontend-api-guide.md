@@ -16,9 +16,27 @@
 
 점수와 도착 시각은 재미를 위한 시뮬레이션이다. 원본 내보내기 파일(카카오톡 TXT, 인스타그램 `message_1.json`)은 `POST /v1/analyses/files`로 그대로 올린다(§6.1).
 
-## 2. 같은 출처로 호출하기
+## 2. API 주소와 CORS
 
-세션과 CSRF 토큰이 쿠키로 오가므로 화면과 API는 같은 출처(origin)여야 한다. 로컬 개발 서버에서는 아래 경로를 `http://localhost:8080`으로 프록시한다.
+화면은 `https://www.santacut.me`(또는 `https://santacut.me`)에서, API는 dev면 `https://api-dev.santacut.me`, 운영이면 `https://api.santacut.me`에서 뜬다. 출처(origin)는 다르지만 같은 사이트(`santacut.me`)라서 `SameSite=Lax`인 세션 쿠키와 CSRF 쿠키도 함께 간다.
+
+- 서버는 `APP_CORS_ALLOWED_ORIGINS`에 적은 출처만 허용한다. 기본값은 `https://www.santacut.me,https://santacut.me`다. 다른 출처(예: 미리보기 배포 주소)에서 부르려면 백엔드에 그 출처를 넣어 달라고 한다. 허용하지 않은 출처의 사전 요청(preflight)은 `403`이다.
+- 모든 `fetch`에 `credentials: 'include'`를 넣는다. 빠뜨리면 세션 쿠키도 CSRF 쿠키도 가지 않아 `401`이나 `403`이 난다. `EventSource`는 `{ withCredentials: true }`로 연다.
+- 허용 메서드는 `GET`, `POST`, `PATCH`, `DELETE`이고, 허용 요청 헤더는 `Content-Type`, `X-XSRF-TOKEN`, `Last-Event-ID`다. 응답 헤더 가운데 `Retry-After`를 읽을 수 있다.
+- CSRF 쿠키(`XSRF-TOKEN`)는 API 호스트의 쿠키라 화면의 `document.cookie`로는 읽을 수 없다. 토큰은 쿠키가 아니라 `GET /v1/csrf` 응답 본문에서 꺼낸다(§3).
+
+### 로컬(`http://localhost:3000`)에서 dev API 부르기
+
+`localhost`에서 `api-dev.santacut.me`로 가는 요청은 다른 사이트 요청이다. `SameSite=Lax` 쿠키는 이런 `fetch`에 실리지 않는다. 그래서 dev 서버는 아래처럼 설정한다.
+
+- `APP_CORS_ALLOWED_ORIGINS=https://www.santacut.me,https://santacut.me,http://localhost:3000`
+- `SESSION_SECURE=true`, `APP_SESSION_SAME_SITE=None`(None은 Secure일 때만 쓸 수 있다)
+
+이렇게 하면 세션 쿠키와 CSRF 쿠키가 `SameSite=None; Secure`로 내려와 `localhost`에서도 실린다. CSRF 토큰은 앞서 말한 대로 `GET /v1/csrf` 응답 본문에서 읽으므로 흐름은 그대로다. 브라우저가 서드파티 쿠키를 막으면(Safari 기본값, Chrome 시크릿 창 등) 쿠키가 실리지 않아 `401`이나 `403`이 난다. 이때는 아래 프록시 방식을 쓴다.
+
+### 로컬 백엔드를 프록시로 부르기
+
+로컬에서 백엔드를 띄울 때는 아래 경로를 `http://localhost:8080`으로 프록시해 같은 출처로 부른다.
 
 | 경로 | 용도 |
 | --- | --- |
@@ -26,7 +44,7 @@
 | `/s/**` | 공개 공유 페이지와 이미지 |
 | `/swagger-ui/**`, `/swagger-ui.html`, `/v3/**` | API 문서 |
 
-`fetch`에는 `credentials: 'include'`(같은 출처면 기본값 `same-origin`도 가능)를 쓴다. 별도 API 도메인과 CORS는 지원하지 않는다.
+로컬 프록시에서도 같은 코드가 돌도록 `credentials: 'include'`는 그대로 둔다.
 
 ## 3. 인증과 CSRF
 
@@ -156,7 +174,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 }
 ```
 
-- 같은 출처(`/v1` 프록시)로 부르므로 세션 쿠키가 함께 간다. `withCredentials`는 다른 출처로 부를 때를 위한 것이다.
+- API가 다른 출처라 `withCredentials: true`가 있어야 세션 쿠키가 함께 간다. 예시의 상대 경로 앞에는 API 주소를 붙인다.
 - 스트림을 쓰는 동안에는 폴링을 멈춘다. 화면을 떠나면 `close()`로 닫는다.
 
 ### 6.1 원본 파일 업로드 `POST /v1/analyses/files`

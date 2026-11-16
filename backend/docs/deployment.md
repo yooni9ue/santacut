@@ -48,6 +48,8 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 | --- | --- | --- |
 | `app.public-base-url` (`APP_PUBLIC_BASE_URL`, Compose에서는 `PUBLIC_BASE_URL`) | `http://localhost:8080` | 공유 링크·Open Graph에 쓰는 공개 출처. 경로 없는 URL이어야 한다 |
 | `app.session-secure` (`APP_SESSION_SECURE`, Compose에서는 `SESSION_SECURE`) | `false` | 세션 쿠키 Secure·`__Host-` 이름 사용 |
+| `app.cors.allowed-origins` (`APP_CORS_ALLOWED_ORIGINS`) | `https://www.santacut.me,https://santacut.me` | 쿠키를 실어 API를 부를 수 있는 프론트엔드 출처. 쉼표로 나눈다. dev는 `http://localhost:3000`을 더한다. 자격 증명을 허용하므로 `*`는 쓸 수 없고, 넣으면 앱이 뜨지 않는다 |
+| `app.session-same-site` (`APP_SESSION_SAME_SITE`) | `Lax` | 세션·CSRF 쿠키의 SameSite(`Strict`, `Lax`, `None`). `None`은 `APP_SESSION_SECURE=true`일 때만 쓸 수 있고, 아니면 앱이 뜨지 않는다. dev만 `None`으로 둬 `http://localhost:3000`에서도 쿠키가 실리게 한다 |
 | `app.season-year` (`APP_SEASON_YEAR`) | `2026` | 시즌 연도. 그해 12월 25일 0시(KST)에 마감한다 |
 | `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
 | `santacut.ai.poll-delay-ms` | `3000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |

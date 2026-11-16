@@ -59,9 +59,14 @@ santacut:
 app:
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
   session-secure: ${APP_SESSION_SECURE:false}
+  # 세션·CSRF 쿠키의 SameSite. 다른 사이트(예: localhost)의 프론트엔드가 부르게 하려면 None과 Secure를 함께 쓴다.
+  session-same-site: ${APP_SESSION_SAME_SITE:Lax}
   season-year: ${APP_SEASON_YEAR:2026}
   origin-lat: ${SANTA_ORIGIN_LAT:37.5252}
   origin-lon: ${SANTA_ORIGIN_LON:126.9253}
+  cors:
+    # 쿠키를 실어 API를 부를 수 있는 프론트엔드 출처. 쉼표로 나눈다.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://www.santacut.me,https://santacut.me}
 spring.ai:
   model.chat: google-genai
   google.genai:
