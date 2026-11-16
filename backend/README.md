@@ -9,7 +9,7 @@
 
 ## 한눈에 보기
 
-<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 17개, 테이블 9개, 자동 테스트 275개, 오류 코드 29개, 지역 271개, 참가자당 하루 3회. 검증 작업자 1초, 분석 작업자 3초, 작업 임대 3분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
+<p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: 엔드포인트 17개(dev 전용 3개 별도), 테이블 10개, 자동 테스트 311개, 오류 코드 30개, 지역 271개, 참가자당 하루 3회. 검증 작업자 1초, 분석 작업자 3초, 작업 임대 3분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
 
 ## 할 수 있는 일
 
@@ -30,6 +30,7 @@
 - 분석은 큐에 넣고, 화면은 진행 상태를 폴링으로 조회한다.
 - 작업자는 둘이다. 원본 검증 1초, AI 채점 3초 간격.
 - AI 채점은 Spring AI + Amazon Bedrock(Claude Haiku 4.5, Converse API)이다.
+- 채점 프롬프트는 DB(`prompts`)에 판으로 쌓는다. AI를 부를 때마다 최신 판을 읽는다.
 
 ## 계층 구조
 
@@ -40,7 +41,7 @@
 
 ## 데이터 모델
 
-<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, ai_daily_budget, result_snapshots, shares 9개 테이블과 외래 키 관계" width="100%"></p>
+<p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, ai_daily_budget, result_snapshots, shares, prompts 10개 테이블과 외래 키 관계" width="100%"></p>
 
 - 기준은 [`schema.sql`](src/main/resources/schema.sql)이다.
 - 원본 파일은 `analysis_uploads`에 잠깐 머문다. 검증이 끝나면 지운다.
@@ -93,7 +94,7 @@ sequenceDiagram
 
 ## API
 
-<p align="center"><img src="docs/images/api.svg" alt="API 지도: participant, session, analysis, ranking, share 도메인별 엔드포인트 17개 전부와 메서드, 공개·세션·CSRF·멱등키 표시" width="100%"></p>
+<p align="center"><img src="docs/images/api.svg" alt="API 지도: participant, session, analysis, ranking, share 도메인별 엔드포인트 17개와 dev 전용 프롬프트 관리 3개, 메서드, 공개·세션·CSRF·멱등키 표시" width="100%"></p>
 
 - 필드 정의는 Swagger(`/swagger-ui.html`)가 기준이다.
 - 호출 순서는 [API 연동 가이드](../docs/frontend-api-guide.md)에 있다.
@@ -121,6 +122,14 @@ sequenceDiagram
 | GET | `/s/{token}` | 공개 공유 HTML | 공개 |
 | GET | `/s/{token}/image.png` | 공개 공유 이미지 | 공개 |
 
+dev 전용(`PROMPT_ADMIN_ENABLED=true`일 때만 있음, 운영은 404):
+
+| 메서드 | 경로 | 하는 일 | 인증 |
+| --- | --- | --- | --- |
+| POST | `/v1/admin/prompts/{name}` | 프롬프트 다음 판 저장 (`201`) | 공개 · CSRF |
+| GET | `/v1/admin/prompts/{name}` | 최신 판 | 공개 |
+| GET | `/v1/admin/prompts/{name}/versions` | 판 목록(본문 없음) | 공개 |
+
 </details>
 
 ## 품질 게이트
@@ -144,6 +153,7 @@ cd backend
 ```
 
 - 로컬 DB는 `./data/santacut.db`, 헬스 체크는 `/actuator/health`다.
+- `bootRun`은 dev처럼 프롬프트 관리 API(`/v1/admin/prompts`)를 켠다.
 
 ## 데이터 출처
 

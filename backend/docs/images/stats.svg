@@ -26,20 +26,20 @@
   <rect x="62" y="132" width="34" height="5" rx="2.5" fill="#3E8BFF"/>
   <text class="big" x="62" y="194" style="fill:#3E8BFF">17<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="62" y="224">HTTP 엔드포인트</text>
-  <text class="xs" x="62" y="244">컨트롤러 7개 · OpenAPI 기준</text>
+  <text class="xs" x="62" y="244">OpenAPI 기준 · dev 전용 3개는 따로</text>
   <rect class="card" x="325" y="110" width="265" height="150" rx="16"/>
   <rect x="347" y="132" width="34" height="5" rx="2.5" fill="#3DDC97"/>
-  <text class="big" x="347" y="194" style="fill:#3DDC97">9<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="347" y="194" style="fill:#3DDC97">10<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="347" y="224">SQLite 테이블</text>
   <text class="xs" x="347" y="244">schema.sql 하나</text>
   <rect class="card" x="610" y="110" width="265" height="150" rx="16"/>
   <rect x="632" y="132" width="34" height="5" rx="2.5" fill="#7F52FF"/>
-  <text class="big" x="632" y="194" style="fill:#7F52FF">275<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="632" y="194" style="fill:#7F52FF">311<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="632" y="224">자동 테스트</text>
   <text class="xs" x="632" y="244">gradlew check 통과</text>
   <rect class="card" x="895" y="110" width="265" height="150" rx="16"/>
   <rect x="917" y="132" width="34" height="5" rx="2.5" fill="#FF5A5F"/>
-  <text class="big" x="917" y="194" style="fill:#FF5A5F">29<tspan class="unit" dx="6">개</tspan></text>
+  <text class="big" x="917" y="194" style="fill:#FF5A5F">30<tspan class="unit" dx="6">개</tspan></text>
   <text class="lb" x="917" y="224">오류 코드</text>
   <text class="xs" x="917" y="244">ErrorCode.kt · 작업 실패 코드는 따로 8개</text>
   <rect class="card" x="40" y="280" width="265" height="150" rx="16"/>
