@@ -40,6 +40,7 @@ import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.math.BigDecimal
 import java.time.Duration
@@ -55,6 +56,7 @@ import kotlin.test.assertNull
  * AI 호출마다 DB의 최신 채점 프롬프트를 쓰는지, 같은 채점 입력의 재제출에 지난 결과를 다시 쓰는지,
  * 호출 전 차단, 제공자 차단, 앱 안의 비용 가드도 확인한다.
  * 대기열 전체를 보는 작업자라 다른 통합 테스트와 섞이지 않게 `build/worker-test.db`를 따로 쓰고 테스트마다 비운다.
+ * 작업자를 멈추게 하는 테스트는 멈춤 상태가 앱 메모리에 남으므로 끝난 뒤 컨텍스트를 새로 띄운다.
  */
 @SpringBootTest(
     properties = [
@@ -244,8 +246,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     fun `제공자가 호출을 막으면 작업을 실패시키지 않고 대기열로 되돌린 뒤 멈춘다`() {
-        clock.moveTo(BACKOFF_TIME)
         given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(ScoreAnswer.providerUnavailable())
         val job = submitAnalysis()
 
@@ -254,6 +256,28 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
         verify(scoreClient, times(1)).requestAnswer(anyDigest(), anyString())
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    fun `분석 오류가 3번 연달아 나면 멈춰서 다음 작업을 잡지 않는다`() {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willThrow(IllegalStateException("AI 장애"))
+        val jobs = List(MAX_CONSECUTIVE_FAILURES + 1) { submitAnalysis() }
+
+        repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
+
+        assertEquals(List(MAX_CONSECUTIVE_FAILURES) { "ANALYSIS_FAILED" }, jobs.dropLast(1).map { analysisFacade.getStatus(it).errorCode })
+        assertEquals("QUEUED", analysisFacade.getStatus(jobs.last()).status)
+    }
+
+    @Test
+    fun `근거 부족은 연달아 나도 멈추지 않는다`() {
+        given(scoreClient.requestAnswer(anyDigest(), anyString())).willReturn(ScoreAnswer.insufficient(USAGE))
+        val jobs = List(MAX_CONSECUTIVE_FAILURES + 1) { submitAnalysis() }
+
+        repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
+
+        assertEquals(List(jobs.size) { "INSUFFICIENT_EVIDENCE" }, jobs.map { analysisFacade.getStatus(it).errorCode })
     }
 
     @Test
@@ -305,7 +329,6 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private val EXPENSIVE_USAGE = ModelUsage(600_000, 0, "end_turn")
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
 
-        /** 제공자 차단 뒤 멈춤(15분)이 다른 테스트의 [OPEN_TIME]까지 이어지지 않도록 하루 앞선 시각. */
-        private val BACKOFF_TIME: Instant = OPEN_TIME.minus(Duration.ofDays(1))
+        private const val MAX_CONSECUTIVE_FAILURES = 3
     }
 }

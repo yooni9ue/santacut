@@ -18,19 +18,23 @@ class ProviderBackoff(
 
     fun isPausedAt(now: Instant): Boolean = pausedUntil?.isAfter(now) == true
 
-    /** 제공자가 호출을 막았다. 바로 멈춘다. */
-    fun pauseFrom(now: Instant) {
-        pausedUntil = now.plus(pause)
+    /** 실패 종류에 따라 바로 멈추거나, 연속 실패로 세어 [maxConsecutiveFailures]번째에 멈춘다. */
+    fun record(failure: ScoringFailure, now: Instant) {
+        if (failure.pausesAtOnce) pauseFrom(now)
+        if (failure.countsTowardPause) countFailure(now)
+    }
+
+    fun recordSuccess() {
         consecutiveFailures = 0
     }
 
-    /** 채점이 실패했다. [maxConsecutiveFailures]번 연달아 실패하면 멈춘다. */
-    fun recordFailure(now: Instant) {
+    private fun countFailure(now: Instant) {
         consecutiveFailures++
         if (consecutiveFailures >= maxConsecutiveFailures) pauseFrom(now)
     }
 
-    fun recordSuccess() {
+    private fun pauseFrom(now: Instant) {
+        pausedUntil = now.plus(pause)
         consecutiveFailures = 0
     }
 }

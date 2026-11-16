@@ -5,6 +5,7 @@ import com.santacut.domain.analysis.model.AiUsageDay
 import com.santacut.domain.analysis.model.AiUsageDays
 import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ProviderBackoff
+import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.global.config.AiBudgetProperties
 import com.santacut.domain.global.model.SeoulTime
 import com.santacut.infrastructure.analysis.repository.AiUsageDayRepository
@@ -45,9 +46,8 @@ class AiBudgetService(
         aiUsageDayRepository.save(day)
     }
 
-    fun pause(now: Instant) = backoff.pauseFrom(now)
-
-    fun recordFailure(now: Instant) = backoff.recordFailure(now)
+    /** 실패 종류에 따라 바로 멈추거나 연속 실패로 센다. 규칙은 [ProviderBackoff]가 정한다. */
+    fun recordFailure(failure: ScoringFailure, now: Instant) = backoff.record(failure, now)
 
     fun recordSuccess() = backoff.recordSuccess()
 

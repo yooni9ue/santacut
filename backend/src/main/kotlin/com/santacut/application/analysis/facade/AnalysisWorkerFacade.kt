@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.Score
 import com.santacut.domain.analysis.model.ScoreAnswer
 import com.santacut.domain.analysis.model.ScoringDigest
+import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.analysis.service.AiBudgetService
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AnalysisScoringService
@@ -94,7 +95,7 @@ class AnalysisWorkerFacade(
         } catch (exception: SantaCutException) {
             logUsage(job, prompt, digest, answer, exception.errorCode.name)
             if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
-                transactionTemplate.executeWithoutResult { failIfHeld(job.id, lease, exception, digestHash) }
+                transactionTemplate.executeWithoutResult { finishIfHeld(job.id, lease, ScoringFailure.of(exception), digestHash) }
             }
             throw exception
         }
@@ -160,30 +161,18 @@ class AnalysisWorkerFacade(
         rankingService.rebuild(completedAt, shareService.findAll())
     }
 
-    /**
-     * 제공자가 호출을 막았으면 작업을 대기열로 되돌리고 잠시 멈춘다.
-     * 그 밖의 실패는 작업을 끝내고, 근거 부족이 아닌 실패가 연달아 쌓이면 잠시 멈춘다.
-     */
+    /** 실패 종류([ScoringFailure])에 따라 작업을 끝내거나 대기열로 되돌리고, 작업자를 멈출지는 비용 가드가 정한다. */
     private fun handleFailure(jobId: String, lease: String, exception: Exception) {
-        if ((exception as? SantaCutException)?.errorCode == ErrorCode.AI_PROVIDER_UNAVAILABLE) {
-            transactionTemplate.executeWithoutResult { releaseIfHeld(jobId, lease) }
-            aiBudgetService.pause(clock.instant())
-            return
-        }
-        transactionTemplate.executeWithoutResult { failIfHeld(jobId, lease, exception, null) }
-        if (AnalysisFailureCode.fromScoringFailure(exception) == AnalysisFailureCode.ANALYSIS_FAILED) {
-            aiBudgetService.recordFailure(clock.instant())
-        }
+        val failure = ScoringFailure.of(exception)
+        transactionTemplate.executeWithoutResult { finishIfHeld(jobId, lease, failure, null) }
+        aiBudgetService.recordFailure(failure, clock.instant())
     }
 
-    private fun releaseIfHeld(jobId: String, lease: String) {
+    /** 리스를 아직 쥐고 있으면 실패 이유로 작업을 끝낸다. 실패 이유가 없는 종류(제공자 차단)는 대기열로 되돌린다. */
+    private fun finishIfHeld(jobId: String, lease: String, failure: ScoringFailure, digestHash: String?) {
         val job = analysisJobService.findHeld(jobId, lease) ?: return
-        analysisJobService.releaseLease(job)
-    }
-
-    private fun failIfHeld(jobId: String, lease: String, exception: Exception, digestHash: String?) {
-        val job = analysisJobService.findHeld(jobId, lease) ?: return
-        analysisJobService.fail(job, AnalysisFailureCode.fromScoringFailure(exception), clock.instant(), digestHash)
+        val failureCode = failure.failureCode ?: return analysisJobService.releaseLease(job)
+        analysisJobService.fail(job, failureCode, clock.instant(), digestHash)
     }
 
     private fun failureReason(exception: Exception): String =
