@@ -3,7 +3,9 @@ package com.santacut.infrastructure.analysis.client
 import com.google.genai.errors.ClientException
 import com.google.genai.errors.ServerException
 import org.junit.jupiter.api.Test
+import java.net.ConnectException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -18,6 +20,12 @@ class ExceptionCausesTest {
     fun `서버 오류와 시간 초과도 제공자 오류다`() {
         assertTrue(ExceptionCauses.of(ServerException(503, "UNAVAILABLE", "과부하")).isProviderUnavailable())
         assertTrue(ExceptionCauses.of(RuntimeException("감쌈", SocketTimeoutException("timeout"))).isProviderUnavailable())
+    }
+
+    @Test
+    fun `연결 실패와 호스트 조회 실패도 제공자 오류다`() {
+        assertTrue(ExceptionCauses.of(RuntimeException("감쌈", ConnectException("Connection refused"))).isProviderUnavailable())
+        assertTrue(ExceptionCauses.of(RuntimeException("감쌈", UnknownHostException("generativelanguage.googleapis.com"))).isProviderUnavailable())
     }
 
     @Test

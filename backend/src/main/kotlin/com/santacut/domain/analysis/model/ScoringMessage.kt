@@ -12,10 +12,8 @@ data class ScoringMessage(
     val localTime: LocalDateTime,
     val text: String,
 ) {
-    fun date(): LocalDate = localTime.toLocalDate()
-
     /** 이 메시지가 든 주의 월요일. 표본은 이 달력 주 단위로 고르게 뽑는다. */
-    fun weekStart(): LocalDate = date().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    fun weekStart(): LocalDate = localTime.toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
 
     /** 공백, 문장 부호, 기호·이모지, ㅋ·ㅎ·ㅠ·ㅜ를 빼면 [MIN_MEANINGFUL_LENGTH]자보다 짧은 메시지. */
     fun isLowSignal(): Boolean = NOISE.replace(text, "").length < MIN_MEANINGFUL_LENGTH
