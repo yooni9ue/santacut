@@ -50,11 +50,11 @@
 
 ## 아키텍처
 
-<p align="center"><img src="docs/images/architecture.svg" alt="요청 흐름: 클라이언트가 Caddy(지금 HTTP 80, 도메인을 산 뒤 TLS 443)를 거쳐 Spring Boot 앱의 4계층으로 들어간다. 작업자 둘이 원본 검증과 AI 채점을 하고, SQLite에 저장하고, Gemini 2.5 Flash를 부른다. SQLite는 매시 S3로 백업한다" width="100%"></p>
+<p align="center"><img src="docs/images/architecture.svg" alt="요청 흐름: 클라이언트가 Caddy(지금 HTTP 80, 도메인을 산 뒤 TLS 443)를 거쳐 Spring Boot 앱의 4계층으로 들어간다. 작업자 둘이 원본 검증과 AI 채점을 하고, SQLite에 저장하고, Gemini 3.5 Flash-Lite를 부른다. SQLite는 매시 S3로 백업한다" width="100%"></p>
 
 - 분석은 큐에 넣는다. 화면은 진행 상태를 SSE 스트림(`/v1/analyses/{id}/events`)으로 받거나 폴링한다.
 - 작업자는 둘이다. 원본 검증은 1초, AI 채점은 3초 간격으로 돈다.
-- AI 채점은 Spring AI와 Google Gemini 2.5 Flash(Gemini Developer API)다.
+- AI 채점은 Spring AI와 Google Gemini 3.5 Flash-Lite(Gemini Developer API)다.
 - 채점 프롬프트는 DB(`prompts`)에 판으로 쌓인다. AI를 부를 때마다 최신 판을 읽는다.
 - AI에는 본인 메시지 전체가 아니라 항목별 낱말 신호 4줄과 표본(최대 120줄, 6,000자)만 보낸다. 같은 입력을 다시 내면 AI를 부르지 않는다.
 - 서버는 Lightsail `nano_3_0`(512MB) 한 대다. 지금은 도메인 없이 HTTP로 띄운다.
@@ -78,7 +78,7 @@
 
 ## 분석 흐름
 
-<p align="center"><img src="docs/images/analysis-flow.svg" alt="분석 흐름: 1 분석 제출, 2 접수 검사, 3 저장하고 202, 4 원본 꺼내기, 5 파싱과 정규화, 6 대기열로, 7 작업 임대, 8 최신 프롬프트 판으로 Gemini 2.5 Flash 채점, 9 평가 저장과 순위 재계산을 한 트랜잭션으로. 클라이언트는 VALIDATING부터 SUCCEEDED까지 폴링한다" width="100%"></p>
+<p align="center"><img src="docs/images/analysis-flow.svg" alt="분석 흐름: 1 분석 제출, 2 접수 검사, 3 저장하고 202, 4 원본 꺼내기, 5 파싱과 정규화, 6 대기열로, 7 작업 임대, 8 최신 프롬프트 판으로 Gemini 3.5 Flash-Lite 채점, 9 평가 저장과 순위 재계산을 한 트랜잭션으로. 클라이언트는 VALIDATING부터 SUCCEEDED까지 폴링한다" width="100%"></p>
 
 - 원본은 접수할 때 한 번 보고, 검증 작업자가 한 번 더 본다.
 - 빈 파일, zip, 바이너리는 바로 `422`다. 20MB를 넘으면 `413`이다.
@@ -97,7 +97,7 @@ sequenceDiagram
     participant DB as SQLite
     participant V as 검증 워커
     participant W as 분석 워커
-    participant AI as Gemini 2.5 Flash
+    participant AI as Gemini 3.5 Flash-Lite
     C->>API: POST /v1/analyses/files (multipart, Idempotency-Key)
     API->>DB: 원본 + 작업 저장 (VALIDATING)
     API-->>C: 202 Accepted
@@ -109,7 +109,7 @@ sequenceDiagram
     loop 3초마다
         W->>DB: 작업 임대 · 최신 프롬프트 읽기
     end
-    W->>AI: 채점 요청 (Gemini 2.5 Flash)
+    W->>AI: 채점 요청 (Gemini 3.5 Flash-Lite)
     AI-->>W: 구조화 점수
     W->>DB: 평가 저장 + 순위 재계산 (한 트랜잭션)
     loop 화면이 몇 초마다

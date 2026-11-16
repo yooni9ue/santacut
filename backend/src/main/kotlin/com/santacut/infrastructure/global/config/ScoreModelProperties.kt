@@ -10,6 +10,6 @@ data class ScoreModelProperties(
     val model: String = DEFAULT_MODEL,
 ) {
     companion object {
-        private const val DEFAULT_MODEL = "gemini-2.5-flash"
+        private const val DEFAULT_MODEL = "gemini-3.5-flash-lite"
     }
 }
