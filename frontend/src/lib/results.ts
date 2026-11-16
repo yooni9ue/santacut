@@ -25,6 +25,10 @@ export async function getMyResult(signal?: AbortSignal) {
     throw error;
   }
 }
+export interface ShareResponse { html_url: string; image_url?: string }
+export async function createShare(includeQuote = false) {
+  return (await api.post<ShareResponse>(`/shares${includeQuote ? "?include_quote=true" : ""}`, {})).data;
+}
 
 export function resultError(error: unknown) { return getApiErrorMessage(error); }
 export const formatScore = (value: number) => (value / 100).toFixed(2);

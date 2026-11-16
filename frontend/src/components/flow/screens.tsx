@@ -9,7 +9,7 @@ import { FlowFrame, InfoNote, NextLink } from "./frame";
 import { sourceName, usePreview, type Source } from "./preview-context";
 import { analysisError, analysisFailure, getAnalysis, getLatestAnalysis, isFinished, uploadAnalysis, watchAnalysis, type AnalysisStatus } from "@/lib/analyses";
 import { getParticipant } from "@/lib/participants";
-import { formatKoreanDate, formatScore, getMyResult, resultError } from "@/lib/results";
+import { createShare, formatKoreanDate, formatScore, getMyResult, resultError } from "@/lib/results";
 import { getRankings, rankingError, type RankingRow } from "@/lib/rankings";
 
 export function StartScreen() {
@@ -185,12 +185,17 @@ function LiveResultScreen() {
   const { data } = usePreview();
   const [result, setResult] = useState<Awaited<ReturnType<typeof getMyResult>>>(null);
   const [error, setError] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [sharing, setSharing] = useState(false);
   useEffect(() => { const controller = new AbortController(); getMyResult(controller.signal).then(setResult).catch(failure => { if (!controller.signal.aborted) setError(resultError(failure)); }); return () => controller.abort(); }, []);
   if (error) return <FlowFrame back="/analysis" step={2} title={<>결과를<br />불러오지 못했어요.</>} description={error} action={<Link className="flow-primary" href="/analysis">심사 상태 다시 보기 ↗</Link>}><span /></FlowFrame>;
   if (!result) return <FlowFrame back="/analysis" step={2} title={<>결과를<br />확인하는 중.</>} description="점수와 순위를 안전하게 불러오고 있어요."><span /></FlowFrame>;
   const rank = result.rank == null ? "계산 중" : `${result.tied ? "공동 " : ""}${result.rank}위`;
+  async function share() { setSharing(true); setError(""); try { const response = await createShare(); setShareUrl(response.html_url); } catch (failure) { setError(resultError(failure)); } finally { setSharing(false); } }
   return <FlowFrame back="/analysis" title={<>산타의 판정이<br />도착했습니다.</>} description={`${result.nickname || data.nickname} 님, 마음의 준비 됐죠?`} action={<NextLink href="/ranking">전체 랭킹 보기</NextLink>}>
     <div className="flow-result-card"><span className="flow-status-pill">{result.stage === "FINAL" ? "시즌 확정" : "실제 결과"}</span><span className="flow-result-face" aria-hidden="true">◉‿◉</span><h2>{result.title || "산타의 판정"}</h2><p className="flow-score">{formatScore(result.score_hundredths)}<span>점</span></p><p className="flow-verdict">“{result.verdict}”</p><div className="flow-result-stats"><div><small>{result.ranking_pending ? "순위 반영" : "통합 순위"}</small><b>{rank}</b></div><div><small>선물 도착 예정</small><b className="flow-eta">{formatKoreanDate(result.eta)}</b></div></div>{result.ranking_pending && <p className="flow-fine-print">새 심사의 점수는 확정됐고 순위는 반영 중이에요.</p>}</div>
+    <button className="flow-secondary" onClick={share} disabled={sharing}>{sharing ? "공유 카드 만드는 중" : "공유 카드 링크 만들기"}<span aria-hidden="true">↗</span></button>
+    {shareUrl && <p className="flow-info" role="status"><span>✓</span><span>공유 링크가 준비됐어요. <a href={shareUrl} target="_blank" rel="noreferrer">새 창에서 열기</a></span></p>}
     <Link className="flow-text-link" href="/start">다른 기록으로 다시 시작 ↗</Link>
   </FlowFrame>;
 }
