@@ -1,5 +1,6 @@
 package com.santacut.infrastructure.analysis.client
 
+import com.google.genai.errors.ClientException
 import com.santacut.domain.analysis.model.AnalysisEvent
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisSubmission
@@ -20,7 +21,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * Bedrock 호출 경계(ChatModel)를 바꿔 끼우고 ScoreClient가 응답과 사용량을 읽는 방식을 확인한다.
+ * Gemini 호출 경계(ChatModel)를 바꿔 끼우고 ScoreClient가 응답과 사용량을 읽는 방식을 확인한다.
  */
 class ScoreClientTest {
     private val chatModel = RecordingChatModel(FULL_ANSWER)
@@ -75,7 +76,7 @@ class ScoreClientTest {
 
     @Test
     fun `제공자가 요청 한도로 막으면 던지지 않고 AI_PROVIDER_UNAVAILABLE 답을 돌려준다`() {
-        chatModel.failure = IllegalStateException("감싼 예외", ThrottlingException())
+        chatModel.failure = IllegalStateException("감싼 예외", ClientException(429, "RESOURCE_EXHAUSTED", "한도"))
 
         val answer = scoreClient.requestAnswer(digest(), SYSTEM_PROMPT)
 

@@ -241,7 +241,7 @@ class AnalysisJob(
         val SUBMISSION_WINDOW: Duration = Duration.ofDays(1)
 
         /**
-         * 대기 상태로 이 시간이 지나면 만료한다. AI가 꺼져 있거나 Bedrock 예산 차단으로 오래 밀린 작업을 정리하기 위한 값으로,
+         * 대기 상태로 이 시간이 지나면 만료한다. AI가 꺼져 있거나 AI 비용 한도에 막혀 오래 밀린 작업을 정리하기 위한 값으로,
          * 제출 한도 기간([SUBMISSION_WINDOW])과는 따로 조정할 수 있다.
          */
         val QUEUE_EXPIRY: Duration = Duration.ofHours(24)

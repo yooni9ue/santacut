@@ -10,7 +10,7 @@ import org.springframework.ai.chat.model.Generation
 import org.springframework.ai.chat.prompt.Prompt
 
 /**
- * Bedrock 대신 정해 둔 답과 토큰 사용량을 돌려주고, 마지막으로 받은 프롬프트를 기억하는 테스트용 채팅 모델.
+ * Gemini 대신 정해 둔 답과 토큰 사용량을 돌려주고, 마지막으로 받은 프롬프트를 기억하는 테스트용 채팅 모델.
  *
  * @property reply 모델이 돌려줄 답 본문
  * @property failure 있으면 답 대신 이 예외를 던진다
