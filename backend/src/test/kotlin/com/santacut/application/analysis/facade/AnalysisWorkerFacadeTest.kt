@@ -67,6 +67,8 @@ import kotlin.test.assertTrue
         "app.season-year=${AnalysisWorkerFacadeTest.SEASON_YEAR}",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
+        // 시작 직후 예약 폴링이 목을 부르면 이 스레드의 스텁이 다른 메서드에 붙는다. 작업자는 테스트가 직접 부른다.
+        "santacut.scheduling.enabled=false",
         // 호출 수와 사용량을 세는 검증은 한 번 묻는 예전 흐름 기준이다. 중앙값 반복은 ScoringChunksTest·ScoreAnswersTest가 본다.
         "santacut.score.sampling.samples=1",
     ],
