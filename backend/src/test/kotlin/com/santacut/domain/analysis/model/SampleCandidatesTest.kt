@@ -69,6 +69,27 @@ class SampleCandidatesTest {
     }
 
     @Test
+    fun `한 항목 낱말이 넘쳐도 항목마다 칸을 따로 두어 다른 항목과 낱말 없는 메시지를 함께 뽑는다`() {
+        val cheers = List(MAX_SAMPLE_MESSAGES * 2) { at(0, "정말 고마워 $it", it.toLong()) }
+        val others = listOf(at(1, "많이 힘들지"), at(2, "다음에 같이 가자"), at(3, "죄송합니다 늦었어요"), at(4, "점심 뭐 먹었어"))
+
+        val sample = pick(cheers + others).toList().map { it.text }
+
+        assertTrue(sample.containsAll(others.map { it.text }))
+    }
+
+    @Test
+    fun `한 주 안에서는 이른 메시지부터가 아니라 고르게 떨어진 메시지를 뽑는다`() {
+        val week = List(SPREAD_MESSAGES) { at((it / SPREAD_PER_DAY).toLong(), "가".repeat(MAX_SAMPLE_TEXT_LENGTH - 3) + it, it.toLong()) }
+
+        val picked = pick(week).toList().map { message -> week.indexOfFirst { it.text == message.text } }
+
+        assertEquals(MAX_SAMPLE_CHARS / MAX_SAMPLE_TEXT_LENGTH, picked.size)
+        assertTrue(picked.min() < SPREAD_MESSAGES / 10)
+        assertTrue(picked.max() > SPREAD_MESSAGES * 9 / 10)
+    }
+
+    @Test
     fun `무작위 없이 입력 순서가 달라도 같은 표본을 고른다`() {
         val messages = List(MAX_SAMPLE_MESSAGES * 2) { at(it % WINDOW_DAYS, "메시지 $it ${if (it % 7 == 0) "고마워" else ""}", it.toLong()) }
 
@@ -94,5 +115,7 @@ class SampleCandidatesTest {
         private const val QUIET_WEEKS = 12L
         private const val DAYS_PER_WEEK = 7L
         private const val WINDOW_DAYS = 90L
+        private const val SPREAD_MESSAGES = 70
+        private const val SPREAD_PER_DAY = 10
     }
 }
