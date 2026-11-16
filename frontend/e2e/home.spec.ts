@@ -23,5 +23,5 @@ test("start enters the mobile preview flow", async ({ page }) => {
   await page.getByRole("link", { name: "그래서 나 선물 받냐?" }).click();
   await expect(page).toHaveURL(/\/start$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("산타한테 뭘");
-  await expect(page.getByText("파일 전송·회원 등록·AI 심사는 실행되지 않습니다.")).toBeVisible();
+  await expect(page.getByText("파일 전송·AI 심사는 실행되지 않는 예시 화면입니다.")).toBeVisible();
 });
