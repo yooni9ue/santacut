@@ -66,7 +66,10 @@ class ScoreAnswersTest {
         val insufficient = ScoreAnswer.insufficient(USAGE)
         val mostlyInsufficient = ScoreAnswers(listOf(scored(listOf(70, 60, 50, 40), evidence = 1), insufficient, insufficient)).median()
         val mostlyScored = ScoreAnswers(
-            listOf(scored(listOf(70, 60, 50, 40), evidence = 1), scored(listOf(71, 61, 51, 41), evidence = 1), insufficient),
+            listOf(
+                scored(listOf(70, 60, 50, 40), evidence = 1),
+                scored(listOf(71, 61, 51, 41), evidence = 1), insufficient,
+            ),
         ).median()
 
         assertFalse(mostlyInsufficient.isScored())
@@ -75,10 +78,56 @@ class ScoreAnswersTest {
     }
 
     @Test
-    fun `여러 호출은 동시에 불리고 모두 모인다`() {
-        val answers = ScoreAnswers.sampled(3) { scored(listOf(70, 60, 50, 40), evidence = 1) }.median()
+    fun `세 답 중 하나가 범위를 벗어나면 그 답을 버리고 나머지로 중앙값을 낸다`() {
+        val median = ScoreAnswers(
+            listOf(
+                scored(listOf(70, 60, 50, 40), evidence = 1),
+                scored(listOf(170, 60, 50, 40), evidence = 1),
+                scored(listOf(72, 62, 52, 42), evidence = 1),
+            ),
+        ).median()
 
-        assertEquals(30, answers.usage.inputTokens)
+        median.verifyAnswered()
+        assertEquals(BigDecimal("71.00"), median.scoreAt(0))
+        assertEquals(30, median.usage.inputTokens)
+    }
+
+    @Test
+    fun `세 답 중 하나가 읽기 실패나 형식 오류여도 나머지 둘로 중앙값을 낸다`() {
+        val unreadable = ScoreAnswers(
+            listOf(
+                scored(listOf(70, 60, 50, 40), evidence = 1),
+                ScoreAnswer.unreadable(USAGE),
+                scored(listOf(72, 62, 52, 42), evidence = 1),
+            ),
+        ).median()
+        val malformed = ScoreAnswers(
+            listOf(
+                scored(listOf(70, 60, 50, 40), evidence = 1),
+                scored(listOf(70, 60), evidence = 1),
+                scored(listOf(72, 62, 52, 42), evidence = 1),
+            ),
+        ).median()
+
+        assertTrue(unreadable.isValidScore())
+        assertEquals(BigDecimal("61.00"), unreadable.scoreAt(1))
+        assertTrue(malformed.isValidScore())
+        assertEquals(BigDecimal("61.00"), malformed.scoreAt(1))
+    }
+
+    @Test
+    fun `쓸 수 있는 답이 과반이 못 되면 버린 답의 형식 오류로 끝난다`() {
+        val median = ScoreAnswers(
+            listOf(
+                scored(listOf(170, 60, 50, 40), evidence = 1),
+                scored(listOf(70, 60, 50, 40), evidence = 1),
+                ScoreAnswer.unreadable(USAGE),
+            ),
+        ).median()
+
+        val exception = assertThrows<SantaCutException> { median.verifyAnswered() }
+        assertEquals(ErrorCode.AI_SCORE_OUT_OF_RANGE, exception.errorCode)
+        assertEquals(30, median.usage.inputTokens)
     }
 
     private fun scored(scores: List<Int>, opportunity: Int = 2, playfulness: Int? = null, evidence: Int): ScoreAnswer =
