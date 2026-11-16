@@ -42,8 +42,7 @@ class ShareImageRenderer {
 
     /** 배지·상위 %·약한 항목 줄. 본인이 고른 한마디가 있으면 앞에 붙이고, 둘 다 없으면 재미용 한마디다. */
     private fun summaryOf(card: ShareCard): String {
-        val quoted = card.quote?.let { "“$it”" }
-        val parts = listOfNotNull(quoted, card.highlights.ifEmpty { null })
+        val parts = card.quoteAndHighlights()
         return if (parts.isEmpty()) card.comment else parts.joinToString(SEPARATOR)
     }
 

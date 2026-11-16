@@ -29,4 +29,12 @@ data class ShareCard(
     val bars: String = "",
     val highlights: String = "",
     val quote: String? = null,
-)
+) {
+    /** 따옴표로 감싼 본인 한마디와 배지·상위 %·약한 항목 줄 가운데 값이 있는 것. 공유 카드와 공유 페이지가 함께 쓴다. */
+    fun quoteAndHighlights(): List<String> = listOfNotNull(quote?.let { "$QUOTE_OPEN$it$QUOTE_CLOSE" }, highlights.ifEmpty { null })
+
+    companion object {
+        private const val QUOTE_OPEN = "“"
+        private const val QUOTE_CLOSE = "”"
+    }
+}
