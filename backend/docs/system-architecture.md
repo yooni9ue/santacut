@@ -102,7 +102,7 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 
 작업 상태(설계안)는 QUEUED → RUNNING → SUCCEEDED / INSUFFICIENT_DATA / FAILED이고 retry 가능 실패는 next_attempt_at을 둔다. DB row에는 attempts, lease_owner, lease_until, fencing_token, request_sequence, versions를 둔다.
 
-현재 구현: 원본 파일 작업은 `VALIDATING`에서 시작하고, 검증 작업자(기본 1초 간격)를 거쳐 `QUEUED`가 된다. 분석 작업자(기본 3초 간격)가 `RUNNING`으로 임대(3분)하고 최대 3번 시도한다. 응답 진행 단계는 `VALIDATING`, `QUEUED`, `ANALYZING`, `RANKING_PENDING`, `SUCCEEDED`, `FAILED`다. DB row에는 `attempts`, `lease_token`, `lease_until`, `error_code`가 있고 next_attempt_at, fencing_token, request_sequence, versions는 두지 않았다. 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 AI가 꺼져 있어도 `EXPIRED`로 끝낸다. 전체 상태 전이는 [백엔드 설계 §10.1](backend-design.md)에 있다.
+현재 구현: 원본 파일 작업은 `VALIDATING`에서 시작하고, 검증 작업자(기본 1초 간격)를 거쳐 `QUEUED`가 된다. 분석 작업자(기본 3초 간격)가 `RUNNING`으로 임대(5분)하고 최대 3번 시도한다. 응답 진행 단계는 `VALIDATING`, `QUEUED`, `ANALYZING`, `RANKING_PENDING`, `SUCCEEDED`, `FAILED`다. DB row에는 `attempts`, `lease_token`, `lease_until`, `error_code`가 있고 next_attempt_at, fencing_token, request_sequence, versions는 두지 않았다. 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 AI가 꺼져 있어도 `EXPIRED`로 끝낸다. 전체 상태 전이는 [백엔드 설계 §10.1](backend-design.md)에 있다.
 
 - 짧은 트랜잭션에서 `FOR UPDATE SKIP LOCKED`로 하나를 claim하고 lease와 fencing token을 갱신한다. SQLite 구현은 커넥션 1개에 작업자도 하나라서, 가장 오래된 `QUEUED` 행을 읽고 리스 토큰을 쓴다.
 - 트랜잭션을 커밋한 뒤 AI HTTP 호출을 한다. 외부 호출 동안 DB connection/row lock을 잡지 않는다.
