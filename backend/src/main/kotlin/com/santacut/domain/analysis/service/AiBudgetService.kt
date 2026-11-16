@@ -8,6 +8,8 @@ import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ProviderBackoff
 import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.global.config.AiBudgetProperties
+import com.santacut.domain.global.exception.ErrorCode
+import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.infrastructure.analysis.repository.AiUsageDayRepository
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -34,6 +36,17 @@ class AiBudgetService(
         if (backoff.isPausedAt(now)) return true
         val period = AiBudgetPeriod.at(now)
         return budget.isExhausted(usageBetween(period.dayKey(), period.dayKey()), usageBetween(period.monthStartKey(), period.dayKey()))
+    }
+
+    /**
+     * 호출 전에 어림 사용량([estimate])을 더해도 하루·한 달 한도 안인지 확인한다. 넘으면 [ErrorCode.AI_BUDGET_EXCEEDED]이고,
+     * 작업은 대기열로 돌아가며 작업자는 잠시 멈춘다. 호출 한 번이 한도를 크게 넘기지 않게 하기 위해서다.
+     */
+    fun verifyAffordable(estimate: ModelUsage, now: Instant) {
+        val period = AiBudgetPeriod.at(now)
+        val today = usageBetween(period.dayKey(), period.dayKey())
+        val thisMonth = usageBetween(period.monthStartKey(), period.dayKey())
+        if (budget.wouldExceed(today, thisMonth, estimate)) throw SantaCutException(ErrorCode.AI_BUDGET_EXCEEDED)
     }
 
     /** 호출 한 번의 사용량을 오늘 합계에 더한다. 사용량을 받지 못한 호출([ModelUsage.NONE])은 더하지 않는다. */

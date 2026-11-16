@@ -116,6 +116,17 @@ class ScoreClientTest {
     }
 
     @Test
+    fun `어림 사용량은 프롬프트와 대화문 글자 수의 4분의 3을 입력으로, 출력 상한을 출력으로 잡는다`() {
+        val userText = "[대화]\n1|나|고마워 0\n2|상대|고마워 1\n3|나|고마워 2\n4|상대|고마워 3"
+        val estimate = scoreClient.estimateUsage(digest(), SYSTEM_PROMPT)
+
+        assertEquals(ScoreClient.estimatedTokens(SYSTEM_PROMPT.length + userText.length), estimate.inputTokens)
+        assertEquals(MAX_OUTPUT_TOKENS, estimate.outputTokens)
+        assertEquals(3L, ScoreClient.estimatedTokens(4))
+        assertEquals(1L, ScoreClient.estimatedTokens(1))
+    }
+
+    @Test
     fun `캐시 키는 프롬프트 판이 다르면 달라진다`() {
         assertEquals(scoreClient.cacheKey(digest(), 2), scoreClient.cacheKey(digest(), 2))
         assertNotEquals(scoreClient.cacheKey(digest(), 2), scoreClient.cacheKey(digest(), 3))
@@ -137,6 +148,7 @@ class ScoreClientTest {
     companion object {
         private const val EVENT_COUNT = 4
         private const val PARTNER = "상대"
+        private const val MAX_OUTPUT_TOKENS = 250L
         private const val EXPECTED_HUNDREDTHS = 8000
         private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
         private const val THOUGHT_TOKENS = 37

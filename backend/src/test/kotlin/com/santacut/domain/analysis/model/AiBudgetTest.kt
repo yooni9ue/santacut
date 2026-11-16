@@ -48,6 +48,27 @@ class AiBudgetTest {
     }
 
     @Test
+    fun `하루 한도가 없거나 0이면 하루 비용으로는 막지 않는다`() {
+        val heavyDay = days(ModelUsage(5_000_000, 0, ""))
+
+        listOf(null, BigDecimal.ZERO).forEach { daily ->
+            val noDaily = AiBudget(daily, BigDecimal("9"), BigDecimal("1"), BigDecimal("5"))
+            assertFalse(noDaily.isExhausted(heavyDay, heavyDay))
+            assertFalse(noDaily.wouldExceed(heavyDay, heavyDay, ModelUsage(1_000_000, 0, "")))
+        }
+    }
+
+    @Test
+    fun `호출 전 어림 비용을 더해 하루나 한 달 한도를 넘으면 넘는다고 본다`() {
+        val today = days(ModelUsage(400_000, 0, ""))
+        val month = days(ModelUsage(8_900_000, 0, ""))
+
+        assertTrue(budget.wouldExceed(today, today, ModelUsage(100_001, 0, "")))
+        assertFalse(budget.wouldExceed(today, today, ModelUsage(100_000, 0, "")))
+        assertTrue(budget.wouldExceed(days(ModelUsage(0, 0, "")), month, ModelUsage(100_001, 0, "")))
+    }
+
+    @Test
     fun `이번 달 비용이 한 달 한도에 닿으면 오늘 비용이 적어도 막는다`() {
         val today = days(ModelUsage(1_000, 0, ""))
         val thisMonth = days(ModelUsage(4_000_000, 1_000_000, ""))
