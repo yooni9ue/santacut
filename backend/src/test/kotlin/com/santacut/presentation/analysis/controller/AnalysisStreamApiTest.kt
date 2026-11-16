@@ -210,7 +210,7 @@ class AnalysisStreamApiTest @Autowired constructor(
 
     private fun submit(participantId: UUID): String {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))
-        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt, "$SAMPLE_TEXT $index") })
+        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt.minus(Duration.ofHours(EVENT_SPACING_HOURS * index)), "$SAMPLE_TEXT $index") })
         return analysisFacade.submit(SubmitAnalysisCommand(participantId, "key-" + UUID.randomUUID(), SOURCE, events)).id
     }
 
@@ -234,6 +234,9 @@ class AnalysisStreamApiTest @Autowired constructor(
         private const val ASYNC_WAIT_MS = 2_000L
         private const val SOURCE = "KAKAO"
         private const val EVENT_COUNT = 20
+
+        /** 대화문에서 한 줄로 이어지지 않게 이벤트 사이를 3시간보다 넓게 띄운다. */
+        private const val EVENT_SPACING_HOURS = 4L
         private const val SAMPLE_TEXT = "오늘 정말 고마웠어 덕분에 힘이 났어"
         private const val CACHE_KEY = "같은 채점 입력"
         private const val PROMPT = "채점 프롬프트"

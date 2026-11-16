@@ -6,7 +6,6 @@ import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
-import com.santacut.domain.analysis.model.SampleCandidates
 import com.santacut.infrastructure.analysis.client.RecordingChatModel
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,8 +19,8 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * 큰 내보내기(본인 메시지 2,000개)를 채점해도 AI에 보내는 사용자 메시지가 글자 예산 안에 드는지,
- * 원문 전체 대신 항목별 신호와 표본만 보내는지 AI 호출 경계(ChatModel)에서 확인한다.
+ * 큰 내보내기(본인과 상대 메시지 2,000개)를 채점하면 대화 전체를 화자 표시와 줄 번호를 붙인 대화문으로 보내는지,
+ * 채점 입력 해시가 상대 메시지까지 덮는지 AI 호출 경계(ChatModel)에서 확인한다.
  */
 @IntegrationTest
 @Import(RecordingChatModelConfiguration::class)
@@ -31,19 +30,26 @@ class AnalysisScoringServiceTest @Autowired constructor(
     private val objectMapper: ObjectMapper,
 ) {
     @Test
-    fun `메시지 2,000개를 채점해도 AI 사용자 메시지는 글자 예산 안이고 표본 줄 번호로 점수를 매긴다`() {
+    fun `메시지 2,000개를 채점하면 대화 전체를 번호와 화자 표시를 붙인 줄로 보내고 그 줄 번호로 점수를 매긴다`() {
         val payload = objectMapper.writeValueAsString(largeSubmission())
 
         val digest = analysisScoringService.digest(jobWith(payload))
         val answer = analysisScoringService.ask(digest, SYSTEM_PROMPT)
 
         val userText = checkNotNull(recordingChatModel.lastPrompt).userMessage.text.orEmpty()
-        val sampleLines = userText.substringAfter(SAMPLE_HEADER).lines()
-            .filterNot { it.startsWith(WEEK_HEADER_PREFIX) || it.startsWith(GAP_LINE_PREFIX) }
-        assertEquals(EXPECTED_HUNDREDTHS, answer.toScore(digest.sampleSize()).hundredths)
-        assertTrue(userText.length <= MAX_USER_MESSAGE_CHARS, "length=${userText.length}")
-        assertTrue(payload.length > userText.length * MIN_REDUCTION_FACTOR, "payload=${payload.length},user=${userText.length}")
-        assertEquals((1..SampleCandidates.MAX_SAMPLE_MESSAGES).toList(), sampleLines.map { it.substringBefore("|").toInt() })
+        val lines = userText.substringAfter(TRANSCRIPT_HEADER).lines().filterNot { it.startsWith(GAP_LINE_PREFIX) }
+        assertEquals(EXPECTED_HUNDREDTHS, answer.toScore(digest.lineCount()).hundredths)
+        assertEquals((1..digest.lineCount()).toList(), lines.map { it.substringBefore("|").toInt() })
+        assertEquals(setOf(SELF, PARTNER), lines.map { it.split("|")[1] }.toSet())
+        assertTrue(userText.length < payload.length, "payload=${payload.length},user=${userText.length}")
+    }
+
+    @Test
+    fun `상대 메시지만 달라도 채점 입력 해시가 다르다`() {
+        val digest = analysisScoringService.digest(jobWith(objectMapper.writeValueAsString(largeSubmission())))
+        val changed = analysisScoringService.digest(jobWith(objectMapper.writeValueAsString(largeSubmission(partnerSuffix = "!"))))
+
+        assertNotEquals(analysisScoringService.fingerprint(digest, 4), analysisScoringService.fingerprint(changed, 4))
     }
 
     @Test
@@ -55,10 +61,18 @@ class AnalysisScoringServiceTest @Autowired constructor(
         assertNotEquals(analysisScoringService.fingerprint(digest, 2), analysisScoringService.fingerprint(digest, 3))
     }
 
-    /** 90일에 고르게 퍼진 본인 메시지 2,000개. 짧은 웃음, 항목 낱말, 아주 긴 메시지가 섞여 있다. */
-    private fun largeSubmission(): AnalysisSubmission = AnalysisSubmission(
+    /** 90일에 고르게 퍼진 메시지 2,000개. 본인과 상대가 번갈아 보내고, 짧은 웃음과 아주 긴 메시지가 섞여 있다. */
+    private fun largeSubmission(partnerSuffix: String = ""): AnalysisSubmission = AnalysisSubmission(
         DataSource.KAKAO,
-        AnalysisEvents(List(EVENT_COUNT) { index -> AnalysisEvent(occurredAt(index), syntheticText(index)) }),
+        AnalysisEvents(
+            List(EVENT_COUNT) { index ->
+                if (index % 2 == 0) {
+                    AnalysisEvent(occurredAt(index), syntheticText(index))
+                } else {
+                    AnalysisEvent(occurredAt(index), syntheticText(index) + partnerSuffix, PARTNER)
+                }
+            },
+        ),
     )
 
     private fun occurredAt(index: Int): Instant = LATEST.minus(SPAN.multipliedBy((EVENT_COUNT - index).toLong()))
@@ -75,14 +89,12 @@ class AnalysisScoringServiceTest @Autowired constructor(
     companion object {
         private const val EVENT_COUNT = 2000
         private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
-        private const val SAMPLE_HEADER = "[sample]\n"
-        private const val WEEK_HEADER_PREFIX = "# "
+        private const val TRANSCRIPT_HEADER = "[대화]\n"
+        private const val SELF = "나"
+        private const val PARTNER = "상대"
         private const val GAP_LINE_PREFIX = "("
         private const val EXPECTED_HUNDREDTHS = 8000
 
-        /** 신호 블록(약 200자) + 표본 본문 6,000자 + 줄 번호 120개와 주 머리줄 13개를 넉넉히 더한 상한. */
-        private const val MAX_USER_MESSAGE_CHARS = 7000
-        private const val MIN_REDUCTION_FACTOR = 10
         private const val LONG_MESSAGE_EVERY = 50
         private const val LONG_MESSAGE_REPEAT = 20
         private val LATEST: Instant = Instant.parse("2026-11-15T12:00:00Z")

@@ -2,6 +2,7 @@ package com.santacut.application.analysis.facade
 
 import com.santacut.MutableClock
 import com.santacut.TestChatFiles
+import com.santacut.TestChatFiles.OTHER_SPEAKER
 import com.santacut.TestChatFiles.OTHER_TEXT
 import com.santacut.TestChatFiles.SELF_SPEAKER
 import com.santacut.TestParticipants.REGION_CODE
@@ -68,7 +69,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `검증을 통과하면 본인 메시지만 담아 대기열에 넣고 원본을 지운다`() {
+    fun `검증을 통과하면 상대 이름을 화자 표시로 바꿔 담아 대기열에 넣고 원본을 지운다`() {
         val job = upload(TestChatFiles.kakaoIos(OPEN_TIME, EVENT_COUNT))
 
         analysisUploadWorkerFacade.validateNextUpload()
@@ -76,12 +77,13 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
         val payload = analysisJobRepository.findById(job.jobId.toString()).orElseThrow().requirePayload()
         assertTrue(payload.contains("고마워 0"))
-        assertFalse(payload.contains(OTHER_TEXT))
+        assertTrue(payload.contains(OTHER_TEXT))
+        assertFalse(payload.contains(OTHER_SPEAKER))
         assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
     }
 
     @Test
-    fun `인스타그램 JSON도 검증을 통과하면 본인 메시지만 담아 대기열에 넣고 원본을 지운다`() {
+    fun `인스타그램 JSON도 검증을 통과하면 상대 이름을 화자 표시로 바꿔 담아 대기열에 넣고 원본을 지운다`() {
         val job = upload(TestChatFiles.instagram(OPEN_TIME, EVENT_COUNT), source = DataSource.INSTAGRAM)
 
         analysisUploadWorkerFacade.validateNextUpload()
@@ -90,7 +92,8 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         val payload = analysisJobRepository.findById(job.jobId.toString()).orElseThrow().requirePayload()
         assertTrue(payload.contains("고마워 0"))
         assertTrue(payload.contains("INSTAGRAM"))
-        assertFalse(payload.contains(OTHER_TEXT))
+        assertTrue(payload.contains(OTHER_TEXT))
+        assertFalse(payload.contains(OTHER_SPEAKER))
         assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
     }
 

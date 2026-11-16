@@ -18,11 +18,12 @@ class AnalysisUploadTest {
     private val noInstagram: (String) -> InstagramThread = { error("카카오톡 원본은 JSON으로 읽지 않는다") }
 
     @Test
-    fun `본인 메시지만 이벤트로 바꾸고 다른 참여자 메시지는 버린다`() {
+    fun `다른 참여자 메시지는 이름 대신 상대로 표시해 본인 메시지와 함께 이벤트로 바꾼다`() {
         val lines = listOf(line(yesterday, OTHER_SPEAKER, "남의 비밀")) + ownLines(yesterday, MIN_EVENTS)
         val submission = upload(lines).normalize(now, noInstagram)
         assertEquals(DataSource.KAKAO, submission.source)
-        assertEquals(List(MIN_EVENTS) { "고마워 $it" }, texts(submission))
+        assertEquals(listOf("남의 비밀") + List(MIN_EVENTS) { "고마워 $it" }, texts(submission))
+        assertEquals(listOf("상대") + List(MIN_EVENTS) { null }, submission.events.toList().map { it.partner })
     }
 
     @Test

@@ -295,7 +295,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     private fun submitAnalysis(participantId: UUID = registerParticipant(), text: String = SAMPLE_TEXT): AnalysisJobCommand {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))
-        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt, "$text $index") })
+        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt.minus(Duration.ofHours(EVENT_SPACING_HOURS * index)), "$text $index") })
         val command = SubmitAnalysisCommand(participantId, "key-" + UUID.randomUUID(), DataSource.KAKAO.name, events)
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.submit(command).id))
     }
@@ -315,6 +315,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         const val SEASON_YEAR = 2099
         private const val CONSECUTIVE_JOB_COUNT = 6
         private const val EVENT_COUNT = 20
+
+        /** 대화문에서 한 줄로 이어지지 않게 이벤트 사이를 3시간보다 넓게 띄운다. */
+        private const val EVENT_SPACING_HOURS = 4L
         private const val SAMPLE_TEXT = "오늘 정말 고마웠어 덕분에 힘이 났어"
         private const val SHORT_TEXT = "고마워"
         private const val CACHE_KEY = "같은 채점 입력"

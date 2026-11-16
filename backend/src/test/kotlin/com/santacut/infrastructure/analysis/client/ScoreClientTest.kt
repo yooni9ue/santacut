@@ -106,14 +106,13 @@ class ScoreClientTest {
     }
 
     @Test
-    fun `넘겨받은 프롬프트를 시스템 메시지로, 신호와 번호 붙인 표본 줄을 사용자 메시지로 보낸다`() {
+    fun `넘겨받은 프롬프트를 시스템 메시지로, 번호와 화자를 붙인 대화문을 사용자 메시지로 보낸다`() {
         scoreClient.requestAnswer(digest(), SYSTEM_PROMPT)
 
         val prompt = checkNotNull(chatModel.lastPrompt)
         val userText = prompt.userMessage.text.orEmpty()
         assertEquals(SYSTEM_PROMPT, prompt.systemMessage.text)
-        assertTrue(userText.startsWith("[signals]\ncare_empathy hit=0 neg=0 weeks=0/1 shown=0\npositivity_support hit=4 neg=0 weeks=1/1 shown=4\n"))
-        assertTrue(userText.endsWith("[sample]\n# 10-26주\n1|고마워 0\n2|고마워 1\n3|고마워 2\n4|고마워 3"))
+        assertEquals("[대화]\n1|나|고마워 0\n2|상대|고마워 1\n3|나|고마워 2\n4|상대|고마워 3", userText)
     }
 
     @Test
@@ -132,11 +131,12 @@ class ScoreClientTest {
 
     private fun digest(): ScoringDigest = AnalysisSubmission(
         DataSource.KAKAO,
-        AnalysisEvents(List(EVENT_COUNT) { index -> AnalysisEvent(OCCURRED_AT, "고마워 $index") }),
+        AnalysisEvents(List(EVENT_COUNT) { index -> AnalysisEvent(OCCURRED_AT, "고마워 $index", PARTNER.takeIf { index % 2 == 1 }) }),
     ).toScoringDigest()
 
     companion object {
         private const val EVENT_COUNT = 4
+        private const val PARTNER = "상대"
         private const val EXPECTED_HUNDREDTHS = 8000
         private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
         private const val THOUGHT_TOKENS = 37

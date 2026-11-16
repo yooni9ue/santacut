@@ -22,8 +22,8 @@ data class ChatMessage(
 
     fun hasTextIn(candidates: Set<String>): Boolean = text in candidates
 
-    /** 분석 이벤트로 바꾼다. 너무 긴 본문은 [AnalysisEvent.MAX_TEXT_LENGTH]자로 자른다. */
-    fun toEvent(): AnalysisEvent = AnalysisEvent(occurredAt, text.take(AnalysisEvent.MAX_TEXT_LENGTH))
+    /** 분석 이벤트로 바꾼다. 너무 긴 본문은 [AnalysisEvent.MAX_TEXT_LENGTH]자로 자른다. [partner]는 상대 화자 표시, 본인이면 null이다. */
+    fun toEvent(partner: String?): AnalysisEvent = AnalysisEvent(occurredAt, text.take(AnalysisEvent.MAX_TEXT_LENGTH), partner)
 
     companion object {
         private const val LINE_BREAK = "\n"

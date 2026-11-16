@@ -1,33 +1,39 @@
 package com.santacut.domain.analysis.model
 
-import java.time.DayOfWeek
-import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.temporal.TemporalAdjusters
 
 /**
- * 채점용 신호와 표본을 만들 때 쓰는 본인 메시지 하나. [localTime]은 한국 시각이다.
+ * 채점 대화문을 만들 때 쓰는 메시지 하나. [localTime]은 한국 시각이다.
+ *
+ * @property speaker 화자 표시. 본인은 [SELF], 다른 참여자는 `상대`나 `상대1`, `상대2`다. 실제 이름은 담지 않는다.
  */
 data class ScoringMessage(
     val localTime: LocalDateTime,
     val text: String,
+    val speaker: String = SELF,
 ) {
-    /** 이 메시지가 든 주의 월요일. 표본은 이 달력 주 단위로 고르게 뽑는다. */
-    fun weekStart(): LocalDate = localTime.toLocalDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    fun isSelf(): Boolean = speaker == SELF
 
-    /** 공백, 문장 부호, 기호·이모지, ㅋ·ㅎ·ㅠ·ㅜ를 빼면 [MIN_MEANINGFUL_LENGTH]자보다 짧은 메시지. */
-    fun isLowSignal(): Boolean = NOISE.replace(text, "").length < MIN_MEANINGFUL_LENGTH
+    /** 사진·동영상·이모티콘·파일 첨부나 삭제 안내처럼 본문이 없는 메시지. 대화문에서 뺀다. */
+    fun isPlaceholder(): Boolean = PLACEHOLDER.matches(text.trim())
 
-    fun mentions(theme: ScoreTheme): Boolean = theme.isMentionedIn(text)
-
-    fun negates(theme: ScoreTheme): Boolean = theme.isNegatedIn(text)
-
-    fun truncated(maxLength: Int): ScoringMessage = copy(text = text.take(maxLength))
-
-    fun length(): Int = text.length
+    /**
+     * 뜻을 잃지 않게 줄인 본문. 줄바꿈과 겹친 공백을 공백 하나로 바꾸고, ㅋ·ㅎ는 세 개, ㅠ·ㅜ와 문장 부호는 두 개까지만 남긴다.
+     */
+    fun normalizedText(): String = text
+        .replace(WHITESPACE, SPACE)
+        .replace(REPEATED_LAUGH, "$1$1$1")
+        .replace(REPEATED_CRY_OR_MARK, "$1$1")
+        .trim()
 
     companion object {
-        private const val MIN_MEANINGFUL_LENGTH = 2
-        private val NOISE = Regex("[\\s\\p{P}\\p{S}\\p{M}\\p{Cf}ㅋㅎㅠㅜ]")
+        /** 본인 화자 표시. */
+        const val SELF = "나"
+
+        private const val SPACE = " "
+        private val PLACEHOLDER = Regex("""사진( \d+장)?|동영상|이모티콘|파일(: .*)?|음성메시지|삭제된 메시지입니다\.|메시지가 삭제되었습니다\.""")
+        private val WHITESPACE = Regex("""\s+""")
+        private val REPEATED_LAUGH = Regex("""([ㅋㅎ])\1{3,}""")
+        private val REPEATED_CRY_OR_MARK = Regex("""([ㅠㅜ!?.~])\1{2,}""")
     }
 }
