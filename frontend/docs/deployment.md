@@ -6,20 +6,25 @@
 
 | 시점 | 동작 |
 | --- | --- |
-| frontend 관련 PR | 고정 Node.js 24·pnpm 설치 → 린트·타입·단위 테스트 → 프로덕션 빌드 → 모바일 Chromium/WebKit E2E |
+| develop/main 대상 frontend 관련 PR | 고정 Node.js 24·pnpm 설치 → 린트·타입·단위 테스트 → 프로덕션 빌드 → 모바일 Chromium/WebKit E2E |
+| develop 반영 | 위 검증 통과 후, 배포 활성화 상태면 Vercel Preview 환경으로 개발 배포 |
 | main 반영 | 위 검증 통과 후, 배포 활성화 상태면 Vercel production 설정으로 빌드·배포 |
-| 수동 실행 | main에서 deploy=true를 선택하면 동일 검증·배포. 활성화 변수도 true여야 함 |
+| 수동 실행 | develop 또는 main에서 deploy=true를 선택하면 동일 검증·배포. 활성화 변수도 true여야 함 |
 
-배포는 GitHub Actions가 담당한다. `frontend/vercel.json`의 `git.deploymentEnabled=false`는 Vercel Git 자동 배포를 꺼서 CI 전에 배포되거나 이중 배포되는 것을 방지한다. PR preview 배포는 현재 파이프라인에 포함하지 않는다.
+배포는 GitHub Actions가 담당한다. `frontend/vercel.json`의 `git.deploymentEnabled=false`는 Vercel Git 자동 배포를 꺼서 CI 전에 배포되거나 이중 배포되는 것을 방지한다. 기능 브랜치·PR은 CI만 실행한다. 개발 서버는 develop의 Preview 환경을 사용하며 Vercel의 로컬 Development 환경과는 다르다.
+
+개발은 `feature/*`, `chore/*`, `fix/*`, `refactor/*` 등 → PR → `develop` → 릴리스 PR → `main` 순서다. 백엔드 AWS 배포 파이프라인은 이 변경에 포함하지 않는다.
 
 ## 최초 Vercel 설정
 
 1. Vercel에서 이 저장소의 Next.js 프로젝트를 생성한다.
 2. 프로젝트 **Root Directory를 frontend**로 지정하고 Node.js 24를 선택한다. CLI는 저장소 루트에서 연결된 프로젝트의 Root Directory 설정을 사용한다.
-3. Production 환경 변수 `BACKEND_ORIGIN`에 AWS 백엔드의 공개 HTTPS origin을 넣는다. 예시: `https://api.example.com`. 경로·쿼리·사용자 인증 정보를 넣지 않는다. Preview를 별도로 만들 경우 해당 환경에도 맞는 AWS 주소가 필요하다.
-4. GitHub의 `vercel-production` Environment에 아래 비밀값을 등록한다. 운영 승인자와 main 브랜치 제한을 설정할 수 있다.
+3. Production 환경 변수 `BACKEND_ORIGIN`에 AWS 백엔드의 공개 HTTPS origin을 넣는다. 예시: `https://api.example.com`. 경로·쿼리·사용자 인증 정보를 넣지 않는다. Preview 환경의 develop 브랜치 전용 변수에는 AWS 개발 백엔드 HTTPS origin을 넣는다. 개발·운영 데이터 분리가 필요하면 별도 AWS API/DB가 필요하며, 이 워크플로가 백엔드를 생성하지는 않는다. Vercel Production Branch는 main으로 설정한다.
+4. GitHub의 `vercel-development`, `vercel-production` Environment 각각에 아래 비밀값을 등록한다. 배포 허용 브랜치를 각각 develop, main으로 제한한다. 같은 Vercel 프로젝트를 사용할 수 있고 필요하면 운영 승인자를 설정한다.
 5. GitHub 저장소 Variable `VERCEL_DEPLOY_ENABLED=true`로 배포를 활성화한다. 활성화 전에는 CI만 실행한다.
-6. main의 수동 실행으로 최초 배포를 검증한다. 이후 main push는 검증 성공 후 자동 배포한다.
+6. 고정 개발 주소가 필요하면 Vercel 프로젝트에 도메인·DNS를 등록하고 GitHub vercel-development Environment Variable `VERCEL_DEVELOPMENT_DOMAIN`에 호스트명만 넣는다(예: `dev.example.com`). 개발 배포 후 CLI alias로 갱신한다. 비워두면 실행 Summary의 고유 Preview URL을 사용한다. 운영 도메인을 넣지 않는다.
+7. develop/main 각각 수동 실행에서 deploy=true로 최초 배포를 검증한다. 이후 관련 파일 push는 검증 성공 후 자동 배포한다. Git 자동 배포가 꺼져 있으므로 개발 도메인도 위 CLI alias로 연결한다.
+8. develop/main의 PR·필수 CI 브랜치 보호를 설정한다. 경로 필터 때문에 백엔드 전용 PR에는 프론트 CI가 실행되지 않으므로 모든 PR에 프론트 검사를 필수로 지정하면 대기 상태가 될 수 있다.
 
 | Secret | 값 |
 | --- | --- |
@@ -46,8 +51,10 @@ Axios는 상대 경로 `/v1`을 사용한다. 브라우저가 AWS API 도메인�
 
 ## 운영
 
-- 배포 단계는 `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` 순서다.
-- `vercel-production` Environment와 동일 배포 concurrency 그룹을 사용해 production 배포가 겹치지 않도록 한다.
+- 개발: `vercel pull --environment=preview --git-branch=develop` → `vercel build` → `vercel deploy --prebuilt` → 선택한 개발 도메인 alias 갱신.
+- 운영: `vercel pull --environment=production --git-branch=main` → `vercel build --prod` → `vercel deploy --prebuilt --prod`.
+- 브랜치별 Environment와 배포 concurrency 그룹을 사용한다. 개발과 운영은 독립적으로 실행하며 진행 중인 배포는 취소하지 않는다.
+- 자동 실행 경로는 frontend/**와 워크플로 파일이다. 공통 문서만 변경되면 배포하지 않으며 필요하면 수동 실행한다.
 - 실패한 배포는 Vercel에서 로그를 확인하고, 서비스 복구가 필요하면 이전 정상 deployment로 rollback한다.
 - AWS 백엔드 파이프라인·Terraform 설정·DB는 프론트 배포에서 변경하지 않는다.
 - 실제 배포에는 Vercel 프로젝트·토큰·AWS HTTPS 백엔드가 필요하다. 이 PR에서 실제 계정 설정이나 배포는 수행하지 않았다.
@@ -64,4 +71,4 @@ pnpm build
 CI=true pnpm test:e2e
 ```
 
-[공식 Vercel GitHub Actions 가이드](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel)와 [외부 rewrite 문서](https://vercel.com/docs/routing/rewrites)를 따른다.
+[Preview 환경 설정](https://vercel.com/docs/cli/pull)·[Preview 도메인 연결](https://vercel.com/kb/guide/how-to-alias-a-preview-deployment-using-the-cli)과 [공식 Vercel GitHub Actions 가이드](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel)와 [외부 rewrite 문서](https://vercel.com/docs/routing/rewrites)를 따른다.
