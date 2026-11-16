@@ -2,18 +2,19 @@ name: 프론트엔드 CI/CD
 
 on:
   pull_request:
+    branches: [develop, main]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend.yml'
   push:
-    branches: [main]
+    branches: [develop, main]
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend.yml'
   workflow_dispatch:
     inputs:
       deploy:
-        description: Deploy this tested main revision to Vercel
+        description: Deploy this tested develop/main revision to Vercel
         type: boolean
         default: false
 
@@ -73,16 +74,20 @@ jobs:
   deploy:
     needs: test
     if: >-
-      github.ref == 'refs/heads/main' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main') &&
       (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy)) &&
       vars.VERCEL_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment: vercel-production
+    environment:
+      name: ${{ github.ref_name == 'main' && 'vercel-production' || 'vercel-development' }}
+      url: ${{ steps.deploy.outputs.url }}
     concurrency:
-      group: vercel-production-deploy
+      group: vercel-${{ github.ref_name }}-deploy
       cancel-in-progress: false
     env:
+      VERCEL_TARGET: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+      VERCEL_DEVELOPMENT_DOMAIN: ${{ vars.VERCEL_DEVELOPMENT_DOMAIN }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -105,11 +110,25 @@ jobs:
           test -n "$VERCEL_PROJECT_ID"
       - name: Install pinned Vercel CLI
         run: npm install --global vercel@65.16.0
-      - name: Pull production project settings
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Pull branch environment settings
+        run: vercel pull --yes --environment="$VERCEL_TARGET" --git-branch="$GITHUB_REF_NAME" --token="$VERCEL_TOKEN"
       - name: Build Vercel output
-        run: vercel build --prod --token="$VERCEL_TOKEN"
-      - name: Deploy tested revision
         run: |
-          deployment_url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
-          printf 'Vercel production: %s\n' "$deployment_url" >> "$GITHUB_STEP_SUMMARY"
+          flags=()
+          if [ "$VERCEL_TARGET" = production ]; then flags+=(--prod); fi
+          vercel build "${flags[@]}" --token="$VERCEL_TOKEN"
+      - name: Deploy tested revision
+        id: deploy
+        run: |
+          flags=()
+          if [ "$VERCEL_TARGET" = production ]; then flags+=(--prod); fi
+          deployment_url=$(vercel deploy --prebuilt "${flags[@]}" --token="$VERCEL_TOKEN")
+          printf 'url=%s\n' "$deployment_url" >> "$GITHUB_OUTPUT"
+          printf 'Vercel %s (%s): %s\n' "$VERCEL_TARGET" "$GITHUB_REF_NAME" "$deployment_url" >> "$GITHUB_STEP_SUMMARY"
+      - name: Update stable development domain
+        if: github.ref == 'refs/heads/develop' && env.VERCEL_DEVELOPMENT_DOMAIN != ''
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          vercel alias set "$DEPLOYMENT_URL" "$VERCEL_DEVELOPMENT_DOMAIN" --token="$VERCEL_TOKEN"
+          printf 'Development URL: https://%s\n' "$VERCEL_DEVELOPMENT_DOMAIN" >> "$GITHUB_STEP_SUMMARY"
