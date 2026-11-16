@@ -84,12 +84,18 @@ class ScoringContextEvalTest {
             }
             lines += "${label(shrinkage)} mae=%.2f std-mean=%.2f std-max=%.2f ".format(errors.average(), deviations.average(), deviations.max()) + gaps
         }
+        val flips = mutableListOf<FlipCount>()
         runsByChat.forEach { (chat, runs) ->
-            val archetypes = runs.mapNotNull { it.score(DEFAULT_SHRINKAGE)?.let { score -> Archetype.of(score.components, score.playfulness, PLAYFULNESS_SPLIT) } }
+            val scores = runs.mapNotNull { it.score(DEFAULT_SHRINKAGE) }
+            val archetypes = scores.map { score -> Archetype.of(score.components, score.playfulness, PLAYFULNESS_SPLIT, score.rawMeans) }
+            val legacy = scores.map { score -> legacyArchetype(score) }
+            flips += FlipCount(legacy.distinct().size > 1, archetypes.distinct().size > 1, disagreeingPairs(legacy), disagreeingPairs(archetypes), pairs(legacy.size))
             val stable = archetypes.groupingBy { it }.eachCount().values.maxOrNull() ?: 0
-            lines += "chat-$chat archetypes=$archetypes stable=$stable/${runs.size} playfulness=${runs.map { it.score(DEFAULT_SHRINKAGE)?.playfulness }} " +
-                "raw=${runs.map { it.rawLine() }} tokens(in/out)=${runs.map { "${it.inputTokens()}/${it.outputTokens()}" }} finish=${runs.map { it.finish() }}"
+            lines += "chat-$chat archetypes=$archetypes legacy=$legacy stable=$stable/${runs.size} playfulness=${runs.map { it.score(DEFAULT_SHRINKAGE)?.playfulness }} " +
+                "shrunk=${runs.map { it.score(DEFAULT_SHRINKAGE)?.components?.toList()?.joinToString("/") }} raw=${runs.map { it.rawLine() }} tokens(in/out)=${runs.map { "${it.inputTokens()}/${it.outputTokens()}" }} finish=${runs.map { it.finish() }}"
         }
+        lines += "archetype-flip before(chats)=${flips.count { it.legacyFlipped }}/${flips.size} after(chats)=${flips.count { it.flipped }}/${flips.size} " +
+            "before(pairs)=${flips.sumOf { it.legacyPairs }}/${flips.sumOf { it.pairs }} after(pairs)=${flips.sumOf { it.disagreeingPairs }}/${flips.sumOf { it.pairs }}"
         val all = runsByChat.values.flatten()
         lines += "per-analysis tokens in=%.0f out=%.0f cost-usd=%.5f".format(all.map { it.inputTokens() }.average(), all.map { it.outputTokens() }.average(), all.map { it.cost() }.average())
         report("stability.txt", lines.joinToString("\n"))
@@ -163,6 +169,20 @@ class ScoringContextEvalTest {
             if (message.speaker == SELF) message else ChatMessage(GROUP_MEMBERS[partnerTurn++ % GROUP_MEMBERS.size], message.occurredAt, message.text)
         }
     }
+
+    /**
+     * 띠를 두기 전 규칙: 저장한 항목 점수의 위 두 항목 차이가 5점보다 작으면 균형형이다.
+     * 수축 전 평균을 넘기지 않으면 띠 안에서도 저장한 점수의 5점 기준으로 가르므로 예전 규칙과 같다.
+     */
+    private fun legacyArchetype(score: Score): Archetype =
+        Archetype.of(score.components, score.playfulness, PLAYFULNESS_SPLIT)
+
+    private fun disagreeingPairs(archetypes: List<Archetype>): Int =
+        archetypes.indices.sumOf { left -> (left + 1 until archetypes.size).count { right -> archetypes[left] != archetypes[right] } }
+
+    private fun pairs(size: Int): Int = size * (size - 1) / 2
+
+    private class FlipCount(val legacyFlipped: Boolean, val flipped: Boolean, val legacyPairs: Int, val disagreeingPairs: Int, val pairs: Int)
 
     private fun run(digest: ScoringDigest): Run {
         val captured = mutableListOf<ScoringChunkAnswer>()
