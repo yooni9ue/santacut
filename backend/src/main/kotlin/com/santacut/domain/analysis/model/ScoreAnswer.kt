@@ -30,6 +30,23 @@ class ScoreAnswer private constructor(
     /** 다른 구간을 더 물어도 되는 답인지. 제공자 차단과 읽기 실패면 작업 전체가 그 이유로 끝난다. */
     fun isUsable(): Boolean = reply == Reply.SCORED || reply == Reply.INSUFFICIENT
 
+    /** 점수를 담았고 형식과 범위가 맞는 답인지. [verifyAnswered]가 던지지 않는 점수 답이다. */
+    fun isValidScore(): Boolean =
+        isScored() && dimensionScores.isComplete() && evidenceIndices.isComplete() && dimensionScores.isWithinRange()
+
+    /** [position]번째 항목 점수. [isValidScore]를 통과한 답에서 부른다. */
+    fun scoreAt(position: Int): BigDecimal = dimensionScores.at(position)
+
+    /** [position]번째 항목 기회 수. */
+    fun opportunityAt(position: Int): Int = opportunities.at(position)
+
+    /** [position]번째 항목 근거 줄 번호. */
+    fun evidenceAt(position: Int): List<Int> = evidenceIndices.at(position)
+
+    /** 사용량만 [total]로 바꾼 같은 답. 여러 번 물은 답을 하나로 합칠 때 모든 호출의 사용량을 싣는다. */
+    fun withUsage(total: ModelUsage): ScoreAnswer =
+        ScoreAnswer(total, playfulness, reply, dimensionScores, evidenceIndices, opportunities, shape)
+
     /** 제공자 차단, 읽기 실패, 형식 오류, 범위 밖 점수를 던진다. 근거 부족 답은 던지지 않는다. */
     fun verifyAnswered() {
         reply.verify()

@@ -2,6 +2,7 @@ package com.santacut.domain.analysis.model
 
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -37,10 +38,46 @@ class ScoringChunksTest {
 
     @Test
     fun `어림 사용량은 모든 구간의 합이다`() {
-        val estimate = ScoringChunks.of(digestOf(turns(1000, 50))).estimate { ModelUsage(100, 10, "ESTIMATE") }
+        val estimate = ScoringChunks.of(digestOf(turns(1000, 50))).estimate(3) { ModelUsage(100, 10, "ESTIMATE") }
 
         assertEquals(400, estimate.inputTokens)
         assertEquals(40, estimate.outputTokens)
+    }
+
+    @Test
+    fun `한 구간 대화의 어림 사용량은 반복 호출 수만큼 곱한다`() {
+        val estimate = ScoringChunks.of(digestOf(turns(10, 100))).estimate(3) { ModelUsage(100, 10, "ESTIMATE") }
+
+        assertEquals(300, estimate.inputTokens)
+        assertEquals(30, estimate.outputTokens)
+    }
+
+    @Test
+    fun `한 구간 대화는 반복 호출 수만큼 묻고 사용량을 모두 싣는다`() {
+        val calls = AtomicInteger()
+        val answers = ScoringChunks.of(digestOf(turns(10, 100))).ask(3) { calls.incrementAndGet(); ScoreAnswer.insufficient(ModelUsage(100, 10, "STOP")) }
+
+        assertEquals(3, calls.get())
+        assertEquals(1, answers.size())
+        assertEquals(300, answers.usage().inputTokens)
+    }
+
+    @Test
+    fun `반복 호출 수가 1이면 예전처럼 한 번만 묻고 그 답을 그대로 쓴다`() {
+        var calls = 0
+        val answer = ScoreAnswer.insufficient(ModelUsage(100, 10, "STOP"))
+        val answers = ScoringChunks.of(digestOf(turns(10, 100))).ask(1) { calls++; answer }
+
+        assertEquals(1, calls)
+        assertEquals(answer.usage, answers.usage())
+    }
+
+    @Test
+    fun `여러 구간 대화는 반복 호출 수와 상관없이 구간마다 한 번 묻는다`() {
+        val calls = AtomicInteger()
+        ScoringChunks.of(digestOf(turns(1000, 50))).ask(3) { calls.incrementAndGet(); ScoreAnswer.insufficient() }
+
+        assertEquals(ScoringChunks.MAX_CHUNKS, calls.get())
     }
 
     @Test

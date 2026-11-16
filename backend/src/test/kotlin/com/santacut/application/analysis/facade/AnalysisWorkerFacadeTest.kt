@@ -67,6 +67,8 @@ import kotlin.test.assertTrue
         "app.season-year=${AnalysisWorkerFacadeTest.SEASON_YEAR}",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
+        // 호출 수와 사용량을 세는 검증은 한 번 묻는 예전 흐름 기준이다. 중앙값 반복은 ScoringChunksTest·ScoreAnswersTest가 본다.
+        "santacut.score.sampling.samples=1",
     ],
 )
 @Import(WorkerTestClockConfiguration::class)
