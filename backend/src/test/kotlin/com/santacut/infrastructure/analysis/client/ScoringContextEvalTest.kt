@@ -141,20 +141,21 @@ class ScoringContextEvalTest {
                 "half" to messages.take(messages.size / 2),
                 "double" to messages + messages.map { ChatMessage(it.speaker, it.occurredAt.plus(DUPLICATE_SHIFT), it.text) },
                 "group" to asGroup(messages),
-            )
+            ).filterKeys { name -> name == "original" || name in VARIANT_NAMES }
             val runs = variants.mapValues { (_, variant) -> List(VARIANT_REPETITIONS) { run(digestOf(variant, verify = false)) } }
             val baseOriginal = baseline.getOrPut("chat-$chat|original") { baselineTotal(messages) }
             val baseHalf = baseline.getOrPut("chat-$chat|half") { baselineTotal(variants.getValue("half")) }
             lines += "baseline chat-$chat original=%.2f half=%.2f".format(baseOriginal, baseHalf)
             SHRINKAGES.forEach { shrinkage ->
                 val means = runs.mapValues { (_, list) -> list.mapNotNull { it.score(shrinkage)?.hundredths?.div(100.0) }.average() }
-                listOf("half", "double", "group").forEach { name ->
+                variants.keys.filter { name -> name != "original" }.forEach { name ->
                     deltas.getValue(shrinkage).getOrPut(name) { mutableListOf() } += abs(means.getValue(name) - means.getValue("original"))
                 }
                 val modelChange = means.getValue("half") - means.getValue("original")
                 deltas.getValue(shrinkage).getOrPut("half-vs-baseline") { mutableListOf() } += abs(modelChange - (baseHalf - baseOriginal))
                 lines += "${label(shrinkage)} chat-$chat means=${means.mapValues { "%.2f".format(it.value) }}"
             }
+            runs.forEach { (name, list) -> lines += "raw chat-$chat $name ${list.map { it.answerLine() }}" }
         }
         writeScores(LENGTH_BASELINE_FILE, baseline)
         deltas.forEach { (shrinkage, byName) ->
@@ -199,6 +200,12 @@ class ScoringContextEvalTest {
         fun rawLine(): String = score(ScoreShrinkage(BigDecimal.ZERO, 1))?.components?.toList()?.joinToString("/").orEmpty()
 
         fun chunkCount(): Int = chunks.size
+
+        fun answerLine(): String = chunks.joinToString(" | ") { chunkAnswer ->
+            "turns=${chunkAnswer.chunk.selfTurnCount()} " + ScoreDimension.entries.indices.joinToString(" ") { position ->
+                "${chunkAnswer.answer.scoreAt(position)}/n${chunkAnswer.answer.opportunityAt(position)}/e${chunkAnswer.answer.evidenceAt(position).size}"
+            }
+        }
 
         fun chunkScores(dimension: ScoreDimension): List<String> = chunks.map { chunkAnswer ->
             runCatching { ScoringChunkAnswers(listOf(chunkAnswer)).toScore(ScoreShrinkage(BigDecimal.ZERO, 1)).components.scoreOf(dimension).toPlainString() }
@@ -255,7 +262,7 @@ class ScoringContextEvalTest {
         File(path).apply { parentFile.mkdirs() }.writeText(scores.entries.joinToString("\n") { "${it.key}=${it.value}" } + "\n")
     }
 
-    private fun label(shrinkage: ScoreShrinkage): String = "C=${shrinkage.strength} F=${shrinkage.fullSelfTurns}"
+    private fun label(shrinkage: ScoreShrinkage): String = "C=${shrinkage.strength} F=${shrinkage.fullSelfTurns}" + if (shrinkage.personalPrior) " P" else ""
 
     /** 기준(전체 맥락) 프롬프트로 [messages]를 [BASELINE_REPETITIONS]번 채점한 가중 총점 평균. 5판 평가 때와 같은 프롬프트다. */
     private fun baselineTotal(messages: List<ChatMessage>): Double =
@@ -329,6 +336,7 @@ class ScoringContextEvalTest {
         private val SAMPLES = System.getenv("EVAL_SAMPLES")?.toIntOrNull() ?: 1
         private val LONG_REPETITIONS = System.getenv("EVAL_LONG_REPETITIONS")?.toIntOrNull() ?: 0
         private val VARIANT_REPETITIONS = System.getenv("EVAL_VARIANT_REPETITIONS")?.toIntOrNull() ?: 0
+        private val VARIANT_NAMES = System.getenv("EVAL_VARIANT_NAMES")?.split(",") ?: listOf("half", "double", "group")
         private const val FULL_SELF_TURNS = 20
         private val SHRINKAGES = listOf(
             ScoreShrinkage(BigDecimal.ZERO, FULL_SELF_TURNS),
@@ -339,6 +347,7 @@ class ScoringContextEvalTest {
             ScoreShrinkage(BigDecimal("0.5"), 5),
             ScoreShrinkage(BigDecimal("0.25"), 10),
             ScoreShrinkage(BigDecimal("0.25"), 5),
+            ScoreShrinkage(BigDecimal("0.25"), 5, personalPrior = true),
         )
         private val DEFAULT_SHRINKAGE = ScoreShrinkage(BigDecimal("0.25"), 5)
         private const val LENGTH_BASELINE_FILE = "build/eval/length-baseline.txt"
