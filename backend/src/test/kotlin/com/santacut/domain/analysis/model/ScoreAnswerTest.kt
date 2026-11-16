@@ -4,6 +4,7 @@ import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -70,7 +71,7 @@ class ScoreAnswerTest {
         val answer = ScoreAnswer.of(fullScores, listOf(listOf(1, 21), listOf(2, 2), listOf(0, 3), listOf(20)), SHAPE)
 
         assertEquals(7600, answer.toScore(EVENT_COUNT).hundredths)
-        assertEquals(3, answer.discardedEvidence(EVENT_COUNT))
+        assertEquals(3, answer.discardedEvidence(1..EVENT_COUNT))
     }
 
     @Test
@@ -89,6 +90,12 @@ class ScoreAnswerTest {
         assertEquals(usage, ScoreAnswer.unreadable(usage).usage)
     }
 
+    /** 본인 줄 [lines]개짜리 한 구간의 답으로 보고 수축 없이 점수를 낸다. */
+    private fun ScoreAnswer.toScore(lines: Int): Score {
+        val turns = TranscriptTurns(List(lines) { index -> TranscriptTurn(ScoringMessage.SELF, START, START, "말 $index") })
+        return ScoringChunkAnswers(listOf(ScoringChunkAnswer(ScoringChunk(turns, 1, 0, 0), this))).toScore(ScoreShrinkage.NONE)
+    }
+
     private fun assertRejected(expected: ErrorCode, answer: ScoreAnswer) {
         val exception = assertFailsWith<SantaCutException> { answer.toScore(EVENT_COUNT) }
         assertEquals(expected, exception.errorCode)
@@ -96,6 +103,7 @@ class ScoreAnswerTest {
 
     companion object {
         private const val EVENT_COUNT = 20
+        private val START: LocalDateTime = LocalDateTime.of(2026, 11, 1, 12, 0)
         private const val SHAPE = "scores=OBJECT,evidence=OBJECT"
     }
 }

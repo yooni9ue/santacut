@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
+import com.santacut.domain.analysis.model.ScoringChunks
 import com.santacut.infrastructure.analysis.client.RecordingChatModel
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -30,18 +31,20 @@ class AnalysisScoringServiceTest @Autowired constructor(
     private val objectMapper: ObjectMapper,
 ) {
     @Test
-    fun `메시지 2,000개를 채점하면 대화 전체를 번호와 화자 표시를 붙인 줄로 보내고 그 줄 번호로 점수를 매긴다`() {
+    fun `메시지 2,000개를 채점하면 대화문을 구간으로 나눠 보내고 구간 점수를 합쳐 수축한다`() {
+        recordingChatModel.prompts.clear()
         val payload = objectMapper.writeValueAsString(largeSubmission())
 
         val digest = analysisScoringService.digest(jobWith(payload))
-        val answer = analysisScoringService.ask(digest, SYSTEM_PROMPT)
+        val answers = analysisScoringService.ask(digest, SYSTEM_PROMPT)
 
-        val userText = checkNotNull(recordingChatModel.lastPrompt).userMessage.text.orEmpty()
-        val lines = userText.substringAfter(TRANSCRIPT_HEADER).lines().filterNot { it.startsWith(GAP_LINE_PREFIX) }
-        assertEquals(EXPECTED_HUNDREDTHS, answer.toScore(digest.lineCount()).hundredths)
-        assertEquals((1..digest.lineCount()).toList(), lines.map { it.substringBefore("|").toInt() })
+        val texts = recordingChatModel.prompts.map { it.userMessage.text.orEmpty() }
+        val lines = texts.flatMap { text -> text.substringAfter(TRANSCRIPT_HEADER).lines().filterNot { it.startsWith(GAP_LINE_PREFIX) } }
+        assertEquals(EXPECTED_HUNDREDTHS, analysisScoringService.score(answers).hundredths)
+        assertTrue(texts.size in 2..ScoringChunks.MAX_CHUNKS, "chunks=${texts.size}")
+        assertEquals((1..digest.lineCount()).toList(), lines.map { it.substringBefore("|").toInt() }.distinct().sorted())
         assertEquals(setOf(SELF, PARTNER), lines.map { it.split("|")[1] }.toSet())
-        assertTrue(userText.length < payload.length, "payload=${payload.length},user=${userText.length}")
+        assertTrue(texts.all { it.length < payload.length / 2 }, "payload=${payload.length}")
     }
 
     @Test
@@ -93,7 +96,8 @@ class AnalysisScoringServiceTest @Autowired constructor(
         private const val SELF = "나"
         private const val PARTNER = "상대"
         private const val GAP_LINE_PREFIX = "("
-        private const val EXPECTED_HUNDREDTHS = 8000
+        /** 모든 구간 80점, 기회 수 모름(n=2), 본인 턴 충분(w=2), C=0.5면 (27.5 + 160) / 2.5 = 75점이다. */
+        private const val EXPECTED_HUNDREDTHS = 7500
 
         private const val LONG_MESSAGE_EVERY = 50
         private const val LONG_MESSAGE_REPEAT = 20

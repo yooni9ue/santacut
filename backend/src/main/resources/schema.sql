@@ -10,6 +10,7 @@ CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
 CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, source TEXT NOT NULL CHECK(source IN ('KAKAO','INSTAGRAM')), score_hundredths INTEGER NOT NULL CHECK(score_hundredths BETWEEN 0 AND 10000), verdict TEXT NOT NULL, comment TEXT NOT NULL, components TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), prompt_version INTEGER);
 -- prompt_version은 기존 DB에 Hibernate(ddl-auto: update)가 이 스크립트 다음에 더한다. 프롬프트를 DB로 옮기기 전 평가는 NULL이다.
 -- low_confidence(근거가 부족해 중립 점수를 준 항목 키를 쉼표로 이은 값)도 기존 DB에 Hibernate가 더한다. 그 전 평가는 NULL이다.
+-- playfulness(장난기 0~100), score_rule_version(점수 규칙 판, 2판부터), quote(본인 한마디), badges(배지 코드:횟수)도 Hibernate가 더한다. 그 전 평가는 NULL이다.
 CREATE INDEX IF NOT EXISTS assessments_user ON assessments(user_id,created_at DESC);
 CREATE TABLE IF NOT EXISTS analysis_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, idempotency_key TEXT NOT NULL, request_hash TEXT NOT NULL, source TEXT NOT NULL, payload TEXT, status TEXT NOT NULL DEFAULT 'QUEUED', attempts INTEGER NOT NULL DEFAULT 0, lease_token TEXT, lease_until TEXT, error_code TEXT, assessment_id TEXT REFERENCES assessments(id) ON DELETE SET NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), finished_at TEXT, digest_hash TEXT, UNIQUE(user_id,idempotency_key));
 -- digest_hash는 기존 DB에 Hibernate(ddl-auto: update)가 이 스크립트 다음에 더한다. 같은 채점 입력의 재제출이 AI를 다시 부르지 않게 하는 해시다.
@@ -24,6 +25,7 @@ CREATE TABLE IF NOT EXISTS result_snapshots (id TEXT PRIMARY KEY, user_id TEXT N
 CREATE INDEX IF NOT EXISTS snapshots_latest ON result_snapshots(computed_at,user_id);
 CREATE TABLE IF NOT EXISTS shares (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, snapshot_id TEXT NOT NULL REFERENCES result_snapshots(id) ON DELETE CASCADE, nickname TEXT NOT NULL, score_hundredths INTEGER NOT NULL, rank INTEGER NOT NULL, eta TEXT NOT NULL, verdict TEXT NOT NULL, comment TEXT NOT NULL, computed_at TEXT NOT NULL, revoked_at TEXT, tied INTEGER NOT NULL DEFAULT 0, stage TEXT NOT NULL DEFAULT 'PREVIEW', created_at TEXT);
 CREATE INDEX IF NOT EXISTS shares_owner ON shares(user_id,snapshot_id);
+-- archetype, top_percent, badge, weakest_dimension, dimension_scores, quote(본인이 고른 한마디)는 기존 DB에 Hibernate가 더한다. 그 전 링크는 NULL이다.
 
 CREATE UNIQUE INDEX IF NOT EXISTS shares_active_snapshot_unique ON shares(user_id,snapshot_id) WHERE revoked_at IS NULL;
 -- AI 시스템 프롬프트 판. 같은 이름 안에서 판 번호는 1부터 늘고 겹치지 않는다. score 1판은 prompts.sql이 넣는다.

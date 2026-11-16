@@ -15,19 +15,26 @@ class DimensionScoresTest {
     }
 
     @Test
-    fun `숫자인 항목 점수만 순서대로 남긴다`() {
-        val scores = DimensionScores(listOf(BigDecimal(1), null, BigDecimal(3)))
-        assertEquals(listOf(BigDecimal(1), BigDecimal(3)), scores.toComponents(LowConfidenceDimensions.NONE))
+    fun `점수가 0~100이고 소수 둘째 자리까지면 범위 안이다`() {
+        assertTrue(DimensionScores(listOf(BigDecimal(0), BigDecimal(100), BigDecimal("70.25"), BigDecimal(10))).isWithinRange())
+        assertFalse(DimensionScores(listOf(BigDecimal(101), BigDecimal(10), BigDecimal(10), BigDecimal(10))).isWithinRange())
     }
 
     @Test
-    fun `근거 부족 항목은 모델 점수 대신 중립 점수를 쓴다`() {
-        val scores = DimensionScores(listOf(BigDecimal(90), BigDecimal(10), BigDecimal(70), BigDecimal(60)))
-        val lowConfidence = LowConfidenceDimensions(listOf(ScoreDimension.POSITIVITY_SUPPORT))
+    fun `항목마다 점수, 기회 수, 근거 번호를 묶는다`() {
+        val scores = DimensionScores(listOf(BigDecimal(90), BigDecimal(10), BigDecimal(70), BigDecimal(30)))
+        val evidence = EvidenceIndices(listOf(listOf(1), emptyList(), listOf(3), listOf(4)))
 
+        val readings = scores.toReadings(evidence, DimensionOpportunities(listOf(2, 0, 1, null)), SELF_TURNS)
+
+        assertEquals(listOf("positivity_support"), readings.lowConfidence().toKeys())
         assertEquals(
-            listOf(BigDecimal(90), DimensionScores.NEUTRAL_SCORE, BigDecimal(70), BigDecimal(60)),
-            scores.toComponents(lowConfidence),
+            listOf(BigDecimal(90), DimensionScores.NEUTRAL_SCORE, BigDecimal(70), BigDecimal(30)),
+            readings.shrunkScores(ScoreShrinkage.NONE, SELF_TURNS),
         )
+    }
+
+    companion object {
+        private const val SELF_TURNS = 20
     }
 }

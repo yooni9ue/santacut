@@ -1,5 +1,6 @@
 package com.santacut.infrastructure.analysis.client
 
+import com.santacut.domain.analysis.model.ScoringChunk
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.domain.analysis.model.ScoringMessage
 import com.santacut.domain.analysis.model.ScoringMessages
@@ -36,7 +37,7 @@ class ScoreModelInputTest {
             4|나|또 보자
         """.trimIndent()
 
-        assertEquals(expected, ScoreModelInput.from(ScoringDigest.of(messages)).toText())
+        assertEquals(expected, ScoreModelInput.from(ScoringChunk.whole(ScoringDigest.of(messages))).toText())
     }
 
     @Test
@@ -44,6 +45,6 @@ class ScoreModelInputTest {
         val noon = LocalDateTime.of(2026, 11, 14, 12, 0)
         val digest = ScoringDigest(3, 1, TranscriptTurns(listOf(TranscriptTurn("나", noon, noon, "고마워"))), 2)
 
-        assertTrue(ScoreModelInput.from(digest).toText().startsWith("[대화]\n(앞선 2줄은 길이 한도로 뺐다)\n1|나|고마워"))
+        assertTrue(ScoreModelInput.from(ScoringChunk.whole(digest)).toText().startsWith("[대화]\n(앞선 2줄은 길이 한도로 뺐다)\n1|나|고마워"))
     }
 }

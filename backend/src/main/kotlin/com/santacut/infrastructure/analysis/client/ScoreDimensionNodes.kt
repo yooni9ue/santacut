@@ -11,6 +11,12 @@ class ScoreDimensionNodes(private val values: List<JsonNode>) {
     /** 항목별 점수. 숫자가 아닌 항목은 null이다. */
     fun toScoreValues(): List<BigDecimal?> = values.map { if (it.isNumber) it.decimalValue() else null }
 
+    /** 항목마다 [name] 필드 노드. 새 형식 응답(`{"e":[..],"n":2,"s":70}`)에서 쓴다. */
+    fun field(name: String): ScoreDimensionNodes = ScoreDimensionNodes(values.map { node -> node.path(name) })
+
+    /** 항목별 기회 수. 정수가 아니면 null이다. */
+    fun toOpportunities(): List<Int?> = values.map { if (it.isIntegralNumber) it.asInt() else null }
+
     /** 항목별 근거 번호. 배열이 아닌 노드는 번호 하나로 본다. */
     fun toEvidenceIndices(): List<List<Int>> =
         values.map { node -> (if (node.isArray) elementsOf(node) else listOf(node)).map(::toEvidenceIndex) }

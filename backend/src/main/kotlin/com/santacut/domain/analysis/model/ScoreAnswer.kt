@@ -5,53 +5,53 @@ import com.santacut.domain.global.exception.SantaCutException
 import java.math.BigDecimal
 
 /**
- * AI 모델이 돌려준 항목별 점수와 근거 표본 번호. 검증을 통과해야 [Score]가 된다.
+ * AI 모델이 채점 구간 하나에 돌려준 항목별 점수, 기회 수, 근거 줄 번호와 장난기.
+ * 구간 답을 합쳐 점수를 만드는 일은 [ScoringChunkAnswers]가 한다.
  *
  * @property usage 이 호출의 토큰 사용량. 호출하지 못했으면 [ModelUsage.NONE]이다.
+ * @property playfulness 순위에 쓰지 않는 장난기 성향(0~100). 돌려주지 않았으면 null이다.
  * @property dimensionScores [ScoreDimension] 순서의 점수
- * @property evidenceIndices 항목별 근거 표본 번호
- * @property shape 형식 오류 로그에 남길 scores·evidence 노드 종류
+ * @property evidenceIndices 항목별 근거 줄 번호
+ * @property opportunities 항목별 기회 수
+ * @property shape 형식 오류 로그에 남길 노드 종류
  */
 class ScoreAnswer private constructor(
     val usage: ModelUsage,
+    val playfulness: Int?,
     private val reply: Reply,
     private val dimensionScores: DimensionScores,
     private val evidenceIndices: EvidenceIndices,
+    private val opportunities: DimensionOpportunities,
     private val shape: String,
 ) {
-    /**
-     * 범위 밖·겹친 근거 번호를 지운 뒤 근거가 남지 않은 항목은 근거 부족으로 표시하고 중립 점수를 준다.
-     * 모든 항목에 근거가 없으면 점수를 매길 내용이 없다고 보고 실패한다.
-     */
-    fun toScore(sampleSize: Int): Score {
+    /** 점수를 담은 답인지. 근거 부족 답은 다른 구간과 합칠 때 뺀다. */
+    fun isScored(): Boolean = reply == Reply.SCORED
+
+    /** 다른 구간을 더 물어도 되는 답인지. 제공자 차단과 읽기 실패면 작업 전체가 그 이유로 끝난다. */
+    fun isUsable(): Boolean = reply == Reply.SCORED || reply == Reply.INSUFFICIENT
+
+    /** 제공자 차단, 읽기 실패, 형식 오류, 범위 밖 점수를 던진다. 근거 부족 답은 던지지 않는다. */
+    fun verifyAnswered() {
         reply.verify()
-        verifySchema()
-        val lowConfidence = evidenceIndices.cleaned(sampleSize).emptyDimensions()
-        verifyAnyEvidence(lowConfidence, sampleSize)
-        return Score.weighted(dimensionScores.toComponents(lowConfidence), lowConfidence)
+        if (!isScored()) return
+        if (!dimensionScores.isComplete() || !evidenceIndices.isComplete()) {
+            throw SantaCutException(ErrorCode.AI_RESPONSE_SCHEMA_INVALID, shape)
+        }
+        if (!dimensionScores.isWithinRange()) throw SantaCutException(ErrorCode.AI_SCORE_OUT_OF_RANGE)
     }
 
-    /** 검증할 때 지운 근거 번호 수. 사용량 로그에 남긴다. */
-    fun discardedEvidence(sampleSize: Int): Int = evidenceIndices.discardedCount(sampleSize)
+    /** 근거 번호를 [lines] 범위로 거른 항목별 점수. [selfTurns]는 구간의 본인 턴 수다. [verifyAnswered]를 통과한 답에서 부른다. */
+    fun readings(lines: IntRange, selfTurns: Int): DimensionReadings =
+        if (isScored()) dimensionScores.toReadings(evidenceIndices.cleaned(lines), opportunities, selfTurns) else DimensionReadings.EMPTY
 
-    private fun verifySchema() {
-        val complete = dimensionScores.isComplete() && evidenceIndices.isComplete()
-        if (!complete) throw SantaCutException(ErrorCode.AI_RESPONSE_SCHEMA_INVALID, shape)
-    }
+    /** [lines] 범위 밖이거나 겹쳐 지운 근거 번호 수. 사용량 로그에 남긴다. */
+    fun discardedEvidence(lines: IntRange): Int = evidenceIndices.discardedCount(lines)
 
-    /** 모든 항목에 근거가 없을 때, 지운 번호가 있었으면 응답 오류, 처음부터 없었으면 근거 부족이다. */
-    private fun verifyAnyEvidence(lowConfidence: LowConfidenceDimensions, sampleSize: Int) {
-        if (!lowConfidence.coversAll()) return
-        val discarded = evidenceIndices.discardedCount(sampleSize)
-        if (discarded == 0) throw SantaCutException(ErrorCode.INSUFFICIENT_EVIDENCE)
-        throw SantaCutException(ErrorCode.AI_EVIDENCE_INVALID, "count=$sampleSize,discarded=$discarded")
-    }
-
-    /** 모델 답의 종류. 점수를 담은 답([SCORED])만 다음 검증으로 넘어간다. */
+    /** 모델 답의 종류. 근거 부족은 구간 하나의 답으로는 실패가 아니다. */
     private enum class Reply(private val failure: ErrorCode?) {
         SCORED(null),
         UNREADABLE(ErrorCode.AI_RESPONSE_INVALID),
-        INSUFFICIENT(ErrorCode.INSUFFICIENT_EVIDENCE),
+        INSUFFICIENT(null),
         PROVIDER_UNAVAILABLE(ErrorCode.AI_PROVIDER_UNAVAILABLE),
         ;
 
@@ -65,27 +65,32 @@ class ScoreAnswer private constructor(
         private val NO_EVIDENCE = EvidenceIndices(emptyList())
 
         /** 응답이 비었거나 너무 길어 읽지 않았다. */
-        fun unreadable(usage: ModelUsage = ModelUsage.NONE): ScoreAnswer =
-            ScoreAnswer(usage, Reply.UNREADABLE, NO_SCORES, NO_EVIDENCE, "")
+        fun unreadable(usage: ModelUsage = ModelUsage.NONE): ScoreAnswer = failed(usage, Reply.UNREADABLE)
 
         /** 모델이 근거 부족이라고 답했다. */
-        fun insufficient(usage: ModelUsage = ModelUsage.NONE): ScoreAnswer =
-            ScoreAnswer(usage, Reply.INSUFFICIENT, NO_SCORES, NO_EVIDENCE, "")
+        fun insufficient(usage: ModelUsage = ModelUsage.NONE): ScoreAnswer = failed(usage, Reply.INSUFFICIENT)
 
         /** 제공자가 호출을 막았거나(권한, 요청 한도) 잠시 쓸 수 없다. 작업을 실패시키지 않고 나중에 다시 잡는다. */
-        fun providerUnavailable(): ScoreAnswer =
-            ScoreAnswer(ModelUsage.NONE, Reply.PROVIDER_UNAVAILABLE, NO_SCORES, NO_EVIDENCE, "")
+        fun providerUnavailable(): ScoreAnswer = failed(ModelUsage.NONE, Reply.PROVIDER_UNAVAILABLE)
+
+        private fun failed(usage: ModelUsage, reply: Reply): ScoreAnswer =
+            ScoreAnswer(usage, null, reply, NO_SCORES, NO_EVIDENCE, DimensionOpportunities.MISSING, "")
 
         /**
          * @param dimensionScores [ScoreDimension] 순서의 점수. 숫자가 아니면 null이다.
-         * @param evidenceIndices 항목별 1부터 시작하는 근거 표본 번호. 해석할 수 없는 값은 -1이다.
+         * @param evidenceIndices 항목별 1부터 시작하는 근거 줄 번호. 해석할 수 없는 값은 -1이다.
+         * @param opportunities 항목별 기회 수. 받지 못했으면 null이다.
          */
         fun of(
             dimensionScores: List<BigDecimal?>,
             evidenceIndices: List<List<Int>>,
             shape: String,
             usage: ModelUsage = ModelUsage.NONE,
-        ): ScoreAnswer =
-            ScoreAnswer(usage, Reply.SCORED, DimensionScores(dimensionScores), EvidenceIndices(evidenceIndices), shape)
+            opportunities: List<Int?> = emptyList(),
+            playfulness: Int? = null,
+        ): ScoreAnswer = ScoreAnswer(
+            usage, playfulness, Reply.SCORED, DimensionScores(dimensionScores), EvidenceIndices(evidenceIndices),
+            DimensionOpportunities(opportunities), shape,
+        )
     }
 }
