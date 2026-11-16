@@ -37,6 +37,12 @@ class AnalysisStatusStream(
         if (sent && event.terminal) close()
     }
 
+    /** 연결 직후 읽은 현재 상태를 보낸다. 읽는 사이 더 새로운 상태를 이미 보냈으면 낡은 상태로 덮지 않는다. */
+    @Synchronized
+    fun sendInitial(event: AnalysisStatusEvent) {
+        if (lastStatus == null) send(event)
+    }
+
     /** 연결을 살려 두는 SSE 주석 한 줄. 프록시가 쉬는 연결을 끊지 않게 한다. */
     @Synchronized
     fun heartbeat() {
