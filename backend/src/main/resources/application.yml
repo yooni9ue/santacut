@@ -8,7 +8,7 @@
     init:
       mode: always
       # schema.sql 다음에 매번 실행되는 시드. 둘 다 INSERT OR IGNORE라 기존 DB에는 없는 행만 더한다.
-      # regions.sql: 서울 밖 시·도와 시·군·구, prompts.sql: 채점 프롬프트(score) 1판.
+      # regions.sql: 서울 밖 시·도와 시·군·구, prompts.sql: 채점 프롬프트(score) 1판과 2판.
       data-locations: classpath:regions.sql,classpath:prompts.sql
   jpa:
     hibernate:
@@ -70,4 +70,5 @@ spring.ai:
       # 앱 IAM 사용자는 global. 추론 프로파일로만 호출할 수 있다.
       model: ${BEDROCK_MODEL_ID:global.anthropic.claude-haiku-4-5-20251001-v1:0}
       temperature: 0.1
-      max-tokens: 500
+      # 정상 답(근거 항목당 1~3개)은 100토큰 안팎이다. 폭주해도 비용이 크지 않게 낮게 둔다.
+      max-tokens: 250

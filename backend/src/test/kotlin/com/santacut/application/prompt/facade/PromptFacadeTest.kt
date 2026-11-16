@@ -10,17 +10,21 @@ import com.santacut.domain.prompt.model.PromptName
 import com.santacut.infrastructure.prompt.repository.PromptRepository
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.core.io.ClassPathResource
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator
 import java.util.UUID
+import javax.sql.DataSource
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * 프롬프트 판 저장, 최신 판 조회, 판 목록 조회와 앱 시작 때 넣는 채점 프롬프트 1판을 확인한다.
+ * 프롬프트 판 저장, 최신 판 조회, 판 목록 조회와 앱 시작 때 넣는 채점 프롬프트 1판·2판을 확인한다.
  */
 @IntegrationTest
 class PromptFacadeTest @Autowired constructor(
     private val promptFacade: PromptFacade,
     private val promptRepository: PromptRepository,
+    private val dataSource: DataSource,
 ) {
     @Test
     fun `처음 쓰는 이름은 1판이고 다음 저장마다 판 번호가 1씩 는다`() {
@@ -80,9 +84,32 @@ class PromptFacadeTest @Autowired constructor(
         assertTrue(first.content.endsWith("서버가 계산한다."))
     }
 
+    @Test
+    fun `앱이 뜰 때 신호와 표본 형식을 설명하는 채점 프롬프트 2판도 넣는다`() {
+        val second = promptRepository.findAllByNameOrderByVersionDesc(PromptName.SCORE.value).first { it.version == SEED_SECOND_VERSION }
+
+        assertTrue(second.content.startsWith("너는 재미용 산타 점수를 매기는 SantaCut Scorer다."))
+        assertTrue(second.content.contains("[signals]: 항목마다 한 줄이다."))
+        assertTrue(second.content.contains("`번호|본문` 한 줄이 메시지 하나"))
+        assertTrue(second.content.contains("evidence는 항목마다 근거 표본 번호 1~3개"))
+        assertTrue(second.content.endsWith("다른 필드는 넣지 않는다."))
+    }
+
+    @Test
+    fun `프롬프트 시드를 다시 실행해도 판이 늘거나 본문이 바뀌지 않는다`() {
+        val before = promptRepository.findAllByNameOrderByVersionDesc(PromptName.SCORE.value).map { it.version to it.content }
+
+        ResourceDatabasePopulator(ClassPathResource(PROMPT_SEED)).execute(dataSource)
+
+        val after = promptRepository.findAllByNameOrderByVersionDesc(PromptName.SCORE.value).map { it.version to it.content }
+        assertEquals(before, after)
+    }
+
     private fun uniqueName(): String = "test-" + UUID.randomUUID().toString().take(NAME_SUFFIX_LENGTH)
 
     companion object {
         private const val NAME_SUFFIX_LENGTH = 8
+        private const val SEED_SECOND_VERSION = 2
+        private const val PROMPT_SEED = "prompts.sql"
     }
 }
