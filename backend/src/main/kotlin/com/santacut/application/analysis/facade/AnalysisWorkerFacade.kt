@@ -4,7 +4,6 @@ import com.santacut.application.global.Facade
 import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.Score
-import com.santacut.domain.analysis.service.AiBudgetService
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AnalysisScoringService
 import com.santacut.domain.analysis.service.AssessmentService
@@ -28,11 +27,12 @@ import java.util.UUID
  * AI를 부를 때마다 채점 프롬프트(`score`)의 최신 판을 DB에서 읽는다. 캐시하지 않으므로 관리자 API로 저장한 새 판이
  * 다음 작업부터 바로 쓰인다. 프롬프트가 하나도 없으면 작업은 PROMPT_NOT_FOUND 사유로 실패한다.
  * 로그에는 프롬프트 이름과 판 번호만 남긴다.
+ *
+ * 앱에는 AI 호출 수 한도가 없다. AI 비용은 AWS Bedrock 예산 차단(santacut-infra)으로만 막는다.
  */
 @Facade
 class AnalysisWorkerFacade(
     private val analysisJobService: AnalysisJobService,
-    private val aiBudgetService: AiBudgetService,
     private val analysisScoringService: AnalysisScoringService,
     private val assessmentService: AssessmentService,
     private val rankingService: RankingService,
@@ -62,11 +62,10 @@ class AnalysisWorkerFacade(
         }
     }
 
-    /** 오늘 AI 예산이 남았으면 다음 작업의 리스를 잡는다. */
+    /** 꺼낼 수 있는 다음 작업의 리스를 잡는다. */
     private fun claimNextJob(lease: String): AnalysisJob? {
         val now = clock.instant()
         val job = analysisJobService.findClaimable(now) ?: return null
-        if (!aiBudgetService.tryConsume(now)) return null
         return analysisJobService.startAttempt(job, lease, now)
     }
 

@@ -50,7 +50,6 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 | `app.session-secure` (`APP_SESSION_SECURE`, Compose에서는 `SESSION_SECURE`) | `false` | 세션 쿠키 Secure·`__Host-` 이름 사용 |
 | `app.season-year` (`APP_SEASON_YEAR`) | `2026` | 시즌 연도. 그해 12월 25일 0시(KST)에 마감한다 |
 | `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
-| `santacut.ai.daily-call-limit` (`SANTACUT_AI_DAILY_CALL_LIMIT`) | `100` | 서울 날짜 기준 하루 AI 호출 상한 |
 | `santacut.ai.poll-delay-ms` | `3000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |
 | `santacut.upload.poll-delay-ms` | `1000` | 원본 파일 검증 작업자가 다음 원본을 찾기 전에 쉬는 시간 |
 | `spring.ai.bedrock.converse.chat.model` (`BEDROCK_MODEL_ID`) | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | Bedrock 추론 프로파일 ID. 비우면 AI 분석을 끈다 |

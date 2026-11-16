@@ -5,7 +5,7 @@
 ## 구현 현황
 
 - 런타임은 Java 25, Kotlin, Spring Boot 4, SQLite 파일 DB, Hibernate `ddl-auto: update`와 `schema.sql` 초기화를 사용한다. Flyway는 사용하지 않는다.
-- 저장소 코드는 Spring Data JPA Repository만 사용한다. 분석 큐, 예산, 점수, 순위 스냅샷, 공유도 JPA 엔티티로 관리한다.
+- 저장소 코드는 Spring Data JPA Repository만 사용한다. 분석 큐, 점수, 순위 스냅샷, 공유도 JPA 엔티티로 관리한다.
 - Swagger UI와 OpenAPI 3 명세는 `/swagger-ui.html`과 `/v3/api-docs`에서 제공한다. 각 API의 설명은 endpoint 전용 `@Operation` 메타 애노테이션에 두고, 요청·응답 모델에는 필드별 스키마 설명을 둔다.
 - 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
 - AI 호출은 Spring AI Bedrock Converse로 Claude Haiku 4.5(`global.` 추론 프로파일, 서울 리전)를 부른다. 자격 증명은 AWS 기본 체인(환경 변수)에서 읽는다.
@@ -72,7 +72,7 @@ flowchart LR
 2. 닉네임과 지역 코드를 등록한다. 닉네임 가용성 조회 후에도 DB UNIQUE 충돌을 처리한다.
 3. 데이터 받기 화면에서 출처를 고르고 내보내기 절차를 안내한다.
 4. 원본 파일(multipart)이나 정규화한 이벤트 JSON을 서버에 제출하고 작업 ID를 202로 받는다. HTTP 요청은 검증이나 AI 완료를 기다리지 않는다. 화면은 작업 상태를 몇 초마다 폴링한다.
-5. worker가 유효한 데이터와 분석 예산을 확인해 AI를 호출한다.
+5. worker가 유효한 데이터를 확인해 AI를 호출한다.
 6. schema와 근거를 검증하고 점수를 서버에서 계산한다. 최신 요청만 활성 결과로 게시한다.
 7. 랭킹·ETA 스냅샷을 재계산한다. 완료 스냅샷을 한 번에 바꾼다.
 8. 결과를 조회하고 공유 링크를 생성한다. 공유는 서버가 저장한 결과만 받아들이며 클라이언트가 점수·순위·ETA를 지정하지 못한다.
@@ -113,7 +113,7 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 - 사용자·시즌의 최신 request_sequence와 일치하는 정상 결과만 활성화한다. 이전 작업은 기록으로 남아도 활성 점수를 바꾸지 않는다.
 - 성공 결과 캐시 키에는 사용자, 파일 hash, source, 본인 화자, 정규화·표본 기간, parser/prompt/model/score 버전을 모두 포함한다.
 
-비용 방어는 IP별 rate limit만으로 끝내지 않는다. DB에 일별 예산 ledger를 두고 최악 토큰 비용을 먼저 reserve한 다음 실제 사용량으로 settle한다. 재시도도 별도 reserve하며 한도 초과 시 새 AI 호출을 거부하고 명시적인 대기/재시도 안내를 준다. API 공급자 dashboard에도 별도 월 한도를 설정한다. 익명 세션을 새로 만들면 사용자 한도를 우회할 수 있으므로 IP·전체 작업 수·전체 예산을 함께 제한한다.
+**[대체됨]** 처음에는 DB에 일별 예산 ledger를 두고 최악 토큰 비용을 먼저 reserve하는 방식을 계획했다. 지금 앱에는 AI 호출 수 한도가 없다. AI 비용은 AWS Bedrock 예산 차단(santacut-infra)으로만 막는다. 앱에는 참가자별 24시간 3회 제출 한도와 이벤트 수·글자 수 제한만 남아 있다.
 
 입력은 90일 이내 고정 표본, 최대 이벤트 수와 token budget을 둔다. 모델 이름을 바꾸면서 동일 버전 캐시를 재사용하지 않는다. provider URL은 운영 설정 allowlist만 허용하며 사용자 입력 URL로 데이터를 전송하지 않는다.
 
