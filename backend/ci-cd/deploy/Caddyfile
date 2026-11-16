@@ -1,9 +1,11 @@
+# SITE_ADDRESS는 compose가 넘긴다. DOMAIN이 있으면 그 도메인(HTTPS), 없으면 :80(평문 HTTP)이다.
+# ACME_EMAIL은 도메인이 있을 때만 쓴다. 비어 있으면 빈 문자열로 들어가 이메일 없이 인증서를 받는다.
 {
-    email {$ACME_EMAIL}
+    email "{$ACME_EMAIL}"
     admin off
 }
 
-{$DOMAIN} {
+{$SITE_ADDRESS::80} {
     encode zstd gzip
     request_body {
         max_size 21MB
