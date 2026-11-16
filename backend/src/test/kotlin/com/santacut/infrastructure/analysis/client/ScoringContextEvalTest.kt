@@ -36,6 +36,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Collections
 import kotlin.math.abs
 import kotlin.math.sqrt
 import kotlin.test.assertEquals
@@ -44,7 +45,7 @@ import kotlin.test.assertEquals
  * 채점 파이프라인(구간 나누기 → 구간별 호출 → 코드 합산 → 수축)을 실제 Gemini로 재는 수동 평가.
  * 기본 `check`에서는 빠지고 `./gradlew eval`로만 돈다. 짝 대화 확인만 API를 부르지 않는다.
  *
- * 환경 변수: GEMINI_API_KEY(필수), EVAL_REPETITIONS(짧은 대화 반복, 기본 3), EVAL_LONG_REPETITIONS(긴 대화 위치, 기본 0=건너뜀),
+ * 환경 변수: GEMINI_API_KEY(필수), EVAL_REPETITIONS(짧은 대화 반복, 기본 3), EVAL_SAMPLES(한 구간 대화의 중앙값 호출 수, 기본 1), EVAL_LONG_REPETITIONS(긴 대화 위치, 기본 0=건너뜀),
  * EVAL_VARIANT_REPETITIONS(길이 불변·단체 대화 감싸기, 기본 0=건너뜀), EVAL_PROMPT_FILE(채점 프롬프트를 이 파일로 바꿈).
  * 수축 규칙은 [SHRINKAGES](세기 C, 근거 무게를 깎지 않는 본인 턴 수 F)를 같은 답에 모두 적용해 비교한다(추가 호출 없음).
  * 길이 불변은 기준 프롬프트로 원래·반 대화도 채점해, 모델의 길이별 변화가 기준의 변화와 얼마나 다른지도 잰다.
@@ -66,7 +67,7 @@ class ScoringContextEvalTest {
     @Test
     fun `짧은 대화의 반복 안정성, 기준 대비 오차, 유형 안정성을 잰다`() {
         val full = fullBaseline()
-        val lines = mutableListOf("prompt=${promptLabel()} max-output-tokens=${scoreModelProperties().maxOutputTokens}")
+        val lines = mutableListOf("prompt=${promptLabel()} samples=$SAMPLES max-output-tokens=${scoreModelProperties().maxOutputTokens}")
         val runsByChat = (1..CHAT_COUNT).associateWith { chat -> List(REPETITIONS) { run(digestOf(chatMessages(chat))) } }
         SHRINKAGES.forEach { shrinkage ->
             val errors = mutableListOf<Double>()
@@ -185,8 +186,8 @@ class ScoringContextEvalTest {
     private class FlipCount(val legacyFlipped: Boolean, val flipped: Boolean, val legacyPairs: Int, val disagreeingPairs: Int, val pairs: Int)
 
     private fun run(digest: ScoringDigest): Run {
-        val captured = mutableListOf<ScoringChunkAnswer>()
-        val answers = ScoringChunks.of(digest).ask { chunk ->
+        val captured = Collections.synchronizedList(mutableListOf<ScoringChunkAnswer>())
+        val answers = ScoringChunks.of(digest).ask(SAMPLES) { chunk ->
             scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> captured += ScoringChunkAnswer(chunk, answer) }
         }
         return Run(answers, captured)
@@ -325,6 +326,7 @@ class ScoringContextEvalTest {
         private const val SARCASTIC_CHAT = 2
         private val DUPLICATE_SHIFT: Duration = Duration.ofDays(1)
         private val REPETITIONS = System.getenv("EVAL_REPETITIONS")?.toIntOrNull() ?: 3
+        private val SAMPLES = System.getenv("EVAL_SAMPLES")?.toIntOrNull() ?: 1
         private val LONG_REPETITIONS = System.getenv("EVAL_LONG_REPETITIONS")?.toIntOrNull() ?: 0
         private val VARIANT_REPETITIONS = System.getenv("EVAL_VARIANT_REPETITIONS")?.toIntOrNull() ?: 0
         private const val FULL_SELF_TURNS = 20
