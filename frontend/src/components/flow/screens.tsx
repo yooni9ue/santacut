@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RegistrationScreen } from "./registration-screen";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FlowFrame, InfoNote, NextLink } from "./frame";
@@ -10,7 +11,7 @@ export function StartScreen() {
   const { update } = usePreview();
   const router = useRouter();
   function choose(source: Source) {
-    update({ source, fileName: "" });
+    update({ source, fileName: "", sample: false });
     router.push("/prepare");
   }
   return <FlowFrame step={0} title={<>산타한테 뭘<br />보여줄 건데?</>} description="말로만 착했다고 하면 산타도 곤란해.">
@@ -18,7 +19,8 @@ export function StartScreen() {
       <button className="flow-source" onClick={() => choose("KAKAO")}><span className="flow-source-icon">K</span><span><b>카카오톡 대화</b><small>내 말투와 대화 속 행동으로 심사받기</small><em>TXT · JSON</em></span><i>↗</i></button>
       <button className="flow-source" onClick={() => choose("INSTAGRAM")}><span className="flow-source-icon flow-instagram">◎</span><span><b>인스타그램 활동</b><small>내보낸 활동 기록으로 심사받기</small><em>JSON</em></span><i>↗</i></button>
     </div>
-    <InfoNote>두 경로 모두 현재 화면 미리보기예요. 실제 파일 지원 범위는 출시 전에 안내할게요.</InfoNote>
+    <InfoNote>파일 전송과 분석은 아직 예시예요. 참가 정보는 실제로 등록하고 확인할 수 있어요.</InfoNote>
+    <Link className="flow-text-link" href="/join" onClick={() => update({ sample: false })}>참가 정보 먼저 등록·확인하기 ↗</Link>
     <div className="flow-side-note"><span aria-hidden="true">( •_• )</span><p>하나만 내도 돼.<br />두 개 낸다고 선물 두 개 아님.</p></div>
   </FlowFrame>;
 }
@@ -55,12 +57,12 @@ export function UploadScreen() {
     if (file.size === 0 || file.size > 20 * 1024 * 1024) {
       update({ fileName: "" }); setError("내용이 있는 20MB 이하 파일을 선택해 주세요."); return;
     }
-    setError(""); update({ fileName: file.name });
+    setError(""); update({ fileName: file.name, sample: false });
   }
   return <FlowFrame back="/prepare" step={0} title={<>증거물,<br />여기 놓으세요.</>} description="착한 척은 끝. 이제 기록 차례." action={data.fileName ? <NextLink href="/join">이 파일로 계속</NextLink> : <button className="flow-primary" disabled>파일을 먼저 선택해 주세요</button>}>
     <label className={`flow-upload ${data.fileName ? "has-file" : ""}`}><input type="file" aria-label="분석 파일 선택" accept={allowed.map((extension) => `.${extension}`).join(",")} onChange={(event) => selectFile(event.target.files?.[0])} /><span className="flow-upload-icon" aria-hidden="true">{data.fileName ? "✓" : "↑"}</span><b>{data.fileName || "파일 선택하기"}</b><small>{data.fileName ? "다시 누르면 파일을 바꿀 수 있어요" : `${allowed.join(" · ").toUpperCase()} / 최대 20MB`}</small></label>
     {error && <p className="flow-error" role="alert">{error}</p>}
-    <button className="flow-sample-button" onClick={() => { setError(""); update({ fileName: data.source === "KAKAO" ? "산타와의_대화_예시.txt" : "인스타_활동_예시.json" }); }}>파일 없이 예시로 둘러보기 →</button>
+    <button className="flow-sample-button" onClick={() => { setError(""); update({ sample: true, fileName: data.source === "KAKAO" ? "산타와의_대화_예시.txt" : "인스타_활동_예시.json" }); }}>파일 없이 예시로 둘러보기 →</button>
     {data.source === "KAKAO" && data.fileName && <div className="flow-field"><label htmlFor="speaker">이 대화에서 나는? <span>선택 화면 예시</span></label><select id="speaker" value={data.speaker} onChange={(event) => update({ speaker: event.target.value })}><option>나</option><option>루돌프</option></select><p>실제 화자 목록은 파일 분석 기능과 연결할 때 제공돼요.</p></div>}
     <InfoNote>지금은 파일 선택 화면을 확인하는 단계예요. 파일을 읽거나 서버로 보내지 않아요.</InfoNote>
   </FlowFrame>;
@@ -69,6 +71,11 @@ export function UploadScreen() {
 const districts: Record<string, string[]> = { 서울: ["강남구", "마포구", "서초구", "송파구", "종로구"], 경기: ["성남시", "수원시", "고양시"], 부산: ["해운대구", "수영구", "동래구"] };
 
 export function JoinScreen() {
+  const { data } = usePreview();
+  return data.sample ? <SampleJoinScreen /> : <RegistrationScreen />;
+}
+
+function SampleJoinScreen() {
   const { data, update } = usePreview();
   const [error, setError] = useState("");
   const router = useRouter();
