@@ -50,7 +50,7 @@ class SharePageView private constructor(
             computedAt = HtmlText.escape(card.computedAt),
             stage = HtmlText.escape(card.stage),
             sharedAt = HtmlText.escape(card.sharedAt),
-            summary = HtmlText.escape(listOfNotNull(card.quote?.let { "“$it”" }, card.highlights.ifEmpty { null }, card.bars.ifEmpty { null }).joinToString(SUMMARY_SEPARATOR)),
+            summary = HtmlText.escape((card.quoteAndHighlights() + listOfNotNull(card.bars.ifEmpty { null })).joinToString(SUMMARY_SEPARATOR)),
         )
 
         /** 볼 수 없는 공유 결과 페이지용 값. 시작 링크에 쓸 공개 출처만 담는다. */

@@ -4,6 +4,7 @@ import com.santacut.domain.analysis.model.Archetype
 import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoreDimension
+import com.santacut.domain.analysis.model.ScoreDimensionKeyConverter
 import com.santacut.domain.global.model.RandomToken
 import com.santacut.domain.global.model.SeoulTime
 import com.santacut.domain.global.model.UtcInstantConverter
@@ -27,10 +28,10 @@ import java.time.format.DateTimeFormatter
  * 취소하면 행을 지운다(소프트 삭제를 쓰지 않는다).
  * 카드에는 상대 말을 싣지 않는다. 본인 한마디([quote])도 본인이 고를 때만 싣는다.
  *
- * @property archetype 공유 당시 산타 유형 코드. 이 컬럼이 생기기 전 링크는 null이다.
+ * @property archetype 공유 당시 산타 유형. 이 컬럼이 생기기 전 링크는 null이다.
  * @property topPercent 공유 당시 상위 몇 %. 참가자 100명 미만이었으면 null이다.
  * @property badge 공유 당시 첫 배지 라벨
- * @property weakestDimension 공유 당시 가장 약한 항목 키
+ * @property weakestDimension 공유 당시 가장 약한 항목. 컬럼에는 항목 키로 저장한다.
  * @property dimensionScores 공유 당시 항목 점수 JSON 배열
  * @property quote 본인이 싣기로 고른 한마디. 고르지 않았으면 null이다.
  */
@@ -50,10 +51,10 @@ class Share(
     tied: Boolean = false,
     stage: RankingStage = RankingStage.PREVIEW,
     createdAt: Instant? = null,
-    archetype: String? = null,
+    archetype: Archetype? = null,
     topPercent: Int? = null,
     badge: String? = null,
-    weakestDimension: String? = null,
+    weakestDimension: ScoreDimension? = null,
     dimensionScores: String? = null,
     quote: String? = null,
 ) {
@@ -120,8 +121,9 @@ class Share(
     var createdAt: Instant? = createdAt
         protected set
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "archetype")
-    var archetype: String? = archetype
+    var archetype: Archetype? = archetype
         protected set
 
     @Column(name = "top_percent")
@@ -132,8 +134,9 @@ class Share(
     var badge: String? = badge
         protected set
 
+    @Convert(converter = ScoreDimensionKeyConverter::class)
     @Column(name = "weakest_dimension")
-    var weakestDimension: String? = weakestDimension
+    var weakestDimension: ScoreDimension? = weakestDimension
         protected set
 
     @Column(name = "dimension_scores")
@@ -144,9 +147,8 @@ class Share(
     var quote: String? = quote
         protected set
 
-    /** 산타 유형 이름. 모르는 코드나 예전 링크면 빈 문자열이다. */
-    fun displayArchetype(): String =
-        archetype?.let { code -> runCatching { Archetype.valueOf(code).koreanName }.getOrNull() }.orEmpty()
+    /** 산타 유형 이름. 예전 링크면 빈 문자열이다. */
+    fun displayArchetype(): String = archetype?.koreanName.orEmpty()
 
     /** `공감 72 · 응원 65 · 존중 70 · 협력 58` 같은 항목 막대 요약. 예전 링크면 빈 문자열이다. */
     fun displayBars(): String = dimensionScores?.let { ScoreComponents.fromColumn(it).toBarText() }.orEmpty()
@@ -155,7 +157,7 @@ class Share(
     fun displayHighlights(): String = listOfNotNull(
         badge,
         topPercent?.let { "$TOP_PREFIX$it$PERCENT_SUFFIX" },
-        ScoreDimension.ofKey(weakestDimension)?.let { "$WEAKEST_PREFIX${it.label}" },
+        weakestDimension?.let { "$WEAKEST_PREFIX${it.label}" },
     ).joinToString(HIGHLIGHT_SEPARATOR)
 
     /** 소수점 둘째 자리까지 표시한 점수(예: `82.45`). */
@@ -210,8 +212,8 @@ class Share(
         ): Share = Share(
             RandomToken.generate(), participant.id, snapshot.id, participant.nickname, assessment.scoreHundredths,
             snapshot.rank, snapshot.eta, assessment.verdict, assessment.comment, snapshot.computedAt,
-            snapshot.tied, stage, issuedAt, profile.archetype.name, profile.topPercent, profile.firstBadge(),
-            profile.weakestDimension().key, assessment.components, profile.quote.takeIf { includeQuote },
+            snapshot.tied, stage, issuedAt, profile.archetype, profile.topPercent, profile.firstBadge(),
+            profile.weakestDimension(), assessment.components, profile.quote.takeIf { includeQuote },
         )
     }
 }
