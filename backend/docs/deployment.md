@@ -57,12 +57,13 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 | `spring.ai.google.genai.api-key` (`GEMINI_API_KEY`) | 없음 | Gemini Developer API 키. 없으면 앱이 뜨지 않는다 |
 | `spring.ai.google.genai.chat.model` (`GEMINI_MODEL`) | `gemini-3.5-flash-lite` | 채점 모델. 비우면 AI 분석을 끈다 |
 | `santacut.prompt-admin.enabled` (`PROMPT_ADMIN_ENABLED`) | `false` | dev 전용 프롬프트 관리 API(`/v1/admin/prompts`). dev의 `app.env`에만 `true`를 둔다. 운영은 두지 않아 404다 |
-| `santacut.ai.budget.daily-usd` (`AI_BUDGET_DAILY_USD`) | `0.5` | 앱 안의 AI 비용 가드 하루 한도(달러). 닿으면 작업을 잡지 않는다. 넣지 않아도 된다 |
-| `santacut.ai.budget.monthly-usd` (`AI_BUDGET_MONTHLY_USD`) | `9` | 앱 안의 AI 비용 가드 한 달 한도(달러). 넣지 않아도 된다 |
+| `santacut.ai.budget.daily-usd` (`AI_BUDGET_DAILY_USD`) | `0`(끔) | 앱 안의 AI 비용 가드 하루 한도(달러). 0이면 하루 한도가 없다. Gemini를 선불 크레딧으로 쓰므로 기본으로 끈다 |
+| `santacut.ai.budget.monthly-usd` (`AI_BUDGET_MONTHLY_USD`) | `9` | 앱 안의 AI 비용 가드 한 달 한도(달러). 호출 전 어림 비용을 더해 넘을 것 같아도 부르지 않는다. 넣지 않아도 된다 |
 
 - 단가(입력·출력 100만 토큰당 0.3·2.5달러), 멈춤 시간(15분), 연속 실패 기준(3번)은 `application.yml`의 `santacut.ai.budget`에 있다.
 - 출력 토큰 상한(`max-output-tokens`)은 250이고 `application.yml`에 있다. 3.5 Flash-Lite는 생각을 끌 수 없어 `thinking-level: MINIMAL`로 둔다. 생각 토큰은 출력 단가로 청구되고 이 상한을 함께 쓴다. `thinking-budget`을 넣으면 Gemini가 요청을 거절하므로 두지 않는다.
 - Gemini 호출 하나의 시간 상한은 60초이고 SDK 재시도는 하지 않는다. `GeminiClientConfiguration`에 있다.
+- 선불 크레딧이 떨어지면 Gemini가 `429 RESOURCE_EXHAUSTED`로 막는다. 작업은 실패하지 않고 `QUEUED`에 남으며 작업자는 15분씩 멈췄다 다시 시도한다. AI Studio에서 크레딧을 채우면 이어서 처리한다.
 
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
 
