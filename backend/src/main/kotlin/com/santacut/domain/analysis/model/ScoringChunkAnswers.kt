@@ -30,7 +30,7 @@ class ScoringChunkAnswers(private val values: List<ScoringChunkAnswer>) {
         val lowConfidence = readings.lowConfidence()
         verifyAnyEvidence(lowConfidence)
         val selfTurns = scored.sumOf { chunkAnswer -> chunkAnswer.chunk.selfTurnCount() }
-        return Score.shrunk(readings.shrunkScores(shrinkage, selfTurns), lowConfidence, playfulnessOf(scored))
+        return Score.shrunk(readings.shrunkScores(shrinkage, selfTurns), lowConfidence, playfulnessOf(scored), readings.meanScores())
     }
 
     /**
@@ -57,12 +57,15 @@ class ScoringChunkAnswers(private val values: List<ScoringChunkAnswer>) {
         val rated = scored.filter { chunkAnswer -> chunkAnswer.answer.playfulness != null }
         if (rated.isEmpty()) return null
         val weight = rated.sumOf { chunkAnswer -> chunkAnswer.chunk.turnWeight() }
-        val sum = rated.sumOf { chunkAnswer -> (chunkAnswer.answer.playfulness ?: 0) * chunkAnswer.chunk.turnWeight() }
-        return BigDecimal(sum).divide(BigDecimal(weight), 0, RoundingMode.HALF_UP).toInt()
+        val sum = rated.mapNotNull { chunkAnswer -> chunkAnswer.weightedPlayfulness() }.sum()
+        return BigDecimal(sum).divide(BigDecimal(weight), INTEGER_SCALE, RoundingMode.HALF_UP).toInt()
     }
 
     companion object {
         /** 결과에 보여 줄 본인 한마디의 최대 글자 수. */
         const val MAX_QUOTE_CHARS = 20
+
+        /** 장난기 평균을 정수로 반올림할 때의 소수 자릿수. */
+        private const val INTEGER_SCALE = 0
     }
 }

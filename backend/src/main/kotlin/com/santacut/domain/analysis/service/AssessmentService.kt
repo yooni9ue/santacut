@@ -17,7 +17,8 @@ class AssessmentService(
 ) {
     fun record(job: AnalysisJob, scored: ScoredAssessment, recordedAt: Instant): Assessment {
         val componentsJson = objectMapper.writeValueAsString(scored.score.components.toList())
-        return assessmentRepository.save(Assessment.record(job, scored, componentsJson, recordedAt))
+        val rawComponentsJson = objectMapper.writeValueAsString(scored.score.rawMeans.toList())
+        return assessmentRepository.save(Assessment.record(job, scored, componentsJson, rawComponentsJson, recordedAt))
     }
 
     /** [previousAssessmentId] 평가를 이 작업의 새 평가로 다시 저장한다. */

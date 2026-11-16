@@ -19,7 +19,7 @@ class AssessmentTest {
     fun `평가를 기록하면 점수, 판정, 쓴 채점 프롬프트 판 번호를 함께 남긴다`() {
         val score = Score.shrunk(listOf(BigDecimal("80"), BigDecimal("90"), BigDecimal("70"), BigDecimal("60")), LowConfidenceDimensions.NONE, null)
 
-        val assessment = Assessment.record(job, ScoredAssessment(score, PROMPT_VERSION, QUOTE, EarnedBadges(emptyList())), COMPONENTS_JSON, recordedAt)
+        val assessment = Assessment.record(job, ScoredAssessment(score, PROMPT_VERSION, QUOTE, EarnedBadges(emptyList())), COMPONENTS_JSON, RAW_COMPONENTS_JSON, recordedAt)
 
         assertEquals(participantId.toString(), assessment.userId)
         assertEquals(DataSource.KAKAO, assessment.source)
@@ -27,6 +27,7 @@ class AssessmentTest {
         assertEquals(score.verdict().title, assessment.verdict)
         assertEquals(score.verdict().comment, assessment.comment)
         assertEquals(COMPONENTS_JSON, assessment.components)
+        assertEquals(RAW_COMPONENTS_JSON, assessment.rawComponents)
         assertEquals(recordedAt, assessment.createdAt)
         assertEquals(Score.RULE_VERSION, assessment.scoreRuleVersion)
         assertEquals(QUOTE, assessment.quote)
@@ -60,5 +61,6 @@ class AssessmentTest {
         private const val QUOTE = "덕분에 살았다"
         private const val PROMPT_VERSION = 3
         private const val COMPONENTS_JSON = "[]"
+        private const val RAW_COMPONENTS_JSON = "[85,92,74,70]"
     }
 }

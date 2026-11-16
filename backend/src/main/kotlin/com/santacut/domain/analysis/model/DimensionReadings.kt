@@ -19,6 +19,9 @@ class DimensionReadings(private val values: List<DimensionReading>) {
     fun shrunkScores(shrinkage: ScoreShrinkage, selfTurns: Int): List<BigDecimal> =
         ScoreDimension.entries.map { dimension -> shrunkScoreOf(dimension, shrinkage, selfTurns) }
 
+    /** 수축 전 항목별 평균. 근거 없는 항목은 중립 점수다. 유형을 고를 때 쓴다([Archetype.of]). [ScoreDimension] 순서다. */
+    fun meanScores(): List<BigDecimal> = ScoreDimension.entries.map { dimension -> meanOf(supporting(dimension)) }
+
     /** 항목의 근거 줄 번호를 차례로 [finder]에 넘겨 처음 나온 한마디. 없으면 null이다. */
     fun quoteOf(dimension: ScoreDimension, finder: (Int) -> String?): String? =
         supporting(dimension).flatMap { reading -> reading.evidence }.firstNotNullOfOrNull(finder)
@@ -26,10 +29,14 @@ class DimensionReadings(private val values: List<DimensionReading>) {
     private fun shrunkScoreOf(dimension: ScoreDimension, shrinkage: ScoreShrinkage, selfTurns: Int): BigDecimal {
         val supported = supporting(dimension)
         if (supported.isEmpty()) return DimensionScores.NEUTRAL_SCORE
+        return shrinkage.shrink(meanOf(supported), supported.maxOf { reading -> reading.opportunity }, selfTurns)
+    }
+
+    /** 근거가 있는 구간 점수를 무게([DimensionReading.aggregationWeight])로 평균한다. 없으면 중립 점수다. */
+    private fun meanOf(supported: List<DimensionReading>): BigDecimal {
+        if (supported.isEmpty()) return DimensionScores.NEUTRAL_SCORE
         val totalWeight = supported.sumOf { reading -> reading.aggregationWeight() }
-        val mean = supported.sumOf { reading -> reading.score * reading.aggregationWeight() }
-            .divide(totalWeight, ScoreShrinkage.PRECISION)
-        return shrinkage.shrink(mean, supported.maxOf { reading -> reading.opportunity }, selfTurns)
+        return supported.sumOf { reading -> reading.score * reading.aggregationWeight() }.divide(totalWeight, ScoreShrinkage.PRECISION)
     }
 
     private fun supporting(dimension: ScoreDimension): List<DimensionReading> =

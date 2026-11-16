@@ -36,6 +36,12 @@ class ScoreComponents(private val values: List<BigDecimal>) {
     fun rankedDimensions(): List<ScoreDimension> =
         ScoreDimension.entries.sortedWith(compareByDescending<ScoreDimension> { scoreOf(it) }.thenBy { it.ordinal })
 
+    /** 가장 높은 항목과 두 번째 항목의 점수 차이. */
+    fun leadGap(): BigDecimal {
+        val (top, runnerUp) = rankedDimensions()
+        return scoreOf(top) - scoreOf(runnerUp)
+    }
+
     /** `공감 72 · 응원 65 · 존중 70 · 협력 58`처럼 항목 이름과 반올림한 정수 점수를 잇는다. */
     fun toBarText(): String = ScoreDimension.entries.joinToString(BAR_SEPARATOR) { dimension ->
         "${dimension.label} ${scoreOf(dimension).setScale(0, RoundingMode.HALF_UP).toPlainString()}"
