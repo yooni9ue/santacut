@@ -36,7 +36,7 @@ data class MyResultResponse(
     @field:JsonProperty("low_confidence_dimensions")
     @field:ArraySchema(
         arraySchema = Schema(
-            description = "근거가 부족해 중립 점수를 준 채점 항목 키. 이 항목 점수는 신뢰도가 낮습니다. 없으면 빈 배열입니다.",
+            description = "근거가 부족해 사전값(중립 점수 55와 근거 있는 다른 항목 평균들의 평균)을 준 채점 항목 키. 이 항목 점수는 신뢰도가 낮습니다. 없으면 빈 배열입니다.",
         ),
         schema = Schema(
             allowableValues = ["care_empathy", "positivity_support", "respectful_communication", "cooperation_sharing"],
