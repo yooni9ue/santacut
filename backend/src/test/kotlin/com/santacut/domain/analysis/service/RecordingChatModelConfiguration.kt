@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
 
 /**
- * Bedrock 대신 정해 둔 답을 돌려주고 마지막 프롬프트를 기억하는 채팅 모델을 AI 호출 경계(ChatModel)에 끼운다.
+ * Gemini 대신 정해 둔 답을 돌려주고 마지막 프롬프트를 기억하는 채팅 모델을 AI 호출 경계(ChatModel)에 끼운다.
  */
 @TestConfiguration
 class RecordingChatModelConfiguration {

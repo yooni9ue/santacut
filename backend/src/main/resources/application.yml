@@ -63,16 +63,15 @@ app:
   origin-lat: ${SANTA_ORIGIN_LAT:37.5252}
   origin-lon: ${SANTA_ORIGIN_LON:126.9253}
 spring.ai:
-  model.chat: bedrock-converse
-  bedrock:
-    aws:
-      # 자격 증명은 AWS 기본 체인(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY 환경 변수)에서 읽는다.
-      region: ${AWS_REGION:ap-northeast-2}
-      # 호출 하나 전체(SDK 재시도 포함) 시간 상한. 작업 리스(3분)보다 짧아야 리스가 끝난 뒤 같은 작업을 또 부르지 않는다.
-      timeout: 60s
-    converse.chat:
-      # 앱 IAM 사용자는 global. 추론 프로파일로만 호출할 수 있다.
-      model: ${BEDROCK_MODEL_ID:global.anthropic.claude-haiku-4-5-20251001-v1:0}
+  model.chat: google-genai
+  google.genai:
+    # Gemini Developer API 키. 환경 변수로만 넣는다. 시간 상한(60초)과 재시도 끔은 GeminiClientConfiguration이 정한다.
+    api-key: ${GEMINI_API_KEY:}
+    chat:
+      model: gemini-2.5-flash
       temperature: 0.1
       # 정상 답(근거 항목당 1~3개)은 100토큰 안팎이다. 폭주해도 비용이 크지 않게 낮게 둔다.
-      max-tokens: 250
+      max-output-tokens: 250
+      # 생각(thinking) 토큰은 출력 단가로 매겨지므로 꺼서 비용을 예측할 수 있게 한다.
+      thinking-budget: 0
+      response-mime-type: application/json
