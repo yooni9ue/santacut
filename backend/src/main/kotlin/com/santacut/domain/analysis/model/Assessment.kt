@@ -109,7 +109,8 @@ class Assessment(
     fun dimensionScores(): ScoreComponents = ScoreComponents.fromColumn(components)
 
     /** 장난기 기준값 [playfulnessSplit](참가자 중앙값)으로 고른 유형. */
-    fun archetype(playfulnessSplit: Int): Archetype = Archetype.of(dimensionScores(), playfulness, playfulnessSplit, rawComponents?.let(ScoreComponents::fromColumn))
+    fun archetype(playfulnessSplit: Int): Archetype =
+        Archetype.of(dimensionScores(), playfulness, playfulnessSplit, rawComponents?.let(ScoreComponents::fromColumn))
 
     /** 받은 배지 라벨 목록. */
     fun badgeLabels(): List<String> = EarnedBadges.fromColumn(badges).labels()
