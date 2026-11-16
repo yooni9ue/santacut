@@ -1,42 +1,34 @@
 # 프론트엔드 API 연동 가이드
 
-산타컷 백엔드 API를 화면에서 호출할 때 알아야 할 흐름을 정리한 문서다. 요청·응답 필드의 정확한 정의는 Swagger가 기준이고, 이 문서는 호출 순서와 규칙을 설명한다.
+산타컷 백엔드 API를 화면에서 부를 때 알아야 할 흐름을 정리한 문서다. 요청·응답 필드의 정확한 정의는 OpenAPI(Swagger)가 기준이고, 이 문서는 호출 순서와 규칙을 설명한다. 이 문서의 엔드포인트와 필드는 2026-11-17 dev 서버의 `/v3/api-docs`와 맞췄다.
 
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs` (타입 생성 도구 입력으로 사용)
-- 백엔드 실행: `backend/`에서 `./gradlew.bat bootRun` (JDK 25)
+## 0. 환경별 주소
+
+| 환경 | 화면(Vercel) | API | 상태 |
+| --- | --- | --- | --- |
+| 로컬 | `http://localhost:3000` | `http://localhost:8080` | `backend/`에서 `./gradlew.bat bootRun`(JDK 25) |
+| dev | `https://dev.santacut.me` | `https://api-dev.santacut.me` | `develop` 브랜치가 자동 배포된다 |
+| 운영 | `https://santacut.me`, `https://www.santacut.me` | `https://api.santacut.me` | 아직 켜지 않았다 |
+
+- Swagger UI: `https://api-dev.santacut.me/swagger-ui.html`(로컬은 `http://localhost:8080/swagger-ui.html`)
+- OpenAPI JSON: `https://api-dev.santacut.me/v3/api-docs`. 타입 생성 도구 입력으로 쓴다.
+- API는 HTTPS만 받는다. Caddy가 Let's Encrypt 인증서로 TLS를 끝내고, `http://` 요청은 `308`로 HTTPS로 넘긴다. 응답에는 HSTS(`Strict-Transport-Security: max-age=31536000`)가 붙는다.
 
 ## 1. 서비스 흐름
 
 1. 닉네임과 지역(시·도 → 시·군·구)을 골라 참가 등록한다. 지역은 전국 시·도 16개와 그 아래 시·군·구 255개다.
 2. 카카오톡·인스타그램 내보내기 원본 파일을 올리거나, 정규화한 이벤트 목록을 보내 분석을 요청한다.
-3. 분석 진행 상황을 폴링으로 확인하고, 끝나면 결과를 조회한다.
-4. 내 점수·순위·선물 도착 예정 시각과 전체 랭킹을 본다.
+3. 분석 진행 상황을 SSE 스트림으로 받거나 폴링으로 확인하고, 끝나면 결과를 조회한다.
+4. 내 점수·순위·선물 도착 예정 시각, 산타 유형·배지·항목 막대와 전체 랭킹을 본다.
 5. 결과 공유 링크를 만들거나 폐기한다.
 
 점수와 도착 시각은 재미를 위한 시뮬레이션이다. 원본 내보내기 파일(카카오톡 TXT, 인스타그램 `message_1.json`)은 `POST /v1/analyses/files`로 그대로 올린다(§6.1).
 
-## 2. API 주소와 CORS
+## 2. 호출 경로와 CORS
 
-화면은 `https://www.santacut.me`(또는 `https://santacut.me`)에서, API는 dev면 `https://api-dev.santacut.me`, 운영이면 `https://api.santacut.me`에서 뜬다. 출처(origin)는 다르지만 같은 사이트(`santacut.me`)라서 `SameSite=Lax`인 세션 쿠키와 CSRF 쿠키도 함께 간다.
+### 권장: 같은 출처 프록시
 
-- 서버는 `APP_CORS_ALLOWED_ORIGINS`에 적은 출처만 허용한다. 기본값은 `https://www.santacut.me,https://santacut.me`다. 다른 출처(예: 미리보기 배포 주소)에서 부르려면 백엔드에 그 출처를 넣어 달라고 한다. 허용하지 않은 출처의 사전 요청(preflight)은 `403`이다.
-- 모든 `fetch`에 `credentials: 'include'`를 넣는다. 빠뜨리면 세션 쿠키도 CSRF 쿠키도 가지 않아 `401`이나 `403`이 난다. `EventSource`는 `{ withCredentials: true }`로 연다.
-- 허용 메서드는 `GET`, `POST`, `PATCH`, `DELETE`이고, 허용 요청 헤더는 `Content-Type`, `X-XSRF-TOKEN`, `Last-Event-ID`다. 응답 헤더 가운데 `Retry-After`를 읽을 수 있다.
-- CSRF 쿠키(`XSRF-TOKEN`)는 API 호스트의 쿠키라 화면의 `document.cookie`로는 읽을 수 없다. 토큰은 쿠키가 아니라 `GET /v1/csrf` 응답 본문에서 꺼낸다(§3).
-
-### 로컬(`http://localhost:3000`)에서 dev API 부르기
-
-`localhost`에서 `api-dev.santacut.me`로 가는 요청은 다른 사이트 요청이다. `SameSite=Lax` 쿠키는 이런 `fetch`에 실리지 않는다. 그래서 dev 서버는 아래처럼 설정한다.
-
-- `APP_CORS_ALLOWED_ORIGINS=https://www.santacut.me,https://santacut.me,http://localhost:3000`
-- `SESSION_SECURE=true`, `APP_SESSION_SAME_SITE=None`(None은 Secure일 때만 쓸 수 있다)
-
-이렇게 하면 세션 쿠키와 CSRF 쿠키가 `SameSite=None; Secure`로 내려와 `localhost`에서도 실린다. CSRF 토큰은 앞서 말한 대로 `GET /v1/csrf` 응답 본문에서 읽으므로 흐름은 그대로다. 브라우저가 서드파티 쿠키를 막으면(Safari 기본값, Chrome 시크릿 창 등) 쿠키가 실리지 않아 `401`이나 `403`이 난다. 이때는 아래 프록시 방식을 쓴다.
-
-### 로컬 백엔드를 프록시로 부르기
-
-로컬에서 백엔드를 띄울 때는 아래 경로를 `http://localhost:8080`으로 프록시해 같은 출처로 부른다.
+프론트엔드는 Next.js `rewrites`(`frontend/next.config.ts`)로 아래 경로를 `BACKEND_ORIGIN`(dev는 `https://api-dev.santacut.me`)에 넘긴다. 브라우저는 화면과 같은 출처(`https://dev.santacut.me/v1/...`)를 부르므로 CORS도, 서드파티 쿠키 차단도 신경 쓸 일이 없다. 로컬에서는 `BACKEND_ORIGIN`을 비우면 `http://127.0.0.1:8080`으로 간다.
 
 | 경로 | 용도 |
 | --- | --- |
@@ -44,13 +36,22 @@
 | `/s/**` | 공개 공유 페이지와 이미지 |
 | `/swagger-ui/**`, `/swagger-ui.html`, `/v3/**` | API 문서 |
 
-로컬 프록시에서도 같은 코드가 돌도록 `credentials: 'include'`는 그대로 둔다.
+분석 제출에 쓰는 `Idempotency-Key` 헤더는 CORS 허용 헤더에 없다. 그래서 분석 제출(`POST /v1/analyses`, `POST /v1/analyses/files`)은 반드시 이 프록시를 거쳐 같은 출처로 보낸다.
+
+### API 주소로 바로 부를 때
+
+- 서버는 `APP_CORS_ALLOWED_ORIGINS`에 적은 출처만 허용한다. 코드 기본값은 `https://www.santacut.me,https://santacut.me`다. dev 서버는 여기에 `https://dev.santacut.me`와 `http://localhost:3000`을 더해 둔다. 다른 출처(예: Vercel 미리보기 주소)에서 부르려면 백엔드에 그 출처를 넣어 달라고 한다. 허용하지 않은 출처의 사전 요청(preflight)은 `403`이다.
+- 허용 메서드는 `GET`, `POST`, `PATCH`, `DELETE`이고, 허용 요청 헤더는 `Content-Type`, `X-XSRF-TOKEN`, `Last-Event-ID`다. 응답 헤더 가운데 `Retry-After`를 읽을 수 있다. 사전 요청 결과는 3,600초 캐시된다.
+- 모든 `fetch`에 `credentials: 'include'`를 넣는다. 빠뜨리면 세션 쿠키도 CSRF 쿠키도 가지 않아 `401`이나 `403`이 난다. `EventSource`는 `{ withCredentials: true }`로 연다.
+- CSRF 쿠키(`XSRF-TOKEN`)는 API 호스트의 HttpOnly 쿠키라 화면의 `document.cookie`로는 읽을 수 없다. 토큰은 쿠키가 아니라 `GET /v1/csrf` 응답 본문에서 꺼낸다(§3).
+- dev 서버는 쿠키를 `SameSite=None; Secure`로 내린다(`APP_SESSION_SECURE=true`, `APP_SESSION_SAME_SITE=None`). 그래서 `http://localhost:3000`에서 `https://api-dev.santacut.me`를 바로 불러도 쿠키가 실린다. 다만 브라우저가 서드파티 쿠키를 막으면(Safari 기본값, Chrome 시크릿 창 등) 쿠키가 빠져 `401`이나 `403`이 나므로, 이때는 프록시를 쓴다.
+- 운영은 화면과 API가 같은 사이트(`santacut.me`)라 `SameSite=Lax`(기본값)로도 쿠키가 간다.
 
 ## 3. 인증과 CSRF
 
 1. 페이지 로드 시 `GET /v1/me`를 호출한다. `200`이면 로그인 상태, `401`이면 미등록 상태다.
 2. 쓰기 요청(`POST`, `PATCH`, `DELETE`) 직전에 `GET /v1/csrf`를 호출한다. 응답 `{ headerName, token }`의 `token`을 `headerName`(기본 `X-XSRF-TOKEN`) 헤더로 보낸다. 같은 응답이 `XSRF-TOKEN` 쿠키도 설정하므로 쿠키를 지우지 않는다.
-3. `POST /v1/participants`로 등록하면 세션이 HttpOnly 쿠키로 설정된다. 쿠키 이름은 지금 서버처럼 도메인 없이 HTTP로 띄울 때(`SESSION_SECURE=false`) `sc_session`이고, 도메인과 HTTPS를 갖춘 뒤(`SESSION_SECURE=true`) `__Host-sc_session`이다. 프론트엔드는 HttpOnly라 쿠키를 직접 읽지 않으므로 이름에 기대지 않는다. 세션은 30일간 유효하며 JSON 응답에는 세션 값이 없다.
+3. `POST /v1/participants`로 등록하면 세션이 HttpOnly 쿠키로 설정된다. 쿠키 이름은 HTTPS로 띄운 dev·운영(`APP_SESSION_SECURE=true`)에서 `__Host-sc_session`, 로컬 HTTP(`APP_SESSION_SECURE=false`)에서 `sc_session`이다. 프론트엔드는 HttpOnly라 쿠키를 직접 읽지 않으므로 이름에 기대지 않는다. 세션은 30일간 유효하며 JSON 응답에는 세션 값이 없다.
 4. 이후 요청은 쿠키가 자동으로 실려 인증된다. 세션이 없거나 만료되면 `401`이다.
 
 ## 4. API 목록
@@ -113,7 +114,7 @@
 - 전체 글자 수 20만 자 이하, 이벤트 시각은 최근 90일 안이고 현재보다 5분 넘게 미래가 아니어야 한다(`400`, `INVALID_EVENT_RANGE`).
 - 한 사람당 24시간에 3번까지(`429`, `DAILY_USER_LIMIT`). 응답의 `retry_at`과 `Retry-After` 헤더가 다시 낼 수 있는 시점이다. 12월 25일 0시(한국 시간) 이후에는 시즌 마감(`409`).
 
-응답 `202 { id, status }`의 `id`로 `GET /v1/analyses/{id}`를 몇 초(예: 3초) 간격으로 다시 조회한다. 응답의 `status`가 진행 단계다. 202 응답의 `status`도 같은 값을 쓴다.
+응답 `202 { id, status }`의 `id`로 진행 단계를 따라간다. 먼저 SSE 스트림(§6.0)을 열고, 안 되면 `GET /v1/analyses/{id}`를 2~3초 간격으로 다시 조회한다. 응답의 `status`가 진행 단계다. 202 응답의 `status`도 같은 값을 쓴다.
 
 | `status` | 화면 문구(기획 §4.7) | 다음 행동 |
 | --- | --- | --- |
@@ -129,7 +130,7 @@
 - 점수·순위는 상태 응답에 없다. 결과는 `GET /v1/me/result` 하나로 읽는다.
 - 창을 닫아도 심사는 계속된다. 재방문하면 `GET /v1/me/analysis`로 가장 최근 작업 상태를 읽는다. 진행 중이면 심사 화면, `SUCCEEDED`면 결과 화면으로 보낸다. 낸 작업이 없으면 `404`(`NOT_FOUND`)다.
 - 오래 걸려도 새 분석을 자동으로 만들지 않는다. 같은 `id`를 다시 조회한다.
-- 서버의 AI 비용 한도에 닿았거나 AI 제공자가 잠시 막으면 작업이 `QUEUED`에 오래 머물 수 있다. 24시간이 지나면 `EXPIRED`로 끝난다.
+- 서버의 한 달 AI 비용 한도에 닿았거나, Gemini가 호출을 막았거나(선불 크레딧 소진 `429` 포함), 연달아 실패하면 작업자가 15분 쉬었다가 다시 잡는다. 이때 작업은 실패하지 않고 `QUEUED`에 머문다. 하루 비용 한도는 기본으로 없다. 24시간이 지나도록 못 잡으면 `EXPIRED`로 끝난다.
 - 본인 메시지가 8개 또는 300자보다 적으면 AI를 부르지 않고 `INSUFFICIENT_EVIDENCE`로 끝난다. 이 밖의 근거 부족 실패는 본인 말이 거의 없어 어느 항목도 판단할 수 없을 때만 난다. 한두 항목만 근거가 약하면 실패하지 않고 그 항목을 사전값(중립 점수와 본인의 다른 항목 평균)으로 매긴다(§7 `low_confidence_dimensions`).
 - 같은 참가자가 같은 내용으로 다시 내면 AI를 다시 부르지 않고 지난번과 같은 결과(점수 또는 근거 부족)로 끝난다.
 
@@ -174,7 +175,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 }
 ```
 
-- API가 다른 출처라 `withCredentials: true`가 있어야 세션 쿠키가 함께 간다. 예시의 상대 경로 앞에는 API 주소를 붙인다.
+- 예시는 §2의 같은 출처 프록시를 쓴다고 보고 상대 경로로 연다. API 주소로 바로 열 때는 앞에 API 주소를 붙이고, 그때는 `withCredentials: true`가 있어야 세션 쿠키가 함께 간다.
 - 스트림을 쓰는 동안에는 폴링을 멈춘다. 화면을 떠나면 `close()`로 닫는다.
 
 ### 6.1 원본 파일 업로드 `POST /v1/analyses/files`
@@ -315,3 +316,15 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 | 진행 상황 스트림이 꽉 참 | `503` | `ANALYSIS_STREAM_LIMIT` | 폴링으로 바꾼다. `Retry-After` 뒤에 다시 열어 봐도 된다 |
 | AI 모델 미설정 | `503` | `AI_NOT_CONFIGURED` | 지금은 분석을 받을 수 없다고 안내 |
 | 랭킹 cursor 오류 | `400` | `INVALID_CURSOR` | 받은 `next_cursor`만 보낸다 |
+
+## 9. 요청 한도
+
+| 대상 | 한도 | 넘으면 |
+| --- | --- | --- |
+| 분석 제출(`POST /v1/analyses`·`/files` 합산) | 참가자당 최근 24시간 3회 | `429` `DAILY_USER_LIMIT`. 본문 `retry_at`과 `Retry-After`(초) |
+| 원본 파일 | 20MB | `413` `FILE_TOO_LARGE` |
+| 이벤트 JSON | 20~2,000개, 이벤트당 1~2,000자, 합계 200,000자 | `400` |
+| 진행 상황 스트림 | 참가자당 1개(새로 열면 이전 것이 닫힘), 서버 전체 200개, 연결당 5분 | `503` `ANALYSIS_STREAM_LIMIT`. `Retry-After` 30초 |
+| 순위표 | 한 페이지 50줄 | `next_cursor`로 다음 페이지 |
+
+IP 단위 요청 한도는 없다. 같은 키로 다시 보낸 제출(`Idempotency-Key` 재전송)은 한도를 새로 쓰지 않고 처음 작업을 돌려준다.

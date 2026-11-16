@@ -23,7 +23,8 @@ GitHub Actions 워크플로는 GitHub 규칙상 `.github/workflows/`에 있으�
 - Vitest + Testing Library, Playwright (모바일 Chromium/WebKit)
 - `frontend/src/` 구조 및 `@/*` 경로 별칭
 - [API 연동 가이드](docs/api/frontend-api-guide.md)
-- Swagger UI: `http://localhost:8080/swagger-ui.html`, OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Swagger UI: dev `https://api-dev.santacut.me/swagger-ui.html`, 로컬 `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: dev `https://api-dev.santacut.me/v3/api-docs`, 로컬 `http://localhost:8080/v3/api-docs`
 
 Node.js 24와 pnpm을 설치한 뒤 실행합니다 (`npm install -g pnpm@12.21.0`). nvm을 사용한다면 `frontend/`에서 `nvm install`과 `nvm use`를 먼저 실행하세요.
 
