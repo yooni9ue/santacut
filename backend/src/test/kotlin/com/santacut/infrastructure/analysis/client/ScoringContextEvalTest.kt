@@ -21,6 +21,9 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.chat.messages.SystemMessage
+import org.springframework.ai.chat.messages.UserMessage
+import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.google.genai.GoogleGenAiChatModel
 import org.springframework.ai.google.genai.GoogleGenAiChatOptions
 import org.springframework.ai.google.genai.common.GoogleGenAiThinkingLevel
@@ -43,7 +46,9 @@ import kotlin.test.assertEquals
  *
  * 환경 변수: GEMINI_API_KEY(필수), EVAL_REPETITIONS(짧은 대화 반복, 기본 3), EVAL_LONG_REPETITIONS(긴 대화 위치, 기본 0=건너뜀),
  * EVAL_VARIANT_REPETITIONS(길이 불변·단체 대화 감싸기, 기본 0=건너뜀), EVAL_PROMPT_FILE(채점 프롬프트를 이 파일로 바꿈).
- * 수축 세기 C는 [STRENGTHS]를 같은 답에 모두 적용해 비교한다(추가 호출 없음). 결과는 `build/eval/`에 남는다.
+ * 수축 규칙은 [SHRINKAGES](세기 C, 근거 무게를 깎지 않는 본인 턴 수 F)를 같은 답에 모두 적용해 비교한다(추가 호출 없음).
+ * 길이 불변은 기준 프롬프트로 원래·반 대화도 채점해, 모델의 길이별 변화가 기준의 변화와 얼마나 다른지도 잰다.
+ * 결과는 `build/eval/`에 남는다.
  * 기준(전체 맥락) 평균은 build/eval/full-baseline.txt를 다시 쓴다(5판 평가 때 잰 값).
  */
 @Tag("eval")
@@ -63,12 +68,12 @@ class ScoringContextEvalTest {
         val full = fullBaseline()
         val lines = mutableListOf("prompt=${promptLabel()} max-output-tokens=${scoreModelProperties().maxOutputTokens}")
         val runsByChat = (1..CHAT_COUNT).associateWith { chat -> List(REPETITIONS) { run(digestOf(chatMessages(chat))) } }
-        STRENGTHS.forEach { strength ->
+        SHRINKAGES.forEach { shrinkage ->
             val errors = mutableListOf<Double>()
             val deviations = mutableListOf<Double>()
             val gaps = mutableListOf<String>()
             runsByChat.forEach { (chat, runs) ->
-                val scores = runs.mapNotNull { it.score(strength) }
+                val scores = runs.mapNotNull { it.score(shrinkage) }
                 val totals = scores.map { it.hundredths / 100.0 }
                 if (totals.size >= 2) deviations += standardDeviation(totals)
                 ScoreDimension.entries.forEach { dimension ->
@@ -77,12 +82,12 @@ class ScoringContextEvalTest {
                 }
                 gaps += "chat-$chat=${totals.map { "%.1f".format(it) }} gap=%+.2f".format(totals.average() - full.getValue("chat-$chat|total"))
             }
-            lines += "C=$strength mae=%.2f std-mean=%.2f std-max=%.2f ".format(errors.average(), deviations.average(), deviations.max()) + gaps
+            lines += "${label(shrinkage)} mae=%.2f std-mean=%.2f std-max=%.2f ".format(errors.average(), deviations.average(), deviations.max()) + gaps
         }
         runsByChat.forEach { (chat, runs) ->
-            val archetypes = runs.mapNotNull { it.score(DEFAULT_STRENGTH)?.let { score -> Archetype.of(score.components, score.playfulness, PLAYFULNESS_SPLIT) } }
+            val archetypes = runs.mapNotNull { it.score(DEFAULT_SHRINKAGE)?.let { score -> Archetype.of(score.components, score.playfulness, PLAYFULNESS_SPLIT) } }
             val stable = archetypes.groupingBy { it }.eachCount().values.maxOrNull() ?: 0
-            lines += "chat-$chat archetypes=$archetypes stable=$stable/${runs.size} playfulness=${runs.map { it.score(DEFAULT_STRENGTH)?.playfulness }} " +
+            lines += "chat-$chat archetypes=$archetypes stable=$stable/${runs.size} playfulness=${runs.map { it.score(DEFAULT_SHRINKAGE)?.playfulness }} " +
                 "raw=${runs.map { it.rawLine() }} tokens(in/out)=${runs.map { "${it.inputTokens()}/${it.outputTokens()}" }} finish=${runs.map { it.finish() }}"
         }
         val all = runsByChat.values.flatten()
@@ -104,10 +109,10 @@ class ScoringContextEvalTest {
             val digest = spreadSubmission(messages).toScoringDigest()
             List(if (at == null) 1 else LONG_REPETITIONS) { run(digest) }
         }
-        STRENGTHS.forEach { strength ->
-            val means = runsByVariant.mapValues { (_, runs) -> runs.mapNotNull { it.score(strength)?.hundredths?.div(100.0) }.average() }
+        SHRINKAGES.forEach { shrinkage ->
+            val means = runsByVariant.mapValues { (_, runs) -> runs.mapNotNull { it.score(shrinkage)?.hundredths?.div(100.0) }.average() }
             val positions = listOf("start", "middle", "end").map { means.getValue(it) }
-            lines += "C=$strength means=${means.mapValues { "%.2f".format(it.value) }} position-spread=%.2f".format(positions.max() - positions.min())
+            lines += "${label(shrinkage)} means=${means.mapValues { "%.2f".format(it.value) }} position-spread=%.2f".format(positions.max() - positions.min())
         }
         runsByVariant.forEach { (name, runs) ->
             lines += "$name chunks=${runs.first().chunkCount()} chunk-positivity=${runs.map { it.chunkScores(ScoreDimension.POSITIVITY_SUPPORT) }} " +
@@ -120,7 +125,8 @@ class ScoringContextEvalTest {
     fun `같은 대화를 반으로 자르거나 두 번 이어도, 단체 대화로 감싸도 총점이 비슷한지 잰다`() {
         assumeTrue(VARIANT_REPETITIONS > 0, "EVAL_VARIANT_REPETITIONS가 0이면 건너뛴다")
         val lines = mutableListOf("prompt=${promptLabel()}")
-        val deltas = STRENGTHS.associateWith { mutableMapOf<String, MutableList<Double>>() }
+        val deltas = SHRINKAGES.associateWith { mutableMapOf<String, MutableList<Double>>() }
+        val baseline = cachedScores(LENGTH_BASELINE_FILE)
         (1..CHAT_COUNT).forEach { chat ->
             val messages = chatMessages(chat)
             val variants = mapOf(
@@ -130,16 +136,22 @@ class ScoringContextEvalTest {
                 "group" to asGroup(messages),
             )
             val runs = variants.mapValues { (_, variant) -> List(VARIANT_REPETITIONS) { run(digestOf(variant, verify = false)) } }
-            STRENGTHS.forEach { strength ->
-                val means = runs.mapValues { (_, list) -> list.mapNotNull { it.score(strength)?.hundredths?.div(100.0) }.average() }
+            val baseOriginal = baseline.getOrPut("chat-$chat|original") { baselineTotal(messages) }
+            val baseHalf = baseline.getOrPut("chat-$chat|half") { baselineTotal(variants.getValue("half")) }
+            lines += "baseline chat-$chat original=%.2f half=%.2f".format(baseOriginal, baseHalf)
+            SHRINKAGES.forEach { shrinkage ->
+                val means = runs.mapValues { (_, list) -> list.mapNotNull { it.score(shrinkage)?.hundredths?.div(100.0) }.average() }
                 listOf("half", "double", "group").forEach { name ->
-                    deltas.getValue(strength).getOrPut(name) { mutableListOf() } += abs(means.getValue(name) - means.getValue("original"))
+                    deltas.getValue(shrinkage).getOrPut(name) { mutableListOf() } += abs(means.getValue(name) - means.getValue("original"))
                 }
-                lines += "C=$strength chat-$chat means=${means.mapValues { "%.2f".format(it.value) }}"
+                val modelChange = means.getValue("half") - means.getValue("original")
+                deltas.getValue(shrinkage).getOrPut("half-vs-baseline") { mutableListOf() } += abs(modelChange - (baseHalf - baseOriginal))
+                lines += "${label(shrinkage)} chat-$chat means=${means.mapValues { "%.2f".format(it.value) }}"
             }
         }
-        deltas.forEach { (strength, byName) ->
-            lines += "C=$strength " + byName.entries.joinToString(" ") { (name, list) -> "$name-delta mean=%.2f max=%.2f".format(list.average(), list.max()) }
+        writeScores(LENGTH_BASELINE_FILE, baseline)
+        deltas.forEach { (shrinkage, byName) ->
+            lines += "${label(shrinkage)} " + byName.entries.joinToString(" ") { (name, list) -> "$name-delta mean=%.2f max=%.2f".format(list.average(), list.max()) }
         }
         report("invariance.txt", lines.joinToString("\n"))
     }
@@ -161,10 +173,9 @@ class ScoringContextEvalTest {
     }
 
     private class Run(private val answers: ScoringChunkAnswers, private val chunks: List<ScoringChunkAnswer>) {
-        fun score(strength: BigDecimal): Score? =
-            runCatching { answers.toScore(ScoreShrinkage(strength, FULL_SELF_TURNS)) }.getOrNull()
+        fun score(shrinkage: ScoreShrinkage): Score? = runCatching { answers.toScore(shrinkage) }.getOrNull()
 
-        fun rawLine(): String = score(BigDecimal.ZERO)?.components?.toList()?.joinToString("/").orEmpty()
+        fun rawLine(): String = score(ScoreShrinkage(BigDecimal.ZERO, 1))?.components?.toList()?.joinToString("/").orEmpty()
 
         fun chunkCount(): Int = chunks.size
 
@@ -213,9 +224,37 @@ class ScoringContextEvalTest {
         return GoogleGenAiChatModel.builder().genAiClient(client).options(options).build()
     }
 
-    private fun fullBaseline(): Map<String, Double> =
-        File(FULL_BASELINE_FILE).takeIf { it.exists() }?.readLines()?.filter { it.contains('=') }
-            ?.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() }.orEmpty()
+    private fun fullBaseline(): Map<String, Double> = cachedScores(FULL_BASELINE_FILE)
+
+    private fun cachedScores(path: String): MutableMap<String, Double> =
+        File(path).takeIf { it.exists() }?.readLines()?.filter { it.contains('=') }
+            ?.associate { it.substringBefore('=') to it.substringAfter('=').toDouble() }.orEmpty().toMutableMap()
+
+    private fun writeScores(path: String, scores: Map<String, Double>) {
+        File(path).apply { parentFile.mkdirs() }.writeText(scores.entries.joinToString("\n") { "${it.key}=${it.value}" } + "\n")
+    }
+
+    private fun label(shrinkage: ScoreShrinkage): String = "C=${shrinkage.strength} F=${shrinkage.fullSelfTurns}"
+
+    /** 기준(전체 맥락) 프롬프트로 [messages]를 [BASELINE_REPETITIONS]번 채점한 가중 총점 평균. 5판 평가 때와 같은 프롬프트다. */
+    private fun baselineTotal(messages: List<ChatMessage>): Double =
+        List(BASELINE_REPETITIONS) { baselineCall(messages) }.filterNotNull().average()
+
+    private fun baselineCall(messages: List<ChatMessage>): Double? {
+        val transcript = messages.joinToString("\n") { "${TIME_FORMAT.format(it.occurredAt.atZone(SeoulTime.ZONE))} ${it.speaker}: ${it.text}" }
+        val response = baselineModel.call(Prompt(listOf(SystemMessage(FULL_CONTEXT_PROMPT), UserMessage(transcript))))
+        val text = response.result?.output?.text.orEmpty()
+        val start = text.indexOf('{')
+        val end = text.lastIndexOf('}')
+        if (start !in 0..<end) return null
+        val scores = runCatching { JsonMapper.builder().build().readTree(text.substring(start, end + 1)).path("scores") }.getOrNull() ?: return null
+        if (!ScoreDimension.entries.all { scores.path(it.key).isNumber }) return null
+        return ScoreDimension.entries.sumOf { it.weight * scores.path(it.key).asDouble() } / ScoreDimension.TOTAL_WEIGHT
+    }
+
+    private val baselineModel: GoogleGenAiChatModel by lazy {
+        chatModel(ScoreModelProperties(ScoreModelProperties().model, BASELINE_MAX_OUTPUT_TOKENS))
+    }
 
     private fun spreadSubmission(messages: List<ChatMessage>): AnalysisSubmission {
         val now = Instant.now()
@@ -269,8 +308,30 @@ class ScoringContextEvalTest {
         private val LONG_REPETITIONS = System.getenv("EVAL_LONG_REPETITIONS")?.toIntOrNull() ?: 0
         private val VARIANT_REPETITIONS = System.getenv("EVAL_VARIANT_REPETITIONS")?.toIntOrNull() ?: 0
         private const val FULL_SELF_TURNS = 20
-        private val STRENGTHS = listOf(BigDecimal.ZERO, BigDecimal("0.5"), BigDecimal.ONE, BigDecimal(2))
-        private val DEFAULT_STRENGTH = BigDecimal("0.5")
+        private val SHRINKAGES = listOf(
+            ScoreShrinkage(BigDecimal.ZERO, FULL_SELF_TURNS),
+            ScoreShrinkage(BigDecimal("0.5"), FULL_SELF_TURNS),
+            ScoreShrinkage(BigDecimal.ONE, FULL_SELF_TURNS),
+            ScoreShrinkage(BigDecimal("0.25"), FULL_SELF_TURNS),
+            ScoreShrinkage(BigDecimal("0.5"), 10),
+            ScoreShrinkage(BigDecimal("0.5"), 5),
+            ScoreShrinkage(BigDecimal("0.25"), 10),
+            ScoreShrinkage(BigDecimal("0.25"), 5),
+        )
+        private val DEFAULT_SHRINKAGE = ScoreShrinkage(BigDecimal("0.25"), 5)
+        private const val LENGTH_BASELINE_FILE = "build/eval/length-baseline.txt"
+        private val BASELINE_REPETITIONS = System.getenv("EVAL_BASELINE_REPETITIONS")?.toIntOrNull() ?: 3
+        private const val BASELINE_MAX_OUTPUT_TOKENS = 1024
+        private val FULL_CONTEXT_PROMPT = """
+            너는 재미용 산타 점수를 매기는 채점자다. 입력은 '나'와 '상대'의 대화 전체이며 각 줄 앞에 시각이 있다.
+            '나'의 행동만 평가하고, 상대 메시지와 답장 간격은 '나'의 말을 이해하는 맥락으로 쓴다. 비꼬는 말은 근거가 아니다.
+            - care_empathy: 상대의 상태를 살피고 공감하는 행동
+            - positivity_support: 구체적인 격려, 응원, 감사
+            - respectful_communication: 존중하는 말투, 사과, 부탁. 욕설이나 비하가 섞이면 낮춘다.
+            - cooperation_sharing: 약속을 잡고 지키기, 돕기, 나누기 같은 구체적인 협력
+            항목마다 0~100 정수다. 평범한 대화는 50~65, 분명하고 반복되는 좋은 행동은 75 이상, 아주 두드러지면 90 이상, 반대 행동이 뚜렷하면 50 미만이다.
+            마크다운 없이 JSON 하나만 돌려준다: {"scores":{"care_empathy":0,"positivity_support":0,"respectful_communication":0,"cooperation_sharing":0}}
+        """.trimIndent()
         private const val PLAYFULNESS_SPLIT = 50
         private const val INPUT_USD_PER_TOKEN = 0.3 / 1_000_000
         private const val OUTPUT_USD_PER_TOKEN = 2.5 / 1_000_000
