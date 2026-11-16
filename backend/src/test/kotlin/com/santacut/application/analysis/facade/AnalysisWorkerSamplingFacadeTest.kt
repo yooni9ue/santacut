@@ -59,6 +59,8 @@ import kotlin.test.assertTrue
         "app.season-year=2099",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
+        // 시작 직후 예약 폴링이 목을 부르면 이 스레드의 스텁이 다른 메서드에 붙는다. 작업자는 테스트가 직접 부른다.
+        "santacut.scheduling.enabled=false",
         "santacut.score.sampling.samples=${AnalysisWorkerSamplingFacadeTest.SAMPLES}",
     ],
 )
