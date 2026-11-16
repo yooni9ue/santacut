@@ -48,11 +48,11 @@ class ScoringChunks(private val values: List<ScoringChunk>) {
     }
 
     companion object {
-        /** 구간 하나의 본문 글자 수 목표. 한국어 대화문은 약 1.4자가 토큰 하나라 줄 표시를 더해도 약 8~9천 토큰이다. */
-        const val CHUNK_CHARS = 10_000
+        /** 구간 하나의 본문 글자 수 목표. 한국어 대화문은 약 1.4자가 토큰 하나라 줄 표시와 시스템 프롬프트를 더해도 약 7천 토큰이다(§14.13). */
+        const val CHUNK_CHARS = 6_700
 
-        /** 구간 수 상한. 본문 상한([ScoringDigest.MAX_TRANSCRIPT_CHARS]) 40,000자를 4개로 나눈다. */
-        const val MAX_CHUNKS = 4
+        /** 구간 수 상한. 본문 상한([ScoringDigest.MAX_TRANSCRIPT_CHARS]) 40,000자를 6개로 나눈다. */
+        const val MAX_CHUNKS = 6
 
         /** 앞 구간에서 함께 싣는 줄 수. 구간 첫 줄이 무엇에 답했는지 보이게 한다. */
         const val OVERLAP_TURNS = 4
