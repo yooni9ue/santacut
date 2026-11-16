@@ -6,7 +6,7 @@
 
 - 서버는 Lightsail `nano_3_0`이다. 메모리 512MB에 스왑 1GB가 있다.
 - `backend/ci-cd/deploy/compose.yml`은 Caddy와 Spring Boot 앱 두 컨테이너다. SQLite 파일은 Docker named volume에 둔다.
-- AI는 Amazon Bedrock이다. 앱 IAM 사용자는 서울 리전(`ap-northeast-2`)의 추론 프로파일 `global.anthropic.claude-haiku-4-5-20251001-v1:0`으로만 부를 수 있다.
+- AI는 Google Gemini 2.5 Flash(Gemini Developer API)다. API 키(`GEMINI_API_KEY`)로 부른다.
 - SQLite 한 파일이라 앱 인스턴스는 하나만 띄운다. 여러 서버에서 같은 파일을 쓰지 않는다.
 
 ## 메모리 예산 (512MB)
@@ -34,7 +34,7 @@ Caddy 사이트 주소는 `DOMAIN`을 따른다. Caddyfile은 `{$SITE_ADDRESS::8
 
 ## 환경 설정과 배포
 
-앱 설정은 서버 디스크에 두지 않는다. 운영자가 인프라 레포 `scripts/put-secrets.sh`로 KMS 암호화해 S3에 올리고, 서버는 부팅 때 `/run/santacut/app.env`(tmpfs, 600)로 받는다. 받을 때 앱 IAM 사용자 키(`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)를 뒤에 붙인다. 키 목록은 `backend/ci-cd/deploy/.env.example`에 있다.
+앱 설정은 서버 디스크에 두지 않는다. 운영자가 인프라 레포 `scripts/put-secrets.sh`로 KMS 암호화해 S3에 올리고, 서버는 부팅 때 `/run/santacut/app.env`(tmpfs, 600)로 받는다. 키 목록은 `backend/ci-cd/deploy/.env.example`에 있다.
 
 - Compose는 이 파일을 두 번 쓴다. 앱 컨테이너의 `env_file`이고, `deploy.sh`·`backup.sh`의 `--env-file`(보간용)이다.
 - 앱은 AWS 기본 자격 증명 체인으로 환경 변수의 키를 읽는다. 키를 Spring 설정에 따로 적지 않는다.
@@ -52,15 +52,15 @@ GitHub Actions는 PR과 main에서 검증하고, main 커밋 이미지를 GHCR�
 | `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
 | `santacut.ai.poll-delay-ms` | `3000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |
 | `santacut.upload.poll-delay-ms` | `1000` | 원본 파일 검증 작업자가 다음 원본을 찾기 전에 쉬는 시간 |
-| `spring.ai.bedrock.converse.chat.model` (`BEDROCK_MODEL_ID`) | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | Bedrock 추론 프로파일 ID. 비우면 AI 분석을 끈다 |
-| `spring.ai.bedrock.aws.region` (`AWS_REGION`) | `ap-northeast-2` | Bedrock 리전 |
-| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | 없음 | 앱 IAM 사용자 키. 서버가 `app.env` 뒤에 붙인다 |
+| `spring.ai.google.genai.api-key` (`GEMINI_API_KEY`) | 없음 | Gemini Developer API 키. 없으면 앱이 뜨지 않는다 |
+| `spring.ai.google.genai.chat.model` | `gemini-2.5-flash` | 채점 모델. 비우면 AI 분석을 끈다 |
 | `santacut.prompt-admin.enabled` (`PROMPT_ADMIN_ENABLED`) | `false` | dev 전용 프롬프트 관리 API(`/v1/admin/prompts`). dev의 `app.env`에만 `true`를 둔다. 운영은 두지 않아 404다 |
 | `santacut.ai.budget.daily-usd` (`AI_BUDGET_DAILY_USD`) | `0.5` | 앱 안의 AI 비용 가드 하루 한도(달러). 닿으면 작업을 잡지 않는다. 넣지 않아도 된다 |
 | `santacut.ai.budget.monthly-usd` (`AI_BUDGET_MONTHLY_USD`) | `9` | 앱 안의 AI 비용 가드 한 달 한도(달러). 넣지 않아도 된다 |
 
-- 단가(입력·출력 100만 토큰당 1·5달러), 멈춤 시간(15분), 연속 실패 기준(3번)은 `application.yml`의 `santacut.ai.budget`에 있다.
-- Bedrock 호출 하나의 시간 상한(`spring.ai.bedrock.aws.timeout`)은 60초, 출력 토큰 상한(`max-tokens`)은 250이다. 둘 다 `application.yml`에 있다.
+- 단가(입력·출력 100만 토큰당 0.3·2.5달러), 멈춤 시간(15분), 연속 실패 기준(3번)은 `application.yml`의 `santacut.ai.budget`에 있다.
+- 출력 토큰 상한(`max-output-tokens`)은 250이고, 생각 토큰(`thinking-budget`)은 0으로 끈다. 둘 다 `application.yml`에 있다.
+- Gemini 호출 하나의 시간 상한은 60초이고 SDK 재시도는 하지 않는다. `GeminiClientConfiguration`에 있다.
 
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
 
