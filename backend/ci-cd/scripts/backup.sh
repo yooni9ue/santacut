@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 실행 중인 앱 컨테이너에서 SQLite를 .backup으로 떠서 S3(SSE-KMS)에 올리고, 올라간 내용을 내려받아 대조한다.
 # 암호화는 S3가 환경 KMS 키로 한다(BACKUP_REMOTE의 server_side_encryption, sse_kms_key_id).
+# 컨테이너의 /tmp는 64MB tmpfs라 DB가 커지면 .backup이 실패한다. 복사본은 데이터 볼륨(/app/data/backup-tmp)에 뜨고 바로 지운다.
 set -Eeuo pipefail
 umask 077
 root=/opt/santacut
@@ -19,14 +20,18 @@ stamp=$(date -u +%Y%m%dT%H%M%SZ)
 name="santacut-$stamp.sqlite"
 file="$backup_dir/$name"
 compose=(docker compose --env-file "$env_file" -f "$release/deploy/compose.yml")
+app_tmp_dir=/app/data/backup-tmp
+app_copy="$app_tmp_dir/santacut-backup.db"
+app_exec() { APP_IMAGE="$image" "${compose[@]}" exec -T app "$@"; }
 cleanup() {
   rm -f "${file}.partial"
-  APP_IMAGE="$image" "${compose[@]}" exec -T app rm -f /tmp/santacut-backup.db >/dev/null 2>&1 || true
+  app_exec rm -rf "$app_tmp_dir" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
-APP_IMAGE="$image" "${compose[@]}" exec -T app sqlite3 /app/data/santacut.db ".backup '/tmp/santacut-backup.db'"
-APP_IMAGE="$image" "${compose[@]}" exec -T app cat /tmp/santacut-backup.db > "${file}.partial"
-APP_IMAGE="$image" "${compose[@]}" exec -T app rm -f /tmp/santacut-backup.db
+app_exec mkdir -p "$app_tmp_dir"
+app_exec sqlite3 /app/data/santacut.db ".backup '$app_copy'"
+app_exec cat "$app_copy" > "${file}.partial"
+app_exec rm -rf "$app_tmp_dir"
 [[ "$(sqlite3 "${file}.partial" 'PRAGMA integrity_check;')" == ok ]] || { echo 'Backup integrity check failed'; exit 1; }
 chmod 600 "${file}.partial"
 mv "${file}.partial" "$file"
