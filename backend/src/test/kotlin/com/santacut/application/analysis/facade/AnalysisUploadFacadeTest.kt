@@ -29,6 +29,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 /**
  * 원본 파일 업로드가 시즌 마감(409), 하루 제출 한도(429, JSON 제출과 함께 셈), AI 미설정(503)에서 거절되는지 확인한다.
@@ -84,6 +85,32 @@ class AnalysisUploadFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `하루 한도에 걸린 원본 파일은 내용을 읽기 전에 거절한다`() {
+        val participantId = registerParticipant()
+        repeat(MAX_DAILY_SUBMISSIONS) { analysisFacade.upload(uploadCommand(participantId)) }
+        var read = false
+
+        assertErrorCode(ErrorCode.DAILY_USER_LIMIT) {
+            analysisFacade.upload(uploadCommand(participantId) { ByteArray(0).also { read = true } })
+        }
+        assertFalse(read)
+    }
+
+    @Test
+    fun `같은 키로 같은 파일을 다시 보내면 하루 한도를 다 썼어도 처음 작업을 돌려주고, 다른 파일이면 충돌이다`() {
+        val participantId = registerParticipant()
+        val key = newKey()
+        val content = TestChatFiles.kakaoIos(clock.instant(), EVENT_COUNT)
+        val first = analysisFacade.upload(uploadCommand(participantId, key) { content })
+        repeat(MAX_DAILY_SUBMISSIONS - 1) { analysisFacade.upload(uploadCommand(participantId)) }
+
+        assertEquals(first.id, analysisFacade.upload(uploadCommand(participantId, key) { content.copyOf() }).id)
+        assertErrorCode(ErrorCode.IDEMPOTENCY_CONFLICT) {
+            analysisFacade.upload(uploadCommand(participantId, key) { TestChatFiles.kakaoIos(clock.instant(), EVENT_COUNT + 1) })
+        }
+    }
+
+    @Test
     fun `AI 모델이 설정되지 않았으면 원본 파일을 받지 않고 AI_NOT_CONFIGURED다`() {
         given(scoreClient.isEnabled()).willReturn(false)
         val participantId = registerParticipant()
@@ -95,13 +122,11 @@ class AnalysisUploadFacadeTest @Autowired constructor(
     private fun registerParticipant(): UUID =
         participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
 
-    private fun uploadCommand(participantId: UUID): UploadAnalysisCommand = UploadAnalysisCommand(
-        participantId,
-        newKey(),
-        DataSource.KAKAO.name,
-        SELF_SPEAKER,
-        TestChatFiles.kakaoIos(clock.instant(), EVENT_COUNT),
-    )
+    private fun uploadCommand(
+        participantId: UUID,
+        key: String = newKey(),
+        readContent: () -> ByteArray = { TestChatFiles.kakaoIos(clock.instant(), EVENT_COUNT) },
+    ): UploadAnalysisCommand = UploadAnalysisCommand(participantId, key, DataSource.KAKAO.name, SELF_SPEAKER, readContent)
 
     private fun submitCommand(participantId: UUID): SubmitAnalysisCommand {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))
@@ -113,6 +138,7 @@ class AnalysisUploadFacadeTest @Autowired constructor(
 
     companion object {
         private const val EVENT_COUNT = 20
+        private const val MAX_DAILY_SUBMISSIONS = 3
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
     }
 }

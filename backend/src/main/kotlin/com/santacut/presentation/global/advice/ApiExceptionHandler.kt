@@ -63,6 +63,11 @@ class ApiExceptionHandler(
     fun handleFileTooLarge(request: HttpServletRequest): ResponseEntity<ApiErrorResponse> =
         respond(ErrorCode.FILE_TOO_LARGE, request, null)
 
+    /** 파일 업로드가 아닌 요청 본문이 `santacut.request-body.max-size`(2MB)를 넘었다. */
+    @ExceptionHandler(RequestBodyTooLargeException::class)
+    fun handleRequestTooLarge(request: HttpServletRequest): ResponseEntity<ApiErrorResponse> =
+        respond(ErrorCode.REQUEST_TOO_LARGE, request, null)
+
     /** 보안 필터가 인증 실패를 이 처리기로 넘긴다. 세션이 없거나 만료된 요청이다. */
     @ExceptionHandler(AuthenticationException::class)
     fun handleAuthentication(request: HttpServletRequest): ResponseEntity<ApiErrorResponse> =

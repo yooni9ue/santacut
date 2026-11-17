@@ -62,6 +62,6 @@ class AnalysisUpload(
 
     companion object {
         fun of(job: AnalysisJob, selfSpeaker: String, file: RawChatFile, createdAt: Instant): AnalysisUpload =
-            AnalysisUpload(job.id, file.source, selfSpeaker, file.bytes(), createdAt)
+            AnalysisUpload(job.id, file.source, selfSpeaker, file.content(), createdAt)
     }
 }

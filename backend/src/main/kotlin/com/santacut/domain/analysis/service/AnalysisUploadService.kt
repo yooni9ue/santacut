@@ -5,6 +5,8 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.AnalysisUpload
 import com.santacut.domain.analysis.model.InstagramThread
 import com.santacut.domain.analysis.model.RawChatFile
+import com.santacut.domain.analysis.model.UploadConcurrencyLimit
+import com.santacut.domain.global.config.UploadIntakeProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.infrastructure.analysis.repository.AnalysisUploadRepository
@@ -21,7 +23,15 @@ import java.time.Instant
 class AnalysisUploadService(
     private val analysisUploadRepository: AnalysisUploadRepository,
     private val objectMapper: ObjectMapper,
+    uploadIntakeProperties: UploadIntakeProperties,
 ) {
+    private val concurrencyLimit = UploadConcurrencyLimit(
+        uploadIntakeProperties.maxConcurrentUploads, uploadIntakeProperties.retryAfter,
+    )
+
+    /** 원본을 메모리로 읽어 저장하는 [action]을 동시 처리 상한 안에서 한다. 자리가 없으면 UPLOAD_BUSY(503)다. */
+    fun <T> withinConcurrencyLimit(now: Instant, action: () -> T): T = concurrencyLimit.runWithinLimit(now, action)
+
     fun store(job: AnalysisJob, selfSpeaker: String, file: RawChatFile, now: Instant) {
         analysisUploadRepository.save(AnalysisUpload.of(job, selfSpeaker, file, now))
     }

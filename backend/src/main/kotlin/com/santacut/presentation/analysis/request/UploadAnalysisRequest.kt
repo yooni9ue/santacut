@@ -37,8 +37,9 @@ data class UploadAnalysisRequest(
     )
     val selfSpeaker: String,
 ) {
+    /** 파일 내용은 여기서 읽지 않는다. facade가 한도와 같은 키 확인을 마친 뒤 한 번만 읽는다. */
     fun toCommand(participantId: UUID, idempotencyKey: String): UploadAnalysisCommand =
-        UploadAnalysisCommand(participantId, idempotencyKey, source, selfSpeaker, file.bytes)
+        UploadAnalysisCommand(participantId, idempotencyKey, source, selfSpeaker) { file.bytes }
 
     companion object {
         /** 본인 이름 multipart 파트 이름. */

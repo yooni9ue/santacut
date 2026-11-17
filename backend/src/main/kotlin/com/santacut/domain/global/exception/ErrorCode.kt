@@ -26,6 +26,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     NICKNAME_TAKEN(409, "이미 사용 중인 닉네임입니다."),
     NO_RANKED_RESULT(409, "공유할 순위 결과가 아직 없습니다."),
     FILE_TOO_LARGE(413, "파일이 너무 큽니다. 20MB 이하 파일만 올릴 수 있습니다."),
+    REQUEST_TOO_LARGE(413, "요청 본문이 너무 큽니다. 파일 업로드가 아닌 요청 본문은 2MB 이하여야 합니다."),
     INSUFFICIENT_EVIDENCE(422, "점수를 매길 근거가 부족합니다."),
     UNSUPPORTED_FILE_FORMAT(422, "지원하지 않는 파일 형식입니다. 카카오톡 대화 TXT나 인스타그램 메시지 JSON을 올려 주세요."),
     SPEAKER_NOT_IDENTIFIED(422, "선택한 본인 이름을 이 대화에서 찾을 수 없습니다."),
@@ -40,4 +41,5 @@ enum class ErrorCode(val status: Int, val message: String) {
     AI_PROVIDER_UNAVAILABLE(503, "AI 제공자가 호출을 막았거나 잠시 쓸 수 없습니다."),
     AI_BUDGET_EXCEEDED(503, "이번 호출의 어림 비용을 더하면 AI 비용 한도를 넘습니다."),
     ANALYSIS_STREAM_LIMIT(503, "지금은 진행 상황 스트림을 더 열 수 없습니다. 상태 조회로 진행 상황을 확인해 주세요."),
+    UPLOAD_BUSY(503, "지금은 원본 파일을 더 받을 수 없습니다. Retry-After 뒤에 다시 올려 주세요."),
 }

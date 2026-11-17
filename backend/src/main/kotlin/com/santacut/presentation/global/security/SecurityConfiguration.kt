@@ -3,6 +3,7 @@ package com.santacut.presentation.global.security
 import com.santacut.application.session.facade.SessionFacade
 import com.santacut.presentation.global.config.CorsProperties
 import com.santacut.presentation.global.config.PromptAdminProperties
+import com.santacut.presentation.global.config.RequestBodyProperties
 import com.santacut.presentation.global.docs.ApiDocs
 import com.santacut.presentation.global.config.SessionCookieProperties
 import jakarta.servlet.DispatcherType
@@ -22,6 +23,7 @@ import org.springframework.security.web.authentication.AnonymousAuthenticationFi
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.CsrfFilter
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
@@ -40,6 +42,7 @@ class SecurityConfiguration(
     private val sessionCookieProperties: SessionCookieProperties,
     private val corsProperties: CorsProperties,
     private val promptAdminProperties: PromptAdminProperties,
+    private val requestBodyProperties: RequestBodyProperties,
     @param:Qualifier(HANDLER_EXCEPTION_RESOLVER) private val handlerExceptionResolver: HandlerExceptionResolver,
 ) {
     @Bean
@@ -51,6 +54,7 @@ class SecurityConfiguration(
             .cors { it.configurationSource(corsConfigurationSource()) }
             .csrf { it.csrfTokenRepository(csrfTokenRepository()) }
             .authorizeHttpRequests(::authorizeRequests)
+            .addFilterBefore(requestBodyLimitFilter(), CsrfFilter::class.java)
             .addFilterBefore(sessionFilter(), AnonymousAuthenticationFilter::class.java)
             .exceptionHandling { it.authenticationEntryPoint(::rejectUnauthenticated) }
             .headers { it.contentSecurityPolicy { policy -> policy.policyDirectives(CONTENT_SECURITY_POLICY) } }
@@ -107,6 +111,9 @@ class SecurityConfiguration(
     ) {
         handlerExceptionResolver.resolveException(request, response, null, exception)
     }
+
+    private fun requestBodyLimitFilter(): RequestBodyLimitFilter =
+        RequestBodyLimitFilter(requestBodyProperties.maxSize.toBytes(), handlerExceptionResolver)
 
     private fun sessionFilter(): SessionFilter =
         SessionFilter(sessionFacade, SessionCookie.name(sessionCookieProperties.sessionSecure))
