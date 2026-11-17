@@ -64,6 +64,8 @@ santacut:
     daily-usd: ${AI_BUDGET_DAILY_USD:0}
     monthly-usd: ${AI_BUDGET_MONTHLY_USD:9}
     input-usd-per-million-tokens: 0.3
+    # 암묵적 캐시에서 읽은 입력 토큰 단가. 3.5 Flash-Lite 공식 단가표(context caching)의 값이다.
+    cached-input-usd-per-million-tokens: 0.03
     output-usd-per-million-tokens: 2.5
     # 제공자가 호출을 막았거나(권한, 요청 한도) 연달아 3번 실패하면 이만큼 작업 잡기를 멈춘다.
     pause: 15m

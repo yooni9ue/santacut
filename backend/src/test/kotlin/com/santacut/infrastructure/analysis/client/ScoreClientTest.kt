@@ -21,6 +21,7 @@ import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.google.genai.GoogleGenAiChatOptions
 import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
 import tools.jackson.databind.json.JsonMapper
 import java.time.Instant
@@ -42,10 +43,19 @@ class ScoreClientTest {
     }
 
     @Test
-    fun `코드 블록으로 감싼 JSON도 읽는다`() {
-        chatModel.reply = "```json\n$FULL_ANSWER\n```"
+    fun `응답 JSON 스키마를 구조화 출력 옵션으로 보낸다`() {
+        scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT)
 
-        assertEquals(EXPECTED_HUNDREDTHS, scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).toScore(EVENT_COUNT).hundredths)
+        assertEquals(ScoreResponseSchema.JSON, (chatModel.lastPrompt?.options as? GoogleGenAiChatOptions)?.responseSchema)
+    }
+
+    @Test
+    fun `근거 부족 답은 스키마 때문에 다른 키를 채워 와도 INSUFFICIENT_EVIDENCE다`() {
+        chatModel.reply = FULL_ANSWER.replace(""""sufficient":true""", """"sufficient":false""")
+
+        val exception = assertThrows<SantaCutException> { scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).toScore(EVENT_COUNT) }
+
+        assertEquals(ErrorCode.INSUFFICIENT_EVIDENCE, exception.errorCode)
     }
 
     @Test
@@ -76,8 +86,21 @@ class ScoreClientTest {
     }
 
     @Test
-    fun `JSON 객체가 없거나 잘린 JSON이면 AI_RESPONSE_INVALID이고 사용량은 남긴다`() {
-        listOf("점수를 매길 수 없습니다.", """{"sufficient":true,"evidence":{"care_empathy":[1}""").forEach { reply ->
+    fun `Gemini 사용량의 암묵적 캐시 읽기 토큰을 담는다`() {
+        chatModel.usage = GoogleGenAiUsage(
+            RecordingChatModel.INPUT_TOKENS, RecordingChatModel.OUTPUT_TOKENS, TOTAL_TOKENS, null,
+            CACHED_TOKENS, null, null, null, null, null, null, null,
+        )
+
+        val usage = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).usage
+
+        assertEquals(CACHED_TOKENS.toLong(), usage.cachedInputTokens)
+        assertEquals(RecordingChatModel.INPUT_TOKENS.toLong(), usage.inputTokens)
+    }
+
+    @Test
+    fun `JSON 객체가 없거나 코드 블록으로 감쌌거나 잘린 JSON이면 AI_RESPONSE_INVALID이고 사용량은 남긴다`() {
+        listOf("점수를 매길 수 없습니다.", "42", "```json\n$FULL_ANSWER\n```", """{"sufficient":true,"evidence":{"care_empathy":[1}""").forEach { reply ->
             chatModel.reply = reply
 
             val answer = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT)
@@ -178,6 +201,7 @@ class ScoreClientTest {
         private const val EXPECTED_HUNDREDTHS = 8000
         private const val SYSTEM_PROMPT = "테스트 채점 프롬프트"
         private const val THOUGHT_TOKENS = 37
+        private const val CACHED_TOKENS = 1024
         private const val TOTAL_TOKENS = RecordingChatModel.INPUT_TOKENS + RecordingChatModel.OUTPUT_TOKENS + THOUGHT_TOKENS
         private val OCCURRED_AT: Instant = Instant.parse("2026-11-01T00:00:00Z")
         private const val FULL_ANSWER = """{"sufficient":true,""" +
