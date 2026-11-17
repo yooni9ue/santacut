@@ -1,5 +1,6 @@
 package com.santacut.application.analysis.facade
 
+import com.santacut.application.analysis.runner.AiBudgetRunner
 import com.santacut.application.analysis.runner.AnalysisWorkerRunner
 import com.santacut.application.global.Facade
 import com.santacut.domain.analysis.model.AnalysisFailureCode
@@ -8,7 +9,6 @@ import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.model.ScoringAttempt
 import com.santacut.domain.analysis.model.ScoringChunkAnswers
 import com.santacut.domain.analysis.model.ScoringFailure
-import com.santacut.domain.analysis.service.AiBudgetService
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AnalysisScoringService
 import com.santacut.domain.analysis.service.AssessmentService
@@ -29,17 +29,16 @@ import kotlin.concurrent.withLock
  * 대기 중인 분석 작업을 꺼내 AI 점수를 매기고 순위 다시 계산을 요청하는 백그라운드 작업자.
  *
  * 예약 폴링([dispatchJobs])은 빈 채점 스레드마다 작업을 하나씩 잡아 넘긴다([AnalysisWorkerRunner]). 그래서 스레드 수만큼 작업을 동시에 채점한다.
- * 작업 잡기([claimLock])와 비용 확인·사용량 기록([budgetLock])은 트랜잭션 커밋까지 잠금 안에서 해,
- * 두 스레드가 같은 작업을 잡거나 동시에 비용 확인을 통과해 한도를 넘지 않게 한다. 제공자 문제로 멈추는 상태는 모든 스레드가 함께 쓴다.
+ * 작업 잡기([claimLock])는 트랜잭션 커밋까지 잠금 안에서 해 두 스레드가 같은 작업을 잡지 않게 한다. 비용 가드와 그 잠금은 [AiBudgetRunner]가 맡는다.
  *
  * 리스 획득, AI 호출, 결과 기록을 한 트랜잭션으로 묶으면 느린 AI 호출 동안 SQLite 쓰기 잠금을 쥐게 된다.
- * 그래서 이 facade만 [TransactionTemplate]으로 리스 획득, 재사용 확인, 사용량 기록, 결과 기록 트랜잭션을 따로 나눈다.
+ * 그래서 이 facade만 [TransactionTemplate]으로 리스 획득, 재사용 확인, 결과 기록 트랜잭션을 따로 나눈다.
  *
  * AI를 부를 때마다 채점 프롬프트(`score`)의 최신 판을 DB에서 읽는다. 캐시하지 않으므로 관리자 API로 저장한 새 판이
  * 다음 작업부터 바로 쓰인다. 프롬프트가 하나도 없으면 작업은 ANALYSIS_FAILED로 실패하고 로그에 PROMPT_NOT_FOUND가 남는다.
  *
  * 같은 참가자가 같은 채점 입력(모델, 프롬프트 판, AI 사용자 메시지)으로 다시 내면 AI를 부르지 않고 지난 결과를 다시 쓴다.
- * 앱 안의 비용 가드([AiBudgetService])가 하루·한 달 비용 한도에 닿았거나 제공자 문제로 멈춘 동안에는 작업을 잡지 않는다.
+ * 앱 안의 비용 가드가 하루·한 달 비용 한도에 닿았거나 제공자 문제로 멈춘 동안에는 작업을 잡지 않는다.
  * 로그에는 프롬프트 판 번호와 토큰 수 같은 숫자만 남긴다. 프롬프트, 제출 메시지, 모델 응답은 남기지 않는다.
  */
 @Facade
@@ -47,16 +46,15 @@ class AnalysisWorkerFacade(
     private val analysisJobService: AnalysisJobService,
     private val analysisScoringService: AnalysisScoringService,
     private val assessmentService: AssessmentService,
-    private val aiBudgetService: AiBudgetService,
     private val rankingService: RankingService,
     private val promptService: PromptService,
     private val transactionTemplate: TransactionTemplate,
     private val workers: AnalysisWorkerRunner,
+    private val budget: AiBudgetRunner,
     private val clock: Clock,
 ) {
     private val logger = LoggerFactory.getLogger(AnalysisWorkerFacade::class.java)
     private val claimLock = ReentrantLock()
-    private val budgetLock = ReentrantLock()
 
     /** 오래 기다린 작업을 정리하고, 빈 채점 스레드마다 작업을 하나씩 잡아 넘긴다. */
     @Scheduled(fixedDelayString = "\${santacut.ai.poll-delay-ms:${DEFAULT_POLL_DELAY_MS}}")
@@ -96,36 +94,15 @@ class AnalysisWorkerFacade(
         }
     }
 
-    /** 비용 한도에 닿았거나 제공자 문제로 멈춘 동안이면 참. 작업은 대기열에 남고 오래 밀리면 만료가 정리한다. */
-    private fun isAiBlocked(): Boolean = transactionTemplate.execute { aiBudgetService.isBlocked(clock.instant()) } ?: false
-
     /** 채점 입력이 지난번과 같으면 지난 결과를 다시 쓰고, 아니면 AI 점수를 받아 리스를 아직 쥐고 있을 때 결과를 기록한다. */
     private fun scoreAndComplete(job: AnalysisJob) {
         val attempt = analysisScoringService.prepare(job, promptService.latest(PromptName.SCORE))
         if (transactionTemplate.execute { reuseIfSameDigest(attempt) } == true) return
-        val answers = askAll(attempt)
+        val answers = budget.spending(analysisScoringService.estimateUsage(attempt)) { record -> analysisScoringService.ask(attempt, record) }
         val scored = assessOrSettle(attempt, answers)
         transactionTemplate.executeWithoutResult { complete(attempt, scored) }
-        aiBudgetService.recordSuccess()
+        budget.recordSuccess()
     }
-
-    /**
-     * 모든 구간 호출의 어림 비용을 한 번에 확인·예약한 뒤 구간마다 AI에 묻고, 끝나면 예약을 푼다.
-     * 사용량은 구간 호출마다 바로 기록해, 뒤 구간이 실패해도 이미 과금된 호출이 비용 가드에 잡힌다.
-     */
-    private fun askAll(attempt: ScoringAttempt): ScoringChunkAnswers {
-        val estimate = analysisScoringService.estimateUsage(attempt)
-        underBudgetLock { aiBudgetService.reserve(estimate, clock.instant()) }
-        try {
-            return analysisScoringService.ask(attempt) { usage -> underBudgetLock { aiBudgetService.record(usage, clock.instant()) } }
-        } finally {
-            aiBudgetService.release(estimate)
-        }
-    }
-
-    /** 비용 확인·예약과 사용량 기록을 커밋까지 한 줄로 세운다. 다른 스레드가 커밋 전 합계를 읽고 한도를 넘기지 않게 한다. */
-    private fun underBudgetLock(action: () -> Unit) =
-        budgetLock.withLock { transactionTemplate.executeWithoutResult { action() } }
 
     /**
      * 구간 답으로 평가할 결과를 만든다. 받은 답 때문에 실패하면 채점 입력 해시와 과금 여부를 아는 이 자리에서
@@ -148,7 +125,7 @@ class AnalysisWorkerFacade(
      * 찾기와 리스 기록을 한 트랜잭션에 두고 커밋까지 [claimLock]으로 묶어, 다른 스레드가 같은 작업을 동시에 찾지 못하게 한다.
      */
     private fun claimNextJob(): AnalysisJob? {
-        if (!analysisScoringService.isEnabled() || isAiBlocked()) return null
+        if (!analysisScoringService.isEnabled() || budget.isBlocked()) return null
         val lease = UUID.randomUUID().toString()
         return claimLock.withLock { transactionTemplate.execute { analysisJobService.claimNext(lease, clock.instant()) } }
     }
@@ -194,7 +171,7 @@ class AnalysisWorkerFacade(
     /** 실패 종류([ScoringFailure])에 따라 리스를 아직 쥔 작업을 끝내거나 대기열로 되돌리고, 작업자를 멈출지는 비용 가드가 정한다. */
     private fun handleFailure(job: AnalysisJob, failure: ScoringFailure) {
         transactionTemplate.executeWithoutResult { analysisJobService.settleFailure(job, failure, null, false, clock.instant()) }
-        aiBudgetService.recordFailure(failure, clock.instant())
+        budget.recordFailure(failure)
     }
 
     private fun failureReason(exception: Exception): String =
