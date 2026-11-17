@@ -11,17 +11,9 @@ class ResultSnapshotsTest {
     private val computedAt = Instant.parse("2026-12-01T00:00:00Z")
 
     @Test
-    fun `주어진 ID의 스냅숏을 빼고 나머지를 순서대로 남긴다`() {
-        val snapshots = ResultSnapshots(listOf(snapshot("a"), snapshot("b"), snapshot("c")))
-        assertEquals(listOf("a", "c"), snapshots.excluding(setOf("b", "missing")).toList().map { it.id })
-    }
-
-    @Test
-    fun `모두 빼면 빈 목록이고 아무것도 빼지 않으면 그대로다`() {
-        val snapshots = ResultSnapshots(listOf(snapshot("a"), snapshot("b")))
-        assertTrue(snapshots.excluding(setOf("a", "b")).isEmpty())
-        assertFalse(snapshots.isEmpty())
-        assertEquals(listOf("a", "b"), snapshots.excluding(emptySet()).toList().map { it.id })
+    fun `비었는지 알려 준다`() {
+        assertTrue(ResultSnapshots(emptyList()).isEmpty())
+        assertFalse(ResultSnapshots(listOf(snapshot("a"))).isEmpty())
     }
 
     @Test

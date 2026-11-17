@@ -30,7 +30,6 @@ import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.ranking.service.RankingService
-import com.santacut.domain.share.service.ShareService
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.support.TransactionTemplate
@@ -57,7 +56,6 @@ class ResultShareFlowTest @Autowired constructor(
     private val shareFacade: ShareFacade,
     private val assessmentService: AssessmentService,
     private val rankingService: RankingService,
-    private val shareService: ShareService,
     private val transactionTemplate: TransactionTemplate,
     private val clock: Clock,
     private val jdbcTemplate: JdbcTemplate,
@@ -239,7 +237,7 @@ class ResultShareFlowTest @Autowired constructor(
         val score = Score.shrunk(scores.map { BigDecimal(it) }, LowConfidenceDimensions.NONE, null)
         transactionTemplate.executeWithoutResult {
             assessmentService.record(emptyJob(participantId, assessedAt), ScoredAssessment(score, PROMPT_VERSION, QUOTE, BADGES), assessedAt)
-            if (rebuild) rankingService.rebuild(assessedAt, shareService.findAll())
+            if (rebuild) rankingService.rebuild(assessedAt)
         }
     }
 

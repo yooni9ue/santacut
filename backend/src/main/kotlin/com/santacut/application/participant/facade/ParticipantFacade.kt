@@ -14,7 +14,6 @@ import com.santacut.domain.participant.service.ParticipantService
 import com.santacut.domain.participant.service.RegionService
 import com.santacut.domain.ranking.service.RankingService
 import com.santacut.domain.session.service.SessionService
-import com.santacut.domain.share.service.ShareService
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
 
@@ -24,7 +23,6 @@ class ParticipantFacade(
     private val regionService: RegionService,
     private val sessionService: SessionService,
     private val rankingService: RankingService,
-    private val shareService: ShareService,
     private val clock: Clock,
 ) {
     /** 닉네임과 지역을 확인해 참가자를 등록하고 바로 로그인 세션을 연다. */
@@ -52,7 +50,7 @@ class ParticipantFacade(
         rankingService.verifySeasonOpenAt(now)
         regionService.verifySupported(command.regionCode)
         val participant = participantService.changeRegion(command.participantId, command.regionCode)
-        rankingService.rebuild(now, shareService.findAll())
+        rankingService.rebuild(now)
         return CurrentParticipantResult.from(participant)
     }
 
@@ -60,7 +58,7 @@ class ParticipantFacade(
     @Transactional
     fun deleteMyData(command: DeleteParticipantCommand) {
         participantService.delete(command.participantId)
-        rankingService.rebuild(clock.instant(), shareService.findAll())
+        rankingService.rebuild(clock.instant())
     }
 
     @Transactional(readOnly = true)

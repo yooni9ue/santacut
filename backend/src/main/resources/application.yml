@@ -15,6 +15,10 @@
       ddl-auto: update
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     open-in-view: false
+    # 순위 계산은 참가자 수만큼 스냅숏을 새로 쓴다. INSERT를 묶어 보내 하나뿐인 DB 연결을 오래 쥐지 않게 한다.
+    properties:
+      hibernate.jdbc.batch_size: 500
+      hibernate.order_inserts: true
   servlet:
     multipart:
       max-file-size: 20MB
