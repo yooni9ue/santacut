@@ -50,6 +50,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -323,6 +324,18 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `입력 탓 응답 오류는 연달아 나도 멈추지 않고 실패로 끝낸다`() {
+        val outOfRange = ScoreAnswer.of(List(DIMENSION_COUNT) { OUT_OF_RANGE_SCORE }, List(DIMENSION_COUNT) { listOf(1) }, "test", USAGE)
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(outOfRange)
+        val jobs = List(MAX_CONSECUTIVE_FAILURES + 1) { submitAnalysis() }
+
+        repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
+
+        assertEquals(List(jobs.size) { "ANALYSIS_FAILED" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+        assertFalse(aiBudgetService.isBlocked(clock.instant()))
+    }
+
+    @Test
     fun `한 달 비용 한도에 닿으면 다음 작업을 잡지 않고 대기열에 둔다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer(EXPENSIVE_USAGE))
         val first = submitAnalysis()
@@ -396,6 +409,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val DIMENSION_COUNT = 4
         private const val EXPECTED_SCORE_HUNDREDTHS = 9500
         private val DIMENSION_SCORE = BigDecimal("100")
+        private val OUT_OF_RANGE_SCORE = BigDecimal("101")
         private val USAGE = ModelUsage(4_000, 90, "end_turn")
 
         /** 입력 60만 토큰. 단가(100만 토큰당 1달러)로 0.6달러라 하루 한도 0.5달러를 넘는다. */
