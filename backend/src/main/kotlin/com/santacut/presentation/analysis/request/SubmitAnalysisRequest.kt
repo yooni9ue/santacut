@@ -22,8 +22,8 @@ data class SubmitAnalysisRequest(
     )
     val events: List<@Valid AnalysisEventRequest>,
 ) {
-    fun toCommand(participantId: UUID, idempotencyKey: String): SubmitAnalysisCommand =
-        SubmitAnalysisCommand(participantId, idempotencyKey, source, AnalysisEventRequests(events).toCommands())
+    fun toCommand(participantId: UUID, idempotencyKey: String, clientIp: String): SubmitAnalysisCommand =
+        SubmitAnalysisCommand(participantId, idempotencyKey, source, AnalysisEventRequests(events).toCommands(), clientIp)
 
     companion object {
         /** 내보내기 플랫폼 값. 도메인의 출처 열거형 상수 이름과 같아야 한다. */

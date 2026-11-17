@@ -126,7 +126,7 @@ class AnalysisUploadFacadeTest @Autowired constructor(
         participantId: UUID,
         key: String = newKey(),
         readContent: () -> ByteArray = { TestChatFiles.kakaoIos(clock.instant(), EVENT_COUNT) },
-    ): UploadAnalysisCommand = UploadAnalysisCommand(participantId, key, DataSource.KAKAO.name, SELF_SPEAKER, readContent)
+    ): UploadAnalysisCommand = UploadAnalysisCommand(participantId, key, DataSource.KAKAO.name, SELF_SPEAKER, null, readContent)
 
     private fun submitCommand(participantId: UUID): SubmitAnalysisCommand {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))

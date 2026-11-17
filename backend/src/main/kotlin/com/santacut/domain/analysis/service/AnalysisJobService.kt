@@ -11,8 +11,10 @@ import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.global.config.AnalysisStreamProperties
 import com.santacut.domain.global.config.AppProperties
+import com.santacut.domain.global.config.ClientRateLimitProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
+import com.santacut.domain.global.model.ClientRateLimit
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.global.config.ScoreModelProperties
@@ -33,7 +35,11 @@ class AnalysisJobService(
     private val eventPublisher: ApplicationEventPublisher,
     analysisStreamProperties: AnalysisStreamProperties,
     scoreModelProperties: ScoreModelProperties,
+    clientRateLimitProperties: ClientRateLimitProperties,
 ) {
+    private val submissionLimit = ClientRateLimit(
+        clientRateLimitProperties.submissionsPerClient, clientRateLimitProperties.submissionWindow,
+    )
     private val streamLimit = AnalysisStreamLimit(analysisStreamProperties.maxOpenStreams, analysisStreamProperties.retryAfter)
     private val leaseDuration = AnalysisJob.leaseDurationFor(scoreModelProperties.callTimeout)
 
@@ -72,10 +78,12 @@ class AnalysisJobService(
     }
 
     /**
-     * 새 작업을 받을 수 있는지 확인한다. 참가자별 하루 제출 한도는 JSON 제출과 원본 파일을 함께 센다.
+     * 새 작업을 받을 수 있는지 확인한다. 참가자별 하루 제출 한도(JSON 제출과 원본 파일 합산)와
+     * 클라이언트 IP([clientIp])별 제출 한도를 함께 본다. IP 한도는 이 확인을 부를 때마다 하나씩 센다.
      */
-    fun verifyAcceptingSubmission(participantId: UUID, now: Instant) {
+    fun verifyAcceptingSubmission(participantId: UUID, clientIp: String?, now: Instant) {
         verifyWithinDailyLimit(participantId, now)
+        submissionLimit.acquire(clientIp, now)
     }
 
     fun enqueue(

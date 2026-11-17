@@ -12,6 +12,7 @@ import com.santacut.presentation.analysis.request.UploadAnalysisRequest
 import com.santacut.presentation.analysis.response.AnalysisStatusResponse
 import com.santacut.presentation.analysis.response.AnalysisSubmissionResponse
 import io.swagger.v3.oas.annotations.Parameter
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -25,6 +26,9 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
+/**
+ * 분석 제출과 진행 상황 조회. 클라이언트 IP는 운영 프로필에서 믿는 프록시(Caddy)의 X-Forwarded-For로 바꿔 둔 remoteAddr이다.
+ */
 @RestController
 class AnalysisController(
     private val analysisFacade: AnalysisFacade,
@@ -36,8 +40,10 @@ class AnalysisController(
         @AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID,
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @RequestBody request: SubmitAnalysisRequest,
-    ): AnalysisSubmissionResponse =
-        AnalysisSubmissionResponse.from(analysisFacade.submit(request.toCommand(participantId, idempotencyKey)))
+        servletRequest: HttpServletRequest,
+    ): AnalysisSubmissionResponse = AnalysisSubmissionResponse.from(
+        analysisFacade.submit(request.toCommand(participantId, idempotencyKey, servletRequest.remoteAddr)),
+    )
 
     @PostMapping("/v1/analyses/files")
     @UploadAnalysisApi
@@ -46,8 +52,10 @@ class AnalysisController(
         @AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID,
         @RequestHeader("Idempotency-Key") idempotencyKey: String,
         @Valid @ModelAttribute request: UploadAnalysisRequest,
-    ): AnalysisSubmissionResponse =
-        AnalysisSubmissionResponse.from(analysisFacade.upload(request.toCommand(participantId, idempotencyKey)))
+        servletRequest: HttpServletRequest,
+    ): AnalysisSubmissionResponse = AnalysisSubmissionResponse.from(
+        analysisFacade.upload(request.toCommand(participantId, idempotencyKey, servletRequest.remoteAddr)),
+    )
 
     @GetMapping("/v1/analyses/{id}")
     @GetAnalysisApi

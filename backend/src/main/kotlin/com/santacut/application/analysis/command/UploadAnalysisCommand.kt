@@ -9,6 +9,7 @@ import java.util.UUID
  *
  * @property source 요청 검증을 통과한 [DataSource] 이름
  * @property selfSpeaker 참가자가 고른 본인 이름. 응답, 로그, 예외에 넣지 않는다.
+ * @property clientIp 요청한 클라이언트 IP. HTTP 밖에서 부르면 null이고 IP 한도를 세지 않는다.
  * @property readContent 원본 바이트를 읽는다. 한도와 같은 키 확인을 마친 뒤 [readRawFile]에서 한 번만 부른다.
  */
 class UploadAnalysisCommand(
@@ -16,6 +17,7 @@ class UploadAnalysisCommand(
     val idempotencyKey: String,
     val source: String,
     val selfSpeaker: String,
+    val clientIp: String?,
     private val readContent: () -> ByteArray,
 ) {
     /** 원본을 이때 처음 메모리로 읽는다. */

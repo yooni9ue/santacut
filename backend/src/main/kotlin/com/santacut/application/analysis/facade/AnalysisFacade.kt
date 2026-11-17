@@ -52,7 +52,7 @@ class AnalysisFacade(
         val replay = analysisJobService.findReplay(command.participantId, idempotencyKey, payload)
         if (replay != null) return AnalysisSubmissionResult.from(replay, progressOf(replay, command.participantId))
         analysisScoringService.verifyEnabled()
-        analysisJobService.verifyAcceptingSubmission(command.participantId, now)
+        analysisJobService.verifyAcceptingSubmission(command.participantId, command.clientIp, now)
         val job = analysisJobService.enqueue(command.participantId, idempotencyKey, submission, payload, now)
         return AnalysisSubmissionResult.from(job, progressOf(job, command.participantId))
     }
@@ -60,6 +60,7 @@ class AnalysisFacade(
     /**
      * 원본 파일로 분석 작업을 받는다. 최대 20MB인 내용을 읽기 전에 시즌, 참가자, 같은 키의 작업, 제출 한도부터 확인해
      * 거절할 요청이 원본을 메모리에 올리지 않게 한다. 한도 확인과 내용 읽기·저장은 동시 처리 상한 안에서 한다.
+     * 상한에 걸려 UPLOAD_BUSY로 돌려보낸 요청이 IP 제출 한도를 쓰지 않게 하려고 자리부터 잡는다.
      * 같은 키로 같은 파일·출처·본인 이름을 다시 보내면 처음 작업을 그대로 돌려준다.
      */
     @Transactional
@@ -116,7 +117,7 @@ class AnalysisFacade(
 
     private fun verifyNewUploadAcceptable(command: UploadAnalysisCommand, now: Instant) {
         analysisScoringService.verifyEnabled()
-        analysisJobService.verifyAcceptingSubmission(command.participantId, now)
+        analysisJobService.verifyAcceptingSubmission(command.participantId, command.clientIp, now)
     }
 
     /**

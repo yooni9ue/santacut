@@ -43,7 +43,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
         ApiResponse(responseCode = "403", description = ApiDocs.FORBIDDEN_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "413", description = "요청 본문이 2MB를 넘음(REQUEST_TOO_LARGE). 앞단 프록시가 막으면 code 없이 올 수 있습니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "409", description = "같은 키로 다른 본문을 보냄(IDEMPOTENCY_CONFLICT) 또는 시즌 마감(SEASON_FROZEN)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
-        ApiResponse(responseCode = "429", description = "참가자 하루 제출 한도 초과(DAILY_USER_LIMIT). 본문 retry_at과 Retry-After 헤더(초)로 다시 낼 수 있는 시점을 알립니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
+        ApiResponse(responseCode = "429", description = "참가자 하루 제출 한도 초과(DAILY_USER_LIMIT) 또는 같은 IP의 제출 한도 초과(CLIENT_RATE_LIMITED, 기본 24시간 20회). 본문 retry_at과 Retry-After 헤더(초)로 다시 낼 수 있는 시점을 알립니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "503", description = "점수 산정용 AI 모델이 설정되지 않음(AI_NOT_CONFIGURED)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
     ],

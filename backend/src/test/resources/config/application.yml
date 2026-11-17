@@ -1,0 +1,7 @@
+# 테스트 전용 설정. classpath:/config/application.yml은 main의 application.yml 위에 덮인다.
+# 통합 테스트는 모두 같은 IP(127.0.0.1)에서 참가자를 많이 만들고 분석을 많이 내므로 IP 한도를 사실상 끈다.
+# 한도 자체는 ClientRateLimitApiTest가 낮은 값으로 따로 확인한다.
+santacut:
+  rate-limit:
+    registrations-per-client: 1000000
+    submissions-per-client: 1000000

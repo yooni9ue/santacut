@@ -31,7 +31,7 @@ class ParticipantFacade(
         val nickname = Nickname.from(command.nickname)
         regionService.verifySupported(command.regionCode)
         val now = clock.instant()
-        val participant = participantService.register(nickname, command.regionCode, now)
+        val participant = participantService.register(nickname, command.regionCode, now, command.clientIp)
         val sessionToken = sessionService.open(participant, now)
         return RegisteredParticipantResult.from(participant, sessionToken)
     }

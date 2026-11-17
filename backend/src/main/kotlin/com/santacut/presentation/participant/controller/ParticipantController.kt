@@ -17,6 +17,7 @@ import com.santacut.presentation.participant.response.CurrentParticipantResponse
 import com.santacut.presentation.participant.response.NicknameAvailabilityResponse
 import com.santacut.presentation.participant.response.ParticipantResponse
 import io.swagger.v3.oas.annotations.Parameter
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -68,12 +69,19 @@ class ParticipantController(
     fun nicknameAvailability(@RequestParam nickname: String): NicknameAvailabilityResponse =
         NicknameAvailabilityResponse.from(participantFacade.checkNicknameAvailability(NicknameAvailabilityCommand(nickname)))
 
-    /** 세션 토큰은 JSON 본문에 넣지 않고 HttpOnly 쿠키로만 내려보낸다. */
+    /**
+     * 세션 토큰은 JSON 본문에 넣지 않고 HttpOnly 쿠키로만 내려보낸다.
+     * 클라이언트 IP는 운영 프로필에서 Tomcat이 믿는 프록시(Caddy)의 X-Forwarded-For로 바꿔 둔 remoteAddr이다.
+     */
     @PostMapping("/v1/participants")
     @RegisterParticipantApi
     @ResponseStatus(HttpStatus.CREATED)
-    fun register(@RequestBody request: RegisterParticipantRequest, response: HttpServletResponse): ParticipantResponse {
-        val result = participantFacade.register(request.toCommand())
+    fun register(
+        @RequestBody request: RegisterParticipantRequest,
+        servletRequest: HttpServletRequest,
+        response: HttpServletResponse,
+    ): ParticipantResponse {
+        val result = participantFacade.register(request.toCommand(servletRequest.remoteAddr))
         response.addHeader(HttpHeaders.SET_COOKIE, sessionCookie(result.sessionToken, result.sessionLifetime).toString())
         return ParticipantResponse.from(result)
     }
