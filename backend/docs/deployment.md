@@ -15,12 +15,37 @@
 | 대상 | 설정 |
 | --- | --- |
 | 앱 컨테이너 | `mem_limit: 512m` |
-| JVM | `-Xms128m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=48m -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError` |
+| JVM | `-Xms64m -Xmx256m -Xmn24m -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=30 -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError` |
+| JVM AOT 캐시 | 이미지 빌드 때 `/app/app.aot`를 만들고 `-XX:AOTCache=/app/app.aot`로 띄운다 |
+| glibc | `MALLOC_ARENA_MAX=2` |
 | Caddy | `mem_limit: 64m` |
 
 - 힙이 모자라면 JVM이 바로 죽고 `restart: unless-stopped`가 다시 띄운다.
 - 1GB 번들 기준 값이다. 처음에는 512MB 번들에 맞춰 메타스페이스 128MB, 컨테이너 400m로 두었다.
 - 2026-11-17 dev 부하 시험에서 동시 15명부터 `OutOfMemoryError: Metaspace`로 앱이 두 번 다시 떴다. 워밍업이 끝난 앱은 GC 뒤에도 메타스페이스를 126~128MB 썼다(`jcmd 1 VM.metaspace`). 192MB로 올린 뒤 같은 시험에서는 133MB를 쓰고 다시 뜨지 않았다. 컨테이너 메모리는 최대 409MiB였다.
+
+### 2026-11-17 NMT 측정과 조정
+
+dev에서 `-XX:NativeMemoryTracking=summary`를 잠깐 켜고 런타임 이미지에 없는 `jcmd`는 JDK 사이드카(`docker run --pid=container:santacut-app-1 --user 10001:10001 eclipse-temurin:25-jdk-jammy jcmd 1 VM.native_memory summary`)로 읽었다. 단위는 MB, 유휴는 기동 60초 뒤다.
+
+| 항목 | 조정 전 유휴 | 조정 전 30명 직후 | 조정 후 유휴 |
+| --- | --- | --- | --- |
+| 힙 커밋(사용) | 145(64) | 171(72) | 109(68) |
+| 메타스페이스 + 클래스 공간 | 96 + 18 | 111 + 20 | 14 + 3 |
+| AOT·CDS 공유 영역 | 13 | 13 | 141(파일 매핑) |
+| 클래스 수 | 24,912 | 27,665 | 25,421 |
+| 심볼 | 24 | 26 | 3 |
+| 코드 캐시 | 31 | 38 | 30 |
+| 스레드(개수) | 3(31) | 8(64) | 3(31) |
+| NMT 합계 커밋 | 346 | 401 | 312 |
+| 컨테이너(`docker stats`) | 372MiB | 최대 432MiB | 310MiB |
+| 기동 시간 | 26.6초 | | 12.2초 |
+
+- 메타스페이스·심볼이 가장 컸다(유휴 138MB). JVM AOT 캐시(JEP 483·514)로 클래스 메타데이터를 공유 캐시로 옮겼다. 캐시는 파일에서 매핑되므로 익명 메모리가 줄고 기동이 절반이 된다. 캐시 파일은 약 150MB라 이미지가 그만큼 커진다.
+- 힙은 쓰는 양(64~72MB)보다 두 배를 커밋했다. 젊은 세대를 `-Xmn24m`으로 고정하고 `-Xms`를 64m로 내렸다. Free 비율 옵션은 전체 GC 뒤 남는 힙을 OS에 돌려준다.
+- 메타스페이스 상한은 캐시가 맞지 않아 캐시 없이 뜨는 경우(최대 111MB)를 견디도록 160MB로 둔다. 코드 캐시는 30명 직후 38MB라 48MB를 유지한다.
+- 버린 후보: 지연 초기화(`spring.main.lazy-initialization`)는 클래스가 결국 캐시로 옮겨져 이득이 작고 운영에서 빈 누락을 늦게 드러낸다. 자동 구성·Jackson·Hibernate 기능 제외도 같은 이유로 하지 않았다. Tomcat 스레드(최대 40)는 30명 직후 스레드 스택이 8MB라 줄일 이득이 없다. C1만 쓰는 옵션은 지연 시간 영향을 잴 비용에 비해 이득(코드 캐시 수 MB)이 작다.
+- 캐시를 다시 만들어야 하는 경우: JDK 이미지나 의존성이 바뀌면 이미지 빌드가 매번 새로 만든다. 맞지 않는 캐시는 JVM이 경고를 남기고 무시하므로 기동은 막히지 않는다(기동 26초, 메타스페이스 최대 111MB로 돌아간다).
 - 스왑은 비상용이다. 자주 죽거나 느리면 번들을 올린다(인프라 레포 9절).
 
 ## HTTPS와 도메인

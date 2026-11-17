@@ -178,7 +178,7 @@ Lightsail 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/
 
 [GitHub Actions 공식 안내](https://docs.github.com/en/actions/concepts/billing-and-usage)에 따라 공개 저장소의 standard hosted runner 사용은 무료다. 비공개 저장소·larger runner·artifact/package 저장 비용은 계정 조건을 확인한다. artifact 보관 기간을 짧게 하고 오래된 container image는 롤백 후보를 남긴 뒤 정리한다.
 
-1GB 번들의 메모리 예산: 앱 컨테이너 `mem_limit: 512m`, JVM `-Xms128m -Xmx256m`(metaspace 최대 192MB, SerialGC), Caddy `mem_limit: 64m`, 나머지는 OS와 페이지캐시다. 자세한 값은 [배포 운영서](deployment.md)에 있다. 숫자는 부하 테스트로 검증한다. 스왑 1GB는 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
+1GB 번들의 메모리 예산: 앱 컨테이너 `mem_limit: 512m`, JVM `-Xms64m -Xmx256m -Xmn24m`(metaspace 최대 160MB, SerialGC, AOT 캐시), Caddy `mem_limit: 64m`, 나머지는 OS와 페이지캐시다. 자세한 값은 [배포 운영서](deployment.md)에 있다. 숫자는 부하 테스트로 검증한다. 스왑 1GB는 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
 
 ## 10. CI/CD와 배포 계약
 
