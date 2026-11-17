@@ -432,7 +432,7 @@ dev 전용 프롬프트 관리 API다. `santacut.prompt-admin.enabled=true`(`PRO
 - 스트림 흐름은 이렇다. `AnalysisJobService`가 작업 행을 저장할 때마다 `AnalysisJobChange`를 알린다. `AnalysisFacade`가 트랜잭션 커밋 뒤(`TransactionalEventListener`) 폴링과 같은 상태를 만들어 `AnalysisStatusChangeResult`로 다시 알린다. `AnalysisStreamController`가 그 참가자의 스트림으로 보낸다. 스트림마다 DB를 다시 읽지 않는다.
 - 열린 스트림은 이 인스턴스 메모리(`AnalysisStatusStreams`)에만 있다. 참가자당 하나이며, 새로 열면 이전 것을 닫는다. 완료·시간 초과(5분)·오류 때 목록에서 빠진다.
 - 앱 전체 스트림은 `santacut.stream.max-open-streams`(기본 200)까지다. 넘으면 `503 ANALYSIS_STREAM_LIMIT`과 `Retry-After`(30초)다.
-- 15초마다 주석 줄을 보낸다. 작업자와 같은 스케줄러 스레드를 쓰므로 AI 호출이 길면 늦을 수 있다.
+- 15초마다 주석 줄을 보낸다. 작업자와 같은 스케줄러 스레드를 쓰지만 AI 채점은 채점 스레드에서 하므로 AI 호출 때문에 늦지 않는다.
 - Caddy는 이 경로를 압축하지 않고(`encode` 제외) 버퍼 없이 흘려보낸다(`flush_interval -1`).
 - 없거나 취소된 공유 링크를 `Accept: text/html`로 열면 `/s/{token}`과 `/s/{token}/image.png` 모두 `404`와 함께 시작 링크가 있는 안내 HTML을 준다. 그 밖의 요청에는 `404` JSON(`SHARE_NOT_FOUND`)을 준다.
 - `{id}`가 UUID 형식이 아니면 `400 INVALID_REQUEST`다.
@@ -478,6 +478,8 @@ stateDiagram-v2
 - 원본 파일 제출(`POST /v1/analyses/files`): `VALIDATING` → `QUEUED` → `RUNNING` → `SUCCEEDED` / `INSUFFICIENT_DATA` / `FAILED`. 검증 실패는 `VALIDATING`에서 바로 끝난다.
 - 이벤트 제출(`POST /v1/analyses`): `QUEUED`부터 시작한다.
 - 작업자는 둘이고 같은 JVM에서 `@Scheduled`로 돈다. 검증 작업자(`santacut.upload.poll-delay-ms`, 기본 1초)와 분석 작업자(`santacut.ai.poll-delay-ms`, 기본 3초)다.
+- 분석 작업자의 폴링은 빈 채점 스레드마다 작업을 하나씩 잡아 넘긴다. 채점 스레드는 `santacut.ai.worker.concurrency`개(기본 3)이고, 작업을 끝내면 쉬지 않고 다음 작업을 잡다가 대기열이 비면 물러난다. 검증 작업자는 지금처럼 한 번에 원본 하나만 다룬다.
+- 작업 잡기(찾기와 리스 기록)는 한 트랜잭션에서 하고, 커밋까지 앱 안 잠금으로 묶는다. 비용 확인은 진행 중인 작업의 어림 비용까지 예약해 함께 더한다. 확인·예약과 사용량 기록도 커밋까지 한 잠금 안에서 한다. 동시에 확인을 통과한 작업들이 함께 한도를 넘지 않게 하려는 것이다(§4.4). 제공자 멈춤 상태는 모든 채점 스레드가 함께 쓴다.
 - 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 `EXPIRED`로 끝낸다. 분석 작업자는 AI 모델이 꺼져 있어도 만료 정리부터 하고 쉰다. 검증 작업자도 돌 때마다 같은 정리를 한다.
 - 참가자 한 명은 최근 24시간 동안 3번까지 제출할 수 있다. 두 제출 API를 합쳐서 센다. 넘으면 `429 DAILY_USER_LIMIT`이고, 본문 `retry_at`과 `Retry-After` 헤더로 다시 낼 수 있는 시각을 알린다.
 - 앱에는 AI 호출 수 한도가 없다. 대신 토큰 비용 가드(한 달 9달러, 하루 한도는 기본으로 끔)와 호출 전 어림 비용 확인이 있다(§4.4). 참가자별 24시간 3회 제출 한도는 비용 장치가 아니라 제품 규칙이라 남긴다(점수를 거듭 다시 뽑지 못하게).
