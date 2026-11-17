@@ -112,6 +112,10 @@ class RankingService(
     fun findLatestSnapshot(participantId: UUID): ResultSnapshot? =
         resultSnapshotRepository.findFirstByUserIdOrderByComputedAtDesc(participantId.toString())
 
+    /** 참가자의 최신 순위 스냅숏. 아직 순위에 오른 결과가 없으면 [ErrorCode.NO_RANKED_RESULT]다. */
+    fun getLatestSnapshot(participantId: UUID): ResultSnapshot =
+        findLatestSnapshot(participantId) ?: throw SantaCutException(ErrorCode.NO_RANKED_RESULT)
+
     /**
      * 참가자의 최신 순위 스냅숏이 담은 평가를 만든 시각. 이 시각 이후에 끝난 심사는 아직 순위에 반영되지 않았다.
      * 순위 스냅숏이 없으면 null이다.

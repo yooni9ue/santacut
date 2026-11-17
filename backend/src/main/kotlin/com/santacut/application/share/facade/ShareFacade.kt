@@ -8,8 +8,6 @@ import com.santacut.application.share.result.ShareImageResult
 import com.santacut.application.share.result.ShareLinkResult
 import com.santacut.application.share.result.SharePageResult
 import com.santacut.domain.analysis.service.AssessmentService
-import com.santacut.domain.global.exception.ErrorCode
-import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.participant.service.ParticipantService
 import com.santacut.domain.ranking.model.ResultSnapshot
 import com.santacut.domain.ranking.service.RankingService
@@ -31,8 +29,7 @@ class ShareFacade(
     /** 최신 결과의 공유 링크를 만든다. 같은 결과로 이미 만든 링크가 있으면 다시 쓰고, 한마디를 실을지는 이번 요청을 따른다. */
     @Transactional
     fun createShare(command: CreateShareCommand): ShareLinkResult {
-        val snapshot = rankingService.findLatestSnapshot(command.participantId)
-            ?: throw SantaCutException(ErrorCode.NO_RANKED_RESULT)
+        val snapshot = rankingService.getLatestSnapshot(command.participantId)
         val share = shareService.findActive(command.participantId, snapshot)
             ?.let { reuseShare(it, snapshot, command.includeQuote) }
             ?: issueShare(command.participantId, snapshot, command.includeQuote)
