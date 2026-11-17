@@ -226,7 +226,10 @@ C와 본인 턴 기준은 같은 답에 여러 값을 적용해 비교해 골랐
 현재 구현:
 
 - `GET /v1/rankings`는 로그인 없이 보는 공개 API다. 응답은 `{ stage, rows[], season_year, participant_count, computed_at, next_cursor }` 봉투이고, 한 페이지에 50줄이 온다.
-- `next_cursor`는 직전 페이지 마지막 줄의 `delivery_sequence`를 담은 불투명 문자열이다. 이전 응답이 준 값이 아니면 `400 INVALID_CURSOR`다.
+- `next_cursor`는 그 페이지의 순위 계산 시각(`computed_at`, 밀리초)과 마지막 줄의 `delivery_sequence`를 이어 Base64URL로 감싼 불투명 문자열이다. 이전 응답이 준 값이 아니면 `400 INVALID_CURSOR`다. 페이지 사이에 순위가 다시 계산되면 `409 RANKING_SNAPSHOT_CHANGED`로 거절하고, 화면은 첫 페이지부터 다시 읽는다(§14.14).
+- 첫 페이지는 `santacut.ranking.first-page-ttl`(30초) 동안 메모리에 한 장만 둔다. 순위 계산 시각이 바뀌면 바로 버린다.
+- 행의 도착 예정은 `eta_date`(서울 날짜)만 준다. `eta`는 늘 null이다. 정확한 시각은 본인 결과에만 있다(§14.14).
+- 정렬은 위 1~5번 그대로다. 공동 순위(`tied`)는 점수와 네 항목 점수가 모두 같을 때만이다. 공동 순위 안의 배송 순서는 참가자의 시즌 첫 평가 시각, 그다음 참가자 ID다. 재심사로 점수가 같게 나와도 뒤로 밀리지 않는다.
 - 같은 순위인 참가자가 또 있으면 행과 내 결과에 `tied: true`가 붙는다. 화면에는 `공동 N위`로 쓴다. 값은 `result_snapshots.tied`에 저장한다.
 - `stage`는 `PREVIEW`(시즌 마감 전 미리보기)나 `FINAL`(마감 뒤 확정)이다.
 
@@ -248,7 +251,8 @@ C와 본인 턴 기준은 같은 답에 여러 값을 적용해 비교해 골랐
 - 코드는 `KR-{시·도}`와 `KR-{시·도}-{시·군·구 뒤 3자리}`다. 서울 코드만 비공식 번호이고, 서울 26행은 `schema.sql`에 있다. 나머지는 `regions.sql`이 넣는다.
 - 일반구는 시·도 바로 아래에 두고 `수원시 장안구`처럼 이름을 붙인다. 하위 지역이 없는 세종특별자치시(`KR-36`)는 시·도를 그대로 고른다.
 - `GET /v1/regions`는 시·도를, `GET /v1/regions?parent={code}`는 그 하위 지역을 준다. 등록과 변경에는 `selectable: true`인 코드만 쓴다. 하위 지역이 있는 시·도를 보내면 `400 UNSUPPORTED_REGION`이다.
-- 시즌 마감 전에는 `PATCH /v1/me/region`으로 지역을 바꿀 수 있다. 순위와 ETA는 같은 요청 안에서 다시 계산한다. 마감 뒤에는 `409 SEASON_FROZEN`이다.
+- 시즌 마감 전에는 `PATCH /v1/me/region`으로 지역을 바꿀 수 있다. 순위와 ETA는 다시 계산을 요청해 모아서 계산한다(§7.5). 마감 뒤에는 `409 SEASON_FROZEN`이다.
+- 지역 변경은 참가자당 24시간 2번, 시즌 5번까지다(`santacut.region-change`). 넘으면 `429 REGION_CHANGE_LIMITED`(retry_at 있음)나 `429 REGION_CHANGE_SEASON_LIMIT`이다. 같은 지역은 세지 않는다. 기록은 `region_changes`(바꾼 지역은 남기지 않음)에 둔다.
 
 ## 7. 배송 시뮬레이션
 
@@ -268,6 +272,8 @@ C와 본인 턴 기준은 같은 답에 여러 값을 적용해 비교해 골랐
 | 순서 | 배송 순번 오름차순, 거리 최적화하지 않음 |
 | 다음 날 위치 | 전날 이동·배송을 중단한 지점에서 재개 |
 | 수령 시각 | 해당 사용자의 배송 작업 완료 시각 |
+
+**배송 기간 상한(§14.14):** 누적 작업 시간이 `santacut.ranking.delivery-window-days`(7일, 12/25~12/31) × 6시간을 넘으면 모든 작업 시간을 같은 비율로 줄인다. 썰매가 빨라지고 정거장 시간도 줄어든다고 본다. 배송 순서는 그대로이고 결정적이다. 넘지 않으면 아래 계산이 그대로다.
 
 하루 600km는 배송을 전혀 하지 않고 이동만 할 때의 상한이다. 하루 120명은 이동 시간이 전혀 없을 때의 상한이다. 두 상한을 동시에 보장하지 않는다.
 
@@ -317,6 +323,13 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 점수, 지역, 정렬 규칙, 좌표 버전, 배송 설정을 같은 스냅샷에 고정한다. 계산 작업은 중복 요청을 합쳐 처리하고, 완성된 스냅샷으로 한 번에 교체한다. 계산 도중 구버전 순위와 신버전 ETA를 섞어서 응답하지 않는다. 계산 중에는 이전 완료 스냅샷과 계산 시각을 보여준다.
 
 출발 이후 가입자와 재심사 결과는 다음 시즌 대기 또는 랭킹 외 체험으로 처리하는 정책을 출시 전에 확정한다. 도착일이 다음 해로 넘어가도 기존 시즌의 배송 계획에 속한다.
+
+현재 구현(§14.14):
+
+- 심사 성공, 지역 변경, 시즌 마감 전 참가자 삭제는 `ranking_refresh` 행의 요청 판만 올린다. `RankingRebuildFacade`가 `santacut.ranking.rebuild-delay-ms`(30초)마다 요청이 있으면 한 번 다시 계산하고, 시작할 때 읽은 판까지 반영했다고 표시한다. 계산 도중 들어온 요청은 다음 차례가 맡는다.
+- 12월 25일 0시(Asia/Seoul)에 한 번 더 돌려 마감 직전 변경까지 넣는다. 마감 뒤에 만든 스냅숏이 있으면 확정 순위이므로 더 바꾸지 않는다. 앱이 뜰 때도 남은 요청을 처리한다.
+- 작업 진행 단계는 참가자의 최신 스냅숏이 담은 평가 시각이 작업 완료 시각 이후일 때만 `SUCCEEDED`다. 그 전은 `RANKING_PENDING`이다. 다시 계산한 뒤 직전 계산 시각 이후 성공한 작업을 다시 알려 SSE가 `SUCCEEDED`를 보낸다.
+- 마감 뒤 참가자 삭제는 확정 순위를 그대로 두고 분포만 다시 센다.
 
 ## 8. 저장 구조
 
@@ -491,7 +504,7 @@ stateDiagram-v2
 
 ### 10.2 오류 코드
 
-HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at }`이다. `code`는 [`ErrorCode.kt`](../src/main/kotlin/com/santacut/domain/global/exception/ErrorCode.kt)의 상수 이름이고 API 계약이다. CSRF 오류(`403`)나 없는 경로처럼 프레임워크가 만든 오류에는 `code`가 없다. `retry_at`은 `DAILY_USER_LIMIT`에만 붙는다.
+HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at }`이다. `code`는 [`ErrorCode.kt`](../src/main/kotlin/com/santacut/domain/global/exception/ErrorCode.kt)의 상수 이름이고 API 계약이다. CSRF 오류(`403`)나 없는 경로처럼 프레임워크가 만든 오류에는 `code`가 없다. `retry_at`은 기다리면 풀리는 한도 오류(`DAILY_USER_LIMIT`, `CLIENT_RATE_LIMITED`, `REGION_CHANGE_LIMITED`, `UPLOAD_BUSY`, `ANALYSIS_STREAM_LIMIT`)에만 붙는다.
 
 | 코드 | 상태 | 뜻 |
 | --- | --- | --- |
@@ -513,11 +526,14 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 | `IDEMPOTENCY_CONFLICT` | 409 | 같은 Idempotency-Key로 다른 요청 |
 | `NICKNAME_TAKEN` | 409 | 이미 쓰는 닉네임 |
 | `NO_RANKED_RESULT` | 409 | 공유할 순위 결과가 없음 |
+| `RANKING_SNAPSHOT_CHANGED` | 409 | 순위표 cursor를 만든 뒤 순위가 다시 계산됨 |
 | `FILE_TOO_LARGE` | 413 | 파일 20MB 초과 |
 | `INSUFFICIENT_EVIDENCE` | 422 | 점수를 매길 근거 부족(작업자 내부, 응답에는 `error_code`로) |
 | `UNSUPPORTED_FILE_FORMAT` | 422 | 지원하지 않는 파일 형식 |
 | `SPEAKER_NOT_IDENTIFIED` | 422 | 고른 본인 이름이 대화에 없음(작업자 내부, 응답에는 `error_code`로) |
 | `DAILY_USER_LIMIT` | 429 | 24시간 제출 한도 초과 |
+| `REGION_CHANGE_LIMITED` | 429 | 24시간 지역 변경 한도 초과(`retry_at` 있음) |
+| `REGION_CHANGE_SEASON_LIMIT` | 429 | 시즌 지역 변경 한도 초과 |
 | `ANALYSIS_PAYLOAD_MISSING` | 500 | 대기 작업에 입력이 없음(내부) |
 | `ANALYSIS_JOB_STATE_INVALID` | 500 | 허용하지 않는 상태 변경(내부) |
 | `AI_RESPONSE_INVALID` | 502 | AI 응답이 비었거나 너무 김(작업자 내부) |
@@ -729,4 +745,12 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 - 짧은 대화는 본문이 6,700자보다 훨씬 짧아(입력 약 2천 토큰) 여전히 한 구간이다. 그래서 짧은 대화 지표(MAE, 표준편차, 유형)는 이 변경과 무관하다. 반 길이·2배 길이·단체 대화 변형도 한 구간 그대로다.
 - 비용 가드 어림은 구간마다 더하므로 그대로 맞는다. 작업 리스는 구간 수 상한을 따라 5분에서 7분이 된다.
 - 점수 규칙 판을 6으로 올렸다. 같은 긴 대화도 다시 채점한다. 두 번 실행에 어림 0.28달러를 썼다.
+
+### 14.14 순위 계산 모으기, 도착일 공개 범위, 배송 기간 상한 (2026-11-17)
+
+- 변경마다 같은 트랜잭션에서 전체 순위를 다시 쓰면 시즌 동안 쓰는 행 수가 변경 횟수 × 참가자 수로 는다. 요청 표시만 남기고 30초마다 모아서 한 번 계산한다. 그 사이 결과 화면은 `ranking_pending`, SSE는 `RANKING_PENDING`을 보인다.
+- 공개 도착 예정 시각의 간격은 `거리 ÷ 100km/h + 3분`이라 이웃한 참가자 사이 거리가 드러났다. 지역은 마음대로 바꿀 수 있어 상대 지역과 출발지를 좁혀 갈 수 있었다. 기획(ui-ux-plan §4.9, 공유 카드)이 공개 화면에 "도착일"만 쓰므로 공개 값은 서울 날짜로 줄이고, 정확한 시각은 본인 결과에만 둔다. 지역 변경도 24시간 2번, 시즌 5번으로 막는다.
+- 하루 6시간에 약 120명이라 참가자가 1,000명이면 약 9개월, 10,000명이면 몇 년 뒤에 도착했다. 배송 기간을 12/25~12/31로 묶고, 넘치면 작업 시간을 같은 비율로 줄인다. 날짜로만 공개해도 1위와 꼴찌의 도착일이 달라 재미는 남는다. 순위에 비례해 시간 칸을 나눠 주는 안은 이동 거리가 사라져 산타 이동 설정과 맞지 않으므로 버렸다.
+- 동점 처리는 §5대로 네 항목 점수, 그다음 시즌 첫 평가 시각이다. 예전 구현은 최신 평가 시각을 써서 같은 점수로 재심사하면 뒤로 밀렸다.
+- 페이지 사이에 순위가 바뀌면 줄이 겹치거나 빠지므로 cursor에 계산 시각을 넣고, 바뀌었으면 `409`로 거절한다. 이전 스냅숏을 남겨 두면 저장 공간이 두 배로 는다. 그래서 남기지 않고, 거절한 뒤 첫 페이지부터 다시 읽게 했다.
 
