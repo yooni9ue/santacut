@@ -20,9 +20,13 @@ data class TranscriptTurn(
 
     fun length(): Int = text.length
 
-    /** 같은 화자가 [MERGE_GAP]보다 짧은 간격으로 이어 보낸 메시지면 이 줄에 잇는다. */
+    /**
+     * 같은 화자가 [MERGE_GAP]보다 짧은 간격으로 이어 보낸 메시지면 이 줄에 잇는다. 이으면 [MAX_MERGED_LENGTH]자를 넘을 때는
+     * 새 줄로 둔다. 혼잣말 수백 개가 한 줄이 되면 대화문 길이 상한에 걸려 그 줄이 통째로 빠지기 때문이다.
+     */
     fun canAbsorb(message: ScoringMessage): Boolean =
-        message.speaker == speaker && Duration.between(endedAt, message.localTime) < MERGE_GAP
+        message.speaker == speaker && Duration.between(endedAt, message.localTime) < MERGE_GAP &&
+            text.length + MERGE_SEPARATOR.length + message.normalizedText().length <= MAX_MERGED_LENGTH
 
     fun absorbed(message: ScoringMessage): TranscriptTurn =
         copy(endedAt = message.localTime, text = text + MERGE_SEPARATOR + message.normalizedText())
@@ -36,6 +40,9 @@ data class TranscriptTurn(
     companion object {
         /** 이보다 오래 쉬고 이어 보낸 메시지는 같은 화자여도 새 줄로 둔다. 모델에 간격 표시를 보내는 문턱과 같다. */
         val MERGE_GAP: Duration = Duration.ofHours(3)
+
+        /** 이어 붙인 한 줄 본문의 최대 글자 수. 대화문 길이 상한([ScoringDigest.MAX_TRANSCRIPT_CHARS])의 작은 일부다. */
+        const val MAX_MERGED_LENGTH = 2000
 
         private const val MERGE_SEPARATOR = " / "
 

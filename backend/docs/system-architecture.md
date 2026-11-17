@@ -102,11 +102,11 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 
 작업 상태(설계안)는 QUEUED → RUNNING → SUCCEEDED / INSUFFICIENT_DATA / FAILED이고 retry 가능 실패는 next_attempt_at을 둔다. DB row에는 attempts, lease_owner, lease_until, fencing_token, request_sequence, versions를 둔다.
 
-현재 구현: 원본 파일 작업은 `VALIDATING`에서 시작하고, 검증 작업자(기본 1초 간격)를 거쳐 `QUEUED`가 된다. 분석 작업자(기본 3초 간격)가 `RUNNING`으로 임대(7분)하고 최대 3번 시도한다. 응답 진행 단계는 `VALIDATING`, `QUEUED`, `ANALYZING`, `RANKING_PENDING`, `SUCCEEDED`, `FAILED`다. DB row에는 `attempts`, `lease_token`, `lease_until`, `error_code`가 있고 next_attempt_at, fencing_token, request_sequence, versions는 두지 않았다. 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 AI가 꺼져 있어도 `EXPIRED`로 끝낸다. 전체 상태 전이는 [백엔드 설계 §10.1](backend-design.md)에 있다.
+현재 구현: 원본 파일 작업은 `VALIDATING`에서 시작하고, 검증 작업자(기본 1초 간격)를 거쳐 `QUEUED`가 된다. 분석 작업자(기본 3초 간격으로 폴링, 동시 3개)가 `RUNNING`으로 임대(7분)하고 최대 3번 시도한다. 응답 진행 단계는 `VALIDATING`, `QUEUED`, `ANALYZING`, `RANKING_PENDING`, `SUCCEEDED`, `FAILED`다. DB row에는 `attempts`, `lease_token`, `lease_until`, `error_code`가 있고 next_attempt_at, fencing_token, request_sequence, versions는 두지 않았다. 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 AI가 꺼져 있어도 `EXPIRED`로 끝낸다. 전체 상태 전이는 [백엔드 설계 §10.1](backend-design.md)에 있다.
 
-- 짧은 트랜잭션에서 `FOR UPDATE SKIP LOCKED`로 하나를 claim하고 lease와 fencing token을 갱신한다. SQLite 구현은 커넥션 1개에 작업자도 하나라서, 가장 오래된 `QUEUED` 행을 읽고 리스 토큰을 쓴다.
+- 짧은 트랜잭션에서 `FOR UPDATE SKIP LOCKED`로 하나를 claim하고 lease와 fencing token을 갱신한다. SQLite에는 `SKIP LOCKED`가 없다. 그래서 가장 오래된 `QUEUED` 행을 읽고 리스 토큰을 쓰는 트랜잭션을 커밋까지 앱 안 잠금으로 묶어, 채점 스레드 여럿이 같은 행을 잡지 않게 한다. 커넥션도 1개라 트랜잭션은 앱 안에서 줄을 선다.
 - 트랜잭션을 커밋한 뒤 AI HTTP 호출을 한다. 외부 호출 동안 DB connection/row lock을 잡지 않는다.
-- 초기 worker 동시성 1, 호출 timeout 60초, lease 120초를 기본안으로 하되 타임아웃·재시도 정책과 함께 조정한다.
+- worker 동시성은 처음 1이었고, 부하 시험 뒤 3으로 올렸다(`santacut.ai.worker.concurrency`, [배포 운영서](deployment.md#분석-처리량)). 호출 timeout은 60초, lease는 7분이다.
 - 종료 직전 결과 저장에는 job ID + fencing token을 조건으로 사용해 기한 지난 worker가 최신 결과를 덮어쓰지 못한다.
 - 프로세스가 죽으면 lease가 만료된 작업만 회수한다. 모든 재시도는 같은 캐시·idempotency 문맥을 유지한다.
 - AI 공급자가 요청 멱등성을 제공하지 않으면 네트워크 실패 시 중복 과금 가능성이 남는다. exactly-once 과금을 보장하지 않는다.
@@ -178,7 +178,7 @@ Lightsail 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/
 
 [GitHub Actions 공식 안내](https://docs.github.com/en/actions/concepts/billing-and-usage)에 따라 공개 저장소의 standard hosted runner 사용은 무료다. 비공개 저장소·larger runner·artifact/package 저장 비용은 계정 조건을 확인한다. artifact 보관 기간을 짧게 하고 오래된 container image는 롤백 후보를 남긴 뒤 정리한다.
 
-처음 512MB 번들의 메모리 예산(지금 1GB 번들도 같은 제한을 쓴다): 앱 컨테이너 `mem_limit: 400m`, JVM `-Xms128m -Xmx256m`(metaspace 최대 128MB, SerialGC), Caddy `mem_limit: 64m`, 나머지는 OS와 페이지캐시다. 자세한 값은 [배포 운영서](deployment.md)에 있다. 숫자는 부하 테스트로 검증한다. 스왑 1GB는 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
+1GB 번들의 메모리 예산: 앱 컨테이너 `mem_limit: 512m`, JVM `-Xms128m -Xmx256m`(metaspace 최대 192MB, SerialGC), Caddy `mem_limit: 64m`, 나머지는 OS와 페이지캐시다. 자세한 값은 [배포 운영서](deployment.md)에 있다. 숫자는 부하 테스트로 검증한다. 스왑 1GB는 OOM 완화용이지 처리량 확장 수단이 아니다. 운영 서버에서 Gradle·Docker build를 실행하지 않고 CI에서 만든 이미지를 pull한다.
 
 ## 10. CI/CD와 배포 계약
 
@@ -228,7 +228,7 @@ GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:
 
 출시 차단 조건: 실제 플랫폼 샘플 parser 미검증, mock AI 운영 활성화, 세션/CSRF 우회, 사용자 간 데이터 접근, 미검증 점수 저장, 무한 retry·무제한 비용, 공유 XSS/원문 노출, backup 복원 실패, readiness 실패.
 
-부하 목표는 최초 기준으로 조회 20 RPS·분석 동시성 1·1만 참가자 전체 재계산을 측정한다. 이는 보장 성능이 아니며 p95 응답·heap·DB lock·계산 시간을 기록해 예산과 맞춘다. 1GB에서 OOM 또는 빈번한 swap이 생기면 먼저 2GB 번들로 올린다.
+부하 목표는 최초 기준으로 조회 20 RPS·분석 동시성 1·1만 참가자 전체 재계산을 측정한다. 분석 몰림 시험 결과와 시간당 처리량은 [배포 운영서](deployment.md#분석-처리량)에 있다. 이는 보장 성능이 아니며 p95 응답·heap·DB lock·계산 시간을 기록해 예산과 맞춘다. 1GB에서 OOM 또는 빈번한 swap이 생기면 먼저 2GB 번들로 올린다.
 
 이후 확장은 원본/공유 파일을 S3 호환 저장소로 분리 → 분석 worker를 별도 프로세스로 분리 → DB를 별도 서버로 분리 순이다. 지속적인 큐 지연과 비용 근거가 생기기 전 Kafka·Kubernetes를 도입하지 않는다.
 

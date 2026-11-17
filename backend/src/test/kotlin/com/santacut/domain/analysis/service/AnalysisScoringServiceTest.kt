@@ -51,6 +51,15 @@ class AnalysisScoringServiceTest @Autowired constructor(
     }
 
     @Test
+    fun `사용량 기록이 실패해도 이미 과금된 답을 버리지 않고 점수를 낸다`() {
+        val digest = analysisScoringService.digest(jobWith(objectMapper.writeValueAsString(largeSubmission())))
+
+        val answers = analysisScoringService.ask(digest, SYSTEM_PROMPT) { throw IllegalStateException("기록 실패") }
+
+        assertEquals(EXPECTED_HUNDREDTHS, analysisScoringService.score(answers).hundredths)
+    }
+
+    @Test
     fun `상대 메시지만 달라도 채점 입력 해시가 다르다`() {
         val digest = analysisScoringService.digest(jobWith(objectMapper.writeValueAsString(largeSubmission())))
         val changed = analysisScoringService.digest(jobWith(objectMapper.writeValueAsString(largeSubmission(partnerSuffix = "!"))))

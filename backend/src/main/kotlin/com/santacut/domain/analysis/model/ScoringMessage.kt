@@ -27,7 +27,7 @@ data class ScoringMessage(
             .replace(WHITESPACE, SPACE)
             .replace(REPEATED_LAUGH, LAUGH_KEPT)
             .replace(REPEATED_CRY_OR_MARK, CRY_OR_MARK_KEPT)
-            .replace(REPEATED_EMOJI, EMOJI_KEPT)
+            .replace(EMOJI_RUN) { run -> LEADING_TWO_EMOJI.find(run.value)?.value ?: run.value }
             .trim(),
     )
 
@@ -53,16 +53,22 @@ data class ScoringMessage(
 
         /** 잇단 ㅠ·ㅜ와 문장 부호를 두 개로 줄인 치환 문자열(정규식 그룹 1을 두 번). */
         private const val CRY_OR_MARK_KEPT = "\$1\$1"
-
-        /** 잇단 이모지를 앞 두 개(정규식 그룹 1)로 줄인 치환 문자열. */
-        private const val EMOJI_KEPT = "\$1"
         private const val LINK = "(링크)"
         private val URL = Regex("""(?:https?://|www\.)\S+""", RegexOption.IGNORE_CASE)
 
         /** 한 메시지 본문의 최대 글자 수. 넘으면 앞부분만 보낸다. */
         private const val MAX_TEXT_LENGTH = 300
         private const val LONG_TEXT_SUFFIX = " (긴 글 생략)"
-        private const val EMOJI = """[\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}]\x{FE0F}?"""
-        private val REPEATED_EMOJI = Regex("((?:$EMOJI){2})(?:$EMOJI)+")
+        private const val EMOJI_BASE = """\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}"""
+        private const val VARIATION_SELECTOR = """\x{FE0F}"""
+
+        /**
+         * 이모지로 시작해 이모지와 이체 선택자(U+FE0F)만 이어진 덩어리. 문자 클래스 하나의 반복이라 Java 정규식이 재귀 없이 맞춘다.
+         * 그룹을 반복하면(`(?:이모지\x{FE0F}?)+`) 이모지 하나마다 스택을 써서 1,000개쯤 이어지면 StackOverflowError가 난다.
+         */
+        private val EMOJI_RUN = Regex("[$EMOJI_BASE][$EMOJI_BASE$VARIATION_SELECTOR]+")
+
+        /** 덩어리 맨 앞 이모지 두 개(각각 이체 선택자 포함). 두 번만 반복하므로 스택을 거의 쓰지 않는다. */
+        private val LEADING_TWO_EMOJI = Regex("^(?:[$EMOJI_BASE]$VARIATION_SELECTOR?){2}")
     }
 }
