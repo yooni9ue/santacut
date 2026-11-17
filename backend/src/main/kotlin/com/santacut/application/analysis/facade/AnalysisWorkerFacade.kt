@@ -21,14 +21,24 @@ import com.santacut.domain.prompt.service.PromptService
 import com.santacut.domain.ranking.service.RankingService
 import com.santacut.domain.share.service.ShareService
 import org.slf4j.LoggerFactory
+import org.springframework.core.task.TaskRejectedException
 import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.Semaphore
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
- * 대기 중인 분석 작업을 하나씩 꺼내 AI 점수를 매기고 순위를 다시 계산하는 백그라운드 작업자.
+ * 대기 중인 분석 작업을 꺼내 AI 점수를 매기고 순위를 다시 계산하는 백그라운드 작업자.
+ *
+ * 예약 폴링([dispatchJobs])은 빈 채점 스레드([analysisWorkerExecutor])마다 작업을 하나씩 잡아 넘긴다. 채점 스레드는 작업을 끝내면
+ * 기다리지 않고 다음 작업을 잡고, 대기열이 비면 물러난다. 그래서 스레드 수만큼 작업을 동시에 채점한다.
+ * 작업 잡기([claimLock])와 비용 확인·사용량 기록([budgetLock])은 트랜잭션 커밋까지 잠금 안에서 해,
+ * 두 스레드가 같은 작업을 잡거나 동시에 비용 확인을 통과해 한도를 넘지 않게 한다. 제공자 문제로 멈추는 상태는 모든 스레드가 함께 쓴다.
  *
  * 리스 획득, AI 호출, 결과 기록을 한 트랜잭션으로 묶으면 느린 AI 호출 동안 SQLite 쓰기 잠금을 쥐게 된다.
  * 그래서 이 facade만 [TransactionTemplate]으로 리스 획득, 프롬프트 읽기, 재사용 확인, 사용량 기록, 결과 기록 트랜잭션을 따로 나눈다.
@@ -50,17 +60,67 @@ class AnalysisWorkerFacade(
     private val shareService: ShareService,
     private val promptService: PromptService,
     private val transactionTemplate: TransactionTemplate,
+    private val analysisWorkerExecutor: ThreadPoolTaskExecutor,
     private val clock: Clock,
 ) {
     private val logger = LoggerFactory.getLogger(AnalysisWorkerFacade::class.java)
+    private val workerSlots = Semaphore(analysisWorkerExecutor.maxPoolSize)
+    private val claimLock = ReentrantLock()
+    private val budgetLock = ReentrantLock()
 
+    /** 오래 기다린 작업을 정리하고, 빈 채점 스레드마다 작업을 하나씩 잡아 넘긴다. */
     @Scheduled(fixedDelayString = "\${santacut.ai.poll-delay-ms:${DEFAULT_POLL_DELAY_MS}}")
+    fun dispatchJobs() {
+        expireOverdueJobs()
+        dispatchWhileSlotsFree()
+    }
+
+    /** 작업 하나를 이 스레드에서 바로 잡아 채점한다. 잡을 작업이 없으면 아무것도 하지 않는다. */
     fun processNextJob() {
-        // AI가 꺼져 있어도 24시간 넘게 기다린 작업은 정리한다(기획 §4.6). 리스 획득과 따로 짧은 트랜잭션으로 연다.
+        expireOverdueJobs()
+        val lease = newLease()
+        process(claimNextJob(lease) ?: return, lease)
+    }
+
+    /** AI가 꺼져 있어도 24시간 넘게 기다린 작업은 정리한다(기획 §4.6). 리스 획득과 따로 짧은 트랜잭션으로 연다. */
+    private fun expireOverdueJobs() =
         transactionTemplate.executeWithoutResult { analysisJobService.expireOverdueJobs(clock.instant()) }
-        if (!analysisScoringService.isEnabled() || isAiBlocked()) return
-        val lease = UUID.randomUUID().toString()
-        val job = transactionTemplate.execute { claimNextJob(lease) } ?: return
+
+    private tailrec fun dispatchWhileSlotsFree() {
+        if (!workerSlots.tryAcquire()) return
+        val lease = newLease()
+        val job = claimNextJob(lease)
+        if (job == null) return workerSlots.release()
+        startWorker(job, lease)
+        dispatchWhileSlotsFree()
+    }
+
+    /** 잡은 작업을 채점 스레드에 넘긴다. 스레드는 대기열이 빌 때까지 이어서 채점한 뒤 자리를 돌려준다. */
+    private fun startWorker(job: AnalysisJob, lease: String) {
+        try {
+            analysisWorkerExecutor.execute { processUntilEmpty(job, lease) }
+        } catch (exception: TaskRejectedException) {
+            // 앱이 꺼지는 중이다. 잡은 작업은 리스가 끝난 뒤 다시 잡힌다.
+            workerSlots.release()
+            throw exception
+        }
+    }
+
+    private fun processUntilEmpty(job: AnalysisJob, lease: String) {
+        try {
+            processChain(job, lease)
+        } finally {
+            workerSlots.release()
+        }
+    }
+
+    private tailrec fun processChain(job: AnalysisJob, lease: String) {
+        process(job, lease)
+        val nextLease = newLease()
+        processChain(claimNextJob(nextLease) ?: return, nextLease)
+    }
+
+    private fun process(job: AnalysisJob, lease: String) {
         try {
             scoreAndComplete(job, lease)
         } catch (exception: Exception) {
@@ -69,6 +129,8 @@ class AnalysisWorkerFacade(
             handleFailure(job.id, lease, exception)
         }
     }
+
+    private fun newLease(): String = UUID.randomUUID().toString()
 
     /** 비용 한도에 닿았거나 제공자 문제로 멈춘 동안이면 참. 작업은 대기열에 남고 오래 밀리면 만료가 정리한다. */
     private fun isAiBlocked(): Boolean = transactionTemplate.execute { aiBudgetService.isBlocked(clock.instant()) } ?: false
@@ -91,16 +153,22 @@ class AnalysisWorkerFacade(
     }
 
     /**
-     * 모든 구간 호출의 어림 비용을 한 번에 확인한 뒤 구간마다 AI에 묻는다.
+     * 모든 구간 호출의 어림 비용을 한 번에 확인·예약한 뒤 구간마다 AI에 묻고, 끝나면 예약을 푼다.
      * 사용량은 구간 호출마다 바로 기록해, 뒤 구간이 실패해도 이미 과금된 호출이 비용 가드에 잡힌다.
      */
     private fun askAll(prompt: Prompt, digest: ScoringDigest): ScoringChunkAnswers {
         val estimate = analysisScoringService.estimateUsage(digest, prompt.content)
-        transactionTemplate.executeWithoutResult { aiBudgetService.verifyAffordable(estimate, clock.instant()) }
-        return analysisScoringService.ask(digest, prompt.content) { usage ->
-            transactionTemplate.executeWithoutResult { aiBudgetService.record(usage, clock.instant()) }
+        underBudgetLock { aiBudgetService.reserve(estimate, clock.instant()) }
+        try {
+            return analysisScoringService.ask(digest, prompt.content) { usage -> underBudgetLock { aiBudgetService.record(usage, clock.instant()) } }
+        } finally {
+            aiBudgetService.release(estimate)
         }
     }
+
+    /** 비용 확인·예약과 사용량 기록을 커밋까지 한 줄로 세운다. 다른 스레드가 커밋 전 합계를 읽고 한도를 넘기지 않게 한다. */
+    private fun underBudgetLock(action: () -> Unit) =
+        budgetLock.withLock { transactionTemplate.executeWithoutResult { action() } }
 
     /**
      * 구간 답을 합쳐 점수로 바꾼다. 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는
@@ -135,8 +203,16 @@ class AnalysisWorkerFacade(
         transactionTemplate.execute { promptService.latest(PromptName.SCORE) }
             ?: throw SantaCutException(ErrorCode.PROMPT_NOT_FOUND, PromptName.SCORE.value)
 
-    /** 꺼낼 수 있는 다음 작업의 리스를 잡는다. */
+    /**
+     * AI를 쓸 수 있으면 꺼낼 수 있는 다음 작업의 리스를 잡는다. 찾기와 리스 기록을 한 트랜잭션에 두고 커밋까지 [claimLock]으로 묶어,
+     * 다른 스레드가 같은 작업을 동시에 찾지 못하게 한다.
+     */
     private fun claimNextJob(lease: String): AnalysisJob? {
+        if (!analysisScoringService.isEnabled() || isAiBlocked()) return null
+        return claimLock.withLock { transactionTemplate.execute { startNextAttempt(lease) } }
+    }
+
+    private fun startNextAttempt(lease: String): AnalysisJob? {
         val now = clock.instant()
         val job = analysisJobService.findClaimable(now) ?: return null
         return analysisJobService.startAttempt(job, lease, now)

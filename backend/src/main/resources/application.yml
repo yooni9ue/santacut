@@ -61,6 +61,9 @@ santacut:
     # 제공자가 호출을 막았거나(권한, 요청 한도) 연달아 3번 실패하면 이만큼 작업 잡기를 멈춘다.
     pause: 15m
     max-consecutive-failures: 3
+  # 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 보통 3번(긴 대화는 최대 6구간) 동시에 부른다(backend-design.md).
+  ai.worker:
+    concurrency: ${ANALYSIS_WORKER_CONCURRENCY:3}
   # 진행 상황 스트림(SSE)의 앱 전체 상한. 넘으면 503(ANALYSIS_STREAM_LIMIT)이고 화면은 폴링으로 바꾼다.
   stream:
     max-open-streams: 200

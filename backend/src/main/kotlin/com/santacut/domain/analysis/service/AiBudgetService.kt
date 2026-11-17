@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.AiUsageDay
 import com.santacut.domain.analysis.model.AiUsageDays
 import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ProviderBackoff
+import com.santacut.domain.analysis.model.ReservedUsages
 import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.global.config.AiBudgetProperties
 import com.santacut.domain.global.exception.ErrorCode
@@ -29,6 +30,7 @@ class AiBudgetService(
         aiBudgetProperties.inputUsdPerMillionTokens,
         aiBudgetProperties.outputUsdPerMillionTokens,
     )
+    private val reservations = ReservedUsages()
     private val backoff = ProviderBackoff(aiBudgetProperties.pause, aiBudgetProperties.maxConsecutiveFailures)
 
     /** 잠시 멈춘 동안이거나 비용 한도에 닿았으면 참. 이때 작업은 대기열에 그대로 남는다. */
@@ -39,15 +41,21 @@ class AiBudgetService(
     }
 
     /**
-     * 호출 전에 어림 사용량([estimate])을 더해도 하루·한 달 한도 안인지 확인한다. 넘으면 [ErrorCode.AI_BUDGET_EXCEEDED]이고,
-     * 작업은 대기열로 돌아가며 작업자는 잠시 멈춘다. 호출 한 번이 한도를 크게 넘기지 않게 하기 위해서다.
+     * 호출 전에 어림 사용량([estimate])을 이미 예약된 다른 작업의 어림 사용량과 함께 더해도 하루·한 달 한도 안인지 확인하고 예약한다.
+     * 넘으면 [ErrorCode.AI_BUDGET_EXCEEDED]이고, 작업은 대기열로 돌아가며 작업자는 잠시 멈춘다.
+     * 동시에 채점하는 작업들이 각자 확인을 통과해 함께 한도를 넘지 않게 하기 위해서다. 작업이 끝나면 [release]로 푼다.
+     * 확인과 예약 사이에 다른 예약·기록이 끼지 않도록, 부르는 쪽이 [record]와 같은 잠금 안에서 부른다.
      */
-    fun verifyAffordable(estimate: ModelUsage, now: Instant) {
+    fun reserve(estimate: ModelUsage, now: Instant) {
         val period = AiBudgetPeriod.at(now)
         val today = usageBetween(period.dayKey(), period.dayKey())
         val thisMonth = usageBetween(period.monthStartKey(), period.dayKey())
-        if (budget.wouldExceed(today, thisMonth, estimate)) throw SantaCutException(ErrorCode.AI_BUDGET_EXCEEDED)
+        if (budget.wouldExceed(today, thisMonth, reservations.total() + estimate)) throw SantaCutException(ErrorCode.AI_BUDGET_EXCEEDED)
+        reservations.add(estimate)
     }
+
+    /** 끝난 작업의 예약을 푼다. 실제 사용량은 [record]로 이미 더했다. */
+    fun release(estimate: ModelUsage) = reservations.remove(estimate)
 
     /** 호출 한 번의 사용량을 오늘 합계에 더한다. 사용량을 받지 못한 호출([ModelUsage.NONE])은 더하지 않는다. */
     fun record(usage: ModelUsage, now: Instant) {
