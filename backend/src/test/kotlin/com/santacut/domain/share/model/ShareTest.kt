@@ -23,8 +23,8 @@ class ShareTest {
     }
 
     @Test
-    fun `도착 예정일은 서울 시각으로 표시한다`() {
-        assertEquals("2026년 12월 25일 09:03", share.displayEta())
+    fun `도착 예정일은 남이 보는 화면이라 서울 날짜만 표시한다`() {
+        assertEquals("2026년 12월 25일", share.displayEta())
     }
 
     @Test

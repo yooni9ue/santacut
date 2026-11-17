@@ -29,6 +29,7 @@ import com.santacut.domain.analysis.model.Score
 import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.global.exception.ErrorCode
+import com.santacut.domain.global.model.SeoulTime
 import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.service.RankingService
 import org.junit.jupiter.api.Test
@@ -90,7 +91,7 @@ class ResultShareFlowTest @Autowired constructor(
     private fun assertRankingBoardShows(myResult: MyRankingResult, nickname: String) {
         val board = resultFacade.getRankings(RankingPageCommand(null))
         assertEquals(nickname, board.rows.map { it.nickname }.first())
-        assertEquals(myResult.eta, board.rows.map { it.eta }.first())
+        assertEquals(myResult.eta?.atZone(SeoulTime.ZONE)?.toLocalDate(), board.rows.map { it.etaDate }.first())
         assertEquals(myResult.computedAt, board.computedAt)
         assertEquals(board.rows.map { it.nickname }.size.toLong(), board.participantCount)
         assertEquals(PREVIEW, board.stage)

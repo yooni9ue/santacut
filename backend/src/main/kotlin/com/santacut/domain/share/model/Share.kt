@@ -173,8 +173,8 @@ class Share(
     fun displayScore(): String =
         BigDecimal(scoreHundredths).movePointLeft(SCORE_DECIMAL_PLACES).setScale(SCORE_DECIMAL_PLACES).toPlainString()
 
-    /** 서울 시각으로 표시한 도착 예정일. */
-    fun displayEta(): String = formatSeoul(eta)
+    /** 서울 날짜로 표시한 도착 예정일. 공유 화면은 누구나 보므로 시각은 빼서 지역 사이 거리를 거꾸로 셈하지 못하게 한다. */
+    fun displayEta(): String = eta.atZone(SeoulTime.ZONE).format(SEOUL_DATE_FORMAT)
 
     /** 공동 순위면 `공동 3위`, 아니면 `3위`. */
     fun displayRank(): String = if (tied) "$TIED_PREFIX$rank$RANK_SUFFIX" else "$rank$RANK_SUFFIX"
@@ -205,6 +205,7 @@ class Share(
         private const val WEAKEST_PREFIX = "아쉬운 항목 "
         private const val HIGHLIGHT_SEPARATOR = " · "
         private val SEOUL_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 HH:mm")
+        private val SEOUL_DATE_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일")
 
         /**
          * 공유 링크를 만든다. 순위, 공동 순위 여부, 상태, 시각, 유형과 꾸밈 값은 만든 순간 값으로 고정한다.
