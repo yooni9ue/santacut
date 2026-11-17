@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 720" width="1200" height="720" role="img" aria-label="부하와 메모리 전후: dev 1GB 서버에 짧은 대화를 동시에 올린 시험에서 결과까지 p95가 5명 22~28초→9.6초, 15명 59초→16.2초, 30명은 메타스페이스 OOM으로 재시작해 측정 실패→33.3초. 시간당 처리 약 850건→약 3,200건, 앱 재시작 2회→0회. JVM AOT 캐시 뒤 30명 시험 후 메타스페이스 133MB→32MB, 기동 26초→12초, 유휴 컨테이너 372MiB→346MiB, 스왑 269MB→194MB">
+  <title>부하와 메모리 전후: dev 1GB 서버에 짧은 대화를 동시에 올린 시험에서 결과까지 p95가 5명 22~28초→9.6초, 15명 59초→16.2초, 30명은 메타스페이스 OOM으로 재시작해 측정 실패→33.3초. 시간당 처리 약 850건→약 3,200건, 앱 재시작 2회→0회. JVM AOT 캐시 뒤 30명 시험 후 메타스페이스 133MB→32MB, 기동 26초→12초, 유휴 컨테이너 372MiB→346MiB, 스왑 269MB→194MB</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B4C4D8"/>
+    </marker>
+    <marker id="arrLater" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8DA3BE"/>
+    </marker>
+    <symbol id="flake" viewBox="-10 -10 20 20" overflow="visible"><g fill="none" stroke-width="1.3" stroke-linecap="round"><g transform="rotate(0)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(60)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(120)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g></g></symbol>
+    
+    <style>
+      text { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; }
+      text:not([fill]) { fill: #F5F8FC; }
+      .card { fill: #12263F; stroke: #1E3A5C; stroke-width: 1.5; }
+      .inner { fill: #183152; stroke: #2B4A70; stroke-width: 1; }
+      .ghost { fill: #0C1B2E; stroke: #8DA3BE; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .dev { fill: #0E3328; stroke: #134236; stroke-width: 1.5; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #B4C4D8; }
+      .code { font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace; font-size: 14px; fill: #8ECDF5; }
+      .line { stroke: #B4C4D8; stroke-width: 2; fill: none; }
+      .later { stroke: #8DA3BE; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      
+    </style>
+  </defs>
+  <rect width="1200" height="720" rx="24" fill="url(#bg)"/>
+  <path d="M0,696 Q300,680 600,692 T1200,690 V696 A24,24 0 0 1 1176,720 H24 A24,24 0 0 1 0,696 z" fill="#F5F8FC" opacity="0.05"/>
+  <g fill="#F5F8FC"><circle cx="612" cy="96" r="1.3" opacity="0.35"/><circle cx="1110" cy="470" r="1.1" opacity="0.3"/><circle cx="300" cy="470" r="0.9" opacity="0.4"/><circle cx="905" cy="60" r="1.5" opacity="0.3"/></g>
+  <path d="M40,0 H64 V56 L52,47 L40,56 z" fill="#B5123E"/>
+  <path d="M43.5,0 V50 M60.5,0 V50" stroke="#E9B949" stroke-width="1" opacity="0.75"/>
+  <text x="82" y="48" font-size="28" font-weight="800">부하와 메모리</text>
+  <text x="1160" y="48" text-anchor="end" font-size="16" fill="#B4C4D8">dev micro_3_0(1GB), 짧은 대화 동시 업로드, 2026-11-17 실측</text>
+  <use href="#flake" xlink:href="#flake" x="1150" y="78" width="16" height="16" stroke="#F5F8FC" opacity="0.35"/>
+  <rect class="card" x="40" y="84" width="560" height="392" rx="16"/>
+  <text x="64" y="120" class="h">결과까지 p95(업로드 → SUCCEEDED)</text>
+  <text x="64" y="142" class="s">작업자 1개 → 동시 채점 3개(#49)</text>
+  <text x="64" y="202" font-size="16" font-weight="700">5명</text>
+  <rect x="140" y="182" width="177" height="16" rx="8" fill="#5B6E86"/>
+  <text x="325" y="195" font-size="14" font-weight="700" fill="#B4C4D8">22~28초</text>
+  <rect x="140" y="204" width="61" height="16" rx="8" fill="#4CC38A"/>
+  <text x="209" y="217" font-size="15" font-weight="800" fill="#4CC38A">9.6초</text>
+  <text x="64" y="290" font-size="16" font-weight="700">15명</text>
+  <rect x="140" y="270" width="374" height="16" rx="8" fill="#5B6E86"/>
+  <text x="522" y="283" font-size="14" font-weight="700" fill="#B4C4D8">59초</text>
+  <rect x="140" y="292" width="103" height="16" rx="8" fill="#4CC38A"/>
+  <text x="251" y="305" font-size="15" font-weight="800" fill="#4CC38A">16.2초</text>
+  <text x="64" y="378" font-size="16" font-weight="700">30명</text>
+  <rect x="140" y="353" width="380" height="24" rx="12" fill="none" stroke="#FF7A93" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="154" y="370" font-size="13" fill="#FF7A93">메타스페이스 OOM으로 재시작, 측정 실패</text>
+  <rect x="140" y="380" width="211" height="16" rx="8" fill="#4CC38A"/>
+  <text x="359" y="393" font-size="15" font-weight="800" fill="#4CC38A">33.3초</text>
+  <path d="M140,430 H520" stroke="#2B4A70" stroke-width="1"/>
+  <text x="140" y="452" text-anchor="middle" font-size="12" fill="#B4C4D8">0초</text>
+  <text x="267" y="452" text-anchor="middle" font-size="12" fill="#B4C4D8">20초</text>
+  <text x="393" y="452" text-anchor="middle" font-size="12" fill="#B4C4D8">40초</text>
+  <text x="520" y="452" text-anchor="middle" font-size="12" fill="#B4C4D8">60초</text>
+  <rect class="card" x="620" y="84" width="540" height="392" rx="16"/>
+  <text x="644" y="120" class="h">JVM 메모리와 기동(NMT·컨테이너)</text>
+  <text x="644" y="142" class="s">JVM AOT 캐시, 힙·메타스페이스 상한 조정(#55)</text>
+  <text x="644" y="192" font-size="15" font-weight="700">메타스페이스</text>
+  <text x="644" y="212" font-size="12" fill="#B4C4D8">30명 시험 직후</text>
+  <rect x="830" y="182" width="230" height="14" rx="7" fill="#5B6E86"/>
+  <text x="1136" y="194" text-anchor="end" font-size="14" font-weight="700" fill="#B4C4D8">133MB</text>
+  <rect x="830" y="200" width="55" height="14" rx="7" fill="#8ECDF5"/>
+  <text x="1136" y="212" text-anchor="end" font-size="15" font-weight="800" fill="#8ECDF5">32MB</text>
+  <text x="644" y="260" font-size="15" font-weight="700">기동 시간</text>
+  <text x="644" y="280" font-size="12" fill="#B4C4D8">컨테이너 시작 → healthy</text>
+  <rect x="830" y="250" width="230" height="14" rx="7" fill="#5B6E86"/>
+  <text x="1136" y="262" text-anchor="end" font-size="14" font-weight="700" fill="#B4C4D8">26초</text>
+  <rect x="830" y="268" width="106" height="14" rx="7" fill="#8ECDF5"/>
+  <text x="1136" y="280" text-anchor="end" font-size="15" font-weight="800" fill="#8ECDF5">12초</text>
+  <text x="644" y="328" font-size="15" font-weight="700">유휴 컨테이너</text>
+  <text x="644" y="348" font-size="12" fill="#B4C4D8">docker stats</text>
+  <rect x="830" y="318" width="230" height="14" rx="7" fill="#5B6E86"/>
+  <text x="1136" y="330" text-anchor="end" font-size="14" font-weight="700" fill="#B4C4D8">372MiB</text>
+  <rect x="830" y="336" width="214" height="14" rx="7" fill="#8ECDF5"/>
+  <text x="1136" y="348" text-anchor="end" font-size="15" font-weight="800" fill="#8ECDF5">346MiB</text>
+  <text x="644" y="396" font-size="15" font-weight="700">스왑 사용</text>
+  <text x="644" y="416" font-size="12" fill="#B4C4D8">30명 시험 직후</text>
+  <rect x="830" y="386" width="230" height="14" rx="7" fill="#5B6E86"/>
+  <text x="1136" y="398" text-anchor="end" font-size="14" font-weight="700" fill="#B4C4D8">269MB</text>
+  <rect x="830" y="404" width="166" height="14" rx="7" fill="#8ECDF5"/>
+  <text x="1136" y="416" text-anchor="end" font-size="15" font-weight="800" fill="#8ECDF5">194MB</text>
+  <rect x="644" y="446" width="26" height="10" rx="5" fill="#5B6E86"/><text x="678" y="456" font-size="13" fill="#B4C4D8">전</text>
+  <rect x="712" y="446" width="26" height="10" rx="5" fill="#8ECDF5"/><text x="746" y="456" font-size="13" fill="#B4C4D8">후(메모리)</text>
+  <rect x="836" y="446" width="26" height="10" rx="5" fill="#4CC38A"/><text x="870" y="456" font-size="13" fill="#B4C4D8">후(처리 시간)</text>
+  <rect class="card" x="40" y="496" width="269" height="112" rx="16"/>
+  <text x="62" y="548" font-size="26" font-weight="800" fill="#F7DE9F">850 → 3,200<tspan font-size="16" dx="6">건/시간</tspan></text>
+  <text x="62" y="584" class="s">시간당 분석 처리(어림)</text>
+  <rect class="card" x="323.67" y="496" width="269" height="112" rx="16"/>
+  <text x="345.67" y="548" font-size="32" font-weight="800" fill="#F7DE9F">2 → 0<tspan font-size="16" dx="6">회</tspan></text>
+  <text x="345.67" y="584" class="s">시험 중 앱 재시작</text>
+  <rect class="card" x="607.34" y="496" width="269" height="112" rx="16"/>
+  <text x="629.34" y="548" font-size="32" font-weight="800" fill="#F7DE9F">3<tspan font-size="16" dx="6">개</tspan></text>
+  <text x="629.34" y="584" class="s">동시 채점(K) 기본값</text>
+  <rect class="card" x="891.01" y="496" width="269" height="112" rx="16"/>
+  <text x="913.01" y="548" font-size="32" font-weight="800" fill="#F7DE9F">23,083<tspan font-size="16" dx="6">개</tspan></text>
+  <text x="913.01" y="584" class="s">AOT로 공유한 클래스(28,133개 중)</text>
+  <text x="40" y="652" class="s">오류 0건, Gemini 429 0건. 이 처리량에서 병목은 원본 검증 작업자(한 번에 하나, 1초 간격)다.</text>
+  <text x="40" y="676" class="s">숫자와 측정 방법은 배포 운영서(docs/deployment.md)의 분석 처리량·메모리 절에 있다.</text>
+</svg>

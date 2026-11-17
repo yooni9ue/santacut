@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 650" width="1200" height="650" role="img" aria-label="이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 지금 6구간은 약 46,100 토큰이다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)다">
-  <title>이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 지금 6구간은 약 46,100 토큰이다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)다</title>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 650" width="1200" height="650" role="img" aria-label="이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 지금 6구간은 약 46,100 토큰이다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 응답 스키마 뒤 0.281센트, 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)이고 캐시 읽기가 걸리면 0.82~1.28센트다">
+  <title>이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 지금 6구간은 약 46,100 토큰이다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 응답 스키마 뒤 0.281센트, 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)이고 캐시 읽기가 걸리면 0.82~1.28센트다</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
@@ -59,13 +59,13 @@
   <text x="64" y="472" font-size="13" fill="#B4C4D8">한 구간, 입력 약 2천 토큰</text>
   <text x="64" y="538" font-size="34" font-weight="800" fill="#B4C4D8">0.085¢</text>
   <text x="196" y="536" font-size="26" fill="#E9B949">→</text>
-  <text x="236" y="538" font-size="40" font-weight="800" fill="#4CC38A">0.254¢</text>
-  <text x="64" y="580" font-size="13" fill="#F5F8FC">1번 호출에서 3번 중앙값으로. 흔들림을 줄이려고 3배를 쓴다</text>
+  <text x="236" y="538" font-size="40" font-weight="800" fill="#4CC38A">0.281¢</text>
+  <text x="64" y="580" font-size="13" fill="#F5F8FC">1번에서 3번 중앙값(0.254¢), 응답 스키마로 출력이 늘어 0.281¢</text>
   <rect class="card" x="612" y="412" width="548" height="196" rx="16"/>
   <text x="636" y="448" class="h">긴 대화 한 번</text>
   <text x="636" y="472" font-size="13" fill="#B4C4D8">이벤트 2,000개</text>
   <text x="636" y="538" font-size="34" font-weight="800" fill="#B4C4D8">1.40¢</text>
   <text x="752" y="536" font-size="26" fill="#E9B949">→</text>
   <text x="792" y="538" font-size="40" font-weight="800" fill="#4CC38A">1.56¢</text>
-  <text x="636" y="580" font-size="13" fill="#F5F8FC">4구간에서 6구간으로. 가운데 놓침을 줄이려고 0.16¢를 더 쓴다</text>
+  <text x="636" y="580" font-size="13" fill="#F5F8FC">4구간에서 6구간으로 0.16¢ 더. 캐시 읽기가 걸리면 0.82~1.28¢</text>
 </svg>
