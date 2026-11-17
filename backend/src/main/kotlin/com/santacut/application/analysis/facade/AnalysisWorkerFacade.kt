@@ -80,7 +80,10 @@ class AnalysisWorkerFacade(
         process(claimNextJob(lease) ?: return, lease)
     }
 
-    /** AI가 꺼져 있어도 24시간 넘게 기다린 작업은 정리한다(기획 §4.6). 리스 획득과 따로 짧은 트랜잭션으로 연다. */
+    /**
+     * AI가 꺼져 있거나 비용 한도에 막혀도 리스가 끝난 실행 작업을 대기열로 되돌리고 24시간 넘게 기다린 작업은 정리한다(기획 §4.6).
+     * 리스 획득과 따로 짧은 트랜잭션으로 연다.
+     */
     private fun expireOverdueJobs() =
         transactionTemplate.executeWithoutResult { analysisJobService.expireOverdueJobs(clock.instant()) }
 
@@ -129,13 +132,21 @@ class AnalysisWorkerFacade(
         processChain(claimNextJob(nextLease) ?: return, nextLease)
     }
 
+    /**
+     * 작업 하나를 채점한다. 스택 넘침([StackOverflowError])은 입력이 정한 실패라 그 작업만 ANALYSIS_FAILED로 끝낸다.
+     * 잡지 않으면 리스가 끝날 때마다 같은 작업을 다시 잡아 시도를 다 쓸 때까지 되풀이한다.
+     * 메모리 부족([OutOfMemoryError])은 잡지 않는다. JVM 옵션(ExitOnOutOfMemoryError)이 프로세스를 내리고 다시 띄우게 둔다.
+     */
     private fun process(job: AnalysisJob, lease: String) {
         try {
             scoreAndComplete(job, lease)
         } catch (exception: Exception) {
             // 제공자 응답 본문이나 제출 메시지는 로그에 남기지 않는다. 실패한 작업은 새 요청으로만 다시 시도한다.
             logger.warn("분석 작업 {} 실패: {}", job.id, failureReason(exception))
-            handleFailure(job.id, lease, exception)
+            handleFailure(job.id, lease, ScoringFailure.of(exception))
+        } catch (error: StackOverflowError) {
+            logger.warn("분석 작업 {} 실패: {}", job.id, error.javaClass.simpleName)
+            handleFailure(job.id, lease, ScoringFailure.INPUT_REJECTED)
         }
     }
 
@@ -179,20 +190,29 @@ class AnalysisWorkerFacade(
     private fun underBudgetLock(action: () -> Unit) =
         budgetLock.withLock { transactionTemplate.executeWithoutResult { action() } }
 
-    /**
-     * 구간 답을 합쳐 점수로 바꾼다. 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는
-     * 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
-     */
+    /** 구간 답을 합쳐 점수로 바꾼다. 실패하면 [settleFailedAnswers]로 작업을 먼저 정리한 뒤 예외를 다시 던진다. */
     private fun scoreOf(attempt: ScoringAttempt, answers: ScoringChunkAnswers): Score {
         try {
             return analysisScoringService.score(answers).also { logUsage(attempt, answers, SCORED_OUTCOME) }
         } catch (exception: SantaCutException) {
             logUsage(attempt, answers, exception.errorCode.name)
-            if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
-                val failure = ScoringFailure.of(exception)
-                transactionTemplate.executeWithoutResult { finishIfHeld(attempt.job.id, attempt.lease, failure, attempt.digestHash) }
-            }
+            settleFailedAnswers(attempt, answers, exception)
             throw exception
+        }
+    }
+
+    /**
+     * 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
+     * 앞 구간을 이미 과금한 뒤 제공자가 막았으면 이번 시도를 센 채 대기열로 되돌린다. 처음부터 다시 묻는 재시도는
+     * 앞 구간을 또 과금하므로, 그런 재시도를 [AnalysisJob.MAX_ATTEMPTS]번으로 묶어 같은 작업의 과금을 그 배수 안에 둔다.
+     * 한 번도 과금하지 않은 차단(첫 구간부터 막힘)은 시도를 세지 않으므로 제공자 차단만으로 작업이 실패하지는 않는다.
+     */
+    private fun settleFailedAnswers(attempt: ScoringAttempt, answers: ScoringChunkAnswers, exception: SantaCutException) {
+        val failure = ScoringFailure.of(exception)
+        if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
+            transactionTemplate.executeWithoutResult { finishIfHeld(attempt.job.id, attempt.lease, failure, attempt.digestHash) }
+        } else if (failure == ScoringFailure.PROVIDER_BLOCKED && answers.usage().isMeasured()) {
+            transactionTemplate.executeWithoutResult { requeueIfHeld(attempt.job.id, attempt.lease) }
         }
     }
 
@@ -213,18 +233,12 @@ class AnalysisWorkerFacade(
             ?: throw SantaCutException(ErrorCode.PROMPT_NOT_FOUND, PromptName.SCORE.value)
 
     /**
-     * AI를 쓸 수 있으면 꺼낼 수 있는 다음 작업의 리스를 잡는다. 찾기와 리스 기록을 한 트랜잭션에 두고 커밋까지 [claimLock]으로 묶어,
-     * 다른 스레드가 같은 작업을 동시에 찾지 못하게 한다.
+     * AI를 쓸 수 있으면 꺼낼 수 있는 다음 작업의 리스를 잡는다. 시즌이 마감됐으면 그 자리에서 AI 없이 끝낸다.
+     * 찾기와 리스 기록을 한 트랜잭션에 두고 커밋까지 [claimLock]으로 묶어, 다른 스레드가 같은 작업을 동시에 찾지 못하게 한다.
      */
     private fun claimNextJob(lease: String): AnalysisJob? {
         if (!analysisScoringService.isEnabled() || isAiBlocked()) return null
-        return claimLock.withLock { transactionTemplate.execute { startNextAttempt(lease) } }
-    }
-
-    private fun startNextAttempt(lease: String): AnalysisJob? {
-        val now = clock.instant()
-        val job = analysisJobService.findClaimable(now) ?: return null
-        return analysisJobService.startAttempt(job, lease, now)
+        return claimLock.withLock { transactionTemplate.execute { analysisJobService.claimNext(lease, clock.instant()) } }
     }
 
     /**
@@ -266,8 +280,7 @@ class AnalysisWorkerFacade(
     }
 
     /** 실패 종류([ScoringFailure])에 따라 작업을 끝내거나 대기열로 되돌리고, 작업자를 멈출지는 비용 가드가 정한다. */
-    private fun handleFailure(jobId: String, lease: String, exception: Exception) {
-        val failure = ScoringFailure.of(exception)
+    private fun handleFailure(jobId: String, lease: String, failure: ScoringFailure) {
         transactionTemplate.executeWithoutResult { finishIfHeld(jobId, lease, failure, null) }
         aiBudgetService.recordFailure(failure, clock.instant())
     }
@@ -277,6 +290,12 @@ class AnalysisWorkerFacade(
         val job = analysisJobService.findHeld(jobId, lease) ?: return
         val failureCode = failure.failureCode ?: return analysisJobService.releaseLease(job)
         analysisJobService.fail(job, failureCode, clock.instant(), digestHash)
+    }
+
+    /** 리스를 아직 쥐고 있으면 써 버린 시도를 센 채 대기열로 되돌린다. 시도를 다 썼으면 RETRY_EXHAUSTED로 끝난다. */
+    private fun requeueIfHeld(jobId: String, lease: String) {
+        val job = analysisJobService.findHeld(jobId, lease) ?: return
+        analysisJobService.requeueSpentAttempt(job, clock.instant())
     }
 
     private fun failureReason(exception: Exception): String =

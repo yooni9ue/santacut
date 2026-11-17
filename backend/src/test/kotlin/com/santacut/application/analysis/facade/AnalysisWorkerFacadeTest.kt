@@ -12,6 +12,7 @@ import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.ranking.command.MyResultCommand
 import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
+import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
@@ -48,7 +49,9 @@ import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -157,6 +160,39 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `AI가 꺼져 있어도 리스가 끝난 실행 작업은 대기열로 되돌리고 24시간이 지나면 만료하며 제출 원문을 지운다`() {
+        val job = submitAnalysis()
+        abandonAttempt(job)
+        given(scoreClient.isEnabled()).willReturn(false)
+        clock.moveTo(OPEN_TIME.plus(ABANDONED_LEASE).plus(ABANDONED_LEASE))
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        clock.moveTo(OPEN_TIME.plus(AnalysisJob.QUEUE_EXPIRY).plusSeconds(1))
+        analysisWorkerFacade.processNextJob()
+        val expired = storedJob(job)
+        assertEquals(AnalysisFailureCode.EXPIRED, expired.errorCode)
+        assertNull(expired.payload)
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
+    fun `리스가 끝난 실행 작업은 뒤에 들어온 대기 작업보다 먼저 다시 잡히고 끝난 시도도 센다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val abandoned = submitAnalysis()
+        abandonAttempt(abandoned)
+        clock.moveTo(OPEN_TIME.plus(ABANDONED_LEASE).plus(ABANDONED_LEASE))
+        val later = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("SUCCEEDED", analysisFacade.getStatus(abandoned).status)
+        assertEquals(2, storedJob(abandoned).attempts)
+        assertEquals("QUEUED", analysisFacade.getStatus(later).status)
+    }
+
+    @Test
     fun `점수를 받은 사이에 시즌이 마감되면 평가를 저장하지 않고 SEASON_FROZEN으로 끝낸다`() {
         clock.moveTo(seasonClose.minus(Duration.ofMinutes(1)))
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
@@ -171,6 +207,20 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertEquals("FAILED", status.status)
         assertEquals("SEASON_FROZEN", status.errorCode)
         assertNull(status.assessmentId)
+    }
+
+    @Test
+    fun `시즌 마감 뒤 밀린 작업은 잡을 때 AI를 부르지 않고 모두 SEASON_FROZEN으로 끝내며 제출 원문을 지운다`() {
+        clock.moveTo(seasonClose.minus(Duration.ofMinutes(1)))
+        val jobs = List(2) { submitAnalysis() }
+        clock.moveTo(seasonClose)
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals(List(jobs.size) { "SEASON_FROZEN" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+        assertEquals(List(jobs.size) { null }, jobs.map { storedJob(it).payload })
+        verify(scoreClient, never()).estimateUsage(anyChunk(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
@@ -263,7 +313,28 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         analysisWorkerFacade.processNextJob()
 
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals(0, storedJob(job).attempts)
         verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    fun `앞 구간을 과금한 뒤 제공자가 막으면 시도를 세어 되돌리고 시도를 다 쓰면 RETRY_EXHAUSTED로 끝낸다`() {
+        val calls = AtomicInteger()
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
+            if (calls.getAndIncrement() % CHUNK_COUNT == 0) fullAnswer() else ScoreAnswer.providerUnavailable()
+        }
+        val job = submitAnalysis(text = LONG_TEXT, eventCount = LONG_EVENT_COUNT)
+
+        repeat(AnalysisJob.MAX_ATTEMPTS) { round ->
+            clock.moveTo(OPEN_TIME.plus(PAUSE_PASSED.multipliedBy(round.toLong())))
+            analysisWorkerFacade.processNextJob()
+        }
+
+        val exhausted = storedJob(job)
+        assertEquals(AnalysisFailureCode.RETRY_EXHAUSTED, exhausted.errorCode)
+        assertNull(exhausted.payload)
+        verify(scoreClient, times(AnalysisJob.MAX_ATTEMPTS * CHUNK_COUNT)).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
@@ -286,6 +357,18 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
 
         assertEquals(List(jobs.size) { "INSUFFICIENT_EVIDENCE" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+    }
+
+    @Test
+    fun `입력 탓 응답 오류는 연달아 나도 멈추지 않고 실패로 끝낸다`() {
+        val outOfRange = ScoreAnswer.of(List(DIMENSION_COUNT) { OUT_OF_RANGE_SCORE }, List(DIMENSION_COUNT) { listOf(1) }, "test", USAGE)
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(outOfRange)
+        val jobs = List(MAX_CONSECUTIVE_FAILURES + 1) { submitAnalysis() }
+
+        repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
+
+        assertEquals(List(jobs.size) { "ANALYSIS_FAILED" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+        assertFalse(aiBudgetService.isBlocked(clock.instant()))
     }
 
     @Test
@@ -314,12 +397,25 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertTrue(aiBudgetService.isBlocked(clock.instant()))
     }
 
-    private fun submitAnalysis(participantId: UUID = registerParticipant(), text: String = SAMPLE_TEXT): AnalysisJobCommand {
+    private fun submitAnalysis(
+        participantId: UUID = registerParticipant(),
+        text: String = SAMPLE_TEXT,
+        eventCount: Int = EVENT_COUNT,
+    ): AnalysisJobCommand {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))
-        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt.minus(Duration.ofHours(EVENT_SPACING_HOURS * index)), "$text $index") })
+        val events = AnalysisEventCommands(List(eventCount) { index -> AnalysisEventCommand(occurredAt.minus(Duration.ofHours(EVENT_SPACING_HOURS * index)), "$text $index") })
         val command = SubmitAnalysisCommand(participantId, "key-" + UUID.randomUUID(), DataSource.KAKAO.name, events)
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.submit(command).id))
     }
+
+    /** 작업자가 작업을 잡은 채 죽은 상태를 만든다. 리스는 [ABANDONED_LEASE] 뒤에 끝난다. */
+    private fun abandonAttempt(job: AnalysisJobCommand) {
+        val stored = storedJob(job)
+        stored.startAttempt(ABANDONED_LEASE_TOKEN, clock.instant(), ABANDONED_LEASE)
+        analysisJobRepository.save(stored)
+    }
+
+    private fun storedJob(job: AnalysisJobCommand): AnalysisJob = analysisJobRepository.findById(job.jobId.toString()).orElseThrow()
 
     private fun registerParticipant(): UUID =
         participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
@@ -353,6 +449,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val DIMENSION_COUNT = 4
         private const val EXPECTED_SCORE_HUNDREDTHS = 9500
         private val DIMENSION_SCORE = BigDecimal("100")
+        private val OUT_OF_RANGE_SCORE = BigDecimal("101")
         private val USAGE = ModelUsage(4_000, 90, "end_turn")
 
         /** 입력 60만 토큰. 단가(100만 토큰당 1달러)로 0.6달러라 하루 한도 0.5달러를 넘는다. */
@@ -365,5 +462,14 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
 
         private const val MAX_CONSECUTIVE_FAILURES = 3
+        /** 메시지 하나의 정규화 상한(300자) 안에서 긴 글. 이벤트 30개면 약 8,500자라 구간 목표(6,700자)를 넘어 두 구간으로 나뉜다. */
+        private val LONG_TEXT = SAMPLE_TEXT.repeat(14)
+        private const val LONG_EVENT_COUNT = 30
+        private const val CHUNK_COUNT = 2
+
+        /** 제공자 차단 멈춤(15분)이 지난 시간. */
+        private val PAUSE_PASSED: Duration = Duration.ofMinutes(16)
+        private const val ABANDONED_LEASE_TOKEN = "죽은 작업자의 리스"
+        private val ABANDONED_LEASE: Duration = Duration.ofMinutes(10)
     }
 }

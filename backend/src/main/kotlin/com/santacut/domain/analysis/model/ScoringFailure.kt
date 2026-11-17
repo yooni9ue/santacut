@@ -8,7 +8,8 @@ import com.santacut.domain.global.exception.SantaCutException
  *
  * @property failureCode 작업을 끝낼 실패 이유. null이면 작업을 실패시키지 않고 대기열로 되돌린다.
  * @property pausesAtOnce 바로 작업 잡기를 멈추는지(제공자가 호출을 막음)
- * @property countsTowardPause 연속 실패로 세는지. 근거 부족은 입력 탓이라 세지 않는다.
+ * @property countsTowardPause 연속 실패로 세는지. 근거 부족과 응답 형식·근거·점수 오류는 같은 입력이면 다시 나는 입력 탓 실패라
+ *   세지 않는다. 한 참가자의 입력이 모두의 채점을 멈추게 하지 않기 위해서다.
  */
 enum class ScoringFailure(
     val failureCode: AnalysisFailureCode?,
@@ -18,6 +19,7 @@ enum class ScoringFailure(
     PROVIDER_BLOCKED(null, true, false),
     BUDGET_EXCEEDED(null, true, false),
     INSUFFICIENT_EVIDENCE(AnalysisFailureCode.INSUFFICIENT_EVIDENCE, false, false),
+    INPUT_REJECTED(AnalysisFailureCode.ANALYSIS_FAILED, false, false),
     ANALYSIS_ERROR(AnalysisFailureCode.ANALYSIS_FAILED, false, true),
     ;
 
@@ -27,6 +29,7 @@ enum class ScoringFailure(
             (exception as? SantaCutException)?.errorCode == ErrorCode.AI_PROVIDER_UNAVAILABLE -> PROVIDER_BLOCKED
             (exception as? SantaCutException)?.errorCode == ErrorCode.AI_BUDGET_EXCEEDED -> BUDGET_EXCEEDED
             AnalysisFailureCode.fromScoringFailure(exception) == AnalysisFailureCode.INSUFFICIENT_EVIDENCE -> INSUFFICIENT_EVIDENCE
+            AnalysisFailureCode.isReusableScoringFailure(exception) -> INPUT_REJECTED
             else -> ANALYSIS_ERROR
         }
     }

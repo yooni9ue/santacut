@@ -118,26 +118,39 @@ class AnalysisJobService(
         analysisJobRepository.findFirstByUserIdOrderByCreatedAtDesc(participantId.toString())
             ?: throw SantaCutException(ErrorCode.NOT_FOUND)
 
-    /** 너무 오래 기다린 검증·대기 작업과 재시도를 다 쓴 실행 작업을 하나씩 실패로 정리한다. */
+    /**
+     * 리스가 끝난 실행 작업을 시도를 센 채 대기열로 되돌리고(시도를 다 썼으면 [AnalysisFailureCode.RETRY_EXHAUSTED]),
+     * 너무 오래 기다린 검증·대기 작업을 만료로 끝낸다. AI가 꺼졌거나 비용 한도에 막혀도 돈다.
+     * 되돌린 작업은 만든 시각을 그대로 가지므로 대기 작업과 같은 순서로 다시 잡히고, 24시간이 지나면 같은 규칙으로 만료된다.
+     */
     fun expireOverdueJobs(now: Instant) {
+        analysisJobRepository.findFirstByStatusAndLeaseUntilBeforeOrderByCreatedAtAsc(AnalysisJobStatus.RUNNING, now)
+            ?.let { requeueSpentAttempt(it, now) }
         analysisJobRepository.findFirstByStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
             AnalysisJobStatus.EXPIRABLE, AnalysisJob.queueExpiryCutoff(now),
         )?.let { expire(it, now) }
-        analysisJobRepository.findFirstByStatusAndLeaseUntilBeforeAndAttemptsGreaterThanEqualOrderByCreatedAtAsc(
-            AnalysisJobStatus.RUNNING, now, AnalysisJob.MAX_ATTEMPTS,
-        )?.let { fail(it, AnalysisFailureCode.RETRY_EXHAUSTED, now) }
     }
 
-    /** 가장 오래된 대기 작업, 없으면 리스가 끝나 다시 시도할 수 있는 실행 작업. */
-    fun findClaimable(now: Instant): AnalysisJob? =
-        analysisJobRepository.findFirstByStatusOrderByCreatedAtAsc(AnalysisJobStatus.QUEUED)
-            ?: analysisJobRepository.findFirstByStatusAndLeaseUntilBeforeAndAttemptsLessThanOrderByCreatedAtAsc(
-                AnalysisJobStatus.RUNNING, now, AnalysisJob.MAX_ATTEMPTS,
-            )
+    /**
+     * 가장 오래된 대기 작업의 리스를 잡는다. 리스가 끝난 실행 작업은 [expireOverdueJobs]가 먼저 대기열로 되돌린다.
+     * 시즌이 이미 마감됐으면 AI를 부르기 전에 [AnalysisFailureCode.SEASON_FROZEN]으로 끝내고 다음 작업을 본다.
+     * 마감 뒤 밀린 작업이 과금 없이 바로 끝나게 하기 위해서다.
+     */
+    fun claimNext(lease: String, now: Instant): AnalysisJob? = claimFirstOpen(lease, now)
 
-    fun startAttempt(job: AnalysisJob, lease: String, now: Instant): AnalysisJob {
+    // Spring 빈은 열린 클래스라 공개 메서드에 tailrec을 달 수 없어 비공개 함수로 되풀이한다.
+    private tailrec fun claimFirstOpen(lease: String, now: Instant): AnalysisJob? {
+        val job = analysisJobRepository.findFirstByStatusOrderByCreatedAtAsc(AnalysisJobStatus.QUEUED) ?: return null
         job.startAttempt(lease, now, leaseDuration)
-        return save(job)
+        if (!job.freezeIfSeasonClosed(season(), now)) return save(job)
+        save(job)
+        return claimFirstOpen(lease, now)
+    }
+
+    /** 써 버린 시도를 센 채 작업을 대기열로 되돌린다. 시도를 다 썼으면 [AnalysisFailureCode.RETRY_EXHAUSTED]로 끝낸다. */
+    fun requeueSpentAttempt(job: AnalysisJob, now: Instant) {
+        job.requeueSpentAttempt(now)
+        save(job)
     }
 
     /** 아직 이 리스를 쥐고 실행 중인 작업. 다른 작업자가 가져갔으면 null이다. */

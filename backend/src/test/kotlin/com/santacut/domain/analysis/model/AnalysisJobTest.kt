@@ -270,6 +270,25 @@ class AnalysisJobTest {
     }
 
     @Test
+    fun `써 버린 시도는 센 채로 대기열로 되돌리고 시도를 다 썼으면 RETRY_EXHAUSTED로 끝내며 제출 원문을 지운다`() {
+        val job = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
+
+        job.requeueSpentAttempt(createdAt)
+
+        assertEquals(AnalysisJobStatus.QUEUED, job.status)
+        assertEquals(1, job.attempts)
+        assertFalse(job.isHeldBy(LEASE))
+        repeat(AnalysisJob.MAX_ATTEMPTS - 1) {
+            assertEquals(AnalysisJobStatus.QUEUED, job.status)
+            job.startAttempt(LEASE, createdAt, LEASE_DURATION)
+            job.requeueSpentAttempt(createdAt)
+        }
+        assertEquals(AnalysisFailureCode.RETRY_EXHAUSTED, job.errorCode)
+        assertNull(job.payload)
+        assertErrorCode(ErrorCode.ANALYSIS_JOB_STATE_INVALID) { job.requeueSpentAttempt(createdAt) }
+    }
+
+    @Test
     fun `채점 입력 해시와 함께 끝낸 작업은 다시 쓸 결과를 알려 준다`() {
         val succeeded = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         val failed = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }

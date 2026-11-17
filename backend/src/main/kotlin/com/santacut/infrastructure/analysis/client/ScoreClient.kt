@@ -7,6 +7,7 @@ import com.santacut.domain.analysis.model.ScoreDimension
 import com.santacut.domain.analysis.model.ScoringChunk
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.infrastructure.global.config.ScoreModelProperties
+import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
@@ -31,6 +32,7 @@ class ScoreClient(
     private val scoreModelProperties: ScoreModelProperties,
 ) {
     private val chatClient = chatClientBuilder.build()
+    private val logger = LoggerFactory.getLogger(ScoreClient::class.java)
 
     fun isEnabled(): Boolean = scoreModelProperties.model.isNotBlank()
 
@@ -50,15 +52,24 @@ class ScoreClient(
 
     /**
      * [systemPrompt]를 시스템 메시지로, [chunk]의 번호 붙인 대화문을 사용자 메시지로 보낸다.
-     * 제공자가 권한 거부, 요청 한도, 서버 오류, 시간 초과로 막으면 [ScoreAnswer.providerUnavailable]이다. 그 밖의 호출 오류는 그대로 던진다.
+     * 제공자가 요청 한도, 서버 오류, 시간 초과, 설정 오류(API 키·권한·모델 이름)로 막으면 [ScoreAnswer.providerUnavailable]이다.
+     * 그 밖의 호출 오류는 그대로 던진다.
      */
     fun requestAnswer(chunk: ScoringChunk, systemPrompt: String): ScoreAnswer =
         try {
             answerOf(chatClient.prompt().system(systemPrompt).user(ScoreModelInput.from(chunk).toText()).call().chatResponse())
         } catch (exception: RuntimeException) {
-            if (!ExceptionCauses.of(exception).isProviderUnavailable()) throw exception
-            ScoreAnswer.providerUnavailable()
+            unavailableOrThrow(ExceptionCauses.of(exception), exception)
         }
+
+    /** 설정 오류는 운영자가 고칠 때까지 모든 작업이 멈추므로 오류 로그로 크게 남긴다. 제공자 메시지는 남기지 않는다. */
+    private fun unavailableOrThrow(causes: ExceptionCauses, exception: RuntimeException): ScoreAnswer {
+        causes.misconfiguredCode()?.let { code ->
+            logger.error("AI 제공자 설정 오류(HTTP {}): API 키, 권한, 모델 이름을 확인해야 한다. 작업은 대기열에 남는다", code)
+        }
+        if (!causes.isProviderUnavailable()) throw exception
+        return ScoreAnswer.providerUnavailable()
+    }
 
     private fun answerOf(response: ChatResponse?): ScoreAnswer {
         val usage = usageOf(response)

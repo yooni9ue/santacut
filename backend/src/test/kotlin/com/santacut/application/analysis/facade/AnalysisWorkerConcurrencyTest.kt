@@ -148,6 +148,38 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
         awaitUntil { jobs.all { analysisFacade.getStatus(it).status == "SUCCEEDED" } }
     }
 
+    @Test
+    fun `채점 중 스택이 넘친 작업은 ANALYSIS_FAILED로 끝나고 채점 스레드 자리는 모두 돌아온다`() {
+        val calls = AtomicInteger()
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
+            if (calls.getAndIncrement() < WORKER_CONCURRENCY) throw StackOverflowError()
+            slowAnswer(USAGE)
+        }
+        val jobs = List(JOB_COUNT + WORKER_CONCURRENCY) { submitAnalysis() }
+
+        analysisWorkerFacade.dispatchJobs()
+
+        awaitUntil { jobs.none { analysisFacade.getStatus(it).status in UNFINISHED } }
+        assertEquals(WORKER_CONCURRENCY, jobs.count { analysisFacade.getStatus(it).errorCode == "ANALYSIS_FAILED" })
+        assertEquals(JOB_COUNT, jobs.count { analysisFacade.getStatus(it).status == "SUCCEEDED" })
+        assertEquals(List(jobs.size) { 1 }, jobs.map { analysisJobRepository.findById(it.jobId.toString()).orElseThrow().attempts })
+        assertEquals(WORKER_CONCURRENCY, peakConcurrency())
+    }
+
+    /** 대기열을 새로 채워 예약 폴링을 한 번 돌리고, 동시에 채점한 작업 수의 최댓값을 돌려준다. 자리가 새면 설정한 수보다 작다. */
+    private fun peakConcurrency(): Int {
+        val running = AtomicInteger()
+        val peak = AtomicInteger()
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
+            peak.accumulateAndGet(running.incrementAndGet(), ::maxOf)
+            slowAnswer(USAGE).also { running.decrementAndGet() }
+        }
+        val jobs = List(JOB_COUNT) { submitAnalysis() }
+        analysisWorkerFacade.dispatchJobs()
+        awaitUntil { jobs.all { analysisFacade.getStatus(it).status == "SUCCEEDED" } }
+        return peak.get()
+    }
+
     private fun slowAnswer(usage: ModelUsage): ScoreAnswer {
         Thread.sleep(CALL_MILLIS)
         return ScoreAnswer.of(List(DIMENSION_COUNT) { DIMENSION_SCORE }, List(DIMENSION_COUNT) { listOf(1) }, "test", usage)
@@ -185,7 +217,7 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
     private fun anyChunk(): ScoringChunk = any(ScoringChunk::class.java) ?: ScoringChunk(TranscriptTurns(emptyList()), 1, 0, 0)
 
     companion object {
-        const val WORKER_CONCURRENCY = 2
+        const val WORKER_CONCURRENCY = 3
         private const val JOB_COUNT = 4
         private const val THREAD_COUNT = 7
 
@@ -198,6 +230,7 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
         private const val EVENT_SPACING_HOURS = 4L
         private const val SAMPLE_TEXT = "오늘 정말 고마웠어 덕분에 힘이 났어"
         private const val CACHE_KEY = "같은 채점 입력"
+        private val UNFINISHED = setOf("QUEUED", "ANALYZING")
         private const val PROMPT = "채점 프롬프트 1판"
         private const val DIMENSION_COUNT = 4
         private val DIMENSION_SCORE = BigDecimal("100")
