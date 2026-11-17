@@ -76,6 +76,19 @@ class ScoreClientTest {
     }
 
     @Test
+    fun `Gemini 사용량의 암묵적 캐시 읽기 토큰을 담는다`() {
+        chatModel.usage = GoogleGenAiUsage(
+            RecordingChatModel.INPUT_TOKENS, RecordingChatModel.OUTPUT_TOKENS, TOTAL_TOKENS, null,
+            CACHED_TOKENS, null, null, null, null, null, null, null,
+        )
+
+        val usage = scoreClient.requestAnswer(chunk(), SYSTEM_PROMPT).usage
+
+        assertEquals(CACHED_TOKENS.toLong(), usage.cachedInputTokens)
+        assertEquals(RecordingChatModel.INPUT_TOKENS.toLong(), usage.inputTokens)
+    }
+
+    @Test
     fun `JSON 객체가 없거나 잘린 JSON이면 AI_RESPONSE_INVALID이고 사용량은 남긴다`() {
         listOf("점수를 매길 수 없습니다.", """{"sufficient":true,"evidence":{"care_empathy":[1}""").forEach { reply ->
             chatModel.reply = reply
@@ -185,3 +198,4 @@ class ScoreClientTest {
             """"scores":{"care_empathy":80,"positivity_support":80,"respectful_communication":80,"cooperation_sharing":80}}"""
     }
 }
+        private const val CACHED_TOKENS = 1024

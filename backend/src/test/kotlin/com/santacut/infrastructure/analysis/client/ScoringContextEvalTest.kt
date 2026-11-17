@@ -94,12 +94,12 @@ class ScoringContextEvalTest {
             flips += FlipCount(legacy.distinct().size > 1, archetypes.distinct().size > 1, disagreeingPairs(legacy), disagreeingPairs(archetypes), pairs(legacy.size))
             val stable = archetypes.groupingBy { it }.eachCount().values.maxOrNull() ?: 0
             lines += "chat-$chat archetypes=$archetypes legacy=$legacy stable=$stable/${runs.size} playfulness=${runs.map { it.score(DEFAULT_SHRINKAGE)?.playfulness }} " +
-                "shrunk=${runs.map { it.score(DEFAULT_SHRINKAGE)?.components?.toList()?.joinToString("/") }} raw=${runs.map { it.rawLine() }} tokens(in/out)=${runs.map { "${it.inputTokens()}/${it.outputTokens()}" }} finish=${runs.map { it.finish() }}"
+                "shrunk=${runs.map { it.score(DEFAULT_SHRINKAGE)?.components?.toList()?.joinToString("/") }} raw=${runs.map { it.rawLine() }} tokens(in/cached/out)=${runs.map { "${it.inputTokens()}/${it.cachedTokens()}/${it.outputTokens()}" }} finish=${runs.map { it.finish() }}"
         }
         lines += "archetype-flip before(chats)=${flips.count { it.legacyFlipped }}/${flips.size} after(chats)=${flips.count { it.flipped }}/${flips.size} " +
             "before(pairs)=${flips.sumOf { it.legacyPairs }}/${flips.sumOf { it.pairs }} after(pairs)=${flips.sumOf { it.disagreeingPairs }}/${flips.sumOf { it.pairs }}"
         val all = runsByChat.values.flatten()
-        lines += "per-analysis tokens in=%.0f out=%.0f cost-usd=%.5f".format(all.map { it.inputTokens() }.average(), all.map { it.outputTokens() }.average(), all.map { it.cost() }.average())
+        lines += "per-analysis tokens in=%.0f cached=%.0f out=%.0f cost-usd=%.5f".format(all.map { it.inputTokens() }.average(), all.map { it.cachedTokens() }.average(), all.map { it.outputTokens() }.average(), all.map { it.cost() }.average())
         report("stability.txt", lines.joinToString("\n"))
     }
 
@@ -124,7 +124,7 @@ class ScoringContextEvalTest {
         }
         runsByVariant.forEach { (name, runs) ->
             lines += "$name chunks=${runs.first().chunkCount()} chunk-positivity=${runs.map { it.chunkScores(ScoreDimension.POSITIVITY_SUPPORT) }} " +
-                "tokens(in/out)=${runs.map { "${it.inputTokens()}/${it.outputTokens()}" }} cost-usd=${runs.map { "%.5f".format(it.cost()) }} finish=${runs.map { it.finish() }}"
+                "tokens(in/cached/out)=${runs.map { "${it.inputTokens()}/${it.cachedTokens()}/${it.outputTokens()}" }} cost-usd=${runs.map { "%.5f".format(it.cost()) }} finish=${runs.map { it.finish() }}"
         }
         report("long-chat-positions.txt", lines.joinToString("\n"))
     }
@@ -219,7 +219,10 @@ class ScoringContextEvalTest {
 
         fun finish(): String = answers.usage().finishReason
 
-        fun cost(): Double = inputTokens() * INPUT_USD_PER_TOKEN + outputTokens() * OUTPUT_USD_PER_TOKEN
+        fun cachedTokens(): Long = answers.usage().cachedInputTokens
+
+        fun cost(): Double =
+            (inputTokens() - cachedTokens()) * INPUT_USD_PER_TOKEN + cachedTokens() * CACHED_INPUT_USD_PER_TOKEN + outputTokens() * OUTPUT_USD_PER_TOKEN
     }
 
     private val scoreClient: ScoreClient by lazy {
@@ -376,3 +379,4 @@ class ScoringContextEvalTest {
         private val PROMPT_ROW = Regex("'score',(\\d+),'((?:[^']++|'')*+)'\\)")
     }
 }
+        private const val CACHED_INPUT_USD_PER_TOKEN = 0.03 / 1_000_000

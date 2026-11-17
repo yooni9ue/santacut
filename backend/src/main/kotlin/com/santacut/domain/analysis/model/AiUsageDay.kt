@@ -26,6 +26,11 @@ class AiUsageDay(
     var inputTokens: Long = 0
         protected set
 
+    /** 입력 토큰 중 암묵적 캐시에서 읽은 토큰 수. 기존 DB에는 Hibernate가 기본값 0으로 컬럼을 더한다. */
+    @Column(name = "cached_input_tokens", nullable = false, columnDefinition = CACHED_INPUT_TOKENS_COLUMN_DEFINITION)
+    var cachedInputTokens: Long = 0
+        protected set
+
     @Column(name = "output_tokens", nullable = false)
     var outputTokens: Long = 0
         protected set
@@ -37,13 +42,16 @@ class AiUsageDay(
     /** AI 호출 한 번의 사용량을 더한다. 출력 토큰에는 같은 단가로 청구되는 생각 토큰을 함께 더한다. */
     fun add(usage: ModelUsage) {
         inputTokens += usage.inputTokens
+        cachedInputTokens += usage.cachedInputTokens
         outputTokens += usage.billedOutputTokens()
         calls++
     }
 
-    fun costUsd(budget: AiBudget): BigDecimal = budget.costUsd(inputTokens, outputTokens)
+    fun costUsd(budget: AiBudget): BigDecimal = budget.costUsd(inputTokens, cachedInputTokens, outputTokens)
 
     companion object {
+        private const val CACHED_INPUT_TOKENS_COLUMN_DEFINITION = "INTEGER NOT NULL DEFAULT 0"
+
         fun keyOf(date: LocalDate): String = date.toString()
     }
 }

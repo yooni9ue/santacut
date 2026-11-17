@@ -83,12 +83,13 @@ class ScoreClient(
     private fun usageOf(response: ChatResponse?): ModelUsage {
         val usage = response?.metadata?.usage
         val finishReason = response?.result?.metadata?.finishReason.orEmpty()
-        val thoughtTokens = (usage as? GoogleGenAiUsage)?.thoughtsTokenCount ?: 0
+        val genAiUsage = usage as? GoogleGenAiUsage
         return ModelUsage(
             (usage?.promptTokens ?: 0).toLong(),
             (usage?.completionTokens ?: 0).toLong(),
             finishReason,
-            thoughtTokens.toLong(),
+            (genAiUsage?.thoughtsTokenCount ?: 0).toLong(),
+            (genAiUsage?.cachedContentTokenCount ?: 0).toLong(),
         )
     }
 
