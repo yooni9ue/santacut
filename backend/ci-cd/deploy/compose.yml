@@ -15,7 +15,7 @@ services:
       APP_SESSION_SECURE: ${SESSION_SECURE:-false}
       APP_SEASON_YEAR: ${APP_SEASON_YEAR:-2026}
       JAVA_TOOL_OPTIONS: >-
-        -Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m
+        -Xms128m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=48m
         -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true
     ports:
       - '127.0.0.1:8080:8080'
@@ -27,7 +27,7 @@ services:
       - /tmp:size=64m,mode=1777,exec
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    mem_limit: 400m
+    mem_limit: 512m
     cpus: 1.5
     healthcheck:
       test: [CMD, curl, --fail, --silent, http://localhost:8080/actuator/health/readiness]
