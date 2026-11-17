@@ -2,20 +2,23 @@
 
 산타컷 백엔드 API를 화면에서 부를 때 알아야 할 흐름을 정리한 문서다. 요청·응답 필드의 정확한 정의는 OpenAPI(Swagger)가 기준이고, 이 문서는 호출 순서와 규칙을 설명한다. 이 문서의 엔드포인트와 필드는 2026-11-17 dev 서버의 `/v3/api-docs`와 맞췄다.
 
-## 프론트 반영 체크리스트 (2026-11-17 백엔드 변경분)
+## 프론트 반영 체크리스트 (2026-11-17 백엔드 변경분, #47~#60)
 
 백엔드가 바뀌면서 화면에서 손봐야 할 일을 모았다. 자세한 규칙은 각 절에 있다.
 
 - [ ] **API 주소**: Vercel Preview·Development에 `https://api-dev.santacut.me`, Production은 운영 서버를 켠 뒤 `https://api.santacut.me`(0절).
 - [ ] **도메인 연결**: Vercel Settings → Domains에 `santacut.me`, `www.santacut.me`(main), `dev.santacut.me`(develop)를 추가한다. DNS는 백엔드가 Route 53에 걸어 두었다.
 - [ ] **쿠키·CSRF**: 모든 `fetch`에 `credentials: 'include'`, SSE는 `{ withCredentials: true }`. 쓰기 요청 전 `GET /v1/csrf` 본문의 토큰을 `X-XSRF-TOKEN` 헤더로 보낸다. 쿠키는 다른 출처라 읽을 수 없다(2·3절).
-- [ ] **분석 제출**: `Idempotency-Key` 헤더 필수. 업로드가 몰리면 `503 UPLOAD_BUSY`(`Retry-After`)가 오니 잠시 뒤 다시 보낸다. IP당 한도 초과는 `429`(8·9절).
+- [ ] **분석 제출**: `Idempotency-Key` 헤더 필수. 업로드가 몰리면 `503 UPLOAD_BUSY`(`Retry-After` 10초)가 오니 같은 키로 잠시 뒤 다시 보낸다. 같은 IP에서 너무 많이 내면 `429 CLIENT_RATE_LIMITED`(`retry_at`, `Retry-After`)다(8·9절).
 - [ ] **동의 문구**: 상대 메시지를 포함한 최근 대화가 Google Gemini로 전송되고 채점 뒤 삭제된다는 고지를 업로드 동의 화면에 넣는다(6.1절, 법률 검토 필요).
 - [ ] **내 결과 화면** `GET /v1/me/result`: 새 필드 `archetype`, `dimension_scores`, `weakest_dimension`, `top_percent`(100명 미만이면 null), `archetype_share_percent`(30명 미만이면 null), `badges`, `quote`(null 가능), `low_confidence_dimensions`(근거 부족 항목에 "근거 적음" 표시). 정확한 도착 시각 `eta`는 본인 결과에만 있다(7절).
 - [ ] **랭킹 화면** `GET /v1/rankings`: 행의 도착 정보는 `eta_date`(서울 날짜)를 쓴다. `eta`는 항상 null이다. 페이지 사이에 순위가 다시 계산되면 `409 RANKING_SNAPSHOT_CHANGED`가 오니 목록을 비우고 첫 페이지부터 다시 읽는다. 예전 숫자 cursor는 `400`이다(7절).
 - [ ] **순위 반영 대기**: 분석이 끝난 뒤 순위는 최대 30초 안에 반영된다. SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 오고, 결과의 `ranking_pending`이 true인 동안은 "순위 계산 중"을 보여 준다(6.0절).
 - [ ] **지역 변경**: 24시간 2번, 시즌 5번까지. 넘으면 `429 REGION_CHANGE_LIMITED`(`retry_at` 있음) 또는 `REGION_CHANGE_SEASON_LIMIT`(없음)(5절).
-- [ ] **공유**: `POST /v1/shares` 본문 `include_quote`(기본 false)로 본인 한마디를 카드에 넣을지 고른다. 공유 카드에는 날짜만 보이고 상대 대화는 절대 나오지 않는다(7절 공유 카드 구성).
+- [ ] **공유**: `POST /v1/shares` 본문 `include_quote`(기본 false)로 본인 한마디를 카드에 넣을지 고른다. 이미 만든 링크가 있으면 같은 링크에 바뀐 값이 반영되니 켜기·끄기 토글로 만든다. 공유 카드에는 날짜만 보이고 상대 대화는 절대 나오지 않는다(7절 공유 카드 구성).
+- [ ] **참가 등록 한도**: 같은 IP에서 1시간에 10번 넘게 등록하면 `429 CLIENT_RATE_LIMITED`다. `retry_at`으로 다시 시도할 시각을 보여 준다(9절).
+- [ ] **큰 요청 본문**: 파일 업로드가 아닌 요청 본문이 2MB를 넘으면 `413 REQUEST_TOO_LARGE`다(8절).
+- [ ] **관리 API 제외**: `/v1/admin/**`는 dev 전용 운영 도구다. `X-Admin-Token`이 있어야 하고 운영은 404다. dev OpenAPI에 보이더라도 화면과 타입 생성 대상에서 뺀다(4절).
 
 ## 0. 환경별 주소
 
@@ -51,12 +54,12 @@
 | `/s/**` | 공개 공유 페이지와 이미지 |
 | `/swagger-ui/**`, `/swagger-ui.html`, `/v3/**` | API 문서 |
 
-분석 제출에 쓰는 `Idempotency-Key` 헤더는 CORS 허용 헤더에 없다. 그래서 분석 제출(`POST /v1/analyses`, `POST /v1/analyses/files`)은 반드시 이 프록시를 거쳐 같은 출처로 보낸다.
+분석 제출에 쓰는 `Idempotency-Key` 헤더도 CORS 허용 헤더에 있어서 API 주소로 바로 보내도 된다. 그래도 서드파티 쿠키 차단을 피하려면 이 프록시를 쓰는 편이 낫다.
 
 ### API 주소로 바로 부를 때
 
 - 서버는 `APP_CORS_ALLOWED_ORIGINS`에 적은 출처만 허용한다. 코드 기본값은 `https://www.santacut.me,https://santacut.me`다. dev 서버는 여기에 `https://dev.santacut.me`와 `http://localhost:3000`을 더해 둔다. 다른 출처(예: Vercel 미리보기 주소)에서 부르려면 백엔드에 그 출처를 넣어 달라고 한다. 허용하지 않은 출처의 사전 요청(preflight)은 `403`이다.
-- 허용 메서드는 `GET`, `POST`, `PATCH`, `DELETE`이고, 허용 요청 헤더는 `Content-Type`, `X-XSRF-TOKEN`, `Last-Event-ID`다. 응답 헤더 가운데 `Retry-After`를 읽을 수 있다. 사전 요청 결과는 3,600초 캐시된다.
+- 허용 메서드는 `GET`, `POST`, `PATCH`, `DELETE`이고, 허용 요청 헤더는 `Content-Type`, `X-XSRF-TOKEN`, `Last-Event-ID`, `Idempotency-Key`다. 응답 헤더 가운데 `Retry-After`를 읽을 수 있다. 사전 요청 결과는 3,600초 캐시된다.
 - 모든 `fetch`에 `credentials: 'include'`를 넣는다. 빠뜨리면 세션 쿠키도 CSRF 쿠키도 가지 않아 `401`이나 `403`이 난다. `EventSource`는 `{ withCredentials: true }`로 연다.
 - CSRF 쿠키(HTTPS인 dev·운영은 `__Host-XSRF-TOKEN`, 로컬 HTTP는 `XSRF-TOKEN`)는 API 호스트의 HttpOnly 쿠키라 화면의 `document.cookie`로는 읽을 수 없다. 토큰은 쿠키가 아니라 `GET /v1/csrf` 응답 본문에서 꺼낸다(§3).
 - dev 서버는 쿠키를 `SameSite=None; Secure`로 내린다(`APP_SESSION_SECURE=true`, `APP_SESSION_SAME_SITE=None`). 그래서 `http://localhost:3000`에서 `https://api-dev.santacut.me`를 바로 불러도 쿠키가 실린다. 다만 브라우저가 서드파티 쿠키를 막으면(Safari 기본값, Chrome 시크릿 창 등) 쿠키가 빠져 `401`이나 `403`이 나므로, 이때는 프록시를 쓴다.
@@ -91,6 +94,8 @@
 | DELETE | `/v1/shares/{token}` | 필요 | 필요 | 공유 링크 폐기 (`204`) |
 | GET | `/s/{token}` | - | - | 공개 공유 HTML 페이지 |
 | GET | `/s/{token}/image.png` | - | - | 공개 공유 이미지(1200×630) |
+
+`/v1/admin/prompts/**` 세 개는 dev 전용 운영 도구다. `X-Admin-Token` 헤더로만 열리고(없거나 틀리면 `401`), 운영 서버에는 없다(`404`). 화면은 부르지 않으며, dev OpenAPI로 타입을 만들 때도 뺀다.
 
 ## 5. 참가 등록
 
@@ -283,7 +288,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 - 링크가 없거나 취소됐을 때 `Accept`에 `text/html`이 있는 요청은 `404`와 "더 이상 볼 수 없는 결과" HTML을 받는다. 시작 링크(`내 산타 점수 알아보기`)가 있다. 공개 페이지(`/s/{token}`)와 이미지(`/s/{token}/image.png`) 모두 같다. 브라우저 주소창에서 이미지 주소를 열 때도 `Accept`에 `text/html`이 들어가므로 이 HTML이 온다.
 - 같은 경우 그 밖의 요청(`fetch`, `<img>` 등 `Accept`에 `text/html`이 없는 요청)은 지금처럼 `404` JSON(`SHARE_NOT_FOUND`)이다.
 - 링크를 비활성화해도 이미 저장·전달된 이미지는 회수할 수 없다.
-- 요청 본문은 생략할 수 있다. `{"include_quote": true}`를 보내면 내 한마디(`quote`)를 카드에 싣는다. 기본은 `false`다. 같은 결과로 이미 만든 링크가 있으면 그 링크를 그대로 돌려주고 `include_quote`는 바뀌지 않는다. 바꾸려면 링크를 폐기하고 다시 만든다.
+- 요청 본문은 생략할 수 있다. `{"include_quote": true}`를 보내면 내 한마디(`quote`)를 카드에 싣는다. 기본은 `false`다. 같은 결과로 이미 만든 링크가 있으면 그 링크(같은 토큰)를 돌려주되, 보낸 `include_quote`를 반영해 한마디를 넣거나 뺀다.
 - 서버가 그리는 카드(PNG, 공개 페이지)에는 유형, 점수, 판정, 순위, 상위 %, 도착 예정일, 항목 막대 4개 요약, 배지 1개, 가장 약한 항목이 들어간다. 상대 말은 어떤 경우에도 들어가지 않는다.
 
 #### 공유 카드 구성 안내
