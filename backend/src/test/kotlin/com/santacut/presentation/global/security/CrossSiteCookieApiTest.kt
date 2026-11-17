@@ -25,13 +25,14 @@ class CrossSiteCookieApiTest @Autowired constructor(
     private val mockMvc: MockMvc,
 ) {
     @Test
-    fun `CSRF 쿠키는 SameSite=None과 Secure로 내려간다`() {
+    fun `CSRF 쿠키는 __Host- 이름에 SameSite=None과 Secure로 내려간다`() {
         // CSRF 저장소는 서블릿 Cookie 속성으로 SameSite를 넣는다. Tomcat은 이를 Set-Cookie에 쓰지만 MockMvc 헤더 문자열에는 빠지므로 속성을 본다.
         val cookie = checkNotNull(
-            mockMvc.perform(get("/v1/csrf")).andExpect(status().isOk).andReturn().response.getCookie("XSRF-TOKEN"),
+            mockMvc.perform(get("/v1/csrf")).andExpect(status().isOk).andReturn().response.getCookie("__Host-XSRF-TOKEN"),
         )
         assertEquals("None", cookie.getAttribute("SameSite"))
         assertTrue(cookie.secure)
+        assertEquals("/", cookie.path)
     }
 
     @Test

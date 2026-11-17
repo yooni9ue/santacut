@@ -15,6 +15,12 @@ class SessionCookiePropertiesTest {
     }
 
     @Test
+    fun `Secure를 요구하면(운영 프로필) Secure 없이 뜨지 않는다`() {
+        assertFailsWith<IllegalArgumentException> { SessionCookieProperties(sessionSecure = false, requireSecureSession = true) }
+        assertDoesNotThrow { SessionCookieProperties(sessionSecure = true, requireSecureSession = true) }
+    }
+
+    @Test
     fun `SameSite는 Strict, Lax, None만 받는다`() {
         assertFailsWith<IllegalArgumentException> { SessionCookieProperties(sessionSecure = true, sessionSameSite = "none") }
     }

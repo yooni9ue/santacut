@@ -2,6 +2,7 @@ package com.santacut.presentation.prompt.controller
 
 import com.santacut.application.prompt.command.PromptNameCommand
 import com.santacut.application.prompt.facade.PromptFacade
+import com.santacut.presentation.global.config.PromptAdminCondition
 import com.santacut.presentation.prompt.docs.CreatePromptApi
 import com.santacut.presentation.prompt.docs.GetLatestPromptApi
 import com.santacut.presentation.prompt.docs.ListPromptVersionsApi
@@ -10,7 +11,7 @@ import com.santacut.presentation.prompt.response.PromptResponse
 import com.santacut.presentation.prompt.response.PromptVersionResponse
 import com.santacut.presentation.prompt.response.PromptVersionResponses
 import jakarta.validation.Valid
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.context.annotation.Conditional
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -20,12 +21,12 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 
 /**
- * dev 전용 프롬프트 관리 API. `santacut.prompt-admin.enabled=true`일 때만 빈으로 올라온다.
- * 꺼져 있으면(운영 기본값) 이 경로를 처리할 컨트롤러가 없어 404다.
+ * dev 전용 프롬프트 관리 API. `santacut.prompt-admin.enabled=true`이고 관리 토큰이 있을 때만 빈으로 올라온다([PromptAdminCondition]).
+ * 꺼져 있으면(운영 기본값) 이 경로를 처리할 컨트롤러가 없어 404다. 요청마다 `X-Admin-Token` 검사는 보안 설정이 한다.
  * 이름 규칙은 도메인의 `PromptName`이 검사하고, 어기면 INVALID_REQUEST 400이다.
  */
 @RestController
-@ConditionalOnProperty(prefix = "santacut.prompt-admin", name = ["enabled"], havingValue = "true")
+@Conditional(PromptAdminCondition::class)
 class PromptAdminController(
     private val promptFacade: PromptFacade,
 ) {
