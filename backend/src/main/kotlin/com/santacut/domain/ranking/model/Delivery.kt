@@ -51,6 +51,9 @@ object Delivery {
     fun legSeconds(from: Coordinate, to: Coordinate): Double =
         distance(from, to) / SLEIGH_SPEED_KMH * SECONDS_PER_HOUR + STOP_SECONDS
 
+    /** [days]일 동안 일할 수 있는 작업 시간(초). */
+    fun workSecondsFor(days: Int): Double = (days * WORK_SECONDS_PER_DAY).toDouble()
+
     /** 누적 작업 시간을 하루 6시간씩 나눠 일했을 때의 도착 시각. */
     fun arrival(start: ZonedDateTime, workSeconds: Double): ZonedDateTime {
         require(workSeconds.isFinite() && workSeconds > 0 && workSeconds < Long.MAX_VALUE.toDouble()) {

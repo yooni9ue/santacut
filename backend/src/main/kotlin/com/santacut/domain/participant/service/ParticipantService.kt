@@ -1,12 +1,16 @@
 package com.santacut.domain.participant.service
 
 import com.santacut.domain.global.config.ClientRateLimitProperties
+import com.santacut.domain.global.config.RegionChangeProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.ClientRateLimit
 import com.santacut.domain.participant.model.Nickname
 import com.santacut.domain.participant.model.Participant
+import com.santacut.domain.participant.model.RegionChange
+import com.santacut.domain.participant.model.RegionChangeLimit
 import com.santacut.infrastructure.participant.repository.ParticipantRepository
+import com.santacut.infrastructure.participant.repository.RegionChangeRepository
 import org.springframework.dao.DataAccessException
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -15,8 +19,14 @@ import java.util.UUID
 @Service
 class ParticipantService(
     private val participantRepository: ParticipantRepository,
+    private val regionChangeRepository: RegionChangeRepository,
     clientRateLimitProperties: ClientRateLimitProperties,
+    regionChangeProperties: RegionChangeProperties,
 ) {
+    private val regionChangeLimit = RegionChangeLimit(
+        regionChangeProperties.maxPerWindow, regionChangeProperties.window, regionChangeProperties.maxPerSeason,
+    )
+
     private val registrationLimit = ClientRateLimit(
         clientRateLimitProperties.registrationsPerClient, clientRateLimitProperties.registrationWindow,
     )
@@ -44,8 +54,15 @@ class ParticipantService(
         participantRepository.findById(participantId.toString()).orElse(null)
             ?: throw SantaCutException(ErrorCode.PARTICIPANT_NOT_FOUND)
 
-    fun changeRegion(participantId: UUID, regionCode: String): Participant =
-        get(participantId).also { it.changeRegion(regionCode) }
+    /**
+     * 지역 변경 한도를 확인한 뒤 [participant]의 지역을 바꾸고 변경을 기록한다.
+     * 한도를 넘으면 REGION_CHANGE_LIMITED(retry_at 있음)나 REGION_CHANGE_SEASON_LIMIT이다.
+     */
+    fun changeRegion(participant: Participant, regionCode: String, now: Instant) {
+        verifyRegionChangeAllowed(participant.id, now)
+        participant.changeRegion(regionCode)
+        regionChangeRepository.save(RegionChange.record(participant, now))
+    }
 
     /**
      * 참가자를 지운다. 세션, 분석 작업, 평가, 순위 기록, 공유 링크는 DB의 ON DELETE CASCADE로 함께 지워진다.
@@ -61,5 +78,14 @@ class ParticipantService(
         if (!participantRepository.existsById(participantId.toString())) {
             throw SantaCutException(ErrorCode.NOT_AUTHENTICATED)
         }
+    }
+
+    private fun verifyRegionChangeAllowed(userId: String, now: Instant) {
+        val windowStart = regionChangeLimit.windowStart(now)
+        regionChangeLimit.verify(
+            regionChangeRepository.countByUserId(userId),
+            regionChangeRepository.countByUserIdAndChangedAtAfter(userId, windowStart),
+            regionChangeRepository.findFirstByUserIdAndChangedAtAfterOrderByChangedAtAsc(userId, windowStart)?.changedAt,
+        )
     }
 }

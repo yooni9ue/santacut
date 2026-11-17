@@ -7,9 +7,11 @@ import com.santacut.application.analysis.command.AnalysisEventCommand
 import com.santacut.application.analysis.command.AnalysisEventCommands
 import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
+import com.santacut.application.analysis.result.AnalysisStatusResult
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.ranking.command.MyResultCommand
+import com.santacut.application.ranking.facade.RankingRebuildFacade
 import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisSubmission
@@ -69,6 +71,7 @@ import kotlin.test.assertTrue
 class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
     private val analysisWorkerFacade: AnalysisWorkerFacade,
     private val analysisFacade: AnalysisFacade,
+    private val rankingRebuildFacade: RankingRebuildFacade,
     private val resultFacade: ResultFacade,
     private val participantFacade: ParticipantFacade,
     private val scoreClient: ScoreClient,
@@ -127,7 +130,7 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("SUCCEEDED", analysisFacade.getStatus(job).status)
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
         assertTrue(scoreOf(job) > 0)
         assertEquals(USAGE.inputTokens * (SAMPLES - 1), aiUsageDayRepository.findAll().single().inputTokens)
     }
@@ -143,7 +146,7 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("ANALYSIS_FAILED", analysisFacade.getStatus(job).errorCode)
+        assertEquals("ANALYSIS_FAILED", rankedStatus(job).errorCode)
         assertEquals(USAGE.inputTokens, aiUsageDayRepository.findAll().single().inputTokens)
     }
 
@@ -162,7 +165,7 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals("QUEUED", rankedStatus(job).status)
         assertTrue(aiBudgetService.isBlocked(clock.instant()))
     }
 
@@ -176,7 +179,7 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("SUCCEEDED", analysisFacade.getStatus(job).status)
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
         assertTrue(scoreOf(job) > 0)
     }
 
@@ -204,6 +207,12 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
 
     /** 매처를 등록한 뒤 null 대신 빈 제출 전체를 한 구간으로 돌려준다. */
     private fun anyChunk(): ScoringChunk = any(ScoringChunk::class.java) ?: ScoringChunk(TranscriptTurns(emptyList()), 1, 0, 0)
+
+    /** 쌓인 순위 다시 계산 요청을 처리한 뒤 작업 상태를 읽는다. 성공한 작업은 순위에 반영돼야 SUCCEEDED다. */
+    private fun rankedStatus(command: AnalysisJobCommand): AnalysisStatusResult {
+        rankingRebuildFacade.rebuildIfRequested()
+        return analysisFacade.getStatus(command)
+    }
 
     companion object {
         const val SAMPLES = 3

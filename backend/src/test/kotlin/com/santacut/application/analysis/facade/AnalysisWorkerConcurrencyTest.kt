@@ -7,8 +7,10 @@ import com.santacut.application.analysis.command.AnalysisEventCommand
 import com.santacut.application.analysis.command.AnalysisEventCommands
 import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
+import com.santacut.application.analysis.result.AnalysisStatusResult
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
+import com.santacut.application.ranking.facade.RankingRebuildFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
@@ -71,6 +73,7 @@ import kotlin.test.assertTrue
 class AnalysisWorkerConcurrencyTest @Autowired constructor(
     private val analysisWorkerFacade: AnalysisWorkerFacade,
     private val analysisFacade: AnalysisFacade,
+    private val rankingRebuildFacade: RankingRebuildFacade,
     private val participantFacade: ParticipantFacade,
     private val scoreClient: ScoreClient,
     private val clock: MutableClock,
@@ -99,7 +102,7 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
 
         runConcurrently(THREAD_COUNT) { analysisWorkerFacade.processNextJob() }
 
-        assertEquals(List(JOB_COUNT) { "SUCCEEDED" }, jobs.map { analysisFacade.getStatus(it).status })
+        assertEquals(List(JOB_COUNT) { "SUCCEEDED" }, jobs.map { rankedStatus(it).status })
         assertEquals(List(JOB_COUNT) { 1 }, jobs.map { analysisJobRepository.findById(it.jobId.toString()).orElseThrow().attempts })
         verify(scoreClient, times(JOB_COUNT)).requestAnswer(anyChunk(), anyString())
     }
@@ -114,7 +117,7 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
         runConcurrently(JOB_COUNT) { analysisWorkerFacade.processNextJob() }
 
         verify(scoreClient, times(AFFORDABLE_JOB_COUNT)).requestAnswer(anyChunk(), anyString())
-        assertEquals(AFFORDABLE_JOB_COUNT, jobs.count { analysisFacade.getStatus(it).status == "SUCCEEDED" })
+        assertEquals(AFFORDABLE_JOB_COUNT, jobs.count { rankedStatus(it).status == "SUCCEEDED" })
         assertEquals(QUARTER_BUDGET_PLUS.inputTokens * AFFORDABLE_JOB_COUNT, aiUsageDayRepository.findAll().sumOf { it.inputTokens })
     }
 
@@ -130,7 +133,7 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
 
         analysisWorkerFacade.dispatchJobs()
 
-        awaitUntil { jobs.all { analysisFacade.getStatus(it).status == "SUCCEEDED" } }
+        awaitUntil { jobs.all { rankedStatus(it).status == "SUCCEEDED" } }
         assertEquals(WORKER_CONCURRENCY, peak.get())
     }
 
@@ -145,7 +148,7 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
 
         analysisWorkerFacade.dispatchJobs()
 
-        awaitUntil { jobs.all { analysisFacade.getStatus(it).status == "SUCCEEDED" } }
+        awaitUntil { jobs.all { rankedStatus(it).status == "SUCCEEDED" } }
     }
 
     @Test
@@ -159,9 +162,9 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
 
         analysisWorkerFacade.dispatchJobs()
 
-        awaitUntil { jobs.none { analysisFacade.getStatus(it).status in UNFINISHED } }
-        assertEquals(WORKER_CONCURRENCY, jobs.count { analysisFacade.getStatus(it).errorCode == "ANALYSIS_FAILED" })
-        assertEquals(JOB_COUNT, jobs.count { analysisFacade.getStatus(it).status == "SUCCEEDED" })
+        awaitUntil { jobs.none { rankedStatus(it).status in UNFINISHED } }
+        assertEquals(WORKER_CONCURRENCY, jobs.count { rankedStatus(it).errorCode == "ANALYSIS_FAILED" })
+        assertEquals(JOB_COUNT, jobs.count { rankedStatus(it).status == "SUCCEEDED" })
         assertEquals(List(jobs.size) { 1 }, jobs.map { analysisJobRepository.findById(it.jobId.toString()).orElseThrow().attempts })
         assertEquals(WORKER_CONCURRENCY, peakConcurrency())
     }
@@ -176,7 +179,7 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
         }
         val jobs = List(JOB_COUNT) { submitAnalysis() }
         analysisWorkerFacade.dispatchJobs()
-        awaitUntil { jobs.all { analysisFacade.getStatus(it).status == "SUCCEEDED" } }
+        awaitUntil { jobs.all { rankedStatus(it).status == "SUCCEEDED" } }
         return peak.get()
     }
 
@@ -215,6 +218,12 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
         any(ScoringDigest::class.java) ?: AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())).toScoringDigest()
 
     private fun anyChunk(): ScoringChunk = any(ScoringChunk::class.java) ?: ScoringChunk(TranscriptTurns(emptyList()), 1, 0, 0)
+
+    /** 쌓인 순위 다시 계산 요청을 처리한 뒤 작업 상태를 읽는다. 성공한 작업은 순위에 반영돼야 SUCCEEDED다. */
+    private fun rankedStatus(command: AnalysisJobCommand): AnalysisStatusResult {
+        rankingRebuildFacade.rebuildIfRequested()
+        return analysisFacade.getStatus(command)
+    }
 
     companion object {
         const val WORKER_CONCURRENCY = 3

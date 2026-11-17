@@ -91,7 +91,9 @@
 ### 지역 변경 `PATCH /v1/me/region`
 
 - 본문은 `{ regionCode }`이다. 규칙은 등록과 같다(`selectable`인 코드만).
-- 성공하면 `200`과 `GET /v1/me`와 같은 참가 정보를 준다. 서버가 같은 요청 안에서 순위와 도착 예정 시각을 다시 계산한다.
+- 성공하면 `200`과 `GET /v1/me`와 같은 참가 정보를 준다. 순위와 도착 예정 시각은 서버가 30초쯤 안에 모아서 다시 계산한다. 그동안 내 결과의 `eta`는 이전 지역 기준이다.
+- 지금과 같은 지역을 보내면 아무것도 바꾸지 않고 `200`을 주며, 변경 횟수도 세지 않는다.
+- 지역은 24시간에 2번, 한 시즌에 5번까지 바꿀 수 있다(서버 설정). 24시간 한도를 넘으면 `429`(`REGION_CHANGE_LIMITED`)이고 본문 `retry_at`과 `Retry-After` 헤더가 다시 바꿀 수 있는 시점이다. 시즌 한도를 넘으면 `429`(`REGION_CHANGE_SEASON_LIMIT`)이고 `retry_at`이 없다. 도착 예정 시각 차이로 다른 사람의 지역을 좁혀 가지 못하게 하려는 한도다.
 - 시즌 마감(12월 25일 0시, 한국 시간) 뒤에는 `409`(`SEASON_FROZEN`)다. 마감 뒤에는 변경 버튼 대신 안내를 보여준다.
 - 이미 만든 공유 링크는 만든 당시 결과를 그대로 보여준다.
 
@@ -121,7 +123,7 @@
 | `VALIDATING` | 파일 형식을 확인하고 있어요 | 계속 조회. 원본 파일 제출에서만 나온다 |
 | `QUEUED` | 산타 심사를 기다리고 있어요 | 계속 조회 |
 | `ANALYZING` | 산타가 기록을 읽고 있어요 | 계속 조회 |
-| `RANKING_PENDING` | 심사가 끝났어요. 순위와 도착일을 계산하고 있어요 | 계속 조회 |
+| `RANKING_PENDING` | 심사가 끝났어요. 순위와 도착일을 계산하고 있어요 | 계속 조회. 서버가 순위를 30초쯤마다 모아서 계산하므로 보통 1분 안에 `SUCCEEDED`가 된다 |
 | `SUCCEEDED` | - | 조회를 멈추고 `GET /v1/me/result`로 이동 |
 | `FAILED` | `error_code`로 구분 | 조회를 멈추고 실패 안내 |
 
@@ -225,6 +227,8 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 
 - `score_hundredths`는 정수다. 100으로 나눠 소수 둘째 자리까지 표시한다(`8245` → `82.45점`).
 - `eta`, `computed_at` 등 시각은 ISO-8601 UTC 문자열이다. 화면에는 `Asia/Seoul`로 바꿔 보여준다.
+- 정확한 도착 예정 시각(`eta`)은 본인 결과(`GET /v1/me/result`)에만 있다. 랭킹처럼 다른 사람이 보는 곳에는 날짜(`eta_date`, `Asia/Seoul`)만 온다. 공유 카드도 날짜만 싣는다.
+- 도착 예정일은 참가자가 아무리 많아도 12월 25일부터 12월 31일(하루 0~6시) 안에 들어온다. 참가자가 많으면 산타가 그만큼 빨라진다고 보고 모든 작업 시간을 같은 비율로 줄인다.
 - 순위는 동점이면 같은 순위를 공유한다. `tied`가 `true`면 `공동 N위`로 표시한다. 배송 순번(`delivery_sequence`)은 항상 서로 다르다.
 - `stage`는 `PREVIEW`(시즌 마감 전 미리보기)나 `FINAL`(시즌 확정)이다. 계산 시각과 함께 보여준다.
 
@@ -248,9 +252,12 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 ### 랭킹 `GET /v1/rankings`
 
 - 로그인 없이 볼 수 있다. 내 순위 카드는 `GET /v1/me/result`로 따로 읽는다.
-- 응답: `{ season_year, participant_count, computed_at, stage, rows[], next_cursor }`. 각 행은 `nickname`, `rank`, `tied`, `score_hundredths`, `eta`다.
+- 응답: `{ season_year, participant_count, computed_at, stage, rows[], next_cursor }`. 각 행은 `nickname`, `rank`, `tied`, `score_hundredths`, `eta_date`, `eta`다.
+- `eta_date`는 `2026-12-26` 같은 `Asia/Seoul` 날짜다. `eta`는 더 쓰지 않는 필드로 늘 `null`이다(2026-11-17까지는 정확한 시각이었다). 행의 도착일은 `eta_date`로 보여준다.
 - 한 번에 50줄이 온다. `더 보기`는 `next_cursor`를 `cursor` 쿼리로 보낸다. `next_cursor`가 `null`이면 마지막 페이지다.
-- `cursor`는 불투명 문자열이다. 직접 만들지 말고 받은 값만 보낸다. 잘못된 값은 `400`(`INVALID_CURSOR`)이다.
+- `cursor`는 불투명 문자열이다. 직접 만들지 말고 받은 값만 보낸다. 잘못된 값이나 2026-11-17 이전 형식(숫자)은 `400`(`INVALID_CURSOR`)이다.
+- `cursor`에는 그 페이지의 순위 계산 시각이 들어 있다. 페이지 사이에 순위가 다시 계산되면 `409`(`RANKING_SNAPSHOT_CHANGED`)다. 이때는 목록을 비우고 `cursor` 없이 첫 페이지부터 다시 읽는다. 줄이 겹치거나 빠지지 않게 하려는 규칙이다.
+- 순위는 서버가 변경을 모아 30초쯤마다 다시 계산하고, 첫 페이지는 30초쯤 캐시한다. 새로고침해도 바로 바뀌지 않을 수 있다.
 - 아직 순위가 없으면 `participant_count`는 `0`, `computed_at`은 `null`, `rows`는 빈 배열이다(빈 상태 화면).
 
 ### 공유 `POST /v1/shares`, `/s/{token}`
@@ -275,7 +282,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 | 판정 | `verdict` | |
 | 순위 | `rank`, `tied` | `공동 N위` |
 | 상위 % | `top_percent` | `null`이면 숨김 |
-| 도착 예정일 | `eta` | `Asia/Seoul` |
+| 도착 예정일 | `eta` | `Asia/Seoul` 날짜만(예: `12월 26일`). 남이 보는 카드라 시각은 넣지 않는다 |
 | 항목 막대 4개 | `dimension_scores` | `label`과 `score` |
 | 배지 1개 | `badges[0]` | 없으면 숨김 |
 | 가장 약한 항목 | `weakest_dimension.label` | "아쉬운 항목" 같은 가벼운 문구 |
@@ -319,6 +326,9 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 | 진행 상황 스트림이 꽉 참 | `503` | `ANALYSIS_STREAM_LIMIT` | 폴링으로 바꾼다. `Retry-After` 뒤에 다시 열어 봐도 된다 |
 | AI 모델 미설정 | `503` | `AI_NOT_CONFIGURED` | 지금은 분석을 받을 수 없다고 안내 |
 | 랭킹 cursor 오류 | `400` | `INVALID_CURSOR` | 받은 `next_cursor`만 보낸다 |
+| 페이지 사이에 순위가 다시 계산됨 | `409` | `RANKING_SNAPSHOT_CHANGED` | 목록을 비우고 `cursor` 없이 첫 페이지부터 다시 읽는다 |
+| 지역을 너무 자주 바꿈 | `429` | `REGION_CHANGE_LIMITED` | 본문 `retry_at`과 `Retry-After`로 다시 가능한 시점을 안내 |
+| 시즌 지역 변경 횟수 소진 | `429` | `REGION_CHANGE_SEASON_LIMIT` | 이번 시즌에는 더 바꿀 수 없다고 안내(`retry_at` 없음) |
 
 ## 9. 요청 한도
 
@@ -327,6 +337,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 | 분석 제출(`POST /v1/analyses`·`/files` 합산) | 참가자당 최근 24시간 3회 | `429` `DAILY_USER_LIMIT`. 본문 `retry_at`과 `Retry-After`(초) |
 | 참가 등록(`POST /v1/participants`) | IP당 1시간 10회 | `429` `CLIENT_RATE_LIMITED`. 본문 `retry_at`과 `Retry-After`(초) |
 | 분석 제출(IP 단위, `POST /v1/analyses`·`/files` 합산) | IP당 24시간 20회 | `429` `CLIENT_RATE_LIMITED`. 본문 `retry_at`과 `Retry-After`(초) |
+| 지역 변경(`PATCH /v1/me/region`) | 참가자당 최근 24시간 2회, 시즌 5회(같은 지역은 세지 않음) | `429` `REGION_CHANGE_LIMITED`(본문 `retry_at`과 `Retry-After`) 또는 `REGION_CHANGE_SEASON_LIMIT`(`retry_at` 없음) |
 | 원본 파일 | 20MB | `413` `FILE_TOO_LARGE` |
 | 원본 파일 동시 접수 | 서버 전체 2개 | `503` `UPLOAD_BUSY`. `Retry-After` 10초 |
 | 파일이 아닌 요청 본문 | 2MB | `413` `REQUEST_TOO_LARGE` |

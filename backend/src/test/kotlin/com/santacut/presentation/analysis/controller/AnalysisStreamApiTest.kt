@@ -11,6 +11,7 @@ import com.santacut.application.analysis.facade.AnalysisWorkerFacade
 import com.santacut.application.analysis.facade.WorkerTestClockConfiguration
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
+import com.santacut.application.ranking.facade.RankingRebuildFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
@@ -78,6 +79,7 @@ class AnalysisStreamApiTest @Autowired constructor(
     private val participantFacade: ParticipantFacade,
     private val analysisFacade: AnalysisFacade,
     private val analysisWorkerFacade: AnalysisWorkerFacade,
+    private val rankingRebuildFacade: RankingRebuildFacade,
     private val scoreClient: ScoreClient,
     private val clock: MutableClock,
     private val analysisJobRepository: AnalysisJobRepository,
@@ -118,9 +120,16 @@ class AnalysisStreamApiTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
+        val scored = stream.response.contentAsString
+        assertTrue(hasEvent(scored, ANALYZING_ID, "ANALYZING"), scored)
+        assertTrue(hasEvent(scored, RANKING_PENDING_ID, "RANKING_PENDING"), scored)
+        assertFalse(hasEvent(scored, SUCCEEDED_ID, "SUCCEEDED"), scored)
+
+        rankingRebuildFacade.rebuildIfRequested()
+
         val body = stream.response.contentAsString
-        assertTrue(hasEvent(body, ANALYZING_ID, "ANALYZING"), body)
         assertTrue(hasEvent(body, SUCCEEDED_ID, "SUCCEEDED"), body)
+        assertTrue(body.indexOf("id:$RANKING_PENDING_ID\n") < body.indexOf("id:$SUCCEEDED_ID\n"), body)
         assertTrue(body.contains("\"id\":\"$jobId\""), body)
         assertStreamCompleted(stream)
     }
@@ -130,6 +139,7 @@ class AnalysisStreamApiTest @Autowired constructor(
         val participant = register()
         val jobId = submit(participant.id)
         analysisWorkerFacade.processNextJob()
+        rankingRebuildFacade.rebuildIfRequested()
 
         val stream = mockMvc.perform(
             get(eventsPath(jobId)).cookie(participant.session).accept(MediaType.TEXT_EVENT_STREAM).header(LAST_EVENT_ID, "2"),
@@ -235,6 +245,7 @@ class AnalysisStreamApiTest @Autowired constructor(
         private const val EVENT_NAME = "status"
         private const val QUEUED_ID = 1
         private const val ANALYZING_ID = 2
+        private const val RANKING_PENDING_ID = 3
         private const val SUCCEEDED_ID = 4
         private const val ASYNC_WAIT_MS = 2_000L
         private const val SOURCE = "KAKAO"

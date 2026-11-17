@@ -42,23 +42,26 @@ class ParticipantFacade(
         NicknameAvailabilityResult(participantService.isNicknameAvailable(Nickname.from(command.nickname)))
 
     /**
-     * 시즌 마감 전에만 지역을 바꾼다. 도착 예정 시각이 지역 좌표에 달려 있으므로 같은 트랜잭션에서 순위를 다시 계산한다.
+     * 시즌 마감 전에만 지역을 바꾼다. 같은 지역이면 아무것도 바꾸지 않고 변경 횟수도 세지 않는다.
+     * 변경 횟수 한도는 [ParticipantService.changeRegion]이 확인한다. 도착 예정 시각이 지역 좌표에 달려 있으므로 순위 다시 계산을 요청한다.
      */
     @Transactional
     fun changeRegion(command: ChangeRegionCommand): CurrentParticipantResult {
         val now = clock.instant()
         rankingService.verifySeasonOpenAt(now)
         regionService.verifySupported(command.regionCode)
-        val participant = participantService.changeRegion(command.participantId, command.regionCode)
-        rankingService.rebuild(now)
+        val participant = participantService.get(command.participantId)
+        if (participant.isIn(command.regionCode)) return CurrentParticipantResult.from(participant)
+        participantService.changeRegion(participant, command.regionCode, now)
+        rankingService.requestRebuild()
         return CurrentParticipantResult.from(participant)
     }
 
-    /** 참가자와 그 데이터를 지우고 남은 참가자로 순위를 다시 계산한다. 시즌 마감 뒤에는 순위 계산이 스스로 건너뛴다. */
+    /** 참가자와 그 데이터를 지운다. 시즌 마감 전이면 순위 다시 계산을 요청하고, 마감 뒤에는 확정 순위를 그대로 둔다. */
     @Transactional
     fun deleteMyData(command: DeleteParticipantCommand) {
         participantService.delete(command.participantId)
-        rankingService.rebuild(clock.instant())
+        rankingService.forgetDeletedParticipant(clock.instant())
     }
 
     @Transactional(readOnly = true)

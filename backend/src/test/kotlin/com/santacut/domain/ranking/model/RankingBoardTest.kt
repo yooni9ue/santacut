@@ -18,7 +18,8 @@ class RankingBoardTest {
         val board = RankingBoard.of(season, beforeClose, 120, computedAt, rows(cursor.fetchSize), cursor)
 
         assertEquals(cursor.pageSize, board.rows.map { it.nickname }.size)
-        assertEquals(cursor.pageSize.toString(), board.nextCursor?.value())
+        assertEquals(cursor.pageSize, board.nextCursor?.afterSequence)
+        assertEquals(cursor.pageSize, RankingCursor.from(board.nextCursor?.value()).afterSequence)
         assertEquals(SEASON_YEAR, board.seasonYear)
         assertEquals(120, board.participantCount)
         assertEquals(computedAt, board.computedAt)

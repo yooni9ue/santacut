@@ -29,6 +29,8 @@ import com.santacut.domain.analysis.model.Score
 import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.global.exception.ErrorCode
+import com.santacut.domain.global.model.SeoulTime
+import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.service.RankingService
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -89,7 +91,7 @@ class ResultShareFlowTest @Autowired constructor(
     private fun assertRankingBoardShows(myResult: MyRankingResult, nickname: String) {
         val board = resultFacade.getRankings(RankingPageCommand(null))
         assertEquals(nickname, board.rows.map { it.nickname }.first())
-        assertEquals(myResult.eta, board.rows.map { it.eta }.first())
+        assertEquals(myResult.eta?.atZone(SeoulTime.ZONE)?.toLocalDate(), board.rows.map { it.etaDate }.first())
         assertEquals(myResult.computedAt, board.computedAt)
         assertEquals(board.rows.map { it.nickname }.size.toLong(), board.participantCount)
         assertEquals(PREVIEW, board.stage)
@@ -208,12 +210,27 @@ class ResultShareFlowTest @Autowired constructor(
         }
         val firstPage = resultFacade.getRankings(RankingPageCommand(null))
 
-        val secondPage = resultFacade.getRankings(RankingPageCommand(AFTER_FIRST_ROW_CURSOR))
+        val afterFirstRow = RankingCursor.after(1, requireNotNull(firstPage.computedAt)).value()
+        val secondPage = resultFacade.getRankings(RankingPageCommand(afterFirstRow))
 
         assertEquals(firstPage.rows.map { it.nickname }.drop(1), secondPage.rows.map { it.nickname })
         assertEquals(firstPage.participantCount, secondPage.participantCount)
         assertEquals(firstPage.computedAt, secondPage.computedAt)
         assertNull(secondPage.nextCursor)
+    }
+
+    @Test
+    fun `페이지 사이에 순위를 다시 계산하면 이전 cursor는 거절하고 첫 페이지는 새 순위를 보여 준다`() {
+        val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
+        recordAssessment(participantId, MID_SCORES, rebuild = true)
+        val firstPage = resultFacade.getRankings(RankingPageCommand(null))
+        val firstComputedAt = requireNotNull(firstPage.computedAt)
+        val staleCursor = RankingCursor.after(1, firstComputedAt).value()
+
+        transactionTemplate.executeWithoutResult { rankingService.rebuild(firstComputedAt.plusSeconds(1)) }
+
+        assertErrorCode(ErrorCode.RANKING_SNAPSHOT_CHANGED) { resultFacade.getRankings(RankingPageCommand(staleCursor)) }
+        assertEquals(firstComputedAt.plusSeconds(1), resultFacade.getRankings(RankingPageCommand(null)).computedAt)
     }
 
     @Test
@@ -266,8 +283,6 @@ class ResultShareFlowTest @Autowired constructor(
         private val MID_SCORES = listOf(50, 50, 50, 50)
         private const val MID_SCORE = 5000
 
-        /** 배송 순서 1번 줄 다음부터 읽는 cursor. 한 페이지가 한 줄이었다면 서버가 next_cursor로 줬을 값이다. */
-        private const val AFTER_FIRST_ROW_CURSOR = "1"
         private const val PREVIEW = "PREVIEW"
     }
 }

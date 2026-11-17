@@ -46,11 +46,15 @@ class AssessmentsTest {
     }
 
     private fun userIdsOf(entries: RankingEntries): List<String> =
-        entries.toSnapshots(origin, deliveryStart, assessedAt).toList().map { it.userId }
+        entries.toSnapshots(origin, deliveryStart, assessedAt, DELIVERY_DAYS).toList().map { it.userId }
 
     private fun assessment(userId: String, score: Int): Assessment =
         Assessment("assessment-$userId", userId, DataSource.KAKAO, score, "판정", "한마디", "[]", assessedAt)
 
     private fun participant(userId: String, regionCode: String): Participant =
         Participant(userId, userId, userId, regionCode, assessedAt)
+
+    companion object {
+        private const val DELIVERY_DAYS = 7
+    }
 }

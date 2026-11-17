@@ -139,5 +139,5 @@ class AnalysisFacade(
     }
 
     private fun progressOf(job: AnalysisJob, participantId: UUID): AnalysisProgress =
-        job.progress(rankingService.findLatestSnapshot(participantId)?.computedAt)
+        job.progress(rankingService.findRankedAssessmentTime(participantId))
 }

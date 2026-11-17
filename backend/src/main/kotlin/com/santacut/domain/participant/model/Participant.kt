@@ -45,6 +45,9 @@ class Participant(
 
     fun participantId(): UUID = UUID.fromString(id)
 
+    /** 지금 지역이 [regionCode]인지. */
+    fun isIn(regionCode: String): Boolean = this.regionCode == regionCode
+
     /** 참가 지역을 바꾼다. 지역이 고를 수 있는 지역인지는 호출하는 쪽이 먼저 확인한다. */
     fun changeRegion(regionCode: String) {
         this.regionCode = regionCode

@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import kotlin.test.assertTrue
@@ -93,6 +94,23 @@ class ParticipantApiTest @Autowired constructor(
             .andExpect(jsonPath("$.regionCode").value(OTHER_REGION_CODE))
         mockMvc.perform(withCsrf(mockMvc, patch(REGION_PATH).contentType(MediaType.APPLICATION_JSON).content("{}")))
             .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `지역은 24시간에 두 번까지 바꾸고 넘으면 429와 retry_at을 받으며 같은 지역은 횟수를 세지 않는다`() {
+        val session = Cookie(SESSION_COOKIE, registerAndReadSessionToken(uniqueNickname()))
+        fun changeTo(regionCode: String) = mockMvc.perform(
+            withCsrf(mockMvc, patch(REGION_PATH).cookie(session).contentType(MediaType.APPLICATION_JSON).content("{\"regionCode\":\"$regionCode\"}")),
+        )
+        changeTo(REGION_CODE).andExpect(status().isOk)
+        changeTo(OTHER_REGION_CODE).andExpect(status().isOk)
+        changeTo(REGION_CODE).andExpect(status().isOk)
+        changeTo(OTHER_REGION_CODE)
+            .andExpect(status().isTooManyRequests)
+            .andExpect(jsonPath("$.code").value("REGION_CHANGE_LIMITED"))
+            .andExpect(jsonPath("$.retry_at").exists())
+            .andExpect(header().exists(HttpHeaders.RETRY_AFTER))
+        changeTo(REGION_CODE).andExpect(status().isOk)
     }
 
     @Test
