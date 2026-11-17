@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-label="AI 비용 가드 흐름: 작업을 잡으면 모든 구간과 반복 호출의 비용을 미리 어림하고, 한 달 9달러를 넘으면 부르지 않고 작업을 QUEUED로 두고 15분 쉰다. 부르면 응답의 입력·출력·생각 토큰을 날짜별로 기록한다. Gemini가 429(크레딧 소진 포함)·403·5xx·시간 초과로 막아도 작업은 실패하지 않고 QUEUED로 돌아가며 15분 뒤 다시 잡는다. 24시간이 지나면 EXPIRED">
-  <title>AI 비용 가드 흐름: 작업을 잡으면 모든 구간과 반복 호출의 비용을 미리 어림하고, 한 달 9달러를 넘으면 부르지 않고 작업을 QUEUED로 두고 15분 쉰다. 부르면 응답의 입력·출력·생각 토큰을 날짜별로 기록한다. Gemini가 429(크레딧 소진 포함)·403·5xx·시간 초과로 막아도 작업은 실패하지 않고 QUEUED로 돌아가며 15분 뒤 다시 잡는다. 24시간이 지나면 EXPIRED</title>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-label="AI 비용 가드 흐름: 작업을 잡으면 모든 구간과 반복 호출의 비용을 미리 어림해 진행 중인 작업의 예약분과 함께 더하고, 한 달 9달러를 넘으면 부르지 않고 작업을 QUEUED로 두고 15분 쉰다. 부르면 응답의 입력(캐시 읽기 따로)·출력·생각 토큰을 날짜별로 기록한다. Gemini가 429(크레딧 소진 포함)·5xx·시간 초과로 막거나 API 키 오류(401·403·404)가 나도 작업은 실패하지 않고 QUEUED로 돌아가며 15분 뒤 다시 잡는다. 과금 뒤 막힌 시도는 세어 3번이면 RETRY_EXHAUSTED다. 24시간이 지나면 EXPIRED">
+  <title>AI 비용 가드 흐름: 작업을 잡으면 모든 구간과 반복 호출의 비용을 미리 어림해 진행 중인 작업의 예약분과 함께 더하고, 한 달 9달러를 넘으면 부르지 않고 작업을 QUEUED로 두고 15분 쉰다. 부르면 응답의 입력(캐시 읽기 따로)·출력·생각 토큰을 날짜별로 기록한다. Gemini가 429(크레딧 소진 포함)·5xx·시간 초과로 막거나 API 키 오류(401·403·404)가 나도 작업은 실패하지 않고 QUEUED로 돌아가며 15분 뒤 다시 잡는다. 과금 뒤 막힌 시도는 세어 3번이면 RETRY_EXHAUSTED다. 24시간이 지나면 EXPIRED</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
@@ -38,7 +38,7 @@
   <rect class="card" x="40" y="96" width="250" height="130" rx="16"/>
   <rect x="40" y="96" width="250" height="6" rx="3" fill="#8ECDF5"/>
   <text x="60" y="132" class="h">작업 잡기</text>
-  <text x="60" y="160" class="s">3초마다, 리스 7분</text>
+  <text x="60" y="160" class="s">3초마다 동시 3개, 리스 7분</text>
   <text x="60" y="184" class="s">최대 3번 시도</text>
   <path class="line" d="M290,161 H324" marker-end="url(#arr)"/>
   <rect class="card" x="328" y="96" width="400" height="130" rx="16"/>
@@ -46,7 +46,7 @@
   <text x="348" y="132" class="h">호출 전 어림</text>
   <text x="348" y="160" style="font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace;" font-size="13" fill="#B4C4D8">구간 수 × 반복 수 × (글자 × 3/4 입력 + 250 출력)</text>
   <text x="348" y="184" class="s">입력 100만 토큰 0.3달러, 출력 2.5달러</text>
-  <text x="348" y="208" font-size="13" fill="#F7DE9F">이번 달 합계 + 이번 어림</text>
+  <text x="348" y="208" font-size="13" fill="#F7DE9F">이번 달 합계 + 진행 중 예약 + 이번 어림</text>
   <path class="line" d="M728,161 H762" marker-end="url(#arr)"/>
   <path d="M880,96 L990,161 L880,226 L770,161 z" fill="#183152" stroke="#E9B949" stroke-width="1.5"/>
   <text x="880" y="156" text-anchor="middle" font-size="15" font-weight="700">한 달 9달러</text>
@@ -70,23 +70,23 @@
   <rect class="card" x="258" y="288" width="340" height="130" rx="16"/>
   <rect x="258" y="288" width="340" height="6" rx="3" fill="#8ECDF5"/>
   <text x="278" y="324" class="h">사용량 기록</text>
-  <text x="278" y="352" class="s">입력·출력·생각 토큰을 날짜(한국)별로</text>
-  <text x="278" y="376" style="font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace;" font-size="13" fill="#8ECDF5">ai_usage_days에 더한다</text>
+  <text x="278" y="352" class="s">입력(캐시 읽기 따로)·출력·생각 토큰</text>
+  <text x="278" y="376" style="font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace;" font-size="13" fill="#8ECDF5">날짜(한국)별로 ai_usage_days에 더한다</text>
   <text x="278" y="400" font-size="13" fill="#F7DE9F">다음 어림이 이 합계를 읽는다</text>
   <path class="line" d="M880,418 V476" marker-end="url(#arr)"/>
   <text x="892" y="452" font-size="13" fill="#FF7A93">막힘</text>
   <rect class="card" x="620" y="480" width="540" height="150" rx="16"/>
   <rect x="620" y="480" width="540" height="6" rx="3" fill="#FF7A93"/>
   <text x="640" y="516" class="h">제공자가 막음</text>
-  <text x="640" y="544" class="s">429 크레딧 소진·요청 한도, 403, 5xx, 시간 초과</text>
-  <text x="640" y="568" class="s">작업은 실패하지 않는다. 리스를 풀고 QUEUED로</text>
-  <text x="640" y="592" class="s">근거 부족 아닌 실패가 3번 연달아 나도 같음</text>
+  <text x="640" y="544" class="s">429·5xx·시간 초과, 키 오류(401·403·404)</text>
+  <text x="640" y="568" class="s">작업은 실패하지 않고 QUEUED로 돌아간다</text>
+  <text x="640" y="592" class="s">과금 뒤 막힌 시도는 세어 3번이면 RETRY_EXHAUSTED</text>
   <path class="line" d="M620,555 H508" marker-end="url(#arr)"/>
   <path class="line" d="M1094,216 V250 H1180 V656 H272 V638" marker-end="url(#arr)"/>
   <rect class="card" x="40" y="480" width="464" height="150" rx="16"/>
   <rect x="40" y="480" width="464" height="6" rx="3" fill="#E9B949"/>
   <text x="60" y="516" class="h">15분 쉼, 작업은 QUEUED에 남음</text>
-  <text x="60" y="544" class="s">쉬는 동안 아무 작업도 잡지 않는다</text>
+  <text x="60" y="544" class="s">AI 탓 실패 3번 연속에도 쉰다(입력 탓 제외)</text>
   <text x="60" y="568" class="s">크레딧을 채우면 이어서 처리한다</text>
   <text x="60" y="592" class="s">24시간 넘게 못 잡으면 EXPIRED</text>
   <path class="line" d="M150,480 V226" marker-end="url(#arr)"/>
