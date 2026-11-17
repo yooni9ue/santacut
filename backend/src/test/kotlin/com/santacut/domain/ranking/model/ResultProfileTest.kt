@@ -22,6 +22,13 @@ class ResultProfileTest {
     }
 
     @Test
+    fun `순위가 남은 참가자 수보다 커도 상위 비율은 100을 넘지 않는다`() {
+        val mine = assessment("me", "[90,70,70,70]", 70)
+
+        assertEquals(100, ResultProfile.of(mine, snapshot(500), ResultPopulation.of(Assessments(listOf(mine))), 100).topPercent)
+    }
+
+    @Test
     fun `장난기를 아는 참가자가 30명보다 적으면 기준값 50, 이상이면 중앙값으로 유형을 가른다`() {
         val mine = assessment("me", "[90,70,70,70]", 60)
         val few = ResultPopulation.of(Assessments(listOf(mine)))

@@ -45,10 +45,10 @@ class ResultProfile(
             )
         }
 
-        /** 상위 비율(올림, 최소 1). */
+        /** 상위 비율(올림, 1~100). 공유 링크가 붙잡아 남은 옛 스냅숏은 그 계산의 행이 일부만 남아 순위가 참가자 수보다 클 수 있다. */
         private fun topPercentOf(rank: Int?, participantCount: Long): Int? {
             if (rank == null || participantCount < MIN_PARTICIPANTS_FOR_TOP_PERCENT) return null
-            return ((rank * PERCENT + participantCount - 1) / participantCount).toInt().coerceAtLeast(1)
+            return ((rank * PERCENT + participantCount - 1) / participantCount).toInt().coerceIn(1, PERCENT)
         }
     }
 }
