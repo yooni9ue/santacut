@@ -1,5 +1,6 @@
 package com.santacut.application.analysis.facade
 
+import com.santacut.application.analysis.runner.AnalysisWorkerRunner
 import com.santacut.application.global.Facade
 import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
@@ -16,22 +17,18 @@ import com.santacut.domain.prompt.model.PromptName
 import com.santacut.domain.prompt.service.PromptService
 import com.santacut.domain.ranking.service.RankingService
 import org.slf4j.LoggerFactory
-import org.springframework.core.task.TaskRejectedException
 import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
 import java.time.Instant
 import java.util.UUID
-import java.util.concurrent.Semaphore
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
  * 대기 중인 분석 작업을 꺼내 AI 점수를 매기고 순위 다시 계산을 요청하는 백그라운드 작업자.
  *
- * 예약 폴링([dispatchJobs])은 빈 채점 스레드([analysisWorkerExecutor])마다 작업을 하나씩 잡아 넘긴다. 채점 스레드는 작업을 끝내면
- * 기다리지 않고 다음 작업을 잡고, 대기열이 비면 물러난다. 그래서 스레드 수만큼 작업을 동시에 채점한다.
+ * 예약 폴링([dispatchJobs])은 빈 채점 스레드마다 작업을 하나씩 잡아 넘긴다([AnalysisWorkerRunner]). 그래서 스레드 수만큼 작업을 동시에 채점한다.
  * 작업 잡기([claimLock])와 비용 확인·사용량 기록([budgetLock])은 트랜잭션 커밋까지 잠금 안에서 해,
  * 두 스레드가 같은 작업을 잡거나 동시에 비용 확인을 통과해 한도를 넘지 않게 한다. 제공자 문제로 멈추는 상태는 모든 스레드가 함께 쓴다.
  *
@@ -54,11 +51,10 @@ class AnalysisWorkerFacade(
     private val rankingService: RankingService,
     private val promptService: PromptService,
     private val transactionTemplate: TransactionTemplate,
-    private val analysisWorkerExecutor: ThreadPoolTaskExecutor,
+    private val workers: AnalysisWorkerRunner,
     private val clock: Clock,
 ) {
     private val logger = LoggerFactory.getLogger(AnalysisWorkerFacade::class.java)
-    private val workerSlots = Semaphore(analysisWorkerExecutor.maxPoolSize)
     private val claimLock = ReentrantLock()
     private val budgetLock = ReentrantLock()
 
@@ -66,7 +62,7 @@ class AnalysisWorkerFacade(
     @Scheduled(fixedDelayString = "\${santacut.ai.poll-delay-ms:${DEFAULT_POLL_DELAY_MS}}")
     fun dispatchJobs() {
         expireOverdueJobs()
-        dispatchWhileSlotsFree()
+        workers.dispatch(::claimNextJob, ::process)
     }
 
     /** 작업 하나를 이 스레드에서 바로 잡아 채점한다. 잡을 작업이 없으면 아무것도 하지 않는다. */
@@ -81,49 +77,6 @@ class AnalysisWorkerFacade(
      */
     private fun expireOverdueJobs() =
         transactionTemplate.executeWithoutResult { analysisJobService.expireOverdueJobs(clock.instant()) }
-
-    private tailrec fun dispatchWhileSlotsFree() {
-        if (!workerSlots.tryAcquire()) return
-        val job = claimForSlot() ?: return
-        startWorker(job)
-        dispatchWhileSlotsFree()
-    }
-
-    /** 방금 얻은 자리로 작업을 잡는다. 잡을 작업이 없거나 잡다가 예외가 나면 자리를 돌려준다. */
-    private fun claimForSlot(): AnalysisJob? {
-        val job = try {
-            claimNextJob()
-        } catch (exception: RuntimeException) {
-            workerSlots.release()
-            throw exception
-        }
-        if (job == null) workerSlots.release()
-        return job
-    }
-
-    /** 잡은 작업을 채점 스레드에 넘긴다. 스레드는 대기열이 빌 때까지 이어서 채점한 뒤 자리를 돌려준다. */
-    private fun startWorker(job: AnalysisJob) {
-        try {
-            analysisWorkerExecutor.execute { processUntilEmpty(job) }
-        } catch (exception: TaskRejectedException) {
-            // 앱이 꺼지는 중이다. 잡은 작업은 리스가 끝난 뒤 다시 잡힌다.
-            workerSlots.release()
-            throw exception
-        }
-    }
-
-    private fun processUntilEmpty(job: AnalysisJob) {
-        try {
-            processChain(job)
-        } finally {
-            workerSlots.release()
-        }
-    }
-
-    private tailrec fun processChain(job: AnalysisJob) {
-        process(job)
-        processChain(claimNextJob() ?: return)
-    }
 
     /**
      * 작업 하나를 채점한다. 스택 넘침([StackOverflowError])은 입력이 정한 실패라 그 작업만 ANALYSIS_FAILED로 끝낸다.
