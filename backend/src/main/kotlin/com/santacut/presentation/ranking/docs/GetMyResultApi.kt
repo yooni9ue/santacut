@@ -18,7 +18,11 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
         "새 심사가 아직 순위에 반영되지 않았으면 이전 스냅숏의 점수와 순위를 주고 ranking_pending을 true로 둡니다. " +
         "첫 순위 계산 전이면 점수와 판정만 주고 rank, delivery_sequence, eta, computed_at은 null입니다. " +
         "stage는 PREVIEW(시즌 마감 전)나 FINAL(마감 후)이고, tied가 true면 공동 순위입니다. " +
-        "score_hundredths는 100으로 나눠 표시하는 정수이고, eta와 computed_at은 ISO-8601 UTC 시각입니다.",
+        "score_hundredths는 100으로 나눠 표시하는 정수이고, eta와 computed_at은 ISO-8601 UTC 시각입니다. " +
+        "재미용 필드도 함께 줍니다. archetype은 크리스마스 유형 10종 중 하나, badges는 본인 말의 낱말 횟수로 받은 배지(없으면 빈 배열), " +
+        "quote는 본인 말에서 고른 20자 이하 한마디(없으면 null), dimension_scores는 공감·응원·존중·협력 막대 4개, weakest_dimension은 가장 낮은 항목입니다. " +
+        "low_confidence_dimensions에 든 항목은 근거가 부족해 사전값을 준 항목입니다. " +
+        "top_percent는 순위 계산 참가자가 100명 이상일 때만, archetype_share_percent는 점수를 받은 참가자가 30명 이상일 때만 값이 있고 아니면 null입니다.",
     tags = ["Results"],
     security = [SecurityRequirement(name = ApiDocs.SESSION_SECURITY)],
     responses = [

@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 780" width="1200" height="780" role="img" aria-label="채택하지 않은 안: 지시 줄을 대화문 뒤로(MAE 5.92에서 6.46), tone 필드(250토큰 상한 2/40, MAE 3.71에서 5.04), 다섯 단계 눈금(MAE 7.72), 4구간 10,000자(위치 차이 15.42), 컨텍스트 캐시, Batch API, Flex, LLMLingua식 압축, 요약 후 채점">
+  <title>채택하지 않은 안: 지시 줄을 대화문 뒤로(MAE 5.92에서 6.46), tone 필드(250토큰 상한 2/40, MAE 3.71에서 5.04), 다섯 단계 눈금(MAE 7.72), 4구간 10,000자(위치 차이 15.42), 컨텍스트 캐시, Batch API, Flex, LLMLingua식 압축, 요약 후 채점</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B4C4D8"/>
+    </marker>
+    <marker id="arrLater" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8DA3BE"/>
+    </marker>
+    <symbol id="flake" viewBox="-10 -10 20 20" overflow="visible"><g fill="none" stroke-width="1.3" stroke-linecap="round"><g transform="rotate(0)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(60)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(120)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g></g></symbol>
+    
+    <style>
+      text { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; }
+      text:not([fill]) { fill: #F5F8FC; }
+      .card { fill: #12263F; stroke: #1E3A5C; stroke-width: 1.5; }
+      .inner { fill: #183152; stroke: #2B4A70; stroke-width: 1; }
+      .ghost { fill: #0C1B2E; stroke: #8DA3BE; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .dev { fill: #0E3328; stroke: #134236; stroke-width: 1.5; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #B4C4D8; }
+      .code { font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace; font-size: 14px; fill: #8ECDF5; }
+      .line { stroke: #B4C4D8; stroke-width: 2; fill: none; }
+      .later { stroke: #8DA3BE; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      
+    </style>
+  </defs>
+  <rect width="1200" height="780" rx="24" fill="url(#bg)"/>
+  <path d="M0,756 Q300,740 600,752 T1200,750 V756 A24,24 0 0 1 1176,780 H24 A24,24 0 0 1 0,756 z" fill="#F5F8FC" opacity="0.05"/>
+  <g fill="#F5F8FC"><circle cx="131" cy="385" r="0.9" opacity="0.45"/><circle cx="451" cy="659" r="1.2" opacity="0.45"/><circle cx="1034" cy="611" r="0.9" opacity="0.3"/><circle cx="438" cy="458" r="1.2" opacity="0.3"/><circle cx="857" cy="430" r="1.2" opacity="0.4"/><circle cx="1075" cy="619" r="1.5" opacity="0.3"/><circle cx="427" cy="266" r="1.5" opacity="0.45"/></g>
+  <path d="M40,0 H64 V56 L52,47 L40,56 z" fill="#B5123E"/>
+  <path d="M43.5,0 V50 M60.5,0 V50" stroke="#E9B949" stroke-width="1" opacity="0.75"/>
+  <text x="82" y="48" font-size="28" font-weight="800">해 보고 버린 것</text>
+  <text x="1160" y="48" text-anchor="end" font-size="16" fill="#B4C4D8">빨간 줄은 채택하지 않은 안. 측정은 ./gradlew eval, 판단은 설계 검토</text>
+  <use href="#flake" xlink:href="#flake" x="1150" y="732" width="16" height="16" stroke="#F5F8FC" opacity="0.35"/>
+  <rect class="card" x="40" y="92" width="360" height="190" rx="16"/>
+  <circle cx="70" cy="124" r="13" fill="#B5123E"/>
+  <path d="M64,118 L76,130 M76,118 L64,130" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="94" y="130" class="h">지시 줄을 대화문 뒤로</text>
+  <path d="M92,124 H276" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="324" y="242" width="56" height="24" rx="12" fill="#E9B949"/>
+  <text x="352.0" y="258.68" text-anchor="middle" font-size="13" font-weight="700" fill="#08121F">측정</text>
+  <text x="64" y="174" font-size="14" fill="#F5F8FC">MAE 5.92 → 6.46</text>
+  <text x="64" y="200" font-size="14" fill="#B4C4D8">끝 위치만 62.4 → 48.4</text>
+  <text x="64" y="226" font-size="14" fill="#B4C4D8">가운데 82.5 → 82.4 그대로</text>
+  <rect class="card" x="420" y="92" width="360" height="190" rx="16"/>
+  <circle cx="450" cy="124" r="13" fill="#B5123E"/>
+  <path d="M444,118 L456,130 M456,118 L444,130" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="474" y="130" class="h">tone 필드 추가</text>
+  <path d="M472,124 H598" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="704" y="242" width="56" height="24" rx="12" fill="#E9B949"/>
+  <text x="732.0" y="258.68" text-anchor="middle" font-size="13" font-weight="700" fill="#08121F">측정</text>
+  <text x="444" y="174" font-size="14" fill="#F5F8FC">출력 약 35토큰 늘어</text>
+  <text x="444" y="200" font-size="14" fill="#B4C4D8">250토큰 상한에 2/40번 걸림</text>
+  <text x="444" y="226" font-size="14" fill="#B4C4D8">MAE 3.71 → 5.04</text>
+  <rect class="card" x="800" y="92" width="360" height="190" rx="16"/>
+  <circle cx="830" cy="124" r="13" fill="#B5123E"/>
+  <path d="M824,118 L836,130 M836,118 L824,130" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="854" y="130" class="h">다섯 단계 눈금</text>
+  <path d="M852,124 H976" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="1084" y="242" width="56" height="24" rx="12" fill="#E9B949"/>
+  <text x="1112.0" y="258.68" text-anchor="middle" font-size="13" font-weight="700" fill="#08121F">측정</text>
+  <text x="824" y="174" font-size="14" fill="#F5F8FC">10·30·50·70·90 중 하나만 고르기</text>
+  <text x="824" y="200" font-size="14" fill="#B4C4D8">위치 차이 15.3으로 줄었지만</text>
+  <text x="824" y="226" font-size="14" fill="#B4C4D8">MAE 7.72 (5판 3.71)</text>
+  <rect class="card" x="40" y="302" width="360" height="190" rx="16"/>
+  <circle cx="70" cy="334" r="13" fill="#B5123E"/>
+  <path d="M64,328 L76,340 M76,328 L64,340" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="94" y="340" class="h">4구간·10,000자</text>
+  <path d="M92,334 H219" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="324" y="452" width="56" height="24" rx="12" fill="#E9B949"/>
+  <text x="352.0" y="468.68" text-anchor="middle" font-size="13" font-weight="700" fill="#08121F">측정</text>
+  <text x="64" y="384" font-size="14" fill="#F5F8FC">위치 차이 15.42</text>
+  <text x="64" y="410" font-size="14" fill="#B4C4D8">처음 비꼼을 첫 구간이 놓침</text>
+  <text x="64" y="436" font-size="14" fill="#B4C4D8">6구간·6,700자로 3.75</text>
+  <rect class="card" x="420" y="302" width="360" height="190" rx="16"/>
+  <circle cx="450" cy="334" r="13" fill="#B5123E"/>
+  <path d="M444,328 L456,340 M456,328 L444,340" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="474" y="340" class="h">컨텍스트 캐시</text>
+  <path d="M472,334 H587" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="704" y="452" width="56" height="24" rx="12" fill="#5B6E86"/>
+  <text x="732.0" y="468.68" text-anchor="middle" font-size="13" font-weight="700" fill="#F5F8FC">판단</text>
+  <text x="444" y="384" font-size="14" fill="#F5F8FC">대화마다 본문이 다르다</text>
+  <text x="444" y="410" font-size="14" fill="#B4C4D8">다시 쓸 앞부분은</text>
+  <text x="444" y="436" font-size="14" fill="#B4C4D8">시스템 프롬프트뿐</text>
+  <rect class="card" x="800" y="302" width="360" height="190" rx="16"/>
+  <circle cx="830" cy="334" r="13" fill="#B5123E"/>
+  <path d="M824,328 L836,340 M836,328 L824,340" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="854" y="340" class="h">Batch API</text>
+  <path d="M852,334 H937" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="1084" y="452" width="56" height="24" rx="12" fill="#5B6E86"/>
+  <text x="1112.0" y="468.68" text-anchor="middle" font-size="13" font-weight="700" fill="#F5F8FC">판단</text>
+  <text x="824" y="384" font-size="14" fill="#F5F8FC">결과가 늦게 돌아온다</text>
+  <text x="824" y="410" font-size="14" fill="#B4C4D8">화면에서 기다리는 심사와</text>
+  <text x="824" y="436" font-size="14" fill="#B4C4D8">맞지 않는다</text>
+  <rect class="card" x="40" y="512" width="360" height="190" rx="16"/>
+  <circle cx="70" cy="544" r="13" fill="#B5123E"/>
+  <path d="M64,538 L76,550 M76,538 L64,550" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="94" y="550" class="h">Flex 처리</text>
+  <path d="M92,544 H175" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="324" y="662" width="56" height="24" rx="12" fill="#5B6E86"/>
+  <text x="352.0" y="678.68" text-anchor="middle" font-size="13" font-weight="700" fill="#F5F8FC">판단</text>
+  <text x="64" y="594" font-size="14" fill="#F5F8FC">응답 시간이 보장되지 않는다</text>
+  <text x="64" y="620" font-size="14" fill="#B4C4D8">작업 리스(7분)와 화면 대기에</text>
+  <text x="64" y="646" font-size="14" fill="#B4C4D8">맞지 않는다</text>
+  <rect class="card" x="420" y="512" width="360" height="190" rx="16"/>
+  <circle cx="450" cy="544" r="13" fill="#B5123E"/>
+  <path d="M444,538 L456,550 M456,538 L444,550" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="474" y="550" class="h">LLMLingua식 압축</text>
+  <path d="M472,544 H617" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="704" y="662" width="56" height="24" rx="12" fill="#5B6E86"/>
+  <text x="732.0" y="678.68" text-anchor="middle" font-size="13" font-weight="700" fill="#F5F8FC">판단</text>
+  <text x="444" y="594" font-size="14" fill="#F5F8FC">토큰을 지우다 한국어 어미가</text>
+  <text x="444" y="620" font-size="14" fill="#B4C4D8">잘린다. 말투(~요, ~냐)가</text>
+  <text x="444" y="646" font-size="14" fill="#B4C4D8">점수 근거다</text>
+  <rect class="card" x="800" y="512" width="360" height="190" rx="16"/>
+  <circle cx="830" cy="544" r="13" fill="#B5123E"/>
+  <path d="M824,538 L836,550 M836,538 L824,550" stroke="#F5F8FC" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="854" y="550" class="h">요약한 뒤 채점</text>
+  <path d="M852,544 H976" stroke="#FF7A93" stroke-width="2.5" opacity="0.9"/>
+  <rect x="1084" y="662" width="56" height="24" rx="12" fill="#5B6E86"/>
+  <text x="1112.0" y="678.68" text-anchor="middle" font-size="13" font-weight="700" fill="#F5F8FC">판단</text>
+  <text x="824" y="594" font-size="14" fill="#F5F8FC">요약하면 비꼼 같은 말투가</text>
+  <text x="824" y="620" font-size="14" fill="#B4C4D8">사라진다. 근거 줄 번호도</text>
+  <text x="824" y="646" font-size="14" fill="#B4C4D8">원문을 가리킬 수 없다</text>
+  <text x="40" y="748" font-size="13" fill="#B4C4D8">판단 카드는 실측이 없다. 이 서비스의 입력(대화마다 다른 본문)과 흐름(화면에서 기다리는 심사)에 맞지 않아 시도하지 않았다.</text>
+</svg>

@@ -4,12 +4,13 @@
 
 서버와 AWS 자원은 [`santacut-infra`](https://github.com/yooni9ue/santacut-infra)가 만든다. 서버 쪽 약속(비밀값 파일, 백업 버킷, 사용자)은 그 레포 `docs/operations.md` 6·7절이 기준이다. 이 문서는 앱 레포가 그 약속에 맞춘 부분을 적는다.
 
-- 서버는 Lightsail `nano_3_0`이다. 메모리 512MB에 스왑 1GB가 있다.
+- dev 서버는 Lightsail `micro_3_0`(1GB, 2 vCPU, 40GB)이고 스왑 1GB가 있다. 2026-11-16에 `nano_3_0`(512MB)에서 올렸다(기동 212초 → 26초). 운영(`main`)은 아직 켜지 않았다.
+- 주소는 dev `https://api-dev.santacut.me`, 운영 `https://api.santacut.me`다. DNS는 Route 53 호스팅 영역(`santacut.me`)이 맡고, 가비아에서 네임서버를 위임했다. 화면은 Vercel(`dev.santacut.me`, `santacut.me`, `www.santacut.me`)에 있다.
 - `backend/ci-cd/deploy/compose.yml`은 Caddy와 Spring Boot 앱 두 컨테이너다. SQLite 파일은 Docker named volume에 둔다.
 - AI는 Google Gemini 3.5 Flash-Lite(Gemini Developer API)다. API 키(`GEMINI_API_KEY`)로 부른다.
 - SQLite 한 파일이라 앱 인스턴스는 하나만 띄운다. 여러 서버에서 같은 파일을 쓰지 않는다.
 
-## 메모리 예산 (512MB)
+## 메모리 예산
 
 | 대상 | 설정 |
 | --- | --- |
@@ -18,19 +19,23 @@
 | Caddy | `mem_limit: 64m` |
 
 - 힙이 모자라면 JVM이 바로 죽고 `restart: unless-stopped`가 다시 띄운다.
+- 512MB 번들에 맞춰 정한 값이다. 1GB로 올린 뒤에도 그대로 둬 OS와 페이지 캐시에 여유를 남긴다.
 - 스왑은 비상용이다. 자주 죽거나 느리면 번들을 올린다(인프라 레포 9절).
 
-## 도메인 없이, 또는 도메인과 함께
+## HTTPS와 도메인
 
 Caddy 사이트 주소는 `DOMAIN`을 따른다. Caddyfile은 `{$SITE_ADDRESS::80}` 하나로 두 경우를 모두 처리한다.
 
 | 경우 | `DOMAIN` | `ACME_EMAIL` | `PUBLIC_BASE_URL` | `SESSION_SECURE` | Caddy |
 | --- | --- | --- | --- | --- | --- |
-| 도메인 없음(지금) | 비움 | 비움 | `http://<고정 IP>` | `false` | `:80` 평문 HTTP |
-| 도메인 있음 | `santacut.kr` 등 | 운영자 이메일 | `https://<도메인>` | `true` | 인증서 자동 발급, 443 |
+| dev(지금) | `api-dev.santacut.me` | 운영자 이메일 | `https://api-dev.santacut.me` | `true` | Let's Encrypt 인증서 자동 발급, 443 |
+| 운영 | `api.santacut.me` | 운영자 이메일 | `https://api.santacut.me` | `true` | 같음 |
+| 도메인 없음(로컬 점검용) | 비움 | 비움 | `http://<고정 IP>` | `false` | `:80` 평문 HTTP |
 
-- HTTP에서 `SESSION_SECURE=true`면 브라우저가 `__Host-` 세션 쿠키를 보내지 않는다. 도메인과 HTTPS를 갖춘 뒤에만 켠다.
-- HTTP는 암호화되지 않는다. 실제 사용자 데이터는 도메인과 TLS를 갖춘 뒤 받는다.
+- Caddy는 80번으로 온 요청을 HTTPS로 넘기고(`308`), 모든 응답에 HSTS(`max-age=31536000`), `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`를 붙인다. `/actuator`는 밖에서 `404`다.
+- 진행 상황 스트림(`/v1/analyses/*/events`)은 압축하지 않고 버퍼 없이 바로 흘려보낸다.
+- 운영 프로필은 Caddy가 붙인 `X-Forwarded-*` 헤더를 믿는다(`server.forward-headers-strategy: native`, 내부 프록시 대역만). 그래서 앱은 원래 요청이 HTTPS였다는 것을 안다.
+- HTTP에서 `SESSION_SECURE=true`면 브라우저가 `__Host-` 세션 쿠키를 보내지 않는다. 평문 HTTP로 띄울 때만 `false`로 둔다.
 
 ## 환경 설정과 배포
 
@@ -40,7 +45,9 @@ Caddy 사이트 주소는 `DOMAIN`을 따른다. Caddyfile은 `{$SITE_ADDRESS::8
 - 앱은 AWS 기본 자격 증명 체인으로 환경 변수의 키를 읽는다. 키를 Spring 설정에 따로 적지 않는다.
 - CI는 `APP_ENV_FILE=.env.example`로 예시 파일을 넣어 Compose 구문만 검사한다.
 
-GitHub Actions는 PR, `develop`, `main`에서 검증한다. `develop`과 `main`에 푸시된 커밋 이미지는 GHCR에 게시한다(`ghcr.io/yooni9ue/santacut:<sha>`, `develop`은 `:develop` 태그도 붙인다). 운영 배포는 `workflow_dispatch`에서 `deploy=true`를 고른다. 릴리스 묶음에는 `compose.yml`, `Caddyfile`, `deploy.sh`, `backup.sh`가 들어간다. 배포 스크립트는 검증한 image digest를 쓰고 readiness를 확인한다.
+GitHub Actions는 PR, `develop`, `main`에서 검증한다. `develop`과 `main`에 푸시된 커밋 이미지는 GHCR에 게시한다(`ghcr.io/yooni9ue/santacut:<sha>`, `develop`은 `:develop` 태그도 붙인다). `develop`은 이어서 dev 서버에 자동 배포하고(아래), `main`은 이미지 게시까지만 한다. 운영 배포는 `workflow_dispatch`에서 `deploy=true`를 고른다.
+
+- 서버가 이미지를 받을 때 쓰는 GHCR 자격 증명은 `app.env`의 `GHCR_USER`, `GHCR_TOKEN`(`read:packages`만)이다. 인프라의 `fetch-secrets.sh`가 이 두 키로 `docker login ghcr.io`를 하고, 앱 컨테이너에 넘기는 파일에서는 뺀다. 릴리스 묶음에는 `compose.yml`, `Caddyfile`, `deploy.sh`, `backup.sh`가 들어간다. 배포 스크립트는 검증한 image digest를 쓰고 readiness를 확인한다.
 
 ### dev 자동 배포
 
@@ -70,7 +77,7 @@ Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정�
 | --- | --- | --- |
 | `app.public-base-url` (`APP_PUBLIC_BASE_URL`, Compose에서는 `PUBLIC_BASE_URL`) | `http://localhost:8080` | 공유 링크·Open Graph에 쓰는 공개 출처. 경로 없는 URL이어야 한다 |
 | `app.session-secure` (`APP_SESSION_SECURE`, Compose에서는 `SESSION_SECURE`) | `false` | 세션 쿠키 Secure·`__Host-` 이름 사용 |
-| `app.cors.allowed-origins` (`APP_CORS_ALLOWED_ORIGINS`) | `https://www.santacut.me,https://santacut.me` | 쿠키를 실어 API를 부를 수 있는 프론트엔드 출처. 쉼표로 나눈다. dev는 `http://localhost:3000`을 더한다. 자격 증명을 허용하므로 `*`는 쓸 수 없고, 넣으면 앱이 뜨지 않는다 |
+| `app.cors.allowed-origins` (`APP_CORS_ALLOWED_ORIGINS`) | `https://www.santacut.me,https://santacut.me` | 쿠키를 실어 API를 부를 수 있는 프론트엔드 출처. 쉼표로 나눈다. dev는 `https://dev.santacut.me`와 `http://localhost:3000`을 더한다. 자격 증명을 허용하므로 `*`는 쓸 수 없고, 넣으면 앱이 뜨지 않는다 |
 | `app.session-same-site` (`APP_SESSION_SAME_SITE`) | `Lax` | 세션·CSRF 쿠키의 SameSite(`Strict`, `Lax`, `None`). `None`은 `APP_SESSION_SECURE=true`일 때만 쓸 수 있고, 아니면 앱이 뜨지 않는다. dev만 `None`으로 둬 `http://localhost:3000`에서도 쿠키가 실리게 한다 |
 | `app.season-year` (`APP_SEASON_YEAR`) | `2026` | 시즌 연도. 그해 12월 25일 0시(KST)에 마감한다 |
 | `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
@@ -135,6 +142,6 @@ age 암호화는 뺐다. 2026-11 전에 age로 만든 `sqlite/*.age` 백업만 P
 
 ## 아직 운영 전에 필요한 것
 
-- 도메인과 TLS(지금은 고정 IP 평문 HTTP)
-- 배포용 GitHub secrets와 production environment
+- 운영(`main`) 인프라 켜기와 `api.santacut.me` 레코드, 운영용 `app.env`(인프라 레포 12절)
+- 운영 배포용 GitHub secrets와 production environment
 - 카카오톡·인스타그램 실제 내보내기 샘플로 원본 파서 검증(지금 파서는 공개 예시로 만들었다)

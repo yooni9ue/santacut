@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-label="AI 비용 가드 흐름: 작업을 잡으면 모든 구간과 반복 호출의 비용을 미리 어림하고, 한 달 9달러를 넘으면 부르지 않고 작업을 QUEUED로 두고 15분 쉰다. 부르면 응답의 입력·출력·생각 토큰을 날짜별로 기록한다. Gemini가 429(크레딧 소진 포함)·403·5xx·시간 초과로 막아도 작업은 실패하지 않고 QUEUED로 돌아가며 15분 뒤 다시 잡는다. 24시간이 지나면 EXPIRED">
+  <title>AI 비용 가드 흐름: 작업을 잡으면 모든 구간과 반복 호출의 비용을 미리 어림하고, 한 달 9달러를 넘으면 부르지 않고 작업을 QUEUED로 두고 15분 쉰다. 부르면 응답의 입력·출력·생각 토큰을 날짜별로 기록한다. Gemini가 429(크레딧 소진 포함)·403·5xx·시간 초과로 막아도 작업은 실패하지 않고 QUEUED로 돌아가며 15분 뒤 다시 잡는다. 24시간이 지나면 EXPIRED</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B4C4D8"/>
+    </marker>
+    <marker id="arrLater" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8DA3BE"/>
+    </marker>
+    <symbol id="flake" viewBox="-10 -10 20 20" overflow="visible"><g fill="none" stroke-width="1.3" stroke-linecap="round"><g transform="rotate(0)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(60)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(120)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g></g></symbol>
+    
+    <style>
+      text { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; }
+      text:not([fill]) { fill: #F5F8FC; }
+      .card { fill: #12263F; stroke: #1E3A5C; stroke-width: 1.5; }
+      .inner { fill: #183152; stroke: #2B4A70; stroke-width: 1; }
+      .ghost { fill: #0C1B2E; stroke: #8DA3BE; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .dev { fill: #0E3328; stroke: #134236; stroke-width: 1.5; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #B4C4D8; }
+      .code { font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace; font-size: 14px; fill: #8ECDF5; }
+      .line { stroke: #B4C4D8; stroke-width: 2; fill: none; }
+      .later { stroke: #8DA3BE; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      
+    </style>
+  </defs>
+  <rect width="1200" height="740" rx="24" fill="url(#bg)"/>
+  <path d="M0,716 Q300,700 600,712 T1200,710 V716 A24,24 0 0 1 1176,740 H24 A24,24 0 0 1 0,716 z" fill="#F5F8FC" opacity="0.05"/>
+  <g fill="#F5F8FC"><circle cx="214" cy="170" r="1.2" opacity="0.4"/><circle cx="553" cy="248" r="1.5" opacity="0.3"/><circle cx="1054" cy="404" r="1.5" opacity="0.3"/><circle cx="393" cy="422" r="1.2" opacity="0.4"/><circle cx="897" cy="94" r="0.9" opacity="0.4"/><circle cx="890" cy="537" r="1.5" opacity="0.3"/><circle cx="924" cy="211" r="1.5" opacity="0.45"/></g>
+  <path d="M40,0 H64 V56 L52,47 L40,56 z" fill="#B5123E"/>
+  <path d="M43.5,0 V50 M60.5,0 V50" stroke="#E9B949" stroke-width="1" opacity="0.75"/>
+  <text x="82" y="48" font-size="28" font-weight="800">AI 비용 가드</text>
+  <text x="1160" y="48" text-anchor="end" font-size="16" fill="#B4C4D8">하루 한도는 기본으로 없다. 한 달 9달러와 Gemini 선불 크레딧이 상한이다</text>
+  <use href="#flake" xlink:href="#flake" x="1150" y="692" width="16" height="16" stroke="#F5F8FC" opacity="0.35"/>
+  <rect class="card" x="40" y="96" width="250" height="130" rx="16"/>
+  <rect x="40" y="96" width="250" height="6" rx="3" fill="#8ECDF5"/>
+  <text x="60" y="132" class="h">작업 잡기</text>
+  <text x="60" y="160" class="s">3초마다, 리스 7분</text>
+  <text x="60" y="184" class="s">최대 3번 시도</text>
+  <path class="line" d="M290,161 H324" marker-end="url(#arr)"/>
+  <rect class="card" x="328" y="96" width="400" height="130" rx="16"/>
+  <rect x="328" y="96" width="400" height="6" rx="3" fill="#E9B949"/>
+  <text x="348" y="132" class="h">호출 전 어림</text>
+  <text x="348" y="160" style="font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace;" font-size="13" fill="#B4C4D8">구간 수 × 반복 수 × (글자 × 3/4 입력 + 250 출력)</text>
+  <text x="348" y="184" class="s">입력 100만 토큰 0.3달러, 출력 2.5달러</text>
+  <text x="348" y="208" font-size="13" fill="#F7DE9F">이번 달 합계 + 이번 어림</text>
+  <path class="line" d="M728,161 H762" marker-end="url(#arr)"/>
+  <path d="M880,96 L990,161 L880,226 L770,161 z" fill="#183152" stroke="#E9B949" stroke-width="1.5"/>
+  <text x="880" y="156" text-anchor="middle" font-size="15" font-weight="700">한 달 9달러</text>
+  <text x="880" y="178" text-anchor="middle" font-size="15" font-weight="700">넘나?</text>
+  <path class="line" d="M990,161 H1024" marker-end="url(#arr)"/>
+  <text x="1004" y="150" text-anchor="middle" font-size="13" fill="#FF7A93">예</text>
+  <rect class="card" x="1028" y="106" width="132" height="110" rx="16"/>
+  <rect x="1028" y="106" width="132" height="6" rx="3" fill="#FF7A93"/>
+  <text x="1044" y="140" font-size="15" font-weight="700">부르지 않음</text>
+  <text x="1044" y="164" style="font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace;" font-size="12" fill="#B4C4D8">AI_BUDGET_</text>
+  <text x="1044" y="182" style="font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace;" font-size="12" fill="#B4C4D8">EXCEEDED</text>
+  <path class="line" d="M880,226 V284" marker-end="url(#arr)"/>
+  <text x="892" y="258" font-size="13" fill="#4CC38A">아니오</text>
+  <rect class="card" x="700" y="288" width="360" height="130" rx="16"/>
+  <rect x="700" y="288" width="360" height="6" rx="3" fill="#4CC38A"/>
+  <text x="720" y="324" class="h">Gemini 호출</text>
+  <text x="720" y="352" class="s">호출 하나 60초 상한, SDK 재시도 없음</text>
+  <text x="720" y="376" class="s">구간마다(긴 대화), 3번(짧은 대화)</text>
+  <path class="line" d="M700,353 H602" marker-end="url(#arr)"/>
+  <text x="651" y="342" text-anchor="middle" font-size="13" fill="#4CC38A">성공</text>
+  <rect class="card" x="258" y="288" width="340" height="130" rx="16"/>
+  <rect x="258" y="288" width="340" height="6" rx="3" fill="#8ECDF5"/>
+  <text x="278" y="324" class="h">사용량 기록</text>
+  <text x="278" y="352" class="s">입력·출력·생각 토큰을 날짜(한국)별로</text>
+  <text x="278" y="376" style="font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace;" font-size="13" fill="#8ECDF5">ai_usage_days에 더한다</text>
+  <text x="278" y="400" font-size="13" fill="#F7DE9F">다음 어림이 이 합계를 읽는다</text>
+  <path class="line" d="M880,418 V476" marker-end="url(#arr)"/>
+  <text x="892" y="452" font-size="13" fill="#FF7A93">막힘</text>
+  <rect class="card" x="620" y="480" width="540" height="150" rx="16"/>
+  <rect x="620" y="480" width="540" height="6" rx="3" fill="#FF7A93"/>
+  <text x="640" y="516" class="h">제공자가 막음</text>
+  <text x="640" y="544" class="s">429 크레딧 소진·요청 한도, 403, 5xx, 시간 초과</text>
+  <text x="640" y="568" class="s">작업은 실패하지 않는다. 리스를 풀고 QUEUED로</text>
+  <text x="640" y="592" class="s">근거 부족 아닌 실패가 3번 연달아 나도 같음</text>
+  <path class="line" d="M620,555 H508" marker-end="url(#arr)"/>
+  <path class="line" d="M1094,216 V250 H1180 V656 H272 V638" marker-end="url(#arr)"/>
+  <rect class="card" x="40" y="480" width="464" height="150" rx="16"/>
+  <rect x="40" y="480" width="464" height="6" rx="3" fill="#E9B949"/>
+  <text x="60" y="516" class="h">15분 쉼, 작업은 QUEUED에 남음</text>
+  <text x="60" y="544" class="s">쉬는 동안 아무 작업도 잡지 않는다</text>
+  <text x="60" y="568" class="s">크레딧을 채우면 이어서 처리한다</text>
+  <text x="60" y="592" class="s">24시간 넘게 못 잡으면 EXPIRED</text>
+  <path class="line" d="M150,480 V226" marker-end="url(#arr)"/>
+  <text x="162" y="360" font-size="13" fill="#B4C4D8">다시 잡기</text>
+  <text x="40" y="700" font-size="13" fill="#B4C4D8">단가는 설정값이라 실제 청구와 다를 수 있다. Google 쪽 결제 예산 알림은 운영자가 따로 건다.</text>
+</svg>
