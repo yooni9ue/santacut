@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoreDimension
 import com.santacut.domain.analysis.model.ScoreDimensionKeyConverter
+import com.santacut.domain.global.model.ForeignKeyColumns
 import com.santacut.domain.global.model.RandomToken
 import com.santacut.domain.global.model.SeoulTime
 import com.santacut.domain.global.model.UtcInstantConverter
@@ -19,6 +20,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import java.math.BigDecimal
 import java.time.Instant
@@ -37,7 +39,7 @@ import java.time.format.DateTimeFormatter
  * @property quote 본인이 싣기로 고른 한마디. 고르지 않았으면 null이다.
  */
 @Entity
-@Table(name = "shares")
+@Table(name = "shares", indexes = [Index(name = "shares_owner", columnList = "user_id, snapshot_id")])
 class Share(
     token: String,
     userId: String,
@@ -64,11 +66,11 @@ class Share(
     var token: String = token
         protected set
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false, columnDefinition = ForeignKeyColumns.PARTICIPANT)
     var userId: String = userId
         protected set
 
-    @Column(name = "snapshot_id", nullable = false)
+    @Column(name = "snapshot_id", nullable = false, columnDefinition = ForeignKeyColumns.RESULT_SNAPSHOT)
     var snapshotId: String = snapshotId
         protected set
 

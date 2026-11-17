@@ -16,6 +16,7 @@ import kotlin.test.assertEquals
  * 빈 DB에서 앱을 띄웠을 때 생기는 제약(외래 키와 삭제 규칙, 인덱스, CHECK)이 기준 스키마와 같은지 확인한다.
  * 기준은 schema.sql을 지우기 전 그대로 옮긴 `schema-baseline.sql`이다. 운영·dev DB는 이 스크립트로 만들어졌으므로
  * 새로 만든 DB도 같은 제약을 가져야 참가자 삭제와 중복 방지가 두 DB에서 똑같이 동작한다.
+ * enum 컬럼에 Hibernate가 상수 목록 CHECK를 붙이면 기준과 달라져 이 테스트가 깨진다([EnumCheckFreeSQLiteDialect]).
  * 빈 DB에서 시작해야 하므로 `build/schema-test.db`를 컨텍스트가 뜨기 전에 지운다.
  */
 @SpringBootTest(
@@ -32,15 +33,11 @@ class SchemaBaselineTest @Autowired constructor(
     @Test
     fun `빈 DB에 만든 테이블의 외래 키, 인덱스, CHECK가 기준 스키마와 같다`() {
         val baseline = shapeOf(baselineDatabase())
-        val fresh = shapeOf(jdbcTemplate).mapValues { (table, shape) -> shape - automaticEnumChecks(table, shape) }
+        val fresh = shapeOf(jdbcTemplate)
 
         assertEquals(baseline.keys, fresh.keys)
         baseline.keys.forEach { table -> assertEquals(baseline[table], fresh[table], "테이블 $table") }
     }
-
-    /** 허용 목록에 있는 컬럼에 Hibernate가 enum 상수로 만든 CHECK. */
-    private fun automaticEnumChecks(table: String, shape: List<String>): Set<String> =
-        AUTOMATIC_ENUM_CHECK_COLUMNS[table].orEmpty().flatMap { column -> shape.filter { it.startsWith("CHECK ${column}in(") } }.toSet()
 
     private fun baselineDatabase(): JdbcTemplate {
         val dataSource = SingleConnectionDataSource(IN_MEMORY_URL, true)
@@ -108,16 +105,10 @@ class SchemaBaselineTest @Autowired constructor(
     companion object {
         const val DB_PATH = "build/schema-test.db"
         private const val BASELINE = "schema-baseline.sql"
-        private const val BOM = "﻿"
+        private const val BOM = "\uFEFF"
         private const val IN_MEMORY_URL = "jdbc:sqlite::memory:"
         private const val TABLES_SQL =
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-
-        /**
-         * Hibernate가 기존 테이블에 enum 컬럼을 더하면서 붙인 CHECK. 기준 스키마에는 없지만 지금 앱이 만드는 DB에는 생긴다.
-         * 상수를 더하면 이 CHECK 때문에 INSERT가 깨지므로 따로 다룰 때까지 허용 목록으로 둔다.
-         */
-        private val AUTOMATIC_ENUM_CHECK_COLUMNS = mapOf("shares" to setOf("archetype", "weakest_dimension"))
         private val CHECK_START = Regex("""(?i)\bcheck\s*\(""")
 
         @JvmStatic

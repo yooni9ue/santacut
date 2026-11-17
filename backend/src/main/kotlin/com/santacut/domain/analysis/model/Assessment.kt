@@ -1,5 +1,6 @@
 package com.santacut.domain.analysis.model
 
+import com.santacut.domain.global.model.ForeignKeyColumns
 import com.santacut.domain.global.model.UtcInstantConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -7,7 +8,9 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
+import org.hibernate.annotations.Check
 import java.time.Instant
 import java.util.UUID
 
@@ -24,7 +27,9 @@ import java.util.UUID
  * @property rawComponents 수축 전 항목별 평균을 담은 JSON 배열. 유형을 고를 때만 쓴다. 이 값이 생기기 전 평가는 null이다.
  */
 @Entity
-@Table(name = "assessments")
+@Table(name = "assessments", indexes = [Index(name = "assessments_user", columnList = "user_id, created_at DESC")])
+@Check(constraints = "source IN ('KAKAO','INSTAGRAM')")
+@Check(constraints = "score_hundredths BETWEEN 0 AND 10000")
 class Assessment(
     id: String,
     userId: String,
@@ -47,7 +52,7 @@ class Assessment(
     var id: String = id
         protected set
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false, columnDefinition = ForeignKeyColumns.PARTICIPANT)
     var userId: String = userId
         protected set
 

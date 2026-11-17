@@ -1,6 +1,7 @@
 package com.santacut.domain.participant.model
 
 import com.santacut.domain.global.model.Coordinate
+import com.santacut.domain.global.model.ForeignKeyColumns
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -36,7 +37,7 @@ class Region(
     var longitude: Double = longitude
         protected set
 
-    @Column(name = "parent_code")
+    @Column(name = "parent_code", columnDefinition = ForeignKeyColumns.REGION)
     var parentCode: String? = parentCode
         protected set
 
