@@ -40,6 +40,14 @@ class ScoringMessageTest {
     }
 
     @Test
+    fun `이모지가 만 개 이어져도 스택 512KB 스레드에서 두 개로 줄인다`() {
+        val results = listOf("❤".repeat(EMOJI_RUN), "❤️".repeat(EMOJI_RUN), "😀".repeat(EMOJI_RUN)).map { text ->
+            normalizedOnSmallStack("앞 $text 뒤")
+        }
+        assertEquals(listOf("앞 ❤❤ 뒤", "앞 ❤️❤️ 뒤", "앞 😀😀 뒤"), results)
+    }
+
+    @Test
     fun `300자를 넘는 본문은 앞부분만 두고 (긴 글 생략)을 붙인다`() {
         assertEquals("가".repeat(299) + " (긴 글 생략)", message("가".repeat(299) + "😀" + "나".repeat(50)).normalizedText())
         assertEquals("가".repeat(300), message("가".repeat(300)).normalizedText())
@@ -51,5 +59,25 @@ class ScoringMessageTest {
         assertFalse(ScoringMessage(noon, "고마워", "상대").isSelf())
     }
 
+    /** 운영 JVM(-Xss512k)과 같은 스택 크기의 스레드에서 정규화한다. 스택이 넘치면 그 오류 이름을 돌려준다. */
+    private fun normalizedOnSmallStack(text: String): String {
+        var result = ""
+        val thread = Thread(null, {
+            result = try {
+                message(text).normalizedText()
+            } catch (error: StackOverflowError) {
+                error.javaClass.simpleName
+            }
+        }, "small-stack", SMALL_STACK_BYTES)
+        thread.start()
+        thread.join()
+        return result
+    }
+
     private fun message(text: String): ScoringMessage = ScoringMessage(noon, text)
+
+    companion object {
+        private const val EMOJI_RUN = 10_000
+        private const val SMALL_STACK_BYTES = 512L * 1024
+    }
 }

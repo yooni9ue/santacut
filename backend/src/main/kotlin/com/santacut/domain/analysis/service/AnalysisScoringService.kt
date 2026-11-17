@@ -15,6 +15,7 @@ import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.Sha256
 import com.santacut.infrastructure.analysis.client.ScoreAnswerCalls
 import com.santacut.infrastructure.analysis.client.ScoreClient
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
 
@@ -27,6 +28,7 @@ class AnalysisScoringService(
 ) {
     private val shrinkage = shrinkageProperties.toShrinkage()
     private val samples = samplingProperties.samples
+    private val logger = LoggerFactory.getLogger(AnalysisScoringService::class.java)
 
     /** 동시에 부른 호출의 사용량을 하나씩 기록하게 하는 잠금. 같은 날 사용량 행을 두 호출이 함께 만들지 않게 한다. */
     private val usageLock = Any()
@@ -59,12 +61,22 @@ class AnalysisScoringService(
      * 한 구간이면 [samples]번 동시에(가상 스레드, [ScoreAnswerCalls]) 묻고 항목별 중앙값으로 합친다.
      * 한 호출이 예외를 던지면 그 답만 버리고 남은 답의 과반으로 합친다.
      * 호출이 끝날 때마다 그 호출의 사용량을 [recordUsage]에 넘긴다. 다른 호출이 실패해도 이미 과금된 호출은 기록된다.
+     * 기록이 실패하면 로그만 남기고 이미 과금된 답은 버리지 않는다.
      * 점수 검증과 합산은 [score]가 한다.
      */
     fun ask(digest: ScoringDigest, systemPrompt: String, recordUsage: (ModelUsage) -> Unit): ScoringChunkAnswers =
         ScoringChunks.of(digest).ask(samples, ScoreAnswerCalls::concurrently) { chunk ->
-            scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> synchronized(usageLock) { recordUsage(answer.usage) } }
+            scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> recordSafely(answer.usage, recordUsage) }
         }
+
+    /** 사용량 기록 실패(일시적인 DB 오류 등)가 받은 답을 버리게 하지 않는다. 로그에는 예외 클래스 이름만 남긴다. */
+    private fun recordSafely(usage: ModelUsage, recordUsage: (ModelUsage) -> Unit) {
+        try {
+            synchronized(usageLock) { recordUsage(usage) }
+        } catch (exception: RuntimeException) {
+            logger.warn("AI 사용량 기록 실패, 받은 답은 그대로 쓴다: {}", exception.javaClass.simpleName)
+        }
+    }
 
     /** 구간 답을 합치고 설정한 수축 규칙으로 점수를 낸다. */
     fun score(answers: ScoringChunkAnswers): Score = answers.toScore(shrinkage)

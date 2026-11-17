@@ -2,11 +2,14 @@ package com.santacut.domain.analysis.model
 
 import com.santacut.ErrorCodeAssertions.assertErrorCode
 import com.santacut.domain.global.exception.ErrorCode
+import org.junit.jupiter.api.Assertions.assertTimeoutPreemptively
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
+import java.time.Duration
 import java.time.Instant
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class KakaoTalkLinesTest {
     @ParameterizedTest
@@ -65,12 +68,28 @@ class KakaoTalkLinesTest {
         assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { lines.toMessages() }
     }
 
+    @Test
+    fun `줄이 상한보다 많으면 줄바꿈뿐인 파일이어도 읽기 전에 UNSUPPORTED_FILE_FORMAT이다`() {
+        val text = "2026. 11. 14. 오전 9:00, 산타 : 시작" + "\n".repeat(KakaoTalkLines.MAX_LINES)
+        assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { KakaoTalkLines.from(text) }
+    }
+
+    @Test
+    fun `이어진 줄이 수만 개여도 본문은 이벤트 본문 상한까지만 모으고 금방 끝난다`() {
+        val text = "2026. 11. 14. 오전 9:00, 산타 : 시작\n" + "이어진줄".repeat(10).plus("\n").repeat(CONTINUATION_LINES)
+        val message = assertTimeoutPreemptively<ChatMessage>(Duration.ofSeconds(5)) { KakaoTalkLines.from(text).toMessages().toList().single() }
+        assertEquals(AnalysisEvent.MAX_TEXT_LENGTH, message.text.length)
+        assertTrue(message.text.startsWith("시작\n이어진줄"))
+    }
+
     private fun fixtureText(name: String): String {
         val stream = checkNotNull(javaClass.getResourceAsStream("/fixtures/upload/$name"))
         return RawChatFile(DataSource.KAKAO, stream.use { it.readBytes() }).decodeText()
     }
 
     companion object {
+        private const val CONTINUATION_LINES = 80_000
+
         private val EXPECTED_MESSAGES = listOf(
             ChatMessage("산타", Instant.parse("2026-11-13T15:05:00Z"), "다들 잘 자"),
             ChatMessage("루돌프", Instant.parse("2026-11-14T00:30:00Z"), "좋은 아침"),

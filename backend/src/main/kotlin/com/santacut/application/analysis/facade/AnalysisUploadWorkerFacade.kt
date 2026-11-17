@@ -32,15 +32,26 @@ class AnalysisUploadWorkerFacade(
     fun validateNextUpload() {
         transactionTemplate.executeWithoutResult { cleanUpOverdue() }
         val upload = transactionTemplate.execute { claimNextUpload() } ?: return
+        val submission = normalizeOrReject(upload) ?: return
         try {
-            val submission = analysisUploadService.normalize(upload, clock.instant())
             transactionTemplate.executeWithoutResult { queue(upload.jobId, submission) }
+        } catch (exception: RuntimeException) {
+            // 저장 실패(일시적인 DB 오류 등)는 파일 탓이 아니다. 트랜잭션이 롤백돼 작업과 원본이 그대로 남으므로 다음 폴링에서 다시 시도한다.
+            // 계속 실패해도 시도 횟수 상한(AnalysisJob.MAX_ATTEMPTS)에서 RETRY_EXHAUSTED로 끝난다.
+            logger.warn("검증한 원본 {} 대기열 저장 실패, 다음 폴링에서 다시 시도: {}", upload.jobId, failureReason(exception))
+        }
+    }
+
+    /** 원본을 검증·정규화한다. 실패하면 그 이유로 작업을 끝내고 원본을 지운 뒤 null을 돌려준다. */
+    private fun normalizeOrReject(upload: AnalysisUpload): AnalysisSubmission? =
+        try {
+            analysisUploadService.normalize(upload, clock.instant())
         } catch (exception: Exception) {
             val code = AnalysisFailureCode.fromValidationFailure(exception)
             logger.warn("원본 파일 검증 {} 실패: {}", upload.jobId, failureReason(exception))
             transactionTemplate.executeWithoutResult { reject(upload.jobId, code) }
+            null
         }
-    }
 
     /** 24시간 넘게 검증을 기다린 원본을 지우고 그 작업을 만료한다. */
     private fun cleanUpOverdue() {

@@ -26,6 +26,7 @@ import org.mockito.BDDMockito.willThrow
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 import java.time.Instant
@@ -105,6 +106,22 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `대기열 저장이 일시적으로 실패하면 작업과 원본을 남겨 다음 폴링에서 다시 시도한다`() {
+        willThrow(DataAccessResourceFailureException("잠깐 끊김")).willCallRealMethod().given(analysisUploadService).delete(anyJobId())
+        val job = upload(TestChatFiles.kakaoIos(OPEN_TIME, EVENT_COUNT))
+
+        analysisUploadWorkerFacade.validateNextUpload()
+
+        assertEquals("VALIDATING", analysisFacade.getStatus(job).status)
+        assertTrue(analysisUploadRepository.existsById(job.jobId.toString()))
+
+        analysisUploadWorkerFacade.validateNextUpload()
+
+        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
+    }
+
+    @Test
     fun `대화 형식이 아니면 UNSUPPORTED_FILE_FORMAT으로 끝내고 원본을 지운다`() {
         assertRejected(upload("메모일 뿐입니다".toByteArray()), "FAILED", "UNSUPPORTED_FILE_FORMAT")
     }
@@ -167,6 +184,8 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     /** Kotlin의 null 불가 매개변수에도 쓸 수 있도록 매처를 등록한 뒤 null 대신 빈 원본을 돌려준다. */
     private fun anyUpload(): AnalysisUpload =
         any(AnalysisUpload::class.java) ?: AnalysisUpload("", DataSource.KAKAO, SELF_SPEAKER, ByteArray(0), OPEN_TIME)
+
+    private fun anyJobId(): String = any(String::class.java) ?: ""
 
     private fun anyInstant(): Instant = any(Instant::class.java) ?: OPEN_TIME
 

@@ -9,8 +9,10 @@ enum class DataSource {
             KakaoTalkLines.from(text).toMessages()
     },
     INSTAGRAM {
-        override fun readMessages(text: String, readInstagramThread: (String) -> InstagramThread): ChatMessages =
-            readInstagramThread(text).toMessages()
+        override fun readMessages(text: String, readInstagramThread: (String) -> InstagramThread): ChatMessages {
+            InstagramMessages.verifyObjectCountIn(text)
+            return readInstagramThread(text).toMessages()
+        }
     },
     ;
 

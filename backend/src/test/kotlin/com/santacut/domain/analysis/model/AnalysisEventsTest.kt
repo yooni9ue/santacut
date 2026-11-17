@@ -130,6 +130,19 @@ class AnalysisEventsTest {
         recent.verifyAcceptableAt(now)
     }
 
+    @Test
+    fun `상대 메시지가 많은 단체방에서도 최신 본인 이벤트에 자리를 먼저 주고 2,000개만 남긴다`() {
+        val selfEvents = List(SELF_COUNT) { index -> AnalysisEvent(now.minus(Duration.ofDays(30)).plusSeconds(index.toLong()), "나$index") }
+        val partnerEvents = List(MAX_EVENTS * 2) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), "상대$index", "상대") }
+
+        val recent = AnalysisEvents(partnerEvents + selfEvents).recentAt(now)
+
+        assertEquals(MAX_EVENTS, recent.size())
+        assertEquals(SELF_COUNT, recent.toList().count { it.isSelf() })
+        assertEquals(recent.toList().sortedBy { it.occurredAt }, recent.toList())
+        recent.verifyAcceptableAt(now)
+    }
+
     /** 이벤트 수 하한을 채우도록 정상 이벤트를 뒤에 붙인다. */
     private fun padded(events: List<AnalysisEvent>): AnalysisEvents =
         AnalysisEvents(events + List(MIN_EVENTS - events.size) { AnalysisEvent(now, "채움") })
@@ -137,5 +150,9 @@ class AnalysisEventsTest {
     private fun assertRejected(events: AnalysisEvents) {
         val exception = assertFailsWith<SantaCutException> { events.verifyAcceptableAt(now) }
         assertEquals(ErrorCode.INVALID_EVENT_RANGE, exception.errorCode)
+    }
+
+    companion object {
+        private const val SELF_COUNT = 100
     }
 }

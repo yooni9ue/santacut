@@ -21,7 +21,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
     description = "카카오톡 대화 TXT나 인스타그램 message_1.json을 그대로 올려 분석 작업을 만들고 바로 응답합니다. " +
         "작업은 VALIDATING으로 시작합니다. 서버가 파일 형식을 확인하고 본인(self_speaker)과 다른 참여자의 메시지를 이벤트로 바꾼 뒤 QUEUED로 넘깁니다. " +
         "다른 참여자의 이름은 '상대'(단체 대화는 '상대1', '상대2')로 바꿉니다. 채점은 본인 행동만 하지만 상대 메시지도 맥락으로 Google Gemini에 보내고, " +
-        "채점 작업이 끝나면(성공·실패 모두) 지웁니다. 최근 90일 안의 최신 이벤트 2,000개, 200,000자까지만 씁니다. " +
+        "채점 작업이 끝나면(성공·실패 모두) 지웁니다. 최근 90일 안의 이벤트 2,000개(본인 최신 1,000개를 먼저 남기고 나머지는 최신순), 200,000자까지만 씁니다. " +
+        "카카오톡 TXT가 100만 줄을, 인스타그램 JSON이 객체 100만 개를 넘으면 UNSUPPORTED_FILE_FORMAT입니다. " +
         "검증 실패는 상태 조회의 error_code(UNSUPPORTED_FILE_FORMAT, SPEAKER_NOT_IDENTIFIED, INSUFFICIENT_EVENTS)로 알립니다. " +
         "원본과 본인 이름은 검증이 끝나면 지우고, 늦어도 24시간 뒤에는 지웁니다. 파일 이름은 저장하지 않습니다. " +
         "하루 제출 한도와 Idempotency-Key 규칙은 POST /v1/analyses와 같고 두 경로가 한도를 함께 셉니다. " +

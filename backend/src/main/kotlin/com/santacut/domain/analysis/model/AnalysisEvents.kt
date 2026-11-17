@@ -34,14 +34,13 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     /**
      * 원본 파일에서 뽑은 이벤트를 제출 한도에 맞춘다. 최근 90일 밖이거나 5분 넘게 미래인 이벤트는 버리고 시각순으로 놓는다.
-     * 그다음 최신 이벤트부터 [MAX_EVENTS]개, 전체 글자 수 [MAX_TOTAL_TEXT_LENGTH]자까지만 남긴다.
+     * 그다음 [MAX_EVENTS]개를 고르는데, 최신 본인 이벤트 [SELF_RESERVED_EVENTS]개에 먼저 자리를 주고 남은 자리는 나머지
+     * 이벤트 가운데 최신 것으로 채운다. 상대가 많은 단체방에서 최신 2,000개만 남기면 본인 이벤트가 [MIN_EVENTS]개에 못 미쳐
+     * 분석할 수 없게 되기 때문이다. 마지막으로 최신 이벤트부터 전체 글자 수 [MAX_TOTAL_TEXT_LENGTH]자까지만 남긴다.
      * 같은 시각 이벤트는 원래 순서를 지킨다.
      */
     fun recentAt(now: Instant): AnalysisEvents {
-        val newestFirst = values.filterNot { it.isOutsideWindow(now) }
-            .sortedBy { it.occurredAt }
-            .takeLast(MAX_EVENTS)
-            .asReversed()
+        val newestFirst = withinCount(values.filterNot { it.isOutsideWindow(now) }.sortedBy { it.occurredAt }).asReversed()
         val withinLength = newestFirst.runningFold(0) { total, event -> total + event.text.length }
             .drop(1)
             .count { it <= MAX_TOTAL_TEXT_LENGTH }
@@ -50,10 +49,20 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     private fun totalTextLength(): Int = values.sumOf { it.text.length }
 
+    /** 시각순 [sorted]에서 최신 본인 이벤트를 먼저 남기고 나머지 자리를 최신 이벤트로 채운 [MAX_EVENTS]개 이하. 시각순 그대로다. */
+    private fun withinCount(sorted: List<AnalysisEvent>): List<AnalysisEvent> {
+        val reserved = sorted.indices.filter { sorted[it].isSelf() }.takeLast(SELF_RESERVED_EVENTS)
+        val others = (sorted.indices - reserved.toSet()).takeLast(MAX_EVENTS - reserved.size)
+        return (reserved + others).sorted().map(sorted::get)
+    }
+
     companion object {
         /** 한 번에 받는 본인 이벤트 수의 하한과, 상대 메시지를 포함한 이벤트 수의 상한. */
         const val MIN_EVENTS = 20
         const val MAX_EVENTS = 2000
         private const val MAX_TOTAL_TEXT_LENGTH = 200_000
+
+        /** 원본을 제출 한도에 맞출 때 최신 본인 이벤트에 먼저 주는 자리 수. 상한의 절반이라 상대 이벤트도 문맥으로 충분히 남는다. */
+        const val SELF_RESERVED_EVENTS = MAX_EVENTS / 2
     }
 }
