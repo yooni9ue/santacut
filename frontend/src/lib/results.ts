@@ -4,18 +4,20 @@ import { isAxiosError } from "axios";
 import { api, getApiErrorMessage } from "./api";
 
 export interface AnalysisResult {
-  nickname: string;
   score_hundredths: number;
   verdict: string;
-  title?: string | null;
+  comment: string;
+  archetype?: { code: string; name: string } | null;
   rank: number | null;
   tied: boolean;
   eta: string | null;
-  delivery_sequence?: number | null;
+  delivery_sequence: number | null;
   computed_at: string | null;
   ranking_pending: boolean;
   stage?: "PREVIEW" | "FINAL";
-  breakdown?: Array<{ name: string; score_hundredths: number }>;
+  dimension_scores?: Array<{ key: string; label: string; score: number }>;
+  weakest_dimension?: { key: string; label: string; score: number } | null;
+  top_percent?: number | null;
 }
 
 export async function getMyResult(signal?: AbortSignal) {
@@ -25,7 +27,7 @@ export async function getMyResult(signal?: AbortSignal) {
     throw error;
   }
 }
-export interface ShareResponse { html_url: string; image_url?: string }
+export interface ShareResponse { token: string; url: string; imageUrl: string }
 export async function createShare(includeQuote = false) {
   return (await api.post<ShareResponse>(`/shares${includeQuote ? "?include_quote=true" : ""}`, {})).data;
 }
