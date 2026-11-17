@@ -210,6 +210,20 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `시즌 마감 뒤 밀린 작업은 잡을 때 AI를 부르지 않고 모두 SEASON_FROZEN으로 끝내며 제출 원문을 지운다`() {
+        clock.moveTo(seasonClose.minus(Duration.ofMinutes(1)))
+        val jobs = List(2) { submitAnalysis() }
+        clock.moveTo(seasonClose)
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals(List(jobs.size) { "SEASON_FROZEN" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+        assertEquals(List(jobs.size) { null }, jobs.map { storedJob(it).payload })
+        verify(scoreClient, never()).estimateUsage(anyChunk(), anyString())
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
     fun `AI를 부를 때마다 채점 프롬프트의 최신 판을 보내고 평가에 그 판 번호를 남긴다`() {
         val first = checkNotNull(promptRepository.findFirstByNameOrderByVersionDesc(PromptName.SCORE.value))
         val latest = promptRepository.save(first.next(LATEST_PROMPT, OPEN_TIME))

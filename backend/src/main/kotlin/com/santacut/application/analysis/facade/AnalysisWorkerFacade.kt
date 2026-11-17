@@ -235,18 +235,12 @@ class AnalysisWorkerFacade(
             ?: throw SantaCutException(ErrorCode.PROMPT_NOT_FOUND, PromptName.SCORE.value)
 
     /**
-     * AI를 쓸 수 있으면 꺼낼 수 있는 다음 작업의 리스를 잡는다. 찾기와 리스 기록을 한 트랜잭션에 두고 커밋까지 [claimLock]으로 묶어,
-     * 다른 스레드가 같은 작업을 동시에 찾지 못하게 한다.
+     * AI를 쓸 수 있으면 꺼낼 수 있는 다음 작업의 리스를 잡는다. 시즌이 마감됐으면 그 자리에서 AI 없이 끝낸다.
+     * 찾기와 리스 기록을 한 트랜잭션에 두고 커밋까지 [claimLock]으로 묶어, 다른 스레드가 같은 작업을 동시에 찾지 못하게 한다.
      */
     private fun claimNextJob(lease: String): AnalysisJob? {
         if (!analysisScoringService.isEnabled() || isAiBlocked()) return null
-        return claimLock.withLock { transactionTemplate.execute { startNextAttempt(lease) } }
-    }
-
-    private fun startNextAttempt(lease: String): AnalysisJob? {
-        val now = clock.instant()
-        val job = analysisJobService.findClaimable() ?: return null
-        return analysisJobService.startAttempt(job, lease, now)
+        return claimLock.withLock { transactionTemplate.execute { analysisJobService.claimNext(lease, clock.instant()) } }
     }
 
     /**

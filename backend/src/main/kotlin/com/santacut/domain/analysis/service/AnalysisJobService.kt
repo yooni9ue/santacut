@@ -116,18 +116,26 @@ class AnalysisJobService(
         )?.let { expire(it, now) }
     }
 
-    /** 가장 오래된 대기 작업. 리스가 끝난 실행 작업은 [expireOverdueJobs]가 먼저 대기열로 되돌린다. */
-    fun findClaimable(): AnalysisJob? = analysisJobRepository.findFirstByStatusOrderByCreatedAtAsc(AnalysisJobStatus.QUEUED)
+    /**
+     * 가장 오래된 대기 작업의 리스를 잡는다. 리스가 끝난 실행 작업은 [expireOverdueJobs]가 먼저 대기열로 되돌린다.
+     * 시즌이 이미 마감됐으면 AI를 부르기 전에 [AnalysisFailureCode.SEASON_FROZEN]으로 끝내고 다음 작업을 본다.
+     * 마감 뒤 밀린 작업이 과금 없이 바로 끝나게 하기 위해서다.
+     */
+    fun claimNext(lease: String, now: Instant): AnalysisJob? = claimFirstOpen(lease, now)
+
+    // Spring 빈은 열린 클래스라 공개 메서드에 tailrec을 달 수 없어 비공개 함수로 되풀이한다.
+    private tailrec fun claimFirstOpen(lease: String, now: Instant): AnalysisJob? {
+        val job = analysisJobRepository.findFirstByStatusOrderByCreatedAtAsc(AnalysisJobStatus.QUEUED) ?: return null
+        job.startAttempt(lease, now, leaseDuration)
+        if (!job.freezeIfSeasonClosed(season(), now)) return save(job)
+        save(job)
+        return claimFirstOpen(lease, now)
+    }
 
     /** 써 버린 시도를 센 채 작업을 대기열로 되돌린다. 시도를 다 썼으면 [AnalysisFailureCode.RETRY_EXHAUSTED]로 끝낸다. */
     fun requeueSpentAttempt(job: AnalysisJob, now: Instant) {
         job.requeueSpentAttempt(now)
         save(job)
-    }
-
-    fun startAttempt(job: AnalysisJob, lease: String, now: Instant): AnalysisJob {
-        job.startAttempt(lease, now, leaseDuration)
-        return save(job)
     }
 
     /** 아직 이 리스를 쥐고 실행 중인 작업. 다른 작업자가 가져갔으면 null이다. */
