@@ -3,6 +3,7 @@ package com.santacut.domain.analysis.service
 import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisJobChange
+import com.santacut.domain.analysis.model.AnalysisJobChanges
 import com.santacut.domain.analysis.model.AnalysisJobStatus
 import com.santacut.domain.analysis.model.AnalysisPayload
 import com.santacut.domain.analysis.model.AnalysisStreamLimit
@@ -222,6 +223,16 @@ class AnalysisJobService(
     private fun season(): Season = Season(appProperties.seasonYear)
 
     /** 작업 행을 저장하고 저장했다는 사실을 알린다. 받는 쪽은 트랜잭션이 커밋된 뒤에 처리한다. */
+    /**
+     * 순위를 다시 계산한 뒤 [since](직전 순위 계산 시각)부터 성공한 작업을 다시 알린다. 커밋 뒤 진행 상황 스트림이
+     * 순위 반영 대기(RANKING_PENDING)에서 성공(SUCCEEDED)으로 바뀐 단계를 보낸다. [since]가 null이면 성공한 작업 전부다.
+     * 직전 계산과 같은 밀리초에 끝난 작업도 넣는다. 이미 알린 작업을 다시 알려도 스트림이 같은 단계를 걸러 낸다.
+     */
+    fun announceRankedSince(since: Instant?) {
+        AnalysisJobChanges(analysisJobRepository.findChangesFinishedSince(AnalysisJobStatus.SUCCEEDED, since ?: Instant.EPOCH))
+            .publishEach(eventPublisher::publishEvent)
+    }
+
     private fun save(job: AnalysisJob): AnalysisJob =
         analysisJobRepository.save(job).also { eventPublisher.publishEvent(AnalysisJobChange(it.id)) }
 }

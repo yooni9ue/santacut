@@ -1,5 +1,7 @@
 package com.santacut.domain.ranking.model
 
+import java.time.Instant
+
 /**
  * 배송 순서로 읽은 순위표 줄. 한 페이지보다 한 줄 더 읽어 다음 페이지가 있는지 판단한다.
  */
@@ -10,9 +12,9 @@ class RankingRows(private val values: List<RankingRow>) {
     /** 앞에서부터 [size]줄만 남긴다. */
     fun limitTo(size: Int): RankingRows = RankingRows(values.take(size))
 
-    /** [size]줄 뒤에 줄이 더 있으면 [size]번째 줄 다음부터 읽는 cursor, 없으면 null. */
-    fun nextCursorAfter(size: Int): RankingCursor? =
-        if (values.size > size) RankingCursor.after(values[size - 1].deliverySequence) else null
+    /** [size]줄 뒤에 줄이 더 있으면 [computedAt] 순위 계산의 [size]번째 줄 다음부터 읽는 cursor, 없으면 null. */
+    fun nextCursorAfter(size: Int, computedAt: Instant): RankingCursor? =
+        if (values.size > size) RankingCursor.after(values[size - 1].deliverySequence, computedAt) else null
 
     companion object {
         fun empty(): RankingRows = RankingRows(emptyList())

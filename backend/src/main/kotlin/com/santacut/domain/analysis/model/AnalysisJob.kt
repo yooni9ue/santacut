@@ -213,8 +213,8 @@ class AnalysisJob(
     fun requirePayload(): String = payload ?: throw SantaCutException(ErrorCode.ANALYSIS_PAYLOAD_MISSING)
 
     /**
-     * 응답용 진행 단계. 성공한 작업은 참가자의 최신 순위 계산 시각([latestRankedAt])이
-     * 완료 시각 이후일 때만 순위에 반영된 것으로 본다.
+     * 응답용 진행 단계. 성공한 작업은 참가자의 최신 순위 스냅숏이 담은 평가의 생성 시각([latestRankedAt])이
+     * 완료 시각 이후일 때만 순위에 반영된 것으로 본다. 이 작업의 평가나 그 뒤 평가가 순위에 올랐다는 뜻이다.
      */
     fun progress(latestRankedAt: Instant?): AnalysisProgress = status.toProgress(isRankedBy(latestRankedAt))
 

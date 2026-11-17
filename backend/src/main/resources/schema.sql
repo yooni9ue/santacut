@@ -32,3 +32,6 @@ CREATE INDEX IF NOT EXISTS shares_owner ON shares(user_id,snapshot_id);
 CREATE UNIQUE INDEX IF NOT EXISTS shares_active_snapshot_unique ON shares(user_id,snapshot_id) WHERE revoked_at IS NULL;
 -- AI 시스템 프롬프트 판. 같은 이름 안에서 판 번호는 1부터 늘고 겹치지 않는다. score 1판은 prompts.sql이 넣는다.
 CREATE TABLE IF NOT EXISTS prompts (id TEXT PRIMARY KEY, name TEXT NOT NULL, version INTEGER NOT NULL CHECK(version>=1), content TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')), UNIQUE(name,version));
+-- 순위 다시 계산 요청 표시. 행은 하나뿐이고, 처음 만들 때는 앱이 뜨면 한 번 다시 계산하도록 요청된 상태로 둔다.
+CREATE TABLE IF NOT EXISTS ranking_refresh (id INTEGER PRIMARY KEY, requested_version INTEGER NOT NULL, rebuilt_version INTEGER NOT NULL);
+INSERT OR IGNORE INTO ranking_refresh (id, requested_version, rebuilt_version) VALUES (1, 1, 0);

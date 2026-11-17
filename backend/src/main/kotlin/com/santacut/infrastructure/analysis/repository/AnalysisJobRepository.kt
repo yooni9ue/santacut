@@ -1,8 +1,11 @@
 package com.santacut.infrastructure.analysis.repository
 
 import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisJobChange
 import com.santacut.domain.analysis.model.AnalysisJobStatus
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import java.time.Instant
 
 interface AnalysisJobRepository : JpaRepository<AnalysisJob, String> {
@@ -29,4 +32,14 @@ interface AnalysisJobRepository : JpaRepository<AnalysisJob, String> {
     ): AnalysisJob?
 
     fun findFirstByStatusAndLeaseUntilBeforeOrderByCreatedAtAsc(status: AnalysisJobStatus, leaseUntil: Instant): AnalysisJob?
+
+    /** [since]와 같거나 그 뒤에 [status]로 끝난 작업마다 저장 알림 하나씩. */
+    @Query(
+        "select new com.santacut.domain.analysis.model.AnalysisJobChange(j.id) from AnalysisJob j " +
+            "where j.status = :status and j.finishedAt >= :since",
+    )
+    fun findChangesFinishedSince(
+        @Param("status") status: AnalysisJobStatus,
+        @Param("since") since: Instant,
+    ): List<AnalysisJobChange>
 }

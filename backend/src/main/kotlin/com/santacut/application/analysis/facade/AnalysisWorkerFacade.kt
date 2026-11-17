@@ -32,7 +32,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * 대기 중인 분석 작업을 꺼내 AI 점수를 매기고 순위를 다시 계산하는 백그라운드 작업자.
+ * 대기 중인 분석 작업을 꺼내 AI 점수를 매기고 순위 다시 계산을 요청하는 백그라운드 작업자.
  *
  * 예약 폴링([dispatchJobs])은 빈 채점 스레드([analysisWorkerExecutor])마다 작업을 하나씩 잡아 넘긴다. 채점 스레드는 작업을 끝내면
  * 기다리지 않고 다음 작업을 잡고, 대기열이 비면 물러난다. 그래서 스레드 수만큼 작업을 동시에 채점한다.
@@ -254,7 +254,7 @@ class AnalysisWorkerFacade(
         return true
     }
 
-    /** 지난 작업이 성공했으면 그 평가를 옮겨 적고 순위를 다시 계산한다. 실패했으면 같은 이유로 끝낸다. */
+    /** 지난 작업이 성공했으면 그 평가를 옮겨 적고 순위 다시 계산을 요청한다. 실패했으면 같은 이유로 끝낸다. */
     private fun finishLike(job: AnalysisJob, previous: AnalysisJob, digestHash: String, now: Instant) {
         val previousAssessmentId = previous.reusableAssessmentId()
         if (previousAssessmentId == null) {
@@ -263,11 +263,11 @@ class AnalysisWorkerFacade(
         }
         val assessment = assessmentService.reuse(job, previousAssessmentId, now)
         analysisJobService.succeed(job, assessment.id, now, digestHash)
-        rankingService.rebuild(now)
+        rankingService.requestRebuild()
     }
 
     /**
-     * 평가를 저장하고 같은 트랜잭션에서 순위를 다시 계산한다. 순위 계산이 실패하면 둘 다 롤백된다.
+     * 평가를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다. 계산은 [com.santacut.application.ranking.facade.RankingRebuildFacade]가 모아서 한다.
      * 시즌이 이미 마감됐으면 작업 쪽 규칙에 따라 실패로 끝내고 평가를 저장하지 않는다.
      */
     private fun complete(jobId: String, lease: String, scored: ScoredAssessment, digestHash: String) {
@@ -276,7 +276,7 @@ class AnalysisWorkerFacade(
         if (analysisJobService.freezeIfSeasonClosed(job, completedAt)) return
         val assessment = assessmentService.record(job, scored, completedAt)
         analysisJobService.succeed(job, assessment.id, completedAt, digestHash)
-        rankingService.rebuild(completedAt)
+        rankingService.requestRebuild()
     }
 
     /** 실패 종류([ScoringFailure])에 따라 작업을 끝내거나 대기열로 되돌리고, 작업자를 멈출지는 비용 가드가 정한다. */

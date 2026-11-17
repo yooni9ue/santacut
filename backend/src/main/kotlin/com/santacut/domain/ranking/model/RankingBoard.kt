@@ -28,7 +28,7 @@ class RankingBoard(
             cursor: RankingCursor,
         ): RankingBoard = RankingBoard(
             season.year, participantCount, computedAt, season.stageAt(now),
-            fetched.limitTo(cursor.pageSize), fetched.nextCursorAfter(cursor.pageSize),
+            fetched.limitTo(cursor.pageSize), fetched.nextCursorAfter(cursor.pageSize, computedAt),
         )
 
         /** 아직 순위를 계산한 적이 없는 시즌. */

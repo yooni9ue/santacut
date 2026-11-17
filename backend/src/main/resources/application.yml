@@ -71,6 +71,12 @@ santacut:
   # 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 보통 3번(긴 대화는 최대 6구간) 동시에 부른다(backend-design.md).
   ai.worker:
     concurrency: ${ANALYSIS_WORKER_CONCURRENCY:3}
+  # 순위 계산(backend-design.md §7.5). 변경은 요청 표시만 남기고 rebuild-delay-ms마다 모아서 다시 계산한다.
+  # 첫 페이지 순위표는 first-page-ttl 동안 메모리에 두고, 도착 예정 시각은 12월 25일부터 delivery-window-days일(하루 6시간) 안에 맞춘다.
+  ranking:
+    rebuild-delay-ms: ${RANKING_REBUILD_DELAY_MS:30000}
+    first-page-ttl: 30s
+    delivery-window-days: 7
   # 진행 상황 스트림(SSE)의 앱 전체 상한. 넘으면 503(ANALYSIS_STREAM_LIMIT)이고 화면은 폴링으로 바꾼다.
   stream:
     max-open-streams: 200

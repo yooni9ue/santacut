@@ -1,6 +1,7 @@
 package com.santacut.infrastructure.analysis.repository
 
 import com.santacut.domain.analysis.model.Assessment
+import com.santacut.domain.ranking.model.FirstAssessment
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 
@@ -20,4 +21,18 @@ interface AssessmentRepository : JpaRepository<Assessment, String> {
         """,
     )
     fun findLatestForEachUser(): List<Assessment>
+
+    /** 참가자마다 시즌 첫 심사 성공 시각 하나씩. 같은 시각이면 ID가 작은 쪽을 처음으로 본다. */
+    @Query(
+        """
+        select new com.santacut.domain.ranking.model.FirstAssessment(a.userId, a.createdAt)
+        from Assessment a
+        where not exists (
+            select older.id from Assessment older
+            where older.userId = a.userId
+              and (older.createdAt < a.createdAt or (older.createdAt = a.createdAt and older.id < a.id))
+        )
+        """,
+    )
+    fun findFirstForEachUser(): List<FirstAssessment>
 }

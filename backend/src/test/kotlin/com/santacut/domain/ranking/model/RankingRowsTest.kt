@@ -25,10 +25,14 @@ class RankingRowsTest {
     fun `한 페이지보다 더 읽었으면 페이지 마지막 줄의 배송 순서가 다음 cursor다`() {
         val rows = RankingRows(listOf(row("a", 1, 4), row("b", 2, 5), row("c", 3, 6)))
         assertEquals(listOf("a", "b"), rows.limitTo(2).map { it.nickname })
-        assertEquals("5", rows.nextCursorAfter(2)?.value())
-        assertNull(rows.nextCursorAfter(3))
+        assertEquals(5, rows.nextCursorAfter(2, COMPUTED_AT)?.afterSequence)
+        assertNull(rows.nextCursorAfter(3, COMPUTED_AT))
     }
 
     private fun row(nickname: String, rank: Int, sequence: Int): RankingRow =
         RankingRow(nickname, rank, false, 8000, eta, sequence)
+
+    companion object {
+        private val COMPUTED_AT = Instant.parse("2026-12-01T00:00:00Z")
+    }
 }

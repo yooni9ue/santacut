@@ -25,6 +25,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     IDEMPOTENCY_CONFLICT(409, "같은 Idempotency-Key로 다른 요청 본문을 보냈습니다."),
     NICKNAME_TAKEN(409, "이미 사용 중인 닉네임입니다."),
     NO_RANKED_RESULT(409, "공유할 순위 결과가 아직 없습니다."),
+    RANKING_SNAPSHOT_CHANGED(409, "순위가 새로 계산되어 이 cursor는 더 쓸 수 없습니다. cursor 없이 첫 페이지부터 다시 읽어 주세요."),
     FILE_TOO_LARGE(413, "파일이 너무 큽니다. 20MB 이하 파일만 올릴 수 있습니다."),
     REQUEST_TOO_LARGE(413, "요청 본문이 너무 큽니다. 파일 업로드가 아닌 요청 본문은 2MB 이하여야 합니다."),
     INSUFFICIENT_EVIDENCE(422, "점수를 매길 근거가 부족합니다."),

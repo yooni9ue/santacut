@@ -7,9 +7,11 @@ import com.santacut.application.analysis.command.AnalysisEventCommand
 import com.santacut.application.analysis.command.AnalysisEventCommands
 import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
+import com.santacut.application.analysis.result.AnalysisStatusResult
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.ranking.command.MyResultCommand
+import com.santacut.application.ranking.facade.RankingRebuildFacade
 import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisFailureCode
@@ -81,6 +83,7 @@ import kotlin.test.assertTrue
 class AnalysisWorkerFacadeTest @Autowired constructor(
     private val analysisWorkerFacade: AnalysisWorkerFacade,
     private val analysisFacade: AnalysisFacade,
+    private val rankingRebuildFacade: RankingRebuildFacade,
     private val resultFacade: ResultFacade,
     private val participantFacade: ParticipantFacade,
     private val scoreClient: ScoreClient,
@@ -113,7 +116,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        val status = analysisFacade.getStatus(job)
+        val status = rankedStatus(job)
         assertEquals("SUCCEEDED", status.status)
         assertNotNull(status.assessmentId)
         val outcome = resultFacade.getMyResult(MyResultCommand(job.participantId))
@@ -128,7 +131,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        val status = analysisFacade.getStatus(job)
+        val status = rankedStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("ANALYSIS_FAILED", status.errorCode)
         assertNull(status.assessmentId)
@@ -142,7 +145,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         repeat(CONSECUTIVE_JOB_COUNT) { analysisWorkerFacade.processNextJob() }
 
-        assertEquals(List(CONSECUTIVE_JOB_COUNT) { "SUCCEEDED" }, jobs.map { analysisFacade.getStatus(it).status })
+        assertEquals(List(CONSECUTIVE_JOB_COUNT) { "SUCCEEDED" }, jobs.map { rankedStatus(it).status })
     }
 
     @Test
@@ -153,7 +156,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        val status = analysisFacade.getStatus(job)
+        val status = rankedStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("EXPIRED", status.errorCode)
         verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
@@ -168,7 +171,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals("QUEUED", rankedStatus(job).status)
         clock.moveTo(OPEN_TIME.plus(AnalysisJob.QUEUE_EXPIRY).plusSeconds(1))
         analysisWorkerFacade.processNextJob()
         val expired = storedJob(job)
@@ -187,9 +190,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("SUCCEEDED", analysisFacade.getStatus(abandoned).status)
+        assertEquals("SUCCEEDED", rankedStatus(abandoned).status)
         assertEquals(2, storedJob(abandoned).attempts)
-        assertEquals("QUEUED", analysisFacade.getStatus(later).status)
+        assertEquals("QUEUED", rankedStatus(later).status)
     }
 
     @Test
@@ -203,7 +206,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        val status = analysisFacade.getStatus(job)
+        val status = rankedStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("SEASON_FROZEN", status.errorCode)
         assertNull(status.assessmentId)
@@ -217,7 +220,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals(List(jobs.size) { "SEASON_FROZEN" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+        assertEquals(List(jobs.size) { "SEASON_FROZEN" }, jobs.map { rankedStatus(it).errorCode })
         assertEquals(List(jobs.size) { null }, jobs.map { storedJob(it).payload })
         verify(scoreClient, never()).estimateUsage(anyChunk(), anyString())
         verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
@@ -232,7 +235,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("SUCCEEDED", analysisFacade.getStatus(job).status)
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
         val assessment = assessmentRepository.findFirstByUserIdOrderByCreatedAtDescIdDesc(job.participantId.toString())
         assertEquals(latest.version, assessment?.promptVersion)
     }
@@ -244,7 +247,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        val status = analysisFacade.getStatus(job)
+        val status = rankedStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("ANALYSIS_FAILED", status.errorCode)
         verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
@@ -256,7 +259,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        val status = analysisFacade.getStatus(job)
+        val status = rankedStatus(job)
         assertEquals("FAILED", status.status)
         assertEquals("INSUFFICIENT_EVIDENCE", status.errorCode)
         verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
@@ -271,9 +274,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        val status = analysisFacade.getStatus(second)
+        val status = rankedStatus(second)
         assertEquals("SUCCEEDED", status.status)
-        assertNotEquals(analysisFacade.getStatus(first).assessmentId, status.assessmentId)
+        assertNotEquals(rankedStatus(first).assessmentId, status.assessmentId)
         assertEquals(EXPECTED_SCORE_HUNDREDTHS, resultFacade.getMyResult(MyResultCommand(second.participantId)).scoreHundredths)
         verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
     }
@@ -287,8 +290,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("INSUFFICIENT_EVIDENCE", analysisFacade.getStatus(first).errorCode)
-        assertEquals("INSUFFICIENT_EVIDENCE", analysisFacade.getStatus(second).errorCode)
+        assertEquals("INSUFFICIENT_EVIDENCE", rankedStatus(first).errorCode)
+        assertEquals("INSUFFICIENT_EVIDENCE", rankedStatus(second).errorCode)
         verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
     }
 
@@ -312,7 +315,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         analysisWorkerFacade.processNextJob()
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals("QUEUED", rankedStatus(job).status)
         assertEquals(0, storedJob(job).attempts)
         verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
     }
@@ -345,8 +348,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
 
-        assertEquals(List(MAX_CONSECUTIVE_FAILURES) { "ANALYSIS_FAILED" }, jobs.dropLast(1).map { analysisFacade.getStatus(it).errorCode })
-        assertEquals("QUEUED", analysisFacade.getStatus(jobs.last()).status)
+        assertEquals(List(MAX_CONSECUTIVE_FAILURES) { "ANALYSIS_FAILED" }, jobs.dropLast(1).map { rankedStatus(it).errorCode })
+        assertEquals("QUEUED", rankedStatus(jobs.last()).status)
     }
 
     @Test
@@ -356,7 +359,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
 
-        assertEquals(List(jobs.size) { "INSUFFICIENT_EVIDENCE" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+        assertEquals(List(jobs.size) { "INSUFFICIENT_EVIDENCE" }, jobs.map { rankedStatus(it).errorCode })
     }
 
     @Test
@@ -367,7 +370,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         repeat(jobs.size) { analysisWorkerFacade.processNextJob() }
 
-        assertEquals(List(jobs.size) { "ANALYSIS_FAILED" }, jobs.map { analysisFacade.getStatus(it).errorCode })
+        assertEquals(List(jobs.size) { "ANALYSIS_FAILED" }, jobs.map { rankedStatus(it).errorCode })
         assertFalse(aiBudgetService.isBlocked(clock.instant()))
     }
 
@@ -379,8 +382,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         repeat(2) { analysisWorkerFacade.processNextJob() }
 
-        assertEquals("SUCCEEDED", analysisFacade.getStatus(first).status)
-        assertEquals("QUEUED", analysisFacade.getStatus(second).status)
+        assertEquals("SUCCEEDED", rankedStatus(first).status)
+        assertEquals("QUEUED", rankedStatus(second).status)
         assertEquals(EXPENSIVE_USAGE.inputTokens, aiUsageDayRepository.findAll().single().inputTokens)
     }
 
@@ -392,7 +395,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals("QUEUED", rankedStatus(job).status)
         verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
         assertTrue(aiBudgetService.isBlocked(clock.instant()))
     }
@@ -433,6 +436,12 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     /** 매처를 등록한 뒤 null 대신 빈 제출 전체를 한 구간으로 돌려준다. */
     private fun anyChunk(): ScoringChunk = any(ScoringChunk::class.java) ?: ScoringChunk(TranscriptTurns(emptyList()), 1, 0, 0)
+
+    /** 쌓인 순위 다시 계산 요청을 처리한 뒤 작업 상태를 읽는다. 성공한 작업은 순위에 반영돼야 SUCCEEDED다. */
+    private fun rankedStatus(command: AnalysisJobCommand): AnalysisStatusResult {
+        rankingRebuildFacade.rebuildIfRequested()
+        return analysisFacade.getStatus(command)
+    }
 
     companion object {
         const val SEASON_YEAR = 2099
