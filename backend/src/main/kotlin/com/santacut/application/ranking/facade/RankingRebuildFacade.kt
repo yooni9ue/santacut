@@ -1,13 +1,13 @@
 package com.santacut.application.ranking.facade
 
 import com.santacut.application.global.Facade
+import com.santacut.application.global.TransactionRunner
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.ranking.service.RankingService
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -21,13 +21,13 @@ import kotlin.concurrent.withLock
  * 다시 계산한 뒤에는 그 사이 성공한 작업을 다시 알려, 진행 상황 스트림이 RANKING_PENDING 다음에 SUCCEEDED를 보내게 한다.
  *
  * 예약 작업, 마감 작업, 앱 시작이 겹치지 않도록 [rebuildLock]으로 하나씩만 돌린다.
- * 실패해도 요청 표시가 남아 다음 차례에 다시 시도하도록, 트랜잭션을 롤백한 뒤 경계 밖에서 예외를 잡아야 해서 [TransactionTemplate]을 쓴다.
+ * 실패해도 요청 표시가 남아 다음 차례에 다시 시도하도록, 트랜잭션을 롤백한 뒤 경계 밖에서 예외를 잡아야 해서 [TransactionRunner]를 쓴다.
  */
 @Facade
 class RankingRebuildFacade(
     private val rankingService: RankingService,
     private val analysisJobService: AnalysisJobService,
-    private val transactionTemplate: TransactionTemplate,
+    private val transaction: TransactionRunner,
     private val clock: Clock,
 ) {
     private val logger = LoggerFactory.getLogger(RankingRebuildFacade::class.java)
@@ -38,9 +38,7 @@ class RankingRebuildFacade(
         fixedDelayString = "\${santacut.ranking.rebuild-delay-ms:$DEFAULT_REBUILD_DELAY_MS}",
         initialDelayString = "\${santacut.ranking.rebuild-delay-ms:$DEFAULT_REBUILD_DELAY_MS}",
     )
-    fun rebuildIfRequested() {
-        rebuildLock.withLock { transactionTemplate.executeWithoutResult { rebuildAndAnnounce() } }
-    }
+    fun rebuildIfRequested() = oneAtATime { rebuildAndAnnounce() }
 
     /** 시즌 마감 순간 남은 요청을 확정 순위에 넣는다. 시즌 연도와 상관없이 해마다 돌지만 요청이 없으면 아무것도 하지 않는다. */
     @Scheduled(cron = SEASON_FREEZE_CRON, zone = SEOUL_ZONE)
@@ -62,6 +60,9 @@ class RankingRebuildFacade(
             logger.warn("순위를 다시 계산하지 못했다. 요청 표시가 남아 다음 차례에 다시 시도한다", exception)
         }
     }
+
+    /** 한 번에 하나만, 트랜잭션 하나로 [step]을 돌린다. 실패하면 롤백하고 예외를 다시 던진다. */
+    private fun oneAtATime(step: () -> Unit) = rebuildLock.withLock { transaction.run(step) }
 
     private fun rebuildAndAnnounce() {
         val previousComputedAt = rankingService.latestComputedAt()
