@@ -18,7 +18,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
 @Operation(
     operationId = "changeRegion",
     summary = "내 지역 변경",
-    description = "로그인한 참가자의 지역을 바꾸고 같은 트랜잭션에서 순위와 도착 예정 시각을 다시 계산합니다. " +
+    description = "로그인한 참가자의 지역을 바꾸고 순위와 도착 예정 시각 다시 계산을 요청합니다. 다시 계산은 30초쯤 안에 모아서 하며, " +
+        "그동안 내 결과의 도착 예정 시각은 이전 지역 기준입니다. 같은 지역을 보내면 아무것도 바꾸지 않고 횟수도 세지 않습니다. " +
+        "지역은 24시간에 2번, 한 시즌에 5번까지 바꿀 수 있습니다(서버 설정). " +
         "시즌이 마감(12월 25일 0시, Asia/Seoul)된 뒤에는 바꿀 수 없습니다. 이미 만든 공유 링크는 만든 당시 결과를 그대로 보여 줍니다. " +
         "먼저 CSRF 토큰을 받아야 합니다.",
     tags = ["Identity"],
@@ -34,6 +36,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
         ApiResponse(responseCode = "403", description = ApiDocs.FORBIDDEN_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "404", description = "세션의 참가자가 더 이상 없음(PARTICIPANT_NOT_FOUND)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "409", description = "시즌 마감 뒤 변경(SEASON_FROZEN)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
+        ApiResponse(responseCode = "429", description = "24시간 한도를 넘음(REGION_CHANGE_LIMITED, retry_at·Retry-After 이후 다시 시도), 시즌 한도를 넘음(REGION_CHANGE_SEASON_LIMIT, retry_at 없음)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
     ],
 )

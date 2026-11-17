@@ -35,3 +35,6 @@ CREATE TABLE IF NOT EXISTS prompts (id TEXT PRIMARY KEY, name TEXT NOT NULL, ver
 -- 순위 다시 계산 요청 표시. 행은 하나뿐이고, 처음 만들 때는 앱이 뜨면 한 번 다시 계산하도록 요청된 상태로 둔다.
 CREATE TABLE IF NOT EXISTS ranking_refresh (id INTEGER PRIMARY KEY, requested_version INTEGER NOT NULL, rebuilt_version INTEGER NOT NULL);
 INSERT OR IGNORE INTO ranking_refresh (id, requested_version, rebuilt_version) VALUES (1, 1, 0);
+-- 지역 변경 기록. 변경 한도를 세는 데만 쓰고 바꾼 지역은 남기지 않는다.
+CREATE TABLE IF NOT EXISTS region_changes (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, changed_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS region_changes_user ON region_changes(user_id,changed_at);

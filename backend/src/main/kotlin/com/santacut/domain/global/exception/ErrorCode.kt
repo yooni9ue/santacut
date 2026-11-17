@@ -32,6 +32,8 @@ enum class ErrorCode(val status: Int, val message: String) {
     UNSUPPORTED_FILE_FORMAT(422, "지원하지 않는 파일 형식입니다. 카카오톡 대화 TXT나 인스타그램 메시지 JSON을 올려 주세요."),
     SPEAKER_NOT_IDENTIFIED(422, "선택한 본인 이름을 이 대화에서 찾을 수 없습니다."),
     DAILY_USER_LIMIT(429, "24시간 동안 제출할 수 있는 분석 횟수를 모두 썼습니다."),
+    REGION_CHANGE_LIMITED(429, "짧은 시간에 지역을 너무 많이 바꿨습니다. retry_at 이후에 다시 바꿀 수 있습니다."),
+    REGION_CHANGE_SEASON_LIMIT(429, "이번 시즌에 바꿀 수 있는 지역 변경 횟수를 모두 썼습니다."),
     CLIENT_RATE_LIMITED(429, "같은 네트워크에서 요청이 너무 많습니다. retry_at 이후에 다시 시도해 주세요."),
     ANALYSIS_PAYLOAD_MISSING(500, "대기 중인 분석 작업에 입력 데이터가 없습니다."),
     ANALYSIS_JOB_STATE_INVALID(500, "분석 작업의 현재 상태에서는 할 수 없는 상태 변경입니다."),
