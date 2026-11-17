@@ -177,3 +177,61 @@ Response ◀──from()──── Result ◀──from()── Model
 - facade 흐름은 `@SpringBootTest` 통합 테스트로 확인한다. 테스트 DB는 `build/` 아래 파일을 쓴다.
 - 계층 의존 규칙은 ArchUnit 테스트로 강제한다.
 - `./gradlew check`가 통과해야 커밋한다.
+
+## 12. JPA 엔티티와 스키마
+
+스키마는 엔티티가 정한다. Flyway 같은 마이그레이션 도구 없이 Hibernate `ddl-auto: update`가 테이블과 컬럼을 만들고, 그 뒤에 시드 SQL(`seed.sql`, `regions.sql`, `prompts.sql`)이 돈다(`spring.jpa.defer-datasource-initialization: true`).
+
+### 애그리거트와 참조
+
+연관관계(`@ManyToOne`, `@OneToMany`, `@OneToOne`)는 애그리거트 안에서만 쓴다. 애그리거트 사이는 id 컬럼(`userId: String` 등)으로만 가리킨다. 지금 애그리거트는 모두 엔티티 하나짜리라 연관관계가 하나도 없다.
+
+| 애그리거트 | 테이블 | id로 가리키는 것 |
+| --- | --- | --- |
+| 지역 | `regions` | 상위 지역(`parent_code`) |
+| 참가자 | `participants` | 지역 |
+| 세션 | `sessions` | 참가자 |
+| 지역 변경 기록 | `region_changes` | 참가자 |
+| 분석 작업 | `analysis_jobs` | 참가자, 평가(`assessment_id`) |
+| 업로드 원본 | `analysis_uploads` | 분석 작업(`job_id`가 곧 기본 키) |
+| 평가 | `assessments` | 참가자 |
+| 순위 스냅숏 | `result_snapshots` | 참가자, 평가 |
+| 공유 링크 | `shares` | 참가자, 순위 스냅숏 |
+| 독립 행 | `prompts`, `ranking_refresh`, `result_populations`, `ai_usage_days` | 없음 |
+
+- 분석 작업과 업로드 원본도 id로 잇는다. 둘을 `@OneToOne`으로 묶으면 역방향 1:1은 바이트코드 향상 없이 LAZY가 되지 않아 작업을 읽을 때마다 최대 20MB 원본까지 읽는다. `orphanRemoval`도 지우기 전에 원본을 읽는다.
+- 애그리거트 안에 연관관계를 새로 둘 때는 `fetch = FetchType.LAZY`로 두고, 함께 필요한 화면에서는 fetch join 쿼리로 한 번에 읽는다.
+- 참가자 삭제는 DB가 맡는다. 참가자 행 하나를 지우면 외래 키의 `ON DELETE CASCADE`가 그 참가자의 행을 모두 지운다. 코드에서 테이블마다 지우지 않는다.
+
+### SQLite 방언의 한계
+
+Hibernate의 SQLite 방언(`org.hibernate.community.dialect.SQLiteDialect`)이 만드는 것과 만들지 않는 것이 다르다.
+
+| 적는 법 | SQLite에 생기나 | 쓰는 법 |
+| --- | --- | --- |
+| `@JoinColumn`·`@ForeignKey`·`@OnDelete` | 안 생긴다 | 쓰지 않는다 |
+| `@Column(columnDefinition = "TEXT REFERENCES x(id) ON DELETE CASCADE")` | 생긴다(새 테이블만) | 외래 키는 이렇게 적는다. 정의는 `ForeignKeyColumns`에 모은다 |
+| `@Table(indexes = [Index(...)])`(유일하지 않은 인덱스) | 생긴다(기존 테이블에도) | 이름을 붙여 적는다 |
+| `@Table(uniqueConstraints)`, `Index(unique = true)` | 안 생긴다 | `seed.sql`에 `CREATE UNIQUE INDEX IF NOT EXISTS`로 적는다 |
+| `@Column(unique = true)` | 생긴다(새 테이블만, 컬럼 하나) | 컬럼 하나짜리 유일 제약에만 쓴다 |
+| `@Check` | 생긴다(새 테이블만) | 값 범위 같은 규칙에 쓴다 |
+| 컬럼 기본값 | `columnDefinition`으로만 생긴다 | 시드 SQL처럼 값을 주지 않고 넣는 컬럼에 적는다 |
+
+- `ddl-auto: update`는 이미 있는 테이블의 제약을 고치지 않는다. 외래 키·CHECK·기본값을 바꾸려면 테이블을 다시 만들어야 하므로 배포 운영서에 절차를 적고 따로 한다.
+- 앱은 뜰 때 삭제 규칙이 있는 외래 키 10개를 `PRAGMA foreign_key_list`로 확인하고, 하나라도 없으면 뜨지 않는다(`ForeignKeyCheckConfiguration`). 외래 키 컬럼을 더하거나 바꾸면 그 목록도 함께 고친다.
+- enum 컬럼에는 상수 목록 CHECK를 만들지 않는다(`EnumCheckFreeSQLiteDialect`). 기본 방언은 `CHECK (col IN (지금 상수들))`을 붙이는데, 기존 DB에서는 고쳐지지 않아 상수를 더하면 그 뒤 새로 만든 DB에서만 INSERT가 깨진다. `AttributeConverter`나 `columnDefinition`을 써도 붙는다. 값을 막아야 하면 `@Check`로 직접 적는다.
+- 스키마가 예전 `schema.sql`과 같은지는 `SchemaBaselineTest`가 빈 DB를 띄워 확인한다(외래 키, 인덱스, CHECK, 기본값). 일부러 다르게 만든 것은 그 테스트의 목록에 이유와 함께 적는다.
+
+### 조회 수(N+1)
+
+- 반복 안에서 리포지토리를 부르지 않는다. 여러 행이 필요하면 id 목록을 모아 `in`으로 한 번에 읽고, 메모리에서 맞춘다. 예: 순위 계산 뒤 알림은 작업 목록과 참가자별 순위 반영 시각을 한 번씩만 읽는다(`AnalysisStatusFacade.announceRankedStatusChanges`).
+- 한 화면에 두 엔티티가 함께 필요하면 조인 쿼리 하나로 읽는다. 엔티티 전체가 아니라 몇 값만 필요하면 `select new ...` 프로젝션을 쓴다.
+- 자주 부르는 조회와 알림의 SQL 수는 `QueryCountApiTest`가 센다. 조회 수가 바뀌는 변경은 그 테스트의 기대값을 함께 고치고 이유를 커밋에 적는다.
+
+### `@Modifying` 쿼리
+
+벌크 `update`·`delete`는 영속성 컨텍스트를 거치지 않는다. 아래 기준으로 옵션을 고른다.
+
+- `flushAutomatically = true`: 같은 트랜잭션에서 앞서 바꾼 엔티티가 그 쿼리의 결과에 영향을 주면 쓴다. 예: 순위 계산 요청 표시(`RankingRefreshRepository`).
+- `clearAutomatically = true`: 쿼리 뒤에 같은 엔티티를 다시 읽어야 하면 쓴다. 영속성 컨텍스트를 비우므로 아직 flush하지 않은 다른 엔티티의 변경은 버려진다. 앞에서 바꾼 엔티티가 있으면 `flushAutomatically`와 함께 쓴다. 예: 공유되지 않은 스냅숏 지우기(`ResultSnapshotRepository.deleteUnshared`).
+- `AnalysisUploadRepository`의 두 삭제는 옵션 없이 둔다. 원본을 지운 뒤 같은 트랜잭션에서 업로드를 다시 읽지 않고, 같은 트랜잭션에서 바꾼 작업 상태가 아직 flush되지 않았을 수 있어 `clearAutomatically`를 켜면 그 변경이 사라진다.

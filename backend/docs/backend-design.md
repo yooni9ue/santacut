@@ -287,7 +287,7 @@ EVAL_GOLDEN_DIR=~/santacut-golden EVAL_SAMPLES=3 GEMINI_API_KEY=... ./gradlew ev
 현재 구현:
 
 - `regions` 컬럼은 `code`, `name`, `latitude`, `longitude`, `parent_code`다. 시·도 16개와 시·군·구 255개, 합쳐서 271개다.
-- 코드는 `KR-{시·도}`와 `KR-{시·도}-{시·군·구 뒤 3자리}`다. 서울 코드만 비공식 번호이고, 서울 26행은 `schema.sql`에 있다. 나머지는 `regions.sql`이 넣는다.
+- 코드는 `KR-{시·도}`와 `KR-{시·도}-{시·군·구 뒤 3자리}`다. 서울 코드만 비공식 번호이고, 서울 26행은 `seed.sql`에 있다. 나머지는 `regions.sql`이 넣는다.
 - 일반구는 시·도 바로 아래에 두고 `수원시 장안구`처럼 이름을 붙인다. 하위 지역이 없는 세종특별자치시(`KR-36`)는 시·도를 그대로 고른다.
 - `GET /v1/regions`는 시·도를, `GET /v1/regions?parent={code}`는 그 하위 지역을 준다. 등록과 변경에는 `selectable: true`인 코드만 쓴다. 하위 지역이 있는 시·도를 보내면 `400 UNSUPPORTED_REGION`이다.
 - 시즌 마감 전에는 `PATCH /v1/me/region`으로 지역을 바꿀 수 있다. 순위와 ETA는 다시 계산을 요청해 모아서 계산한다(§7.5). 마감 뒤에는 `409 SEASON_FROZEN`이다.
@@ -394,7 +394,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 
 ### 8.2 현재 구현
 
-[`schema.sql`](../src/main/resources/schema.sql)과 JPA 엔티티가 기준이다. SQLite 테이블은 9개이고, Hibernate `ddl-auto: update`가 엔티티에 맞춰 컬럼을 더한다. 시각은 모두 UTC 텍스트로 저장한다.
+JPA 엔티티가 기준이다. Hibernate `ddl-auto: update`가 엔티티대로 테이블과 컬럼, 외래 키, 인덱스를 만들고 유일 인덱스와 첫 행은 [`seed.sql`](../src/main/resources/seed.sql)이 넣는다([컨벤션 §12](backend-conventions.md#12-jpa-엔티티와-스키마)). 시각은 모두 UTC 텍스트로 저장한다.
 
 | 테이블 | 필드·제약 |
 | --- | --- |
@@ -410,7 +410,7 @@ W가 정확히 21600초면 첫날 06:00에 완료한다. 다음 작업은 다음
 | shares | token PK, user_id FK CASCADE, snapshot_id FK→result_snapshots CASCADE, nickname, score_hundredths, rank, eta, verdict, comment, computed_at, revoked_at NULL, tied, stage, created_at NULL; 활성 링크는 (user_id, snapshot_id)당 하나 |
 
 - 원본은 객체 저장소가 아니라 `analysis_uploads`에 둔다. 상태 폴링이 `analysis_jobs` 행을 자주 읽으므로 원본을 작업 행에 넣지 않는다.
-- `regions.parent_code`는 앱이 뜰 때 `RegionFacade`가 코드 접두어를 보고 채운다. 기존 DB에서는 Hibernate가 `schema.sql`보다 늦게 컬럼을 더하기 때문이다.
+- `regions.parent_code`는 앱이 뜰 때 `RegionFacade`가 코드 접두어를 보고 채운다. 시드 SQL은 지역 행만 넣는다.
 - `prompts`는 AI 시스템 프롬프트의 판이다. 저장한 판은 바꾸지 않고 새 판을 더한다. `score` 1판, 2판, 3판은 `prompts.sql`이 앱 시작 때 넣는다(`INSERT OR IGNORE`라 다시 돌아도 그대로다).
 - `analysis_jobs.digest_hash`는 같은 채점 입력의 재제출에 지난 결과를 다시 쓰기 위한 해시다(§4.4). 기존 DB에는 Hibernate가 컬럼을 더한다.
 - `ai_usage_days`는 날짜(한국)별 AI 토큰 사용량 합계다(§4.4). 본문은 담지 않는다.

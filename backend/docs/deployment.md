@@ -173,7 +173,7 @@ Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보�
 
 ### 지역 시드
 
-지역 데이터는 앱이 뜰 때마다 들어간다. `schema.sql`이 테이블과 서울 26행을 만들고, 이어서 `spring.sql.init.data-locations: classpath:regions.sql,classpath:prompts.sql`이 돈다. `regions.sql`은 나머지 시·도와 시·군·구를 넣고(모두 271개), `prompts.sql`은 채점 프롬프트(`score`) 1판을 넣는다. 셋 다 `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어가고, 이미 있는 프롬프트 판은 건드리지 않는다. `regions.parent_code`는 앱 시작 때 `RegionFacade`가 채운다. 별도 마이그레이션 단계는 없다. 이미 있는 지역의 이름·좌표를 바꾸려면 시드만으로는 안 되고 DB를 직접 고쳐야 한다.
+지역 데이터는 앱이 뜰 때마다 들어간다. Hibernate가 엔티티대로 테이블을 만든 뒤 `spring.sql.init.data-locations: classpath:seed.sql,classpath:regions.sql,classpath:prompts.sql`이 차례로 돈다. `seed.sql`은 유일 인덱스와 순위 계산 요청 행, 서울 26행을 넣는다. `regions.sql`은 나머지 시·도와 시·군·구를 넣고(모두 271개), `prompts.sql`은 채점 프롬프트(`score`) 판을 넣는다. 모두 `IF NOT EXISTS`나 `INSERT OR IGNORE`라 기존 DB에는 새 지역만 들어가고, 이미 있는 프롬프트 판은 건드리지 않는다. `regions.parent_code`는 앱 시작 때 `RegionFacade`가 채운다. 별도 마이그레이션 단계는 없다. 이미 있는 지역의 이름·좌표를 바꾸려면 시드만으로는 안 되고 DB를 직접 고쳐야 한다.
 
 ## SQLite 백업과 복구
 
@@ -202,6 +202,20 @@ age 암호화는 뺐다. 2026-11 전에 age로 만든 `sqlite/*.age` 백업만 P
 - 앱과 Caddy를 함께 멈춘다. 다시 띄울 때는 앱이 healthy가 된 뒤 Caddy를 띄운다.
 - 바꾸기 전 DB는 `/opt/santacut/backups/pre-restore-<시각>.sqlite`(600)로 남긴다. 볼륨의 새 DB는 UID 10001 소유, 600으로 둔다.
 - 오래된 백업은 운영 DB가 아니라 임시 디렉터리에 받아 점검한다. 3시간 전 객체와 가장 오래된 객체 모두 KMS로 풀렸고 `ok`였다.
+
+### 스키마와 외래 키 확인
+
+`schema.sql`은 없다. 테이블은 엔티티가 정하고 `ddl-auto: update`가 만든다([컨벤션 §12](backend-conventions.md#12-jpa-엔티티와-스키마)). 예전에 `schema.sql`로 만든 dev·운영 DB는 외래 키, CHECK, 유일 제약을 그대로 가지고 있다. `ddl-auto: update`는 이미 있는 제약을 지우거나 바꾸지 않고, `seed.sql`의 유일 인덱스도 `IF NOT EXISTS`라 같은 이름이 있으면 건너뛴다. 그래서 기존 DB는 손대지 않고 그대로 쓴다.
+
+앱은 뜰 때 참가자 삭제가 기대는 외래 키 10개(`ON DELETE CASCADE` 9개와 `analysis_jobs.assessment_id`의 `SET NULL`)가 있는지 `PRAGMA foreign_key_list`로 확인한다. 하나라도 없으면 `DB에 외래 키 삭제 규칙이 없어 앱을 띄우지 않는다`로 시작하는 로그에 없는 규칙을 적고 뜨지 않는다. 그대로 띄우면 참가자를 지워도 행이 남기 때문이다. 배포 뒤 직접 확인할 때는 다음을 돌린다.
+
+```bash
+DB=/var/lib/docker/volumes/santacut_santacut_data/_data/santacut.db
+sudo sqlite3 -readonly "$DB" "SELECT m.name, f.\"from\", f.\"table\", f.on_delete FROM sqlite_master m JOIN pragma_foreign_key_list(m.name) f WHERE m.type = 'table'"
+sudo sqlite3 -readonly "$DB" "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND sql LIKE 'CREATE UNIQUE%'"
+```
+
+dev DB가 이 확인에 걸리거나 스키마를 처음부터 다시 만들어야 하면 DB를 지우지 말고 옮겨 둔 뒤 새로 만든다. `APP_IMAGE=$(cat /opt/santacut/current-image)`를 export하고 앱과 Caddy를 멈춘다. 데이터 볼륨의 `santacut.db`를 `/opt/santacut/backups/pre-recreate-<시각>.sqlite`(600)로 옮기고 앱을 띄우면, 빈 DB에 Hibernate가 테이블을 만들고 시드가 돈다. 참가자 데이터는 새 DB로 넘어가지 않으므로 운영 DB에는 이 방법을 쓰지 않는다.
 
 `ddl-auto: update`는 스키마를 자동으로 되돌리지 않는다. 컬럼 삭제·변경이 든 릴리스는 이전 앱 이미지만으로 롤백된다고 가정하지 않는다. 배포 전 백업은 `deploy.sh`가 두 번째 배포부터 자동으로 뜬다.
 

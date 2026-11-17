@@ -2,6 +2,8 @@ package com.santacut.domain.analysis.model
 
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
+import com.santacut.domain.global.model.ForeignKeyColumns
+import com.santacut.domain.global.model.UtcDatabaseTime
 import com.santacut.domain.global.model.UtcInstantConverter
 import com.santacut.domain.ranking.model.Season
 import jakarta.persistence.Column
@@ -10,6 +12,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import java.time.Duration
 import java.time.Instant
@@ -23,7 +26,7 @@ import java.util.UUID
  * 같은 채점 입력으로 다시 낸 작업이 AI를 또 부르지 않도록, 결과가 입력에 따라 정해지는 작업에는 채점 입력 해시([digestHash])를 남긴다.
  */
 @Entity
-@Table(name = "analysis_jobs")
+@Table(name = "analysis_jobs", indexes = [Index(name = "analysis_jobs_pending", columnList = "status, created_at")])
 class AnalysisJob(
     id: String,
     userId: String,
@@ -39,7 +42,7 @@ class AnalysisJob(
     var id: String = id
         protected set
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false, columnDefinition = ForeignKeyColumns.PARTICIPANT)
     var userId: String = userId
         protected set
 
@@ -61,11 +64,11 @@ class AnalysisJob(
         protected set
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = STATUS_COLUMN_DEFINITION)
     var status: AnalysisJobStatus = status
         protected set
 
-    @Column(name = "attempts", nullable = false)
+    @Column(name = "attempts", nullable = false, columnDefinition = ZERO_COLUMN_DEFINITION)
     var attempts: Int = 0
         protected set
 
@@ -83,12 +86,12 @@ class AnalysisJob(
     var errorCode: AnalysisFailureCode? = null
         protected set
 
-    @Column(name = "assessment_id")
+    @Column(name = "assessment_id", columnDefinition = ForeignKeyColumns.ASSESSMENT_OR_NULL)
     var assessmentId: String? = null
         protected set
 
     @Convert(converter = UtcInstantConverter::class)
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, columnDefinition = UtcDatabaseTime.CREATED_AT_COLUMN_DEFINITION)
     var createdAt: Instant = createdAt
         protected set
 
@@ -261,6 +264,8 @@ class AnalysisJob(
     companion object {
         /** 한 작업을 시도할 수 있는 최대 횟수. */
         const val MAX_ATTEMPTS = 3
+        private const val STATUS_COLUMN_DEFINITION = "TEXT NOT NULL DEFAULT 'QUEUED'"
+        private const val ZERO_COLUMN_DEFINITION = "INTEGER NOT NULL DEFAULT 0"
 
         /** 한 참가자가 [SUBMISSION_WINDOW] 동안 제출할 수 있는 작업 수. */
         const val MAX_DAILY_SUBMISSIONS = 3

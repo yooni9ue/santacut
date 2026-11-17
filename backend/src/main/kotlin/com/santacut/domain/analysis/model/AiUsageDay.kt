@@ -22,20 +22,20 @@ class AiUsageDay(
     var usageDate: String = usageDate
         protected set
 
-    @Column(name = "input_tokens", nullable = false)
+    @Column(name = "input_tokens", nullable = false, columnDefinition = ZERO_COLUMN_DEFINITION)
     var inputTokens: Long = 0
         protected set
 
     /** 입력 토큰 중 암묵적 캐시에서 읽은 토큰 수. 기존 DB에는 Hibernate가 기본값 0으로 컬럼을 더한다. */
-    @Column(name = "cached_input_tokens", nullable = false, columnDefinition = CACHED_INPUT_TOKENS_COLUMN_DEFINITION)
+    @Column(name = "cached_input_tokens", nullable = false, columnDefinition = ZERO_COLUMN_DEFINITION)
     var cachedInputTokens: Long = 0
         protected set
 
-    @Column(name = "output_tokens", nullable = false)
+    @Column(name = "output_tokens", nullable = false, columnDefinition = ZERO_COLUMN_DEFINITION)
     var outputTokens: Long = 0
         protected set
 
-    @Column(name = "calls", nullable = false)
+    @Column(name = "calls", nullable = false, columnDefinition = ZERO_COLUMN_DEFINITION)
     var calls: Int = 0
         protected set
 
@@ -50,7 +50,7 @@ class AiUsageDay(
     fun costUsd(budget: AiBudget): BigDecimal = budget.costUsd(inputTokens, cachedInputTokens, outputTokens)
 
     companion object {
-        private const val CACHED_INPUT_TOKENS_COLUMN_DEFINITION = "INTEGER NOT NULL DEFAULT 0"
+        private const val ZERO_COLUMN_DEFINITION = "INTEGER NOT NULL DEFAULT 0"
 
         fun keyOf(date: LocalDate): String = date.toString()
     }

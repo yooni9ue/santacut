@@ -1,5 +1,6 @@
 package com.santacut.domain.session.model
 
+import com.santacut.domain.global.model.ForeignKeyColumns
 import com.santacut.domain.global.model.Sha256
 import com.santacut.domain.global.model.UtcInstantConverter
 import com.santacut.domain.participant.model.Participant
@@ -7,6 +8,7 @@ import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import java.time.Duration
 import java.time.Instant
@@ -16,7 +18,7 @@ import java.util.UUID
  * 로그인 세션. 토큰 원문은 저장하지 않고 SHA-256 해시만 저장한다.
  */
 @Entity
-@Table(name = "sessions")
+@Table(name = "sessions", indexes = [Index(name = "sessions_user", columnList = "user_id")])
 class ParticipantSession(
     tokenHash: String,
     userId: String,
@@ -27,7 +29,7 @@ class ParticipantSession(
     var tokenHash: String = tokenHash
         protected set
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false, columnDefinition = ForeignKeyColumns.PARTICIPANT)
     var userId: String = userId
         protected set
 

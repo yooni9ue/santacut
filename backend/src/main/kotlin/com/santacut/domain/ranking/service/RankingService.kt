@@ -13,6 +13,7 @@ import com.santacut.domain.participant.model.Participants
 import com.santacut.domain.participant.model.Regions
 import com.santacut.domain.ranking.model.FirstAssessments
 import com.santacut.domain.ranking.model.RankedResult
+import com.santacut.domain.ranking.model.RankedAssessmentTimes
 import com.santacut.domain.ranking.model.RankingBoard
 import com.santacut.domain.ranking.model.RankingBoardCache
 import com.santacut.domain.ranking.model.RankingCursor
@@ -125,10 +126,12 @@ class RankingService(
      * 참가자의 최신 순위 스냅숏이 담은 평가를 만든 시각. 이 시각 이후에 끝난 심사는 아직 순위에 반영되지 않았다.
      * 순위 스냅숏이 없으면 null이다.
      */
-    fun findRankedAssessmentTime(participantId: UUID): Instant? {
-        val snapshot = findLatestSnapshot(participantId) ?: return null
-        return assessmentRepository.findById(snapshot.assessmentId).orElse(null)?.createdAt
-    }
+    fun findRankedAssessmentTime(participantId: UUID): Instant? =
+        resultSnapshotRepository.findRankedAssessmentTime(participantId.toString())
+
+    /** [userIds] 참가자마다 [findRankedAssessmentTime]을 한 번의 조회로 읽는다. */
+    fun findRankedAssessmentTimes(userIds: Set<String>): RankedAssessmentTimes =
+        RankedAssessmentTimes(resultSnapshotRepository.findRankedAssessmentTimes(userIds))
 
     /**
      * 참가자의 최신 결과. 점수와 순위를 어떻게 묶을지는 [RankedResult.of]가 정한다.

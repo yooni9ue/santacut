@@ -1,10 +1,12 @@
 package com.santacut.domain.ranking.model
 
+import com.santacut.domain.global.model.ForeignKeyColumns
 import com.santacut.domain.global.model.UtcInstantConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.PostLoad
 import jakarta.persistence.PostPersist
 import jakarta.persistence.Table
@@ -20,7 +22,7 @@ import java.util.UUID
  * 저장할 때 행마다 SELECT로 있는지 확인(merge)하지 않고 바로 INSERT(persist)하게 한다. 그래야 묶음 INSERT가 된다.
  */
 @Entity
-@Table(name = "result_snapshots")
+@Table(name = "result_snapshots", indexes = [Index(name = "snapshots_latest", columnList = "computed_at, user_id")])
 class ResultSnapshot(
     id: String,
     userId: String,
@@ -39,11 +41,11 @@ class ResultSnapshot(
     @Transient
     private var persisted: Boolean = false
 
-    @Column(name = "user_id", nullable = false)
+    @Column(name = "user_id", nullable = false, columnDefinition = ForeignKeyColumns.PARTICIPANT)
     var userId: String = userId
         protected set
 
-    @Column(name = "assessment_id", nullable = false)
+    @Column(name = "assessment_id", nullable = false, columnDefinition = ForeignKeyColumns.ASSESSMENT)
     var assessmentId: String = assessmentId
         protected set
 

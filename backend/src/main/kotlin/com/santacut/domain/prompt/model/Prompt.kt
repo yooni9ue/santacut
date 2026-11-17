@@ -1,11 +1,13 @@
 package com.santacut.domain.prompt.model
 
+import com.santacut.domain.global.model.UtcDatabaseTime
 import com.santacut.domain.global.model.UtcInstantConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.annotations.Check
 import java.time.Instant
 import java.util.UUID
 
@@ -18,6 +20,7 @@ import java.util.UUID
  */
 @Entity
 @Table(name = "prompts")
+@Check(constraints = "version >= 1")
 class Prompt(
     id: String,
     name: String,
@@ -43,7 +46,7 @@ class Prompt(
         protected set
 
     @Convert(converter = UtcInstantConverter::class)
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, columnDefinition = UtcDatabaseTime.CREATED_AT_COLUMN_DEFINITION)
     var createdAt: Instant = createdAt
         protected set
 

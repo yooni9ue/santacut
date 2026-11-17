@@ -1,5 +1,6 @@
 package com.santacut.domain.analysis.model
 
+import com.santacut.domain.global.model.ForeignKeyColumns
 import com.santacut.domain.global.model.UtcInstantConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -7,6 +8,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import java.time.Instant
 
@@ -16,7 +18,7 @@ import java.time.Instant
  * 파일 이름은 저장하지 않는다.
  */
 @Entity
-@Table(name = "analysis_uploads")
+@Table(name = "analysis_uploads", indexes = [Index(name = "analysis_uploads_created", columnList = "created_at")])
 class AnalysisUpload(
     jobId: String,
     source: DataSource,
@@ -25,7 +27,7 @@ class AnalysisUpload(
     createdAt: Instant,
 ) {
     @Id
-    @Column(name = "job_id")
+    @Column(name = "job_id", columnDefinition = ForeignKeyColumns.ANALYSIS_JOB)
     var jobId: String = jobId
         protected set
 

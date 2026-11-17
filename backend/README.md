@@ -98,7 +98,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 
 <p align="center"><img src="docs/images/erd.svg" alt="ERD: regions, participants, sessions, analysis_jobs, analysis_uploads, assessments, result_snapshots, result_populations, shares, prompts, ai_usage_days, ranking_refresh, region_changes 13개 테이블의 모든 컬럼과 키. result_populations, prompts, ai_usage_days, ranking_refresh는 FK가 없는 독립 테이블이다" width="100%"></p>
 
-- 기준은 [`schema.sql`](src/main/resources/schema.sql)과 JPA 엔티티다. 나중에 더한 컬럼(유형·배지·한마디 등)은 `ddl-auto: update`가 만든다.
+- 기준은 JPA 엔티티다. 테이블·컬럼·외래 키·인덱스는 `ddl-auto: update`가 엔티티대로 만들고, SQLite 방언이 만들지 않는 유일 인덱스와 처음 넣을 행은 [`seed.sql`](src/main/resources/seed.sql)이 넣는다. 규칙은 [컨벤션 §12](docs/backend-conventions.md#12-jpa-엔티티와-스키마)에 있다.
 - 원본 파일은 `analysis_uploads`에 잠깐 머물다가 검증이 끝나면 지워진다.
 - 지역은 `parent_code`로 시·도와 시·군·구를 잇는다.
 - `assessments.prompt_version`에는 채점에 쓴 프롬프트 판 번호가 남는다. 프롬프트를 DB로 옮기기 전 평가는 `NULL`이다.
