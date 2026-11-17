@@ -85,15 +85,15 @@ class QueryCountApiTest @Autowired constructor(
         val token = shareFacade.createShare(CreateShareCommand(participant.id)).token
         val cursor = RankingCursor.after(1, computedAt).value()
 
-        val counts = mapOf(
-            "status" to countQueries { mockMvc.perform(get("/v1/analyses/$jobId").cookie(session)).andExpect(status().isOk) },
-            "rankings" to countQueries { mockMvc.perform(get("/v1/rankings").param("cursor", cursor)).andExpect(status().isOk) },
-            "result" to countQueries { mockMvc.perform(get("/v1/me/result").cookie(session)).andExpect(status().isOk) },
-            "share page" to countQueries { mockMvc.perform(get("/s/$token")).andExpect(status().isOk) },
-        )
-
-        assertEquals(EXPECTED_READ_COUNTS, counts)
+        assertEquals(EXPECTED_READ_COUNTS, readQueries(jobId, session, cursor, token))
     }
+
+    private fun readQueries(jobId: String, session: Cookie, cursor: String, token: String): Map<String, Long> = mapOf(
+        "status" to countQueries { mockMvc.perform(get("/v1/analyses/$jobId").cookie(session)).andExpect(status().isOk) },
+        "rankings" to countQueries { mockMvc.perform(get("/v1/rankings").param("cursor", cursor)).andExpect(status().isOk) },
+        "result" to countQueries { mockMvc.perform(get("/v1/me/result").cookie(session)).andExpect(status().isOk) },
+        "share page" to countQueries { mockMvc.perform(get("/s/$token")).andExpect(status().isOk) },
+    )
 
     @Test
     fun `순위 계산 뒤 진행 상황 알림의 SQL 수는 작업 수와 상관없다`() {
@@ -112,13 +112,7 @@ class QueryCountApiTest @Autowired constructor(
     /** 평가까지 저장하고 성공으로 끝낸 작업. */
     private fun succeededJob(participantId: UUID): String {
         val now = clock.instant()
-        val job = AnalysisJob.enqueue(
-            participantId,
-            IdempotencyKey.from("key-" + UUID.randomUUID()),
-            AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())),
-            AnalysisPayload("{}"),
-            now,
-        )
+        val job = AnalysisJob.enqueue(participantId, IdempotencyKey.from("key-" + UUID.randomUUID()), EMPTY_SUBMISSION, AnalysisPayload("{}"), now)
         val score = Score.shrunk(SCORES.map { BigDecimal(it) }, LowConfidenceDimensions.NONE, null)
         transactionTemplate.executeWithoutResult {
             job.startAttempt(LEASE, now, LEASE_DURATION)
@@ -141,6 +135,7 @@ class QueryCountApiTest @Autowired constructor(
         private val LEASE_DURATION: Duration = Duration.ofMinutes(5)
         private val SCORES = listOf(60, 60, 60, 60)
         private const val MANY_JOBS = 20
+        private val EMPTY_SUBMISSION = AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList()))
         private val EXPECTED_READ_COUNTS = mapOf("status" to 3L, "rankings" to 3L, "result" to 5L, "share page" to 1L)
 
         /** 알릴 작업 id 목록, 작업들, 참가자별 순위 반영 시각을 한 번씩 읽는다. 작업 수와 상관없다(예전에는 작업 하나에 3번 더). */
