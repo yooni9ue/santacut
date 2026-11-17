@@ -10,6 +10,7 @@ import com.santacut.domain.analysis.model.AnalysisStreamLimit
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.IdempotencyKey
+import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.global.config.AnalysisStreamProperties
 import com.santacut.domain.global.config.AppProperties
 import com.santacut.domain.global.config.ClientRateLimitProperties
@@ -154,9 +155,18 @@ class AnalysisJobService(
         save(job)
     }
 
-    /** 아직 이 리스를 쥐고 실행 중인 작업. 다른 작업자가 가져갔으면 null이다. */
-    fun findHeld(jobId: String, lease: String): AnalysisJob? =
-        analysisJobRepository.findById(jobId).orElse(null)?.takeIf { it.isHeldBy(lease) }
+    /** [claimed]를 잡을 때 받은 리스를 아직 쥐고 실행 중인 작업. 다른 작업자가 가져갔거나 이미 끝났으면 null이다. */
+    fun findHeld(claimed: AnalysisJob): AnalysisJob? {
+        val lease = claimed.leaseToken ?: return null
+        return analysisJobRepository.findById(claimed.id).orElse(null)?.takeIf { it.isHeldBy(lease) }
+    }
+
+    /** 리스를 아직 쥐고 있으면 채점 실패를 정리한다([AnalysisJob.settle]). 다른 작업자가 가져갔거나 이미 끝났으면 건드리지 않는다. */
+    fun settleFailure(claimed: AnalysisJob, failure: ScoringFailure, digestHash: String?, billed: Boolean, now: Instant) {
+        val job = findHeld(claimed) ?: return
+        job.settle(failure, billed, now, digestHash)
+        save(job)
+    }
 
     fun succeed(job: AnalysisJob, assessmentId: String, finishedAt: Instant, digestHash: String? = null) {
         job.succeed(assessmentId, finishedAt, digestHash)
@@ -165,12 +175,6 @@ class AnalysisJobService(
 
     fun fail(job: AnalysisJob, code: AnalysisFailureCode, finishedAt: Instant, digestHash: String? = null) {
         job.fail(code, finishedAt, digestHash)
-        save(job)
-    }
-
-    /** AI 제공자가 호출을 막아 작업을 대기열로 되돌린다. */
-    fun releaseLease(job: AnalysisJob) {
-        job.releaseLease()
         save(job)
     }
 

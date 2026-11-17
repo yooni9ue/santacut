@@ -157,6 +157,22 @@ class AnalysisJob(
         returnToQueue()
     }
 
+    /**
+     * 채점 실패를 정리한다. 실패 이유가 있으면 그 이유로 끝내고, 입력에 따라 정해지는 실패([ScoringFailure.cachesDigest])면
+     * 채점 입력 해시([digestHash])도 남겨 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
+     * 실패 이유가 없는 차단은 앞 구간을 이미 과금했으면([billed]) 이번 시도를 센 채([requeueSpentAttempt]), 아니면 세지 않고([releaseLease])
+     * 대기열로 되돌린다. 처음부터 다시 묻는 재시도는 앞 구간을 또 과금하므로, 그런 재시도를 [MAX_ATTEMPTS]번으로 묶어
+     * 같은 작업의 과금을 그 배수 안에 둔다. 한 번도 과금하지 않은 차단은 시도를 세지 않으므로 제공자 차단만으로 작업이 실패하지는 않는다.
+     */
+    fun settle(failure: ScoringFailure, billed: Boolean, now: Instant, digestHash: String?) {
+        val code = failure.failureCode
+        when {
+            code != null -> fail(code, now, digestHash.takeIf { failure.cachesDigest })
+            billed -> requeueSpentAttempt(now)
+            else -> releaseLease()
+        }
+    }
+
     private fun returnToQueue() {
         status = AnalysisJobStatus.QUEUED
         leaseToken = null
