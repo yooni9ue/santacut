@@ -47,7 +47,8 @@ import kotlin.test.assertEquals
  * 기본 `check`에서는 빠지고 `./gradlew eval`로만 돈다. 짝 대화 확인만 API를 부르지 않는다.
  *
  * 환경 변수: GEMINI_API_KEY(필수), EVAL_REPETITIONS(짧은 대화 반복, 기본 3), EVAL_SAMPLES(한 구간 대화의 중앙값 호출 수, 기본 1), EVAL_LONG_REPETITIONS(긴 대화 위치, 기본 0=건너뜀),
- * EVAL_VARIANT_REPETITIONS(길이 불변·단체 대화 감싸기, 기본 0=건너뜀), EVAL_PROMPT_FILE(채점 프롬프트를 이 파일로 바꿈).
+ * EVAL_VARIANT_REPETITIONS(길이 불변·단체 대화 감싸기, 기본 0=건너뜀), EVAL_PROMPT_FILE(채점 프롬프트를 이 파일로 바꿈),
+ * EVAL_GOLDEN_DIR(사람이 매긴 골든셋 라벨 파일 폴더, 없으면 건너뜀. 형식은 backend-design.md §4.6).
  * 수축 규칙은 [SHRINKAGES](세기 C, 근거 무게를 깎지 않는 본인 턴 수 F)를 같은 답에 모두 적용해 비교한다(추가 호출 없음).
  * 길이 불변은 기준 프롬프트로 원래·반 대화도 채점해, 모델의 길이별 변화가 기준의 변화와 얼마나 다른지도 잰다.
  * 결과는 `build/eval/`에 남는다.
@@ -164,6 +165,47 @@ class ScoringContextEvalTest {
         }
         report("invariance.txt", lines.joinToString("\n"))
     }
+
+    @Test
+    fun `사람이 매긴 골든셋과 순위 상관, 항목 오차를 잰다`() {
+        val files = GOLDEN_DIR?.let { File(it).listFiles { file -> file.extension == "txt" }?.sortedBy { it.name } }.orEmpty()
+        assumeTrue(files.isNotEmpty(), "EVAL_GOLDEN_DIR에 라벨 파일이 없으면 건너뛴다")
+        val rows = files.mapNotNull { file -> goldenRow(file) }
+        val errors = rows.flatMap { row -> ScoreDimension.entries.map { abs(row.model.components.scoreOf(it).toDouble() - row.labels.getValue(it.key)) } }
+        val lines = rows.map { row -> "${row.name} human=%.2f model=%.2f".format(row.humanTotal(), row.model.hundredths / 100.0) }
+        report(
+            "golden.txt",
+            (lines + "chats=${rows.size}/${files.size} spearman=%.3f (target>=%.1f) mae=%.2f".format(
+                spearman(rows.map { it.humanTotal() }, rows.map { it.model.hundredths / 100.0 }), GOLDEN_SPEARMAN_TARGET, errors.average(),
+            )).joinToString("\n"),
+        )
+    }
+
+    /** 라벨 파일 하나를 채점한다. `#labels key=점수 ...` 줄이 없거나 채점에 실패하면 null이다. */
+    private fun goldenRow(file: File): GoldenRow? {
+        val text = file.readText()
+        val labels = text.lines().firstOrNull { it.startsWith(GOLDEN_LABEL_PREFIX) }?.removePrefix(GOLDEN_LABEL_PREFIX)?.trim()?.split(" ")
+            ?.associate { it.substringBefore("=") to it.substringAfter("=").toDouble() } ?: return null
+        val score = run(digestOf(messagesOf(text), verify = false)).score(DEFAULT_SHRINKAGE) ?: return null
+        return GoldenRow(file.nameWithoutExtension, labels, score)
+    }
+
+    private class GoldenRow(val name: String, val labels: Map<String, Double>, val model: Score) {
+        fun humanTotal(): Double = ScoreDimension.entries.sumOf { it.weight * labels.getValue(it.key) } / ScoreDimension.TOTAL_WEIGHT
+    }
+
+    /** 스피어만 순위 상관. 동점은 평균 순위를 준다. */
+    private fun spearman(left: List<Double>, right: List<Double>): Double {
+        val leftRanks = ranks(left)
+        val rightRanks = ranks(right)
+        val leftMean = leftRanks.average()
+        val rightMean = rightRanks.average()
+        val covariance = leftRanks.indices.sumOf { (leftRanks[it] - leftMean) * (rightRanks[it] - rightMean) }
+        return covariance / sqrt(leftRanks.sumOf { (it - leftMean) * (it - leftMean) } * rightRanks.sumOf { (it - rightMean) * (it - rightMean) })
+    }
+
+    private fun ranks(values: List<Double>): List<Double> =
+        values.map { value -> values.count { it < value } + (values.count { it == value } + 1) / 2.0 }
 
     /** 상대 줄을 두 사람(민수, 지영)이 번갈아 말한 단체 대화로 바꾼다. 본인 줄은 그대로다. */
     private fun asGroup(messages: List<ChatMessage>): List<ChatMessage> {
@@ -369,7 +411,11 @@ class ScoringContextEvalTest {
         """.trimIndent()
         private const val PLAYFULNESS_SPLIT = 50
         private const val INPUT_USD_PER_TOKEN = 0.3 / 1_000_000
+        private const val CACHED_INPUT_USD_PER_TOKEN = 0.03 / 1_000_000
         private const val OUTPUT_USD_PER_TOKEN = 2.5 / 1_000_000
+        private val GOLDEN_DIR: String? = System.getenv("EVAL_GOLDEN_DIR")
+        private const val GOLDEN_LABEL_PREFIX = "#labels"
+        private const val GOLDEN_SPEARMAN_TARGET = 0.7
         private const val FULL_BASELINE_FILE = "build/eval/full-baseline.txt"
         private const val TEMPERATURE = 0.1
         private const val DEFAULT_MAX_OUTPUT_TOKENS = 250
@@ -379,4 +425,3 @@ class ScoringContextEvalTest {
         private val PROMPT_ROW = Regex("'score',(\\d+),'((?:[^']++|'')*+)'\\)")
     }
 }
-        private const val CACHED_INPUT_USD_PER_TOKEN = 0.03 / 1_000_000
