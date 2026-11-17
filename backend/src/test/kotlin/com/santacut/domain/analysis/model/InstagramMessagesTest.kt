@@ -44,4 +44,11 @@ class InstagramMessagesTest {
         )
         assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { withNull.toMessages() }
     }
+
+    @Test
+    fun `빈 객체로 채운 파일처럼 객체가 상한보다 많으면 파싱하기 전에 UNSUPPORTED_FILE_FORMAT이다`() {
+        val bomb = "{\"messages\":[" + "{},".repeat(InstagramMessages.MAX_OBJECTS) + "{}]}"
+        assertErrorCode(ErrorCode.UNSUPPORTED_FILE_FORMAT) { InstagramMessages.verifyObjectCountIn(bomb) }
+        InstagramMessages.verifyObjectCountIn("{\"messages\":[{},{}]}")
+    }
 }
