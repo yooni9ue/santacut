@@ -134,13 +134,21 @@ class AnalysisWorkerFacade(
         processChain(claimNextJob(nextLease) ?: return, nextLease)
     }
 
+    /**
+     * 작업 하나를 채점한다. 스택 넘침([StackOverflowError])은 입력이 정한 실패라 그 작업만 ANALYSIS_FAILED로 끝낸다.
+     * 잡지 않으면 리스가 끝날 때마다 같은 작업을 다시 잡아 시도를 다 쓸 때까지 되풀이한다.
+     * 메모리 부족([OutOfMemoryError])은 잡지 않는다. JVM 옵션(ExitOnOutOfMemoryError)이 프로세스를 내리고 다시 띄우게 둔다.
+     */
     private fun process(job: AnalysisJob, lease: String) {
         try {
             scoreAndComplete(job, lease)
         } catch (exception: Exception) {
             // 제공자 응답 본문이나 제출 메시지는 로그에 남기지 않는다. 실패한 작업은 새 요청으로만 다시 시도한다.
             logger.warn("분석 작업 {} 실패: {}", job.id, failureReason(exception))
-            handleFailure(job.id, lease, exception)
+            handleFailure(job.id, lease, ScoringFailure.of(exception))
+        } catch (error: StackOverflowError) {
+            logger.warn("분석 작업 {} 실패: {}", job.id, error.javaClass.simpleName)
+            handleFailure(job.id, lease, ScoringFailure.INPUT_REJECTED)
         }
     }
 
@@ -271,8 +279,7 @@ class AnalysisWorkerFacade(
     }
 
     /** 실패 종류([ScoringFailure])에 따라 작업을 끝내거나 대기열로 되돌리고, 작업자를 멈출지는 비용 가드가 정한다. */
-    private fun handleFailure(jobId: String, lease: String, exception: Exception) {
-        val failure = ScoringFailure.of(exception)
+    private fun handleFailure(jobId: String, lease: String, failure: ScoringFailure) {
         transactionTemplate.executeWithoutResult { finishIfHeld(jobId, lease, failure, null) }
         aiBudgetService.recordFailure(failure, clock.instant())
     }
