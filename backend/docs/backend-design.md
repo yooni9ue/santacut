@@ -60,7 +60,7 @@
 - 원본 파일은 카카오톡 TXT(PC 형식, iOS·Android 모바일 형식)와 인스타그램 `message_1.json`만 받는다. ZIP, CSV, EUC-KR은 받지 않는다. 파일 이름·확장자·Content-Type은 보지 않고 내용만 본다.
 - 접수 단계에서는 빈 파일, ZIP(첫 4바이트 `PK\x03\x04`), 앞 4,096바이트에 NUL이 있는 바이너리만 바로 `422 UNSUPPORTED_FILE_FORMAT`으로 거절한다. 엄격한 UTF-8 디코딩과 파싱은 검증 작업자 몫이다.
 - 크기 한도는 20MB다. Spring multipart `max-file-size: 20MB`·`max-request-size: 21MB`, Tomcat `max-swallow-size: 21MB`, Caddy `request_body max_size 21MB`가 함께 막는다. 서버가 막으면 `413 FILE_TOO_LARGE`, 프록시가 막으면 `code` 없는 `413`이 간다.
-- 정규화하면 본인과 상대 메시지를 담은 이벤트(`occurredAt`, `text`, 상대면 `partner`) 목록이 나온다. `partner`는 `상대`·`상대1` 같은 화자 표시이고 실제 이름은 남기지 않는다. 최근 90일, 최신 2,000개, 누적 200,000자까지 쓰고 메시지 하나는 2,000자에서 자른다. 본인 이벤트가 20개가 안 되면 `INSUFFICIENT_EVENTS`다.
+- 정규화하면 본인과 상대 메시지를 담은 이벤트(`occurredAt`, `text`, 상대면 `partner`) 목록이 나온다. `partner`는 `상대`·`상대1` 같은 화자 표시이고 실제 이름은 남기지 않는다. 최근 90일, 2,000개(본인 최신 1,000개를 먼저 남기고 나머지는 최신순), 누적 200,000자까지 쓰고 메시지 하나는 2,000자에서 자른다. 본인 이벤트가 20개가 안 되면 `INSUFFICIENT_EVENTS`다.
 - 상대 메시지는 작업 페이로드(`analysis_jobs.payload`)에만 있다. 작업이 성공하든 실패하든 끝나는 순간 페이로드를 지우므로 작업보다 오래 남지 않는다. 이벤트 JSON 제출(`POST /v1/analyses`)은 본인 메시지만 받는다.
 - **[대체됨]** 위의 "내부 공통 이벤트: source, occurred_at, actor_role, event_type, text, context"는 구현하지 않았다. 화자는 상대 이벤트의 `partner` 필드 하나로 나타낸다. `source`는 작업마다 한 번만 저장한다.
 
