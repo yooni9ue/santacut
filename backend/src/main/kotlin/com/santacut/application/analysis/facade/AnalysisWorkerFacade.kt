@@ -221,9 +221,9 @@ class AnalysisWorkerFacade(
         val usage = answers.usage()
         val digest = attempt.digest
         logger.info(
-            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 대화문 {}줄 {}자(뺀 줄 {}), 구간 {}개, 입력 {} 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
+            "분석 작업 {} AI 사용량: 프롬프트 {}판, 메시지 {}개, 대화문 {}줄 {}자(뺀 줄 {}), 구간 {}개, 입력 {}(캐시 {}) 출력 {} 생각 {} 토큰, 종료 {}, 근거 보정 {}개, 결과 {}",
             attempt.job.id, attempt.prompt.version, digest.messageCount, digest.lineCount(), digest.turns.totalLength(), digest.omittedTurns, answers.size(),
-            usage.inputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answers.discardedEvidence(), outcome,
+            usage.inputTokens, usage.cachedInputTokens, usage.outputTokens, usage.thoughtTokens, usage.finishReason, answers.discardedEvidence(), outcome,
         )
     }
 

@@ -6,12 +6,14 @@ package com.santacut.domain.analysis.model
  * @property outputTokens 답 본문 토큰 수. 생각 토큰은 들지 않는다.
  * @property finishReason 모델이 알려 준 종료 사유(예: `STOP`, `MAX_TOKENS`). 모르면 빈 문자열이다.
  * @property thoughtTokens 생각(thinking) 토큰 수. 출력 단가로 청구되고 출력 토큰 상한도 함께 쓴다.
+ * @property cachedInputTokens 입력 토큰 중 암묵적 캐시에서 읽은 토큰 수(`cachedContentTokenCount`). [inputTokens]에 들어 있고 더 낮은 단가로 청구된다.
  */
 data class ModelUsage(
     val inputTokens: Long,
     val outputTokens: Long,
     val finishReason: String,
     val thoughtTokens: Long = 0,
+    val cachedInputTokens: Long = 0,
 ) {
     /** 출력 단가로 청구되는 토큰 수. 답 본문 토큰과 생각 토큰의 합이다. */
     fun billedOutputTokens(): Long = outputTokens + thoughtTokens
@@ -22,6 +24,7 @@ data class ModelUsage(
         outputTokens + other.outputTokens,
         joinedFinishReason(other.finishReason),
         thoughtTokens + other.thoughtTokens,
+        cachedInputTokens + other.cachedInputTokens,
     )
 
     private fun joinedFinishReason(next: String): String = when {

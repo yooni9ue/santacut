@@ -10,6 +10,7 @@ import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
 import org.springframework.ai.chat.model.ChatResponse
+import org.springframework.ai.google.genai.GoogleGenAiChatOptions
 import org.springframework.ai.google.genai.metadata.GoogleGenAiUsage
 import org.springframework.stereotype.Component
 import tools.jackson.core.JacksonException
@@ -23,7 +24,8 @@ import tools.jackson.databind.ObjectMapper
  * 응답은 항목 키마다 `{"e":[근거 줄],"n":기회 수,"s":점수}`와 `playfulness`를 담은 6판 형식이다.
  * 예전 형식(`scores`·`evidence` 객체)도 읽고, 그때 기회 수는 모르는 값([DimensionOpportunities.UNKNOWN])이 된다.
  * 응답 메타데이터의 토큰 사용량(생각 토큰 포함)과 종료 사유는 [ModelUsage]로 넘긴다. 프롬프트, 사용자 메시지, 모델 응답은 로그에 남기지 않는다.
- * JSON 응답 모드를 켜 두지만, 모델이 JSON을 코드 블록으로 감싸 보내도 읽도록 첫 `{`부터 마지막 `}`까지만 읽는다.
+ * 응답 형태는 구조화 출력([ScoreResponseSchema])으로 강제한다. 제약 디코딩이라 코드 블록으로 감싸 오지 않으므로 응답 본문을 그대로 JSON으로 읽는다.
+ * 잘리거나 깨진 JSON은 읽을 수 없는 답([ScoreAnswer.unreadable])이고, 값의 범위 검증은 도메인 모델이 한다.
  */
 @Component
 class ScoreClient(
@@ -57,7 +59,10 @@ class ScoreClient(
      */
     fun requestAnswer(chunk: ScoringChunk, systemPrompt: String): ScoreAnswer =
         try {
-            answerOf(chatClient.prompt().system(systemPrompt).user(ScoreModelInput.from(chunk).toText()).call().chatResponse())
+            answerOf(
+                chatClient.prompt().options(GoogleGenAiChatOptions.builder().responseSchema(ScoreResponseSchema.JSON))
+                    .system(systemPrompt).user(ScoreModelInput.from(chunk).toText()).call().chatResponse(),
+            )
         } catch (exception: RuntimeException) {
             unavailableOrThrow(ExceptionCauses.of(exception), exception)
         }
@@ -75,34 +80,27 @@ class ScoreClient(
         val usage = usageOf(response)
         val content = response?.result?.output?.text
         if (content.isNullOrBlank() || content.length > MAX_RESPONSE_LENGTH) return ScoreAnswer.unreadable(usage)
-        val json = jsonObjectIn(content) ?: return ScoreAnswer.unreadable(usage)
-        val tree = readTree(json) ?: return ScoreAnswer.unreadable(usage)
+        val tree = readTree(content) ?: return ScoreAnswer.unreadable(usage)
         return toAnswer(tree, usage)
     }
 
     private fun usageOf(response: ChatResponse?): ModelUsage {
         val usage = response?.metadata?.usage
         val finishReason = response?.result?.metadata?.finishReason.orEmpty()
-        val thoughtTokens = (usage as? GoogleGenAiUsage)?.thoughtsTokenCount ?: 0
+        val genAiUsage = usage as? GoogleGenAiUsage
         return ModelUsage(
             (usage?.promptTokens ?: 0).toLong(),
             (usage?.completionTokens ?: 0).toLong(),
             finishReason,
-            thoughtTokens.toLong(),
+            (genAiUsage?.thoughtsTokenCount ?: 0).toLong(),
+            (genAiUsage?.cachedContentTokenCount ?: 0).toLong(),
         )
     }
 
-    /** 응답에서 첫 `{`부터 마지막 `}`까지. 중괄호 쌍이 없으면 null이다. */
-    private fun jsonObjectIn(content: String): String? {
-        val start = content.indexOf(JSON_OBJECT_START)
-        val end = content.lastIndexOf(JSON_OBJECT_END)
-        return if (start in 0..<end) content.substring(start, end + 1) else null
-    }
-
-    /** 출력 한도에 걸려 잘린 JSON처럼 읽을 수 없으면 null이다. */
+    /** 출력 한도에 걸려 잘린 JSON처럼 읽을 수 없거나 JSON 객체가 아니면 null이다. */
     private fun readTree(json: String): JsonNode? =
         try {
-            objectMapper.readTree(json)
+            objectMapper.readTree(json).takeIf { it.isObject }
         } catch (exception: JacksonException) {
             null
         }
@@ -145,8 +143,6 @@ class ScoreClient(
         private const val EVIDENCE_FIELD = "e"
         private const val OPPORTUNITY_FIELD = "n"
         private const val PLAYFULNESS_FIELD = "playfulness"
-        private const val JSON_OBJECT_START = '{'
-        private const val JSON_OBJECT_END = '}'
         private const val KEY_SEPARATOR = "\n"
         private const val ESTIMATED_FINISH_REASON = "ESTIMATE"
 

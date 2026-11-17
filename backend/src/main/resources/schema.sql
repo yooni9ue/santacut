@@ -21,6 +21,7 @@ CREATE INDEX IF NOT EXISTS analysis_uploads_created ON analysis_uploads(created_
 DROP TABLE IF EXISTS ai_daily_budget;
 -- 앱 안의 AI 비용 가드가 읽는 날짜(한국)별 토큰 사용량. 호출 수 대신 토큰 수 × 단가로 하루·한 달 비용을 어림한다.
 CREATE TABLE IF NOT EXISTS ai_usage_days (usage_date TEXT PRIMARY KEY, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0, calls INTEGER NOT NULL DEFAULT 0);
+-- cached_input_tokens(암묵적 캐시에서 읽은 입력 토큰 수)는 기존 DB에 Hibernate가 기본값 0으로 더한다.
 CREATE TABLE IF NOT EXISTS result_snapshots (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, assessment_id TEXT NOT NULL REFERENCES assessments(id) ON DELETE CASCADE, rank INTEGER NOT NULL, delivery_sequence INTEGER NOT NULL, eta TEXT NOT NULL, computed_at TEXT NOT NULL, tied INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS snapshots_latest ON result_snapshots(computed_at,user_id);
 -- 가장 최근 순위 계산 때 센 장난기 기준값과 유형별 참가자 수. 행은 id=1 하나뿐이고 순위를 다시 계산할 때 덮어쓴다.

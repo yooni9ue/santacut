@@ -8,7 +8,9 @@ import org.springframework.ai.chat.metadata.Usage
 import org.springframework.ai.chat.model.ChatModel
 import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.ai.chat.model.Generation
+import org.springframework.ai.chat.prompt.ChatOptions
 import org.springframework.ai.chat.prompt.Prompt
+import org.springframework.ai.google.genai.GoogleGenAiChatOptions
 
 /**
  * Gemini 대신 정해 둔 답과 토큰 사용량을 돌려주고, 마지막으로 받은 프롬프트를 기억하는 테스트용 채팅 모델.
@@ -35,6 +37,9 @@ class RecordingChatModel(var reply: String) : ChatModel {
         val generation = Generation(AssistantMessage(reply), ChatGenerationMetadata.builder().finishReason(FINISH_REASON).build())
         return ChatResponse(listOf(generation), ChatResponseMetadata.builder().usage(usage).build())
     }
+
+    /** 실제 Gemini 모델처럼 Gemini 옵션을 기본값으로 둔다. 그래야 ChatClient가 요청 옵션(응답 스키마 등)을 합쳐 넘긴다. */
+    override fun getOptions(): ChatOptions = GoogleGenAiChatOptions.builder().build()
 
     companion object {
         const val INPUT_TOKENS = 4200

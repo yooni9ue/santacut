@@ -9,6 +9,7 @@ class AiBudget(
     private val dailyUsd: BigDecimal?,
     private val monthlyUsd: BigDecimal,
     private val inputUsdPerMillionTokens: BigDecimal,
+    private val cachedInputUsdPerMillionTokens: BigDecimal,
     private val outputUsdPerMillionTokens: BigDecimal,
 ) {
     /** 오늘 쓴 비용이나 이번 달 쓴 비용이 한도에 닿았는지. 하루 한도가 없으면 한 달 한도만 본다. */
@@ -17,7 +18,7 @@ class AiBudget(
 
     /** 오늘이나 이번 달 쓴 비용에 [estimate] 호출 한 번의 비용을 더하면 한도를 넘는지. */
     fun wouldExceed(today: AiUsageDays, thisMonth: AiUsageDays, estimate: ModelUsage): Boolean {
-        val callCost = costUsd(estimate.inputTokens, estimate.billedOutputTokens())
+        val callCost = costUsd(estimate.inputTokens, estimate.cachedInputTokens, estimate.billedOutputTokens())
         return exceeds(today.costUsd(this) + callCost, dailyLimit()) || exceeds(thisMonth.costUsd(this) + callCost, monthlyUsd)
     }
 
@@ -28,10 +29,13 @@ class AiBudget(
 
     private fun exceeds(cost: BigDecimal, limit: BigDecimal?): Boolean = limit != null && cost > limit
 
-    /** 입력·출력 토큰 수로 어림한 비용(달러). */
-    fun costUsd(inputTokens: Long, outputTokens: Long): BigDecimal =
-        (BigDecimal(inputTokens) * inputUsdPerMillionTokens + BigDecimal(outputTokens) * outputUsdPerMillionTokens)
-            .divide(TOKENS_PER_PRICE_UNIT)
+    /** 입력·출력 토큰 수로 어림한 비용(달러). [cachedInputTokens]는 [inputTokens]에 든 캐시 읽기 토큰이며 캐시 단가로 센다. */
+    fun costUsd(inputTokens: Long, cachedInputTokens: Long, outputTokens: Long): BigDecimal =
+        (
+            BigDecimal(inputTokens - cachedInputTokens) * inputUsdPerMillionTokens +
+                BigDecimal(cachedInputTokens) * cachedInputUsdPerMillionTokens +
+                BigDecimal(outputTokens) * outputUsdPerMillionTokens
+            ).divide(TOKENS_PER_PRICE_UNIT)
 
     companion object {
         private val TOKENS_PER_PRICE_UNIT = BigDecimal(1_000_000)

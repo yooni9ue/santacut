@@ -10,11 +10,26 @@ import kotlin.test.assertTrue
  * 토큰 수로 비용을 어림하고 하루·한 달 한도를 판단하는지 확인한다.
  */
 class AiBudgetTest {
-    private val budget = AiBudget(BigDecimal("0.5"), BigDecimal("9"), BigDecimal("1"), BigDecimal("5"))
+    private val budget = AiBudget(BigDecimal("0.5"), BigDecimal("9"), BigDecimal("1"), BigDecimal("0.1"), BigDecimal("5"))
 
     @Test
     fun `비용은 입력 100만 토큰당 1달러, 출력 100만 토큰당 5달러로 어림한다`() {
-        assertEquals(0, BigDecimal("0.0055").compareTo(budget.costUsd(5_000, 100)))
+        assertEquals(0, BigDecimal("0.0055").compareTo(budget.costUsd(5_000, 0, 100)))
+    }
+
+    @Test
+    fun `캐시에서 읽은 입력 토큰은 캐시 단가로 센다`() {
+        assertEquals(0, BigDecimal("0.0046").compareTo(budget.costUsd(5_000, 1_000, 100)))
+    }
+
+    @Test
+    fun `하루 사용량에 캐시 읽기 토큰을 따로 더해 비용에 반영한다`() {
+        val day = AiUsageDay("2026-11-16")
+
+        day.add(ModelUsage(5_000, 100, "STOP", 0, 1_000))
+
+        assertEquals(1_000, day.cachedInputTokens)
+        assertEquals(0, BigDecimal("0.0046").compareTo(day.costUsd(budget)))
     }
 
     @Test
@@ -52,7 +67,7 @@ class AiBudgetTest {
         val heavyDay = days(ModelUsage(5_000_000, 0, ""))
 
         listOf(null, BigDecimal.ZERO).forEach { daily ->
-            val noDaily = AiBudget(daily, BigDecimal("9"), BigDecimal("1"), BigDecimal("5"))
+            val noDaily = AiBudget(daily, BigDecimal("9"), BigDecimal("1"), BigDecimal("0.1"), BigDecimal("5"))
             assertFalse(noDaily.isExhausted(heavyDay, heavyDay))
             assertFalse(noDaily.wouldExceed(heavyDay, heavyDay, ModelUsage(1_000_000, 0, "")))
         }

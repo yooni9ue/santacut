@@ -28,6 +28,7 @@ class AiBudgetService(
         aiBudgetProperties.dailyUsd,
         aiBudgetProperties.monthlyUsd,
         aiBudgetProperties.inputUsdPerMillionTokens,
+        aiBudgetProperties.cachedInputUsdPerMillionTokens,
         aiBudgetProperties.outputUsdPerMillionTokens,
     )
     private val reservations = ReservedUsages()
