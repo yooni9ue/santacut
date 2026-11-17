@@ -28,12 +28,13 @@ class ShareFacade(
     private val shareService: ShareService,
     private val clock: Clock,
 ) {
-    /** 최신 결과의 공유 링크를 만든다. 같은 결과로 이미 만든 링크가 있으면 다시 쓴다. */
+    /** 최신 결과의 공유 링크를 만든다. 같은 결과로 이미 만든 링크가 있으면 다시 쓰고, 한마디를 실을지는 이번 요청을 따른다. */
     @Transactional
     fun createShare(command: CreateShareCommand): ShareLinkResult {
         val snapshot = rankingService.findLatestSnapshot(command.participantId)
             ?: throw SantaCutException(ErrorCode.NO_RANKED_RESULT)
         val share = shareService.findActive(command.participantId, snapshot)
+            ?.let { reuseShare(it, snapshot, command.includeQuote) }
             ?: issueShare(command.participantId, snapshot, command.includeQuote)
         return ShareLinkResult.from(shareService.linkOf(share))
     }
@@ -51,6 +52,11 @@ class ShareFacade(
     @Transactional(readOnly = true)
     fun getPublicImage(command: PublicShareCommand): ShareImageResult =
         ShareImageResult(shareService.renderImage(ShareToken.from(command.token)))
+
+    private fun reuseShare(share: Share, snapshot: ResultSnapshot, includeQuote: Boolean): Share {
+        if (share.carriesQuote() == includeQuote) return share
+        return shareService.chooseQuote(share, assessmentService.get(snapshot.assessmentId), includeQuote)
+    }
 
     private fun issueShare(participantId: UUID, snapshot: ResultSnapshot, includeQuote: Boolean): Share {
         val participant = participantService.get(participantId)

@@ -7,14 +7,26 @@ import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
+import java.util.Collections
 import javax.imageio.ImageIO
 
 /**
  * 공유 결과를 1200×630 PNG 카드로 그린다.
+ * 공유 링크는 메신저 미리보기로 같은 카드를 여러 번 부르므로, 최근에 그린 카드 [MAX_CACHED_IMAGES]장을 기억해 다시 그리지 않는다.
+ * 카드 값(한마디 포함)이 열쇠라 값이 바뀌면 새로 그린다.
  */
 @Component
 class ShareImageRenderer {
-    fun render(card: ShareCard): ByteArray {
+    private val cache: MutableMap<ShareCard, ByteArray> = Collections.synchronizedMap(
+        object : LinkedHashMap<ShareCard, ByteArray>(MAX_CACHED_IMAGES, LOAD_FACTOR, ACCESS_ORDER) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ShareCard, ByteArray>): Boolean =
+                size > MAX_CACHED_IMAGES
+        },
+    )
+
+    fun render(card: ShareCard): ByteArray = cache[card] ?: draw(card).also { cache[card] = it }
+
+    private fun draw(card: ShareCard): ByteArray {
         val image = BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB)
         val graphics = image.createGraphics()
         try {
@@ -57,6 +69,11 @@ class ShareImageRenderer {
 
     companion object {
         private const val WIDTH = 1200
+
+        /** 기억할 카드 수. PNG 한 장이 수십 KB라 수 MB 안에 든다. */
+        const val MAX_CACHED_IMAGES = 64
+        private const val LOAD_FACTOR = 0.75f
+        private const val ACCESS_ORDER = true
         private const val HEIGHT = 630
         private const val LEFT_MARGIN = 60
         private const val PNG_FORMAT = "png"

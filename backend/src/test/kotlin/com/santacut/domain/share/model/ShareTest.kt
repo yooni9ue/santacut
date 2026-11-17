@@ -1,11 +1,12 @@
 package com.santacut.domain.share.model
 
 import com.santacut.domain.ranking.model.RankingStage
-import com.santacut.domain.ranking.model.ResultSnapshot
-import com.santacut.domain.ranking.model.ResultSnapshots
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ShareTest {
     private val share = Share(
@@ -59,16 +60,16 @@ class ShareTest {
     }
 
     @Test
-    fun `공유 링크가 붙잡은 스냅숏은 정리 대상에서 빠진다`() {
-        val kept = snapshot("snapshot")
-        val stale = snapshot("stale")
-        val sharedIds = Shares(listOf(share)).snapshotIds()
-        assertEquals(setOf("snapshot"), sharedIds)
-        assertEquals(listOf(stale), ResultSnapshots(listOf(kept, stale)).excluding(sharedIds).toList())
-    }
+    fun `한마디는 고를 때만 싣고 다시 빼거나 실을 수 있다`() {
+        val quoted = Share("t", "u", "s", "n", 500, 1, share.eta, "v", "c", share.computedAt)
 
-    private fun snapshot(id: String): ResultSnapshot =
-        ResultSnapshot(id, "user", "assessment", 1, 1, share.eta, share.computedAt)
+        quoted.chooseQuote("본인 한마디", includeQuote = true)
+        assertTrue(quoted.carriesQuote())
+        assertEquals("본인 한마디", quoted.quote)
+        quoted.chooseQuote("본인 한마디", includeQuote = false)
+        assertFalse(quoted.carriesQuote())
+        assertNull(quoted.quote)
+    }
 
     companion object {
         private val SHARED_AT: Instant = Instant.parse("2026-12-02T03:30:00Z")

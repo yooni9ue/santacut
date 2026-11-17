@@ -148,6 +148,14 @@ class Share(
     var quote: String? = quote
         protected set
 
+    /** 본인 한마디를 싣고 있는지. */
+    fun carriesQuote(): Boolean = quote != null
+
+    /** 본인 한마디([assessmentQuote])를 [includeQuote]일 때만 싣는다. 다른 값은 공유한 순간 값 그대로 둔다. */
+    fun chooseQuote(assessmentQuote: String?, includeQuote: Boolean) {
+        quote = assessmentQuote.takeIf { includeQuote }
+    }
+
     /** 산타 유형 이름. 예전 링크면 빈 문자열이다. */
     fun displayArchetype(): String = archetype?.koreanName.orEmpty()
 

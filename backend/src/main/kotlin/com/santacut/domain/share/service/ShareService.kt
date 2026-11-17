@@ -41,6 +41,12 @@ class ShareService(
         includeQuote: Boolean,
     ): Share = shareRepository.save(Share.issue(participant, snapshot, assessment, stage, issuedAt, profile, includeQuote))
 
+    /** 이미 만든 공유 링크에 본인 한마디를 싣거나 뺀다. 링크(토큰)는 그대로다. */
+    fun chooseQuote(share: Share, assessment: Assessment, includeQuote: Boolean): Share {
+        share.chooseQuote(assessment.quote, includeQuote)
+        return shareRepository.save(share)
+    }
+
     /** 지금 남아 있는 모든 공유 링크. 순위 스냅숏 정리에서 지우면 안 되는 스냅숏을 가려내는 데 쓴다. */
     fun findAll(): Shares = Shares(shareRepository.findAll())
 

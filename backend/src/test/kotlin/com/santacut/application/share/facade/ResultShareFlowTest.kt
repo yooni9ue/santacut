@@ -112,7 +112,18 @@ class ResultShareFlowTest @Autowired constructor(
         assertErrorCode(ErrorCode.SHARE_NOT_FOUND) { shareFacade.getPublicPage(PublicShareCommand(link.token)) }
         val quoted = shareFacade.createShare(CreateShareCommand(participantId, includeQuote = true))
         assertTrue(shareFacade.getPublicPage(PublicShareCommand(quoted.token)).html.contains(QUOTE))
+        assertQuoteChoiceFollowsLatestRequest(participantId, quoted.token)
         shareFacade.revokeShare(RevokeShareCommand(participantId, quoted.token))
+    }
+
+    /** 같은 결과로 다시 공유하면 링크는 그대로 두고, 한마디를 실을지는 마지막 요청을 따른다. 카드 이미지도 바뀐다. */
+    private fun assertQuoteChoiceFollowsLatestRequest(participantId: UUID, token: String) {
+        val quotedImage = shareFacade.getPublicImage(PublicShareCommand(token)).png
+        assertEquals(token, shareFacade.createShare(CreateShareCommand(participantId, includeQuote = false)).token)
+        assertFalse(shareFacade.getPublicPage(PublicShareCommand(token)).html.contains(QUOTE))
+        assertFalse(quotedImage.contentEquals(shareFacade.getPublicImage(PublicShareCommand(token)).png))
+        assertEquals(token, shareFacade.createShare(CreateShareCommand(participantId, includeQuote = true)).token)
+        assertTrue(shareFacade.getPublicPage(PublicShareCommand(token)).html.contains(QUOTE))
     }
 
     @Test
