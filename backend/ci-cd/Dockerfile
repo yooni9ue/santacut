@@ -12,8 +12,8 @@ RUN chmod +x gradlew
 RUN for i in 1 2 3; do ./gradlew --no-daemon --quiet dependencies > /dev/null && exit 0; echo "의존성 받기 재시도 $i" >&2; sleep $((i * 15)); done; exit 1
 COPY src src
 RUN ./gradlew --no-daemon bootJar
-# 중첩 jar를 풀어 둬야 JVM AOT 캐시가 클래스 경로를 그대로 쓸 수 있다(lib/ + app.jar).
-RUN java -Djarmode=tools -jar build/libs/*-SNAPSHOT.jar extract --destination /workspace/extracted
+# 중첩 jar를 풀어 둬야 JVM AOT 캐시가 클래스 경로를 그대로 쓸 수 있다(lib/ + app.jar). 풀린 jar 이름은 원본 이름을 따른다.
+RUN cp build/libs/*-SNAPSHOT.jar app.jar && java -Djarmode=tools -jar app.jar extract --destination /workspace/extracted
 
 FROM eclipse-temurin:25-jre-jammy
 RUN apt-get update && apt-get install -y --no-install-recommends curl sqlite3 fonts-noto-cjk && rm -rf /var/lib/apt/lists/* && groupadd --gid 10001 app && useradd --uid 10001 --gid app --no-create-home app
