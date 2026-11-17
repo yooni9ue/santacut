@@ -1,7 +1,9 @@
 package com.santacut.domain.participant.service
 
+import com.santacut.domain.global.config.ClientRateLimitProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
+import com.santacut.domain.global.model.ClientRateLimit
 import com.santacut.domain.participant.model.Nickname
 import com.santacut.domain.participant.model.Participant
 import com.santacut.infrastructure.participant.repository.ParticipantRepository
@@ -13,12 +15,19 @@ import java.util.UUID
 @Service
 class ParticipantService(
     private val participantRepository: ParticipantRepository,
+    clientRateLimitProperties: ClientRateLimitProperties,
 ) {
+    private val registrationLimit = ClientRateLimit(
+        clientRateLimitProperties.registrationsPerClient, clientRateLimitProperties.registrationWindow,
+    )
+
     /**
      * 닉네임 키의 유일 제약으로 동시 등록 경쟁에서도 중복을 막는다.
      * 데이터 접근 예외 전체를 받아 닉네임 충돌인지는 [Participant.isNicknameConflict]에 맡긴다.
+     * 같은 IP([clientIp])의 등록 시도가 한도를 넘으면 CLIENT_RATE_LIMITED다. 참가자를 계속 새로 만들어 참가자별 한도를 피하지 못하게 한다.
      */
-    fun register(nickname: Nickname, regionCode: String, registeredAt: Instant): Participant {
+    fun register(nickname: Nickname, regionCode: String, registeredAt: Instant, clientIp: String?): Participant {
+        registrationLimit.acquire(clientIp, registeredAt)
         try {
             return participantRepository.saveAndFlush(Participant.register(nickname, regionCode, registeredAt))
         } catch (exception: DataAccessException) {

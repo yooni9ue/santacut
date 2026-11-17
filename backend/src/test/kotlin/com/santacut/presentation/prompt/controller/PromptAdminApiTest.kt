@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActions
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -14,7 +15,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.UUID
 
 /**
- * 켜진 프롬프트 관리 API(dev)의 경로, 상태 코드, JSON 필드, 검증, CSRF를 확인한다.
+ * 켜진 프롬프트 관리 API(dev)의 경로, 상태 코드, JSON 필드, 검증, 관리 토큰, CSRF를 확인한다.
  */
 @IntegrationTest
 class PromptAdminApiTest @Autowired constructor(
@@ -41,7 +42,7 @@ class PromptAdminApiTest @Autowired constructor(
         create(name, "1판")
         create(name, "2판")
 
-        mockMvc.perform(get(PATH, name))
+        mockMvc.perform(adminGet(PATH, name))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.name").value(name))
             .andExpect(jsonPath("$.version").value(2))
@@ -55,7 +56,7 @@ class PromptAdminApiTest @Autowired constructor(
         create(name, "1판")
         create(name, "2판")
 
-        mockMvc.perform(get("$PATH/versions", name))
+        mockMvc.perform(adminGet("$PATH/versions", name))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.length()").value(2))
             .andExpect(jsonPath("$[0].version").value(2))
@@ -69,10 +70,10 @@ class PromptAdminApiTest @Autowired constructor(
     fun `없는 이름은 PROMPT_NOT_FOUND 404다`() {
         val name = uniqueName()
 
-        mockMvc.perform(get(PATH, name))
+        mockMvc.perform(adminGet(PATH, name))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.code").value("PROMPT_NOT_FOUND"))
-        mockMvc.perform(get("$PATH/versions", name))
+        mockMvc.perform(adminGet("$PATH/versions", name))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.code").value("PROMPT_NOT_FOUND"))
     }
@@ -81,7 +82,7 @@ class PromptAdminApiTest @Autowired constructor(
     fun `이름이 규칙을 벗어나면 INVALID_REQUEST 400이다`() {
         create("Score", "본문").andExpect(status().isBadRequest).andExpect(jsonPath("$.code").value(INVALID_REQUEST))
         create("a".repeat(MAX_NAME_LENGTH + 1), "본문").andExpect(status().isBadRequest)
-        mockMvc.perform(get(PATH, "score_v2"))
+        mockMvc.perform(adminGet(PATH, "score_v2"))
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.code").value(INVALID_REQUEST))
     }
@@ -92,10 +93,10 @@ class PromptAdminApiTest @Autowired constructor(
 
         create(name, "").andExpect(status().isBadRequest).andExpect(jsonPath("$.code").value(INVALID_REQUEST))
         create(name, "가".repeat(MAX_CONTENT_LENGTH + 1)).andExpect(status().isBadRequest)
-        mockMvc.perform(withCsrf(mockMvc, post(PATH, name)).contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mockMvc.perform(withCsrf(mockMvc, adminPost(PATH, name)).contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.code").value(INVALID_REQUEST))
-        mockMvc.perform(get(PATH, name)).andExpect(status().isNotFound)
+        mockMvc.perform(adminGet(PATH, name)).andExpect(status().isNotFound)
     }
 
     @Test
@@ -107,14 +108,32 @@ class PromptAdminApiTest @Autowired constructor(
     fun `CSRF 토큰 없이 새 판을 저장하면 403이고 저장하지 않는다`() {
         val name = uniqueName()
 
-        mockMvc.perform(post(PATH, name).contentType(MediaType.APPLICATION_JSON).content(body("본문")))
+        mockMvc.perform(adminPost(PATH, name).contentType(MediaType.APPLICATION_JSON).content(body("본문")))
             .andExpect(status().isForbidden)
-        mockMvc.perform(get(PATH, name)).andExpect(status().isNotFound)
+        mockMvc.perform(adminGet(PATH, name)).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `관리 토큰이 없거나 틀리면 조회도 저장도 NOT_AUTHENTICATED 401이고 저장하지 않는다`() {
+        val name = uniqueName()
+
+        mockMvc.perform(get(PATH, name)).andExpect(status().isUnauthorized).andExpect(jsonPath("$.code").value(NOT_AUTHENTICATED))
+        mockMvc.perform(get(PATH, name).header(ADMIN_TOKEN_HEADER, "wrong-token"))
+            .andExpect(status().isUnauthorized)
+        mockMvc.perform(withCsrf(mockMvc, post(PATH, name)).contentType(MediaType.APPLICATION_JSON).content(body("본문")))
+            .andExpect(status().isUnauthorized)
+        mockMvc.perform(adminGet(PATH, name)).andExpect(status().isNotFound)
     }
 
     private fun create(name: String, content: String): ResultActions = mockMvc.perform(
-        withCsrf(mockMvc, post(PATH, name)).contentType(MediaType.APPLICATION_JSON).content(body(content)),
+        withCsrf(mockMvc, adminPost(PATH, name)).contentType(MediaType.APPLICATION_JSON).content(body(content)),
     )
+
+    private fun adminGet(path: String, name: String): MockHttpServletRequestBuilder =
+        get(path, name).header(ADMIN_TOKEN_HEADER, IntegrationTest.ADMIN_TOKEN)
+
+    private fun adminPost(path: String, name: String): MockHttpServletRequestBuilder =
+        post(path, name).header(ADMIN_TOKEN_HEADER, IntegrationTest.ADMIN_TOKEN)
 
     private fun body(content: String): String = """{"content":"$content"}"""
 
@@ -123,6 +142,8 @@ class PromptAdminApiTest @Autowired constructor(
     companion object {
         private const val PATH = "/v1/admin/prompts/{name}"
         private const val INVALID_REQUEST = "INVALID_REQUEST"
+        private const val NOT_AUTHENTICATED = "NOT_AUTHENTICATED"
+        private const val ADMIN_TOKEN_HEADER = "X-Admin-Token"
         private const val MAX_NAME_LENGTH = 40
         private const val MAX_CONTENT_LENGTH = 20_000
         private const val NAME_SUFFIX_LENGTH = 8

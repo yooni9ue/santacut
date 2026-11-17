@@ -22,6 +22,12 @@ class Sha256Test {
         assertEquals(Sha256.hex("abc"), Sha256.hex("abc".toByteArray()))
     }
 
+    @Test
+    fun `앞부분과 뒷부분을 나눠 넣어도 이어 붙인 값의 해시와 같다`() {
+        assertEquals(Sha256.hex("abc"), Sha256.hex("a".toByteArray(), "bc".toByteArray()))
+        assertEquals(Sha256.hex("abc"), Sha256.hex(ByteArray(0), "abc".toByteArray()))
+    }
+
     companion object {
         private const val SHA256_HEX_LENGTH = 64
     }

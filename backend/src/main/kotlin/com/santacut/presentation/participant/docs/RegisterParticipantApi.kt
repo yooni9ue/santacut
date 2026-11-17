@@ -40,6 +40,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
         ApiResponse(responseCode = "400", description = "닉네임 형식 오류(INVALID_NICKNAME), 없거나 하위 지역을 골라야 하는 지역(UNSUPPORTED_REGION), 잘못된 요청 본문(INVALID_REQUEST)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "403", description = ApiDocs.FORBIDDEN_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "409", description = "이미 사용 중인 닉네임(NICKNAME_TAKEN)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
+        ApiResponse(responseCode = "413", description = "요청 본문이 2MB를 넘음(REQUEST_TOO_LARGE)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
+        ApiResponse(responseCode = "429", description = "같은 IP의 참가 등록 한도 초과(CLIENT_RATE_LIMITED, 기본 1시간 10회). 본문 retry_at과 Retry-After 헤더(초)로 다시 할 수 있는 시점을 알립니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
     ],
 )

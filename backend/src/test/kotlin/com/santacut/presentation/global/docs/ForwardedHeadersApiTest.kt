@@ -23,6 +23,7 @@ import kotlin.test.assertEquals
         "app.season-year=2099",
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
+        "SWAGGER_ENABLED=true",
     ],
 )
 @ActiveProfiles("production")

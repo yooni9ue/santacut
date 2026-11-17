@@ -11,8 +11,10 @@ import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.global.config.AnalysisStreamProperties
 import com.santacut.domain.global.config.AppProperties
+import com.santacut.domain.global.config.ClientRateLimitProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
+import com.santacut.domain.global.model.ClientRateLimit
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.global.config.ScoreModelProperties
@@ -33,7 +35,11 @@ class AnalysisJobService(
     private val eventPublisher: ApplicationEventPublisher,
     analysisStreamProperties: AnalysisStreamProperties,
     scoreModelProperties: ScoreModelProperties,
+    clientRateLimitProperties: ClientRateLimitProperties,
 ) {
+    private val submissionLimit = ClientRateLimit(
+        clientRateLimitProperties.submissionsPerClient, clientRateLimitProperties.submissionWindow,
+    )
     private val streamLimit = AnalysisStreamLimit(analysisStreamProperties.maxOpenStreams, analysisStreamProperties.retryAfter)
     private val leaseDuration = AnalysisJob.leaseDurationFor(scoreModelProperties.callTimeout)
 
@@ -57,12 +63,27 @@ class AnalysisJobService(
     fun findReplay(participantId: UUID, key: IdempotencyKey, payload: AnalysisPayload): AnalysisJob? =
         findReplayByHash(participantId, key, payload.hash())
 
-    /** 같은 키로 이미 받은 원본 파일 작업. 파일·출처·본인 이름 해시가 다르면 충돌이다. JSON 제출 작업과도 키를 함께 쓴다. */
-    fun findReplayByHash(participantId: UUID, key: IdempotencyKey, requestHash: String): AnalysisJob? {
-        val existing = analysisJobRepository.findByUserIdAndIdempotencyKey(participantId.toString(), key.value)
-            ?: return null
+    /** 같은 키로 이미 받은 작업. 요청 해시가 다르면 충돌이다. JSON 제출과 원본 파일 작업이 키를 함께 쓴다. */
+    fun findReplayByHash(participantId: UUID, key: IdempotencyKey, requestHash: String): AnalysisJob? =
+        findByKey(participantId, key)?.let { verifyReplay(it, requestHash) }
+
+    /** 같은 키로 이미 받은 작업. 원본 파일은 내용을 읽기 전에 이것으로 다시 보낸 요청인지부터 본다. */
+    fun findByKey(participantId: UUID, key: IdempotencyKey): AnalysisJob? =
+        analysisJobRepository.findByUserIdAndIdempotencyKey(participantId.toString(), key.value)
+
+    /** 같은 키로 받은 [existing]과 요청 해시가 같으면 그 작업이고, 다르면 [ErrorCode.IDEMPOTENCY_CONFLICT]다. */
+    fun verifyReplay(existing: AnalysisJob, requestHash: String): AnalysisJob {
         if (!existing.matchesRequestHash(requestHash)) throw SantaCutException(ErrorCode.IDEMPOTENCY_CONFLICT)
         return existing
+    }
+
+    /**
+     * 새 작업을 받을 수 있는지 확인한다. 참가자별 하루 제출 한도(JSON 제출과 원본 파일 합산)와
+     * 클라이언트 IP([clientIp])별 제출 한도를 함께 본다. IP 한도는 이 확인을 부를 때마다 하나씩 센다.
+     */
+    fun verifyAcceptingSubmission(participantId: UUID, clientIp: String?, now: Instant) {
+        verifyWithinDailyLimit(participantId, now)
+        submissionLimit.acquire(clientIp, now)
     }
 
     fun enqueue(
@@ -71,22 +92,16 @@ class AnalysisJobService(
         submission: AnalysisSubmission,
         payload: AnalysisPayload,
         now: Instant,
-    ): AnalysisJob {
-        verifyWithinDailyLimit(participantId, now)
-        return save(AnalysisJob.enqueue(participantId, key, submission, payload, now))
-    }
+    ): AnalysisJob = save(AnalysisJob.enqueue(participantId, key, submission, payload, now))
 
-    /** 원본 파일로 받은 작업을 검증 상태로 저장한다. 하루 제출 한도는 JSON 제출과 함께 센다. */
+    /** 원본 파일로 받은 작업을 검증 상태로 저장한다. 한도는 먼저 [verifyAcceptingSubmission]으로 확인한다. */
     fun receiveUpload(
         participantId: UUID,
         key: IdempotencyKey,
         source: DataSource,
         requestHash: String,
         now: Instant,
-    ): AnalysisJob {
-        verifyWithinDailyLimit(participantId, now)
-        return save(AnalysisJob.receive(participantId, key, source, requestHash, now))
-    }
+    ): AnalysisJob = save(AnalysisJob.receive(participantId, key, source, requestHash, now))
 
     /** 진행 상황 스트림을 하나 더 열 수 있는지 확인한다. [replacing]이면 이 참가자의 이전 스트림을 대신한다. */
     fun verifyStreamOpenable(openStreams: Int, replacing: Boolean, now: Instant) =

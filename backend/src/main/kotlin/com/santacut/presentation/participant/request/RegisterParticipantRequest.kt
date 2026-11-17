@@ -14,5 +14,5 @@ data class RegisterParticipantRequest(
     @field:Schema(description = "지역 목록 API(GET /v1/regions)가 돌려준 지역 중 selectable이 true인 코드", example = "KR-11-650")
     val regionCode: String,
 ) {
-    fun toCommand(): RegisterParticipantCommand = RegisterParticipantCommand(nickname, regionCode)
+    fun toCommand(clientIp: String): RegisterParticipantCommand = RegisterParticipantCommand(nickname, regionCode, clientIp)
 }

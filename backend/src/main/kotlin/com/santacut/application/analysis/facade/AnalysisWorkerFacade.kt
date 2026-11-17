@@ -19,7 +19,6 @@ import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.prompt.model.PromptName
 import com.santacut.domain.prompt.service.PromptService
 import com.santacut.domain.ranking.service.RankingService
-import com.santacut.domain.share.service.ShareService
 import org.slf4j.LoggerFactory
 import org.springframework.core.task.TaskRejectedException
 import org.springframework.scheduling.annotation.Scheduled
@@ -57,7 +56,6 @@ class AnalysisWorkerFacade(
     private val assessmentService: AssessmentService,
     private val aiBudgetService: AiBudgetService,
     private val rankingService: RankingService,
-    private val shareService: ShareService,
     private val promptService: PromptService,
     private val transactionTemplate: TransactionTemplate,
     private val analysisWorkerExecutor: ThreadPoolTaskExecutor,
@@ -251,7 +249,7 @@ class AnalysisWorkerFacade(
         }
         val assessment = assessmentService.reuse(job, previousAssessmentId, now)
         analysisJobService.succeed(job, assessment.id, now, digestHash)
-        rankingService.rebuild(now, shareService.findAll())
+        rankingService.rebuild(now)
     }
 
     /**
@@ -264,7 +262,7 @@ class AnalysisWorkerFacade(
         if (analysisJobService.freezeIfSeasonClosed(job, completedAt)) return
         val assessment = assessmentService.record(job, scored, completedAt)
         analysisJobService.succeed(job, assessment.id, completedAt, digestHash)
-        rankingService.rebuild(completedAt, shareService.findAll())
+        rankingService.rebuild(completedAt)
     }
 
     /** 실패 종류([ScoringFailure])에 따라 작업을 끝내거나 대기열로 되돌리고, 작업자를 멈출지는 비용 가드가 정한다. */

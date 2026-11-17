@@ -16,9 +16,7 @@ import com.santacut.domain.ranking.model.RankingStage
 import com.santacut.domain.ranking.model.ResultPopulation
 import com.santacut.domain.ranking.model.ResultProfile
 import com.santacut.domain.ranking.model.ResultSnapshot
-import com.santacut.domain.ranking.model.ResultSnapshots
 import com.santacut.domain.ranking.model.Season
-import com.santacut.domain.share.model.Shares
 import com.santacut.infrastructure.analysis.repository.AssessmentRepository
 import com.santacut.infrastructure.participant.repository.ParticipantRepository
 import com.santacut.infrastructure.participant.repository.RegionRepository
@@ -42,10 +40,10 @@ class RankingService(
      * 배송이 시작된 뒤에는 순위를 고정한다. 동시에 두 번 계산하지 않도록 직렬화한다.
      * 결과 화면이 쓰는 장난기 기준값과 유형 분포([ResultPopulation])도 같은 평가로 함께 센다.
      * 마감 뒤에도 참가자 삭제로 분포가 바뀌므로 분포만은 다시 센다.
-     * [shares]는 지우면 안 되는 스냅숏을 알려 주는 현재 공유 링크 목록이다.
+     * 공유 링크가 붙잡은 스냅숏은 지우지 않는다. 지우기는 한 문장, 저장은 묶음 INSERT라 참가자가 많아도 DB 연결을 오래 쥐지 않는다.
      */
     @Synchronized
-    fun rebuild(computedAt: Instant, shares: Shares) {
+    fun rebuild(computedAt: Instant) {
         val season = season()
         val latest = Assessments(assessmentRepository.findLatestForEachUser())
         resultPopulationRepository.save(ResultPopulation.of(latest))
@@ -55,7 +53,7 @@ class RankingService(
             Regions(regionRepository.findAll()),
         )
         val snapshots = entries.toSnapshots(origin(), season.deliveryStart(), computedAt)
-        pruneSnapshots(shares)
+        pruneSnapshots()
         resultSnapshotRepository.saveAll(snapshots.toList())
     }
 
@@ -118,9 +116,8 @@ class RankingService(
      * 현재 순위와 공유 링크가 붙잡은 스냅숏만 남긴다.
      * 지우지 않으면 분석 한 번마다 전체 순위가 복사되어 저장 공간이 제곱으로 늘어난다.
      */
-    private fun pruneSnapshots(shares: Shares) {
-        val stale = ResultSnapshots(resultSnapshotRepository.findAll()).excluding(shares.snapshotIds())
-        if (!stale.isEmpty()) resultSnapshotRepository.deleteAllInBatch(stale.toList())
+    private fun pruneSnapshots() {
+        resultSnapshotRepository.deleteUnshared()
     }
 
     private fun season(): Season = Season(appProperties.seasonYear)

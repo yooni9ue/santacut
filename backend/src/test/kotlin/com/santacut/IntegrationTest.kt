@@ -18,7 +18,13 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
         "santacut.ai.poll-delay-ms=3600000",
         "santacut.upload.poll-delay-ms=3600000",
         "santacut.prompt-admin.enabled=true",
+        "santacut.prompt-admin.token=" + IntegrationTest.ADMIN_TOKEN,
     ],
 )
 @AutoConfigureMockMvc
-annotation class IntegrationTest
+annotation class IntegrationTest {
+    companion object {
+        /** 통합 테스트가 켜는 프롬프트 관리 API의 관리 토큰. */
+        const val ADMIN_TOKEN = "test-admin-token"
+    }
+}

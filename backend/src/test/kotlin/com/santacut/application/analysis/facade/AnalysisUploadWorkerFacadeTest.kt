@@ -177,7 +177,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         source: DataSource = DataSource.KAKAO,
     ): AnalysisJobCommand {
         val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
-        val command = UploadAnalysisCommand(participantId, "key-" + UUID.randomUUID(), source.name, selfSpeaker, content)
+        val command = UploadAnalysisCommand(participantId, "key-" + UUID.randomUUID(), source.name, selfSpeaker, null) { content }
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.upload(command).id))
     }
 

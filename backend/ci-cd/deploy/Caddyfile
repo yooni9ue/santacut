@@ -10,8 +10,14 @@
     @events path /v1/analyses/*/events
     @compressible not path /v1/analyses/*/events
     encode @compressible zstd gzip
-    request_body {
+    # 원본 파일 업로드만 21MB(파일 20MB + multipart 여분)까지 받고, 나머지 요청 본문은 2MB로 막는다.
+    @upload path /v1/analyses/files
+    @notUpload not path /v1/analyses/files
+    request_body @upload {
         max_size 21MB
+    }
+    request_body @notUpload {
+        max_size 2MB
     }
     header {
         # 브라우저가 1년 동안 이 호스트를 HTTPS로만 부르게 한다. 평문 HTTP 응답에 붙어도 브라우저는 무시한다.

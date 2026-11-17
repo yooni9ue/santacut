@@ -14,8 +14,8 @@ class RawChatFile(
     val source: DataSource,
     private val content: ByteArray,
 ) {
-    /** 저장용 방어 복사본. */
-    fun bytes(): ByteArray = content.copyOf()
+    /** 저장할 원본 바이트. 최대 20MB라 복사하지 않고 그대로 넘긴다. 받는 쪽은 내용을 바꾸지 않는다. */
+    fun content(): ByteArray = content
 
     /**
      * 받기 전에 명백히 대화 텍스트가 아닌 파일을 거른다. 빈 파일, zip 압축 파일, 앞부분에 NUL 바이트가 있는 바이너리 파일은
@@ -30,9 +30,10 @@ class RawChatFile(
     /**
      * 같은 Idempotency-Key로 다시 보낸 요청이 같은 요청인지 가리는 해시.
      * 출처, 본인 이름, 파일 내용을 NUL 바이트로 나눠 이어 붙인 값의 SHA-256이다.
+     * 큰 파일 내용은 이어 붙이지 않고 해시에 바로 흘려 넣어 복사본을 만들지 않는다.
      */
     fun requestHash(selfSpeaker: String): String =
-        Sha256.hex(source.name.toByteArray() + SEPARATOR + selfSpeaker.toByteArray() + SEPARATOR + content)
+        Sha256.hex(source.name.toByteArray() + SEPARATOR + selfSpeaker.toByteArray() + SEPARATOR, content)
 
     /**
      * 엄격한 UTF-8로 읽고 맨 앞 BOM을 뗀다. 올바른 UTF-8이 아니면(EUC-KR 등) [ErrorCode.UNSUPPORTED_FILE_FORMAT]이다.

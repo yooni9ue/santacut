@@ -47,8 +47,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
         ApiResponse(responseCode = "409", description = "같은 키로 다른 요청을 보냄(IDEMPOTENCY_CONFLICT) 또는 시즌 마감(SEASON_FROZEN)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "413", description = "파일이 20MB를 넘음(FILE_TOO_LARGE). 앞단 프록시가 막으면 code 없이 올 수 있으며 같은 뜻으로 다룹니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "422", description = "빈 파일, zip 파일, 바이너리 파일(UNSUPPORTED_FILE_FORMAT)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
-        ApiResponse(responseCode = "429", description = "참가자 하루 제출 한도 초과(DAILY_USER_LIMIT). 본문 retry_at과 Retry-After 헤더(초)로 다시 낼 수 있는 시점을 알립니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
-        ApiResponse(responseCode = "503", description = "점수 산정용 AI 모델이 설정되지 않음(AI_NOT_CONFIGURED)", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
+        ApiResponse(responseCode = "429", description = "참가자 하루 제출 한도 초과(DAILY_USER_LIMIT) 또는 같은 IP의 제출 한도 초과(CLIENT_RATE_LIMITED, 기본 24시간 20회). 본문 retry_at과 Retry-After 헤더(초)로 다시 낼 수 있는 시점을 알립니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
+        ApiResponse(responseCode = "503", description = "점수 산정용 AI 모델이 설정되지 않음(AI_NOT_CONFIGURED) 또는 원본 파일 동시 접수 상한에 걸림(UPLOAD_BUSY). UPLOAD_BUSY는 Retry-After 헤더(초)와 retry_at 뒤에 같은 Idempotency-Key로 다시 올립니다.", content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
         ApiResponse(responseCode = "500", description = ApiDocs.SERVER_ERROR_DESCRIPTION, content = [Content(mediaType = ApiDocs.JSON, schema = Schema(implementation = ApiErrorResponse::class))]),
     ],
 )
