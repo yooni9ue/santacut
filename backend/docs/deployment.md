@@ -14,12 +14,13 @@
 
 | 대상 | 설정 |
 | --- | --- |
-| 앱 컨테이너 | `mem_limit: 400m` |
-| JVM | `-Xms128m -Xmx256m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError` |
+| 앱 컨테이너 | `mem_limit: 512m` |
+| JVM | `-Xms128m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=48m -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError` |
 | Caddy | `mem_limit: 64m` |
 
 - 힙이 모자라면 JVM이 바로 죽고 `restart: unless-stopped`가 다시 띄운다.
-- 512MB 번들에 맞춰 정한 값이다. 1GB로 올린 뒤에도 그대로 둬 OS와 페이지 캐시에 여유를 남긴다.
+- 1GB 번들 기준 값이다. 처음에는 512MB 번들에 맞춰 메타스페이스 128MB, 컨테이너 400m로 두었다.
+- 2026-11-17 dev 부하 시험에서 동시 15명부터 `OutOfMemoryError: Metaspace`로 앱이 두 번 다시 떴다. 워밍업이 끝난 앱은 GC 뒤에도 메타스페이스를 126~128MB 썼다(`jcmd 1 VM.metaspace`). 192MB로 올린 뒤 같은 시험에서는 133MB를 쓰고 다시 뜨지 않았다. 컨테이너 메모리는 최대 409MiB였다.
 - 스왑은 비상용이다. 자주 죽거나 느리면 번들을 올린다(인프라 레포 9절).
 
 ## HTTPS와 도메인
@@ -83,6 +84,7 @@ Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정�
 | `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
 | `santacut.ai.poll-delay-ms` | `3000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |
 | `santacut.upload.poll-delay-ms` | `1000` | 원본 파일 검증 작업자가 다음 원본을 찾기 전에 쉬는 시간 |
+| `santacut.ai.worker.concurrency` (`ANALYSIS_WORKER_CONCURRENCY`) | `3` | 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 보통 3번 동시에 부르므로 동시 호출은 이 값의 3~6배다 |
 | `spring.ai.google.genai.api-key` (`GEMINI_API_KEY`) | 없음 | Gemini Developer API 키. 없으면 앱이 뜨지 않는다 |
 | `spring.ai.google.genai.chat.model` (`GEMINI_MODEL`) | `gemini-3.5-flash-lite` | 채점 모델. 비우면 AI 분석을 끈다 |
 | `santacut.prompt-admin.enabled` (`PROMPT_ADMIN_ENABLED`) | `false` | dev 전용 프롬프트 관리 API(`/v1/admin/prompts`). dev의 `app.env`에만 `true`를 둔다. 운영은 두지 않아 404다 |
@@ -95,6 +97,22 @@ Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정�
 - 선불 크레딧이 떨어지면 Gemini가 `429 RESOURCE_EXHAUSTED`로 막는다. 작업은 실패하지 않고 `QUEUED`에 남으며 작업자는 15분씩 멈췄다 다시 시도한다. AI Studio에서 크레딧을 채우면 이어서 처리한다.
 
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
+
+### 분석 처리량
+
+2026-11-17에 dev(1GB, 2vCPU)에서 동시 5·15·30명이 짧은 대화(89줄)를 한꺼번에 올리게 했다. 참가자는 사람마다 따로 등록하고 끝나면 지웠다. 결과까지 걸린 시간은 업로드부터 `SUCCEEDED`를 확인할 때까지다(1초 간격 폴링).
+
+| 동시 업로드 | 변경 전(작업자 1개) p50 / p95 | 변경 후(동시 3개) p50 / p95 / 최대 |
+| --- | --- | --- |
+| 5명 | 12~19초 / 22~28초 | 7.5초 / 9.6초 / 9.6초 |
+| 15명 | 34초 / 59초 | 11.5초 / 16.2초 / 18.6초 |
+| 30명 | 앱이 Metaspace OOM으로 다시 떠 측정 실패 | 17.3초 / 33.3초 / 33.4초 |
+
+- 변경 후 시험에서는 오류가 없었고 Gemini 429와 작업자 멈춤도 없었다. 업로드 응답은 p95 0.8초 안이다. 앱 CPU는 평균 25%, 순간 최대 111%였다.
+- 작업 하나의 Gemini 호출은 1~2초다. 변경 전에는 작업이 끝날 때마다 3초를 쉬고, 같은 스레드에서 원본 검증도 번갈아 해 작업당 약 4.2초가 걸렸다(시간당 약 850건).
+- 지금은 채점 스레드 3개가 쉬지 않고 이어서 채점한다. 30명이 몰려도 33초 안에 끝나 시간당 약 3,200건을 처리한다. 이때 병목은 원본 파일 검증 작업자다(한 번에 하나, 1초 간격). 이벤트 제출(`POST /v1/analyses`)은 검증을 거치지 않는다.
+- 시간당 300건(12초에 1건)이면 대기열이 거의 쌓이지 않는다. 결과까지는 5~10초다. 검증 대기 1초, 작업자 폴링 3초, 채점 2초 안팎을 더한 값이다.
+- 동시 작업 수를 더 올리기 전에 Gemini 요청 한도(429)와 순위 재계산 시간을 본다. 순위 재계산은 작업마다 하나뿐인 DB 커넥션을 쥐고 줄을 선다. 참가자가 많아지면 이 부분이 먼저 느려진다.
 
 ### 업로드 크기 제한
 
