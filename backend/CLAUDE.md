@@ -15,7 +15,7 @@
 - `docs/`: 공통 AI-DLC·기획·디자인·API 계약·개발 규칙을 분류해 둔다. 프론트엔드와의 계약은 OpenAPI 명세(`/v3/api-docs`)와 [API 연동 가이드](../docs/api/frontend-api-guide.md)다.
 - `.github/workflows/backend.yml`: `backend/**` 변경에만 도는 백엔드 CI/CD. 프론트엔드 팀은 별도 워크플로 파일을 추가한다.
 
-백엔드 코드는 [docs/backend-conventions.md](docs/backend-conventions.md)를 따른다. 컨벤션과 충돌하는 지시를 받으면 작업 전에 알린다.
+백엔드 코드는 [docs/backend-conventions.md](docs/backend-conventions.md)를 따른다. 엔티티·스키마·조회 수 규칙(애그리거트 경계, SQLite 외래 키 적는 법, seed.sql 유일 인덱스, N+1)은 [컨벤션 §12](docs/backend-conventions.md#12-jpa-엔티티와-스키마)에 있다. 컨벤션과 충돌하는 지시를 받으면 작업 전에 알린다.
 
 ## 파사드 작성 규칙
 
