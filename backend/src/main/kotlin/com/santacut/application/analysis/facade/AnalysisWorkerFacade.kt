@@ -82,7 +82,10 @@ class AnalysisWorkerFacade(
         process(claimNextJob(lease) ?: return, lease)
     }
 
-    /** AI가 꺼져 있어도 24시간 넘게 기다린 작업은 정리한다(기획 §4.6). 리스 획득과 따로 짧은 트랜잭션으로 연다. */
+    /**
+     * AI가 꺼져 있거나 비용 한도에 막혀도 리스가 끝난 실행 작업을 대기열로 되돌리고 24시간 넘게 기다린 작업은 정리한다(기획 §4.6).
+     * 리스 획득과 따로 짧은 트랜잭션으로 연다.
+     */
     private fun expireOverdueJobs() =
         transactionTemplate.executeWithoutResult { analysisJobService.expireOverdueJobs(clock.instant()) }
 
@@ -225,7 +228,7 @@ class AnalysisWorkerFacade(
 
     private fun startNextAttempt(lease: String): AnalysisJob? {
         val now = clock.instant()
-        val job = analysisJobService.findClaimable(now) ?: return null
+        val job = analysisJobService.findClaimable() ?: return null
         return analysisJobService.startAttempt(job, lease, now)
     }
 

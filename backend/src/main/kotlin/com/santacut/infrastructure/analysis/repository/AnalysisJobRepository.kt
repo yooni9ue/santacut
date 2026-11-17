@@ -28,15 +28,5 @@ interface AnalysisJobRepository : JpaRepository<AnalysisJob, String> {
         createdAt: Instant,
     ): AnalysisJob?
 
-    fun findFirstByStatusAndLeaseUntilBeforeAndAttemptsGreaterThanEqualOrderByCreatedAtAsc(
-        status: AnalysisJobStatus,
-        leaseUntil: Instant,
-        attempts: Int,
-    ): AnalysisJob?
-
-    fun findFirstByStatusAndLeaseUntilBeforeAndAttemptsLessThanOrderByCreatedAtAsc(
-        status: AnalysisJobStatus,
-        leaseUntil: Instant,
-        attempts: Int,
-    ): AnalysisJob?
+    fun findFirstByStatusAndLeaseUntilBeforeOrderByCreatedAtAsc(status: AnalysisJobStatus, leaseUntil: Instant): AnalysisJob?
 }

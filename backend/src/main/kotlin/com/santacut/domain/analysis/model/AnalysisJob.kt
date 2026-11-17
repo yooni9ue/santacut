@@ -142,8 +142,23 @@ class AnalysisJob(
      */
     fun releaseLease() {
         verifyTransition(status == AnalysisJobStatus.RUNNING)
-        status = AnalysisJobStatus.QUEUED
         attempts = maxOf(attempts - 1, 0)
+        returnToQueue()
+    }
+
+    /**
+     * 써 버린 시도를 센 채로 작업을 대기열로 되돌린다. 작업자가 죽어 리스가 끝난 작업과, 구간 몇 개를 이미 과금한 뒤
+     * 제공자가 막은 작업이 해당한다. 대기열에서는 만든 순서대로 다시 잡히고, 오래 밀리면 대기 만료([QUEUE_EXPIRY])가 정리한다.
+     * 시도를 [MAX_ATTEMPTS]번 다 썼으면 되돌리지 않고 [AnalysisFailureCode.RETRY_EXHAUSTED]로 끝낸다.
+     */
+    fun requeueSpentAttempt(now: Instant) {
+        verifyTransition(status == AnalysisJobStatus.RUNNING)
+        if (attempts >= MAX_ATTEMPTS) return finishWith(AnalysisFailureCode.RETRY_EXHAUSTED, now)
+        returnToQueue()
+    }
+
+    private fun returnToQueue() {
+        status = AnalysisJobStatus.QUEUED
         leaseToken = null
         leaseUntil = null
     }

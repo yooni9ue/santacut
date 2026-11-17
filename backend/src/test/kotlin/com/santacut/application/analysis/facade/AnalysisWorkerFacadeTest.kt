@@ -12,6 +12,7 @@ import com.santacut.application.participant.facade.ParticipantFacade
 import com.santacut.application.ranking.command.MyResultCommand
 import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
+import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
@@ -154,6 +155,39 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertEquals("FAILED", status.status)
         assertEquals("EXPIRED", status.errorCode)
         verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
+    fun `AI가 꺼져 있어도 리스가 끝난 실행 작업은 대기열로 되돌리고 24시간이 지나면 만료하며 제출 원문을 지운다`() {
+        val job = submitAnalysis()
+        abandonAttempt(job)
+        given(scoreClient.isEnabled()).willReturn(false)
+        clock.moveTo(OPEN_TIME.plus(ABANDONED_LEASE).plus(ABANDONED_LEASE))
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        clock.moveTo(OPEN_TIME.plus(AnalysisJob.QUEUE_EXPIRY).plusSeconds(1))
+        analysisWorkerFacade.processNextJob()
+        val expired = storedJob(job)
+        assertEquals(AnalysisFailureCode.EXPIRED, expired.errorCode)
+        assertNull(expired.payload)
+        verify(scoreClient, never()).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
+    fun `리스가 끝난 실행 작업은 뒤에 들어온 대기 작업보다 먼저 다시 잡히고 끝난 시도도 센다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val abandoned = submitAnalysis()
+        abandonAttempt(abandoned)
+        clock.moveTo(OPEN_TIME.plus(ABANDONED_LEASE).plus(ABANDONED_LEASE))
+        val later = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("SUCCEEDED", analysisFacade.getStatus(abandoned).status)
+        assertEquals(2, storedJob(abandoned).attempts)
+        assertEquals("QUEUED", analysisFacade.getStatus(later).status)
     }
 
     @Test
@@ -321,6 +355,15 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.submit(command).id))
     }
 
+    /** 작업자가 작업을 잡은 채 죽은 상태를 만든다. 리스는 [ABANDONED_LEASE] 뒤에 끝난다. */
+    private fun abandonAttempt(job: AnalysisJobCommand) {
+        val stored = storedJob(job)
+        stored.startAttempt(ABANDONED_LEASE_TOKEN, clock.instant(), ABANDONED_LEASE)
+        analysisJobRepository.save(stored)
+    }
+
+    private fun storedJob(job: AnalysisJobCommand): AnalysisJob = analysisJobRepository.findById(job.jobId.toString()).orElseThrow()
+
     private fun registerParticipant(): UUID =
         participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
 
@@ -365,5 +408,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
 
         private const val MAX_CONSECUTIVE_FAILURES = 3
+        private const val ABANDONED_LEASE_TOKEN = "죽은 작업자의 리스"
+        private val ABANDONED_LEASE: Duration = Duration.ofMinutes(10)
     }
 }
