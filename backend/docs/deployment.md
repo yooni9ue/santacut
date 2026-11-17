@@ -81,6 +81,12 @@ GitHub Actions는 PR, `develop`, `main`에서 검증한다. `develop`과 `main`�
 
 `backend/**`를 바꾼 커밋이 `develop`에 푸시되면 `deploy-dev` 잡이 `test` → `publish` 다음에 dev 서버(`https://api-dev.santacut.me`)로 배포한다. 동시에 하나만 돈다(`concurrency: dev-deploy`).
 
+배포 순서 보호: 늦게 끝난 옛 실행이 새 배포를 덮지 않게 두 번 확인한다. 건너뛸 때는 `Skip deploy:`로 시작하는 notice를 남기고 잡은 성공으로 끝난다.
+
+- 배포 전: GitHub API로 `develop` 머리를 읽는다. 머리가 이 커밋이 아니고 그 사이에 `backend/**`나 이 워크플로가 바뀌었다면 그 push가 띄운 더 새 실행이 배포하므로 건너뛴다. 프런트엔드만 바뀐 커밋은 이 워크플로를 띄우지 않으므로 배포를 이어 간다.
+- 서버 접속 뒤: `/opt/santacut/current`가 가리키는 릴리스 sha를 읽어 compare API로 비교한다. 서버가 이 커밋과 같거나 앞서 있으면(`identical`, `ahead`) 옛 실행을 다시 돌린 경우이므로 건너뛴다. 같은 커밋을 다시 올려야 하면 서버에서 `deploy.sh`를 직접 돌린다.
+- 운영(`main`) 배포 잡은 수동 실행이라 이 보호를 두지 않는다.
+
 1. GitHub Environment `dev`(배포 브랜치는 `develop`만)에서 OIDC로 `santacut-app-deploy-dev` 역할을 맡는다.
 2. 러너 IP `/32`에 Lightsail 22번을 연다.
 3. 릴리스 묶음을 `scp`로 올리고 `deploy.sh <image@digest> /opt/santacut/releases/<sha>`를 돌린다. 이어서 `/opt/santacut/current-image`가 방금 올린 digest와 같은지 대조한다.
