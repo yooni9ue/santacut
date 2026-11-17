@@ -96,7 +96,8 @@ class SecurityConfiguration(
         private const val ROOT_PATH = "/"
         private const val ALL_PATHS = "/**"
         private val CORS_METHODS = listOf("GET", "POST", "PATCH", "DELETE")
-        private val CORS_HEADERS = listOf("Content-Type", "X-XSRF-TOKEN", "Last-Event-ID")
+        // 분석 제출(POST /v1/analyses, /v1/analyses/files)은 Idempotency-Key가 필수라 다른 출처에서도 보낼 수 있어야 한다.
+        private val CORS_HEADERS = listOf("Content-Type", "X-XSRF-TOKEN", "Last-Event-ID", "Idempotency-Key")
         private val CORS_EXPOSED_HEADERS = listOf("Retry-After")
         private const val CORS_MAX_AGE_SECONDS = 3600L
         private val PUBLIC_PATHS = arrayOf(
