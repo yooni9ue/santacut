@@ -17,8 +17,8 @@ class RegionFacade(
         RegionResults.childrenOf(regionService.findAll(), command.parentCode)
 
     /**
-     * 앱이 뜰 때 지역 계층을 잇는다. 기존 DB에는 Hibernate가 schema.sql 다음에 parent_code 컬럼을 더하므로
-     * 스크립트 대신 여기서 갱신한다. 이미 이어진 지역은 건드리지 않는다.
+     * 앱이 뜰 때 지역 계층을 잇는다. 시드 SQL은 지역 행만 넣고 계층은
+     * 코드 접두어로 여기서 잇는다. 이미 이어진 지역은 건드리지 않는다.
      */
     @EventListener(ApplicationReadyEvent::class)
     @Transactional

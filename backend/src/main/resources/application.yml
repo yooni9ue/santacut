@@ -7,15 +7,18 @@
   sql:
     init:
       mode: always
-      # schema.sql 다음에 매번 실행되는 시드. 둘 다 INSERT OR IGNORE라 기존 DB에는 없는 행만 더한다.
-      # regions.sql: 서울 밖 시·도와 시·군·구, prompts.sql: 채점 프롬프트(score) 1판부터 최신 판까지.
-      data-locations: classpath:regions.sql,classpath:prompts.sql
+      # Hibernate가 테이블을 만든 다음 매번 실행되는 시드. 모두 IF NOT EXISTS나 INSERT OR IGNORE라 기존 DB에는 없는 것만 더한다.
+      # seed.sql: 유일 인덱스, 순위 계산 요청 행, 서울 지역. regions.sql: 서울 밖 시·도와 시·군·구.
+      # prompts.sql: 채점 프롬프트(score) 1판부터 최신 판까지. 테이블은 schema.sql 없이 엔티티로만 만든다.
+      data-locations: classpath:seed.sql,classpath:regions.sql,classpath:prompts.sql
   jpa:
     hibernate:
       ddl-auto: update
     # enum 컬럼에 상수 목록 CHECK를 붙이지 않는 SQLite 방언이다. 이유는 클래스 주석에 있다.
     database-platform: com.santacut.infrastructure.global.config.EnumCheckFreeSQLiteDialect
     open-in-view: false
+    # 시드 SQL을 Hibernate가 테이블을 만든 뒤에 실행한다(빈 DB에서도 테이블이 먼저 있어야 한다).
+    defer-datasource-initialization: true
     # 순위 계산은 참가자 수만큼 스냅숏을 새로 쓴다. INSERT를 묶어 보내 하나뿐인 DB 연결을 오래 쥐지 않게 한다.
     properties:
       hibernate.jdbc.batch_size: 500

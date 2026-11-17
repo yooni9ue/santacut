@@ -1,5 +1,6 @@
 package com.santacut.domain.prompt.model
 
+import com.santacut.domain.global.model.UtcDatabaseTime
 import com.santacut.domain.global.model.UtcInstantConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -45,7 +46,7 @@ class Prompt(
         protected set
 
     @Convert(converter = UtcInstantConverter::class)
-    @Column(name = "created_at", nullable = false, columnDefinition = CREATED_AT_COLUMN_DEFINITION)
+    @Column(name = "created_at", nullable = false, columnDefinition = UtcDatabaseTime.CREATED_AT_COLUMN_DEFINITION)
     var createdAt: Instant = createdAt
         protected set
 
@@ -56,9 +57,6 @@ class Prompt(
     companion object {
         /** 이름의 첫 판 번호. */
         const val FIRST_VERSION = 1
-
-        /** prompts.sql은 created_at 없이 넣으므로 DB가 지금 시각(UTC)을 채운다. */
-        private const val CREATED_AT_COLUMN_DEFINITION = "TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now'))"
 
         /** [name]의 첫 판을 만든다. */
         fun initial(name: PromptName, content: String, createdAt: Instant): Prompt =

@@ -6,7 +6,7 @@ import java.util.UUID
  * 통합 테스트가 함께 쓰는 참가자 등록 값. 모든 통합 테스트가 같은 DB를 쓰므로 닉네임은 매번 새로 만든다.
  */
 object TestParticipants {
-    /** schema.sql이 채우는 지역 중 하나(서울 종로구). */
+    /** seed.sql이 채우는 지역 중 하나(서울 종로구). */
     const val REGION_CODE = "KR-11-110"
 
     private const val NICKNAME_PREFIX = "t"

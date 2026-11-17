@@ -3,6 +3,7 @@ package com.santacut.domain.analysis.model
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.ForeignKeyColumns
+import com.santacut.domain.global.model.UtcDatabaseTime
 import com.santacut.domain.global.model.UtcInstantConverter
 import com.santacut.domain.ranking.model.Season
 import jakarta.persistence.Column
@@ -63,11 +64,11 @@ class AnalysisJob(
         protected set
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, columnDefinition = STATUS_COLUMN_DEFINITION)
     var status: AnalysisJobStatus = status
         protected set
 
-    @Column(name = "attempts", nullable = false)
+    @Column(name = "attempts", nullable = false, columnDefinition = ZERO_COLUMN_DEFINITION)
     var attempts: Int = 0
         protected set
 
@@ -90,7 +91,7 @@ class AnalysisJob(
         protected set
 
     @Convert(converter = UtcInstantConverter::class)
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, columnDefinition = UtcDatabaseTime.CREATED_AT_COLUMN_DEFINITION)
     var createdAt: Instant = createdAt
         protected set
 
@@ -263,6 +264,8 @@ class AnalysisJob(
     companion object {
         /** 한 작업을 시도할 수 있는 최대 횟수. */
         const val MAX_ATTEMPTS = 3
+        private const val STATUS_COLUMN_DEFINITION = "TEXT NOT NULL DEFAULT 'QUEUED'"
+        private const val ZERO_COLUMN_DEFINITION = "INTEGER NOT NULL DEFAULT 0"
 
         /** 한 참가자가 [SUBMISSION_WINDOW] 동안 제출할 수 있는 작업 수. */
         const val MAX_DAILY_SUBMISSIONS = 3

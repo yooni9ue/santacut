@@ -8,7 +8,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 
 /**
- * 지역(시·도 또는 시·군·구)과 대표 좌표. schema.sql(서울)과 regions.sql(그 밖의 시·도)이 채우고 앱이 뜰 때 상위 지역만 잇는다.
+ * 지역(시·도 또는 시·군·구)과 대표 좌표. seed.sql(서울)과 regions.sql(그 밖의 시·도)이 채우고 앱이 뜰 때 상위 지역만 잇는다.
  * 시·도는 [parentCode]가 없고, 시·군·구는 [parentCode]에 시·도 코드를 가진다.
  */
 @Entity

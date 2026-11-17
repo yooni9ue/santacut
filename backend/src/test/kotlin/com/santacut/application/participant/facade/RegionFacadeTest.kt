@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * schema.sql과 regions.sql이 채운 전국 지역이 앱 시작 때 시·도 → 시·군·구 계층으로 이어지는지 확인한다.
+ * seed.sql과 regions.sql이 채운 전국 지역이 앱 시작 때 시·도 → 시·군·구 계층으로 이어지는지 확인한다.
  * HTTP 계약은 presentation의 RegionApiTest가 확인한다.
  */
 @IntegrationTest

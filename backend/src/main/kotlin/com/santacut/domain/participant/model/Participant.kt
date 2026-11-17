@@ -1,6 +1,7 @@
 package com.santacut.domain.participant.model
 
 import com.santacut.domain.global.model.ForeignKeyColumns
+import com.santacut.domain.global.model.UtcDatabaseTime
 import com.santacut.domain.global.model.UtcInstantConverter
 import jakarta.persistence.Column
 import jakarta.persistence.Convert
@@ -40,7 +41,7 @@ class Participant(
         protected set
 
     @Convert(converter = UtcInstantConverter::class)
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, columnDefinition = UtcDatabaseTime.CREATED_AT_COLUMN_DEFINITION)
     var createdAt: Instant = createdAt
         protected set
 
