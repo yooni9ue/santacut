@@ -76,6 +76,8 @@ presentation ──▶ application ──▶ domain ──▶ infrastructure
 - 그 밖의 infrastructure(render, config)는 domain을 참조하지 않는다. render는 자기 패키지의 값 타입(`ShareCard` 등)을 입력으로 받고, 엔티티를 그 값으로 바꾸는 일은 domain service가 한다.
 - **facade는 다른 facade를 주입받지 않는다.** 두 유스케이스가 같은 로직을 쓰면 그 로직을 domain service로 내린다.
 - **service는 다른 service를 주입받지 않는다.** 여러 service를 조합하는 일은 facade가 한다.
+- **facade는 흐름만 쓴다.** public 메서드는 유스케이스 단계를 높은 추상화 수준으로 나열해 위에서 아래로 읽혀야 한다. 한 메서드 안에 추상화 수준을 섞지 않는다. 스레드·슬롯·잠금·리스·재시도 같은 실행 기법과 점수 계산·실패 분류 같은 업무 규칙은 이름 있는 협력 객체로 내린다. 실행 기법은 application 컴포넌트로, 업무 규칙은 domain service나 domain.model 정책으로 보낸다. 의존성 6개 이상이나 private 함수 10개 이상이면 관심사를 나눌 신호다.
+  - 확인: 리뷰어가 facade public 메서드를 처음부터 끝까지 읽고 유스케이스 단계를 업무 용어로 한 줄씩 말할 수 있어야 한다. 실행 기법(`Executor`, `Semaphore`, `synchronized`, `TransactionTemplate` 직접 조합, 재시도 루프)이 facade public 메서드 본문에 보이면 위반이다.
 - 엔티티는 application 밖(presentation)으로 나가지 않는다.
 - 확인: `backend/src/test`의 ArchUnit 테스트(`LayerDependencyTest`)가 위 표, infrastructure의 domain.model 참조 예외, facade 간 주입 금지, service 간 주입 금지를 검사하고 `./gradlew check`에서 통과해야 한다.
 
