@@ -1,5 +1,7 @@
 package com.santacut.domain.ranking.service
 
+import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisProgress
 import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.Assessments
 import com.santacut.domain.global.config.AppProperties
@@ -115,6 +117,9 @@ class RankingService(
     /** 참가자의 최신 순위 스냅숏. 아직 순위에 오른 결과가 없으면 [ErrorCode.NO_RANKED_RESULT]다. */
     fun getLatestSnapshot(participantId: UUID): ResultSnapshot =
         findLatestSnapshot(participantId) ?: throw SantaCutException(ErrorCode.NO_RANKED_RESULT)
+
+    /** 참가자([participantId])가 낸 작업의 응답용 진행 단계. 성공한 작업은 최신 순위에 반영됐는지까지 본다([AnalysisJob.progress]). */
+    fun progressOf(job: AnalysisJob, participantId: UUID): AnalysisProgress = job.progress(findRankedAssessmentTime(participantId))
 
     /**
      * 참가자의 최신 순위 스냅숏이 담은 평가를 만든 시각. 이 시각 이후에 끝난 심사는 아직 순위에 반영되지 않았다.
