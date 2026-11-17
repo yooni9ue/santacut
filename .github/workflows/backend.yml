@@ -169,15 +169,34 @@ jobs:
       INSTANCE: santacut-dev-app
       OPERATOR_CIDR: ${{ vars.DEV_OPERATOR_SSH_CIDR }}
     steps:
+      # 늦게 끝난 옛 실행이 새 배포를 덮지 않게 한다. develop 머리가 이 커밋 뒤에 백엔드를 바꿨다면
+      # 그 push가 띄운 더 새 실행이 배포하므로 건너뛴다. 프런트엔드만 바뀐 커밋은 이 워크플로를 띄우지 않으니 배포를 이어 간다.
+      - name: Check develop head
+        id: order
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BACKEND_PATHS: '[.files[]?.filename | select(startswith("backend/") or . == ".github/workflows/backend.yml")] | length'
+        run: |
+          set -euo pipefail
+          head=$(gh api "repos/${GITHUB_REPOSITORY}/commits/develop" --jq .sha)
+          [[ "$head" == "$GITHUB_SHA" ]] && exit 0
+          newer=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...${head}" --jq "$BACKEND_PATHS")
+          if [[ "$newer" -gt 0 ]]; then
+            echo "::notice::Skip deploy: develop head ${head} has newer backend changes than ${GITHUB_SHA}. The newer run deploys."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        if: steps.order.outputs.skip != 'true'
         with:
           persist-credentials: false
-      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      - if: steps.order.outputs.skip != 'true'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-2
       - name: Open SSH for runner IP
         id: ssh
+        if: steps.order.outputs.skip != 'true'
         run: |
           set -euo pipefail
           ip=$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')
@@ -195,7 +214,9 @@ jobs:
         env:
           DEPLOY_HOST: ${{ vars.DEV_DEPLOY_HOST }}
       - name: Deploy verified image digest
+        if: steps.order.outputs.skip != 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           DEPLOY_HOST: ${{ vars.DEV_DEPLOY_HOST }}
           DEPLOY_USER: ${{ vars.DEV_DEPLOY_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEV_DEPLOY_SSH_KEY }}
@@ -212,6 +233,15 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/id_ed25519' EXIT
+          # 옛 실행을 다시 돌린 경우: 서버 릴리스가 이미 이 커밋을 품고 있으면(같거나 앞섬) 되돌리지 않는다.
+          current=$(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" 'basename "$(readlink -f /opt/santacut/current)"' || true)
+          if [[ "$current" =~ ^[a-f0-9]{40}$ ]]; then
+            status=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...${current}" --jq .status || echo unknown)
+            if [[ "$status" == identical || "$status" == ahead ]]; then
+              echo "::notice::Skip deploy: server release ${current} already contains ${GITHUB_SHA} (${status})."
+              exit 0
+            fi
+          fi
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" 'mkdir -p /opt/santacut/releases'
           tar -czf release.tgz -C backend/ci-cd deploy/compose.yml deploy/Caddyfile scripts/deploy.sh scripts/backup.sh
           scp -o BatchMode=yes -o StrictHostKeyChecking=yes release.tgz "$DEPLOY_USER@$DEPLOY_HOST:/opt/santacut/releases/${GITHUB_SHA}.tgz"
@@ -220,6 +250,7 @@ jobs:
           echo "current-image: $deployed"
           [[ "$deployed" == "${IMAGE}@${DIGEST}" ]]
       - name: Smoke test
+        if: steps.order.outputs.skip != 'true'
         run: curl -fsS --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null https://api-dev.santacut.me/v3/api-docs
       - name: Close SSH for runner IP
         if: always() && steps.ssh.outputs.cidr != ''

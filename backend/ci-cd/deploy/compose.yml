@@ -14,9 +14,15 @@ services:
       APP_PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL, e.g. http://<static_ip> or https://<domain>}
       APP_SESSION_SECURE: ${SESSION_SECURE:?Set SESSION_SECURE=true (HTTPS only)}
       APP_SEASON_YEAR: ${APP_SEASON_YEAR:-2026}
+      # 값의 근거(NMT 측정)는 backend/docs/deployment.md 메모리 예산에 있다.
+      # -Xmn24m: 젊은 세대를 고정해 유휴 힙 커밋을 줄인다. Free 비율은 전체 GC 뒤 남는 힙을 돌려주게 한다.
+      # 메타스페이스는 AOT 캐시가 맞지 않아 캐시 없이 뜰 때(최대 111MB)를 견딜 만큼 둔다.
       JAVA_TOOL_OPTIONS: >-
-        -Xms128m -Xmx256m -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=48m
+        -Xms64m -Xmx256m -Xmn24m -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=30
+        -XX:MaxMetaspaceSize=160m -XX:ReservedCodeCacheSize=48m
         -XX:+UseSerialGC -Xss512k -XX:+ExitOnOutOfMemoryError -Djava.awt.headless=true
+      # glibc malloc 아레나 수를 줄여 스레드가 늘 때 네이티브 메모리 조각화를 막는다.
+      MALLOC_ARENA_MAX: '2'
     ports:
       - '127.0.0.1:8080:8080'
     volumes:
