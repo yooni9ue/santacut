@@ -184,12 +184,14 @@ function SampleResultScreen() {
 function LiveResultScreen() {
   const { data } = usePreview();
   const [result, setResult] = useState<Awaited<ReturnType<typeof getMyResult>>>(null);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [sharing, setSharing] = useState(false);
-  useEffect(() => { const controller = new AbortController(); getMyResult(controller.signal).then(setResult).catch(failure => { if (!controller.signal.aborted) setError(resultError(failure)); }); return () => controller.abort(); }, []);
+  useEffect(() => { const controller = new AbortController(); getMyResult(controller.signal).then(setResult).catch(failure => { if (!controller.signal.aborted) setError(resultError(failure)); }).finally(() => { if (!controller.signal.aborted) setLoaded(true); }); return () => controller.abort(); }, []);
   if (error) return <FlowFrame back="/analysis" step={2} title={<>결과를<br />불러오지 못했어요.</>} description={error} action={<Link className="flow-primary" href="/analysis">심사 상태 다시 보기 ↗</Link>}><span /></FlowFrame>;
-  if (!result) return <FlowFrame back="/analysis" step={2} title={<>결과를<br />확인하는 중.</>} description="점수와 순위를 안전하게 불러오고 있어요."><span /></FlowFrame>;
+  if (!loaded) return <FlowFrame back="/analysis" step={2} title={<>결과를<br />확인하는 중.</>} description="점수와 순위를 안전하게 불러오고 있어요."><span /></FlowFrame>;
+  if (!result) return <FlowFrame back="/analysis" step={2} title={<>아직 결과가<br />없어요.</>} description="분석이 끝나면 점수와 판정을 확인할 수 있어요." action={<Link className="flow-primary" href="/analysis">심사 상태 확인하기 ↗</Link>}><InfoNote>결과가 준비되기 전에는 새로운 파일을 자동으로 제출하지 않아요.</InfoNote></FlowFrame>;
   const rank = result.rank == null ? "계산 중" : `${result.tied ? "공동 " : ""}${result.rank}위`;
   async function share() { setSharing(true); setError(""); try { const response = await createShare(); setShareUrl(response.html_url); } catch (failure) { setError(resultError(failure)); } finally { setSharing(false); } }
   return <FlowFrame back="/analysis" title={<>산타의 판정이<br />도착했습니다.</>} description={`${result.nickname || data.nickname} 님, 마음의 준비 됐죠?`} action={<NextLink href="/ranking">전체 랭킹 보기</NextLink>}>
