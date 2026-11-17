@@ -33,6 +33,9 @@ interface AnalysisJobRepository : JpaRepository<AnalysisJob, String> {
 
     fun findFirstByStatusAndLeaseUntilBeforeOrderByCreatedAtAsc(status: AnalysisJobStatus, leaseUntil: Instant): AnalysisJob?
 
+    /** [ids] 작업을 끝난 순서대로 한 번에 읽는다. */
+    fun findByIdInOrderByFinishedAtAsc(ids: Collection<String>): List<AnalysisJob>
+
     /** [since]와 같거나 그 뒤에 [status]로 끝난 작업마다 저장 알림 하나씩. */
     @Query(
         "select new com.santacut.domain.analysis.model.AnalysisJobChange(j.id) from AnalysisJob j " +

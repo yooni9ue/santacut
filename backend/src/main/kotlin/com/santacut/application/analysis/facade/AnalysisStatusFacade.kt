@@ -4,9 +4,11 @@ import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.LatestAnalysisCommand
 import com.santacut.application.analysis.command.OpenAnalysisStreamCommand
 import com.santacut.application.analysis.result.AnalysisStatusChangeResult
+import com.santacut.application.analysis.result.AnalysisStatusChangeResults
 import com.santacut.application.analysis.result.AnalysisStatusResult
 import com.santacut.application.global.Facade
 import com.santacut.domain.analysis.model.AnalysisJobChange
+import com.santacut.domain.analysis.model.AnalysisJobChanges
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.ranking.service.RankingService
 import org.slf4j.LoggerFactory
@@ -61,6 +63,21 @@ class AnalysisStatusFacade(
             eventPublisher.publishEvent(AnalysisStatusChangeResult(participantId, status))
         } catch (exception: RuntimeException) {
             logger.warn("분석 작업 {} 상태 알림 실패: {}", change.jobId, exception.javaClass.simpleName)
+        }
+    }
+
+    /**
+     * 순위를 다시 계산한 트랜잭션이 커밋된 뒤 그 계산에 든 작업들의 새 상태를 알린다. 작업 수와 상관없이 작업 목록과
+     * 참가자별 순위 반영 시각을 한 번씩만 읽는다. 실패해도 순위 계산을 막지 않도록 로그만 남긴다.
+     */
+    @TransactionalEventListener(fallbackExecution = true)
+    fun announceRankedStatusChanges(changes: AnalysisJobChanges) {
+        try {
+            val jobs = analysisJobService.findAll(changes)
+            val rankedTimes = rankingService.findRankedAssessmentTimes(jobs.userIds())
+            AnalysisStatusChangeResults.of(jobs, rankedTimes).publishEach(eventPublisher::publishEvent)
+        } catch (exception: RuntimeException) {
+            logger.warn("순위 계산 뒤 작업 {}개 상태 알림 실패: {}", changes.size(), exception.javaClass.simpleName)
         }
     }
 }
