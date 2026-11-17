@@ -35,7 +35,9 @@ Caddy 사이트 주소는 `DOMAIN`을 따른다. Caddyfile은 `{$SITE_ADDRESS::8
 - Caddy는 80번으로 온 요청을 HTTPS로 넘기고(`308`), 모든 응답에 HSTS(`max-age=31536000`), `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`를 붙인다. `/actuator`는 밖에서 `404`다.
 - 진행 상황 스트림(`/v1/analyses/*/events`)은 압축하지 않고 버퍼 없이 바로 흘려보낸다.
 - 운영 프로필은 Caddy가 붙인 `X-Forwarded-*` 헤더를 믿는다(`server.forward-headers-strategy: native`, 내부 프록시 대역만). 그래서 앱은 원래 요청이 HTTPS였다는 것을 안다.
-- HTTP에서 `SESSION_SECURE=true`면 브라우저가 `__Host-` 세션 쿠키를 보내지 않는다. 평문 HTTP로 띄울 때만 `false`로 둔다.
+- HTTP에서 `SESSION_SECURE=true`면 브라우저가 `__Host-` 세션 쿠키를 보내지 않는다.
+- 서버의 앱은 운영 프로필(`SPRING_PROFILES_ACTIVE=production`)로 뜨고, 이 프로필은 `SESSION_SECURE=true`가 아니면 뜨지 않는다. Compose도 `SESSION_SECURE`가 비어 있으면 멈춘다. 그래서 위 표의 "도메인 없음" 평문 HTTP 점검은 서버 배포가 아니라 운영 프로필 없이 띄운 로컬 앱에서만 한다.
+- Secure일 때 CSRF 쿠키 이름은 `__Host-XSRF-TOKEN`이다(로컬 HTTP는 `XSRF-TOKEN`). 화면은 쿠키를 읽지 않고 `GET /v1/csrf` 본문의 토큰을 쓰므로 이름이 바뀌어도 영향이 없다.
 
 ## 환경 설정과 배포
 
@@ -76,7 +78,7 @@ Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정�
 | 키(환경 변수) | 기본값 | 뜻 |
 | --- | --- | --- |
 | `app.public-base-url` (`APP_PUBLIC_BASE_URL`, Compose에서는 `PUBLIC_BASE_URL`) | `http://localhost:8080` | 공유 링크·Open Graph에 쓰는 공개 출처. 경로 없는 URL이어야 한다 |
-| `app.session-secure` (`APP_SESSION_SECURE`, Compose에서는 `SESSION_SECURE`) | `false` | 세션 쿠키 Secure·`__Host-` 이름 사용 |
+| `app.session-secure` (`APP_SESSION_SECURE`, Compose에서는 `SESSION_SECURE`) | `false`(운영 프로필 `true`) | 세션·CSRF 쿠키 Secure·`__Host-` 이름 사용. 운영 프로필은 `app.require-secure-session=true`라 `false`면 앱이 뜨지 않고, Compose는 `SESSION_SECURE`를 꼭 넣어야 한다 |
 | `app.cors.allowed-origins` (`APP_CORS_ALLOWED_ORIGINS`) | `https://www.santacut.me,https://santacut.me` | 쿠키를 실어 API를 부를 수 있는 프론트엔드 출처. 쉼표로 나눈다. dev는 `https://dev.santacut.me`와 `http://localhost:3000`을 더한다. 자격 증명을 허용하므로 `*`는 쓸 수 없고, 넣으면 앱이 뜨지 않는다 |
 | `app.session-same-site` (`APP_SESSION_SAME_SITE`) | `Lax` | 세션·CSRF 쿠키의 SameSite(`Strict`, `Lax`, `None`). `None`은 `APP_SESSION_SECURE=true`일 때만 쓸 수 있고, 아니면 앱이 뜨지 않는다. dev만 `None`으로 둬 `http://localhost:3000`에서도 쿠키가 실리게 한다 |
 | `app.season-year` (`APP_SEASON_YEAR`) | `2026` | 시즌 연도. 그해 12월 25일 0시(KST)에 마감한다 |
@@ -86,6 +88,12 @@ Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정�
 | `spring.ai.google.genai.api-key` (`GEMINI_API_KEY`) | 없음 | Gemini Developer API 키. 없으면 앱이 뜨지 않는다 |
 | `spring.ai.google.genai.chat.model` (`GEMINI_MODEL`) | `gemini-3.5-flash-lite` | 채점 모델. 비우면 AI 분석을 끈다 |
 | `santacut.prompt-admin.enabled` (`PROMPT_ADMIN_ENABLED`) | `false` | dev 전용 프롬프트 관리 API(`/v1/admin/prompts`). dev의 `app.env`에만 `true`를 둔다. 운영은 두지 않아 404다 |
+| `santacut.prompt-admin.token` (`PROMPT_ADMIN_TOKEN`) | 없음 | 관리 API 토큰. 요청은 `X-Admin-Token` 헤더에 이 값을 싣고, 앱은 시간 차이가 나지 않게 비교한다. 없거나 틀리면 `401`이다. 비어 있으면 `PROMPT_ADMIN_ENABLED=true`여도 API가 뜨지 않는다(`404`). dev `app.env`(KMS 암호화)에만 둔다. 예: `openssl rand -hex 32` |
+| `springdoc.api-docs.enabled`, `springdoc.swagger-ui.enabled` (`SWAGGER_ENABLED`) | `true`(운영 프로필 `false`) | OpenAPI 명세(`/v3/api-docs`)와 Swagger UI. dev와 운영 모두 운영 프로필로 뜨므로 dev `app.env`에만 `SWAGGER_ENABLED=true`를 두고, 운영은 두지 않아 `404`다 |
+| `santacut.rate-limit.registrations-per-client`, `registration-window` | `10`, `1h` | 클라이언트 IP 하나가 창 동안 만들 수 있는 참가자 수. 넘으면 `429 CLIENT_RATE_LIMITED`와 `retry_at` |
+| `santacut.rate-limit.submissions-per-client`, `submission-window` | `20`, `24h` | 클라이언트 IP 하나가 창 동안 낼 수 있는 분석 제출 수(JSON·원본 파일 합산). 참가자별 24시간 3회 한도와 함께 본다 |
+| `santacut.upload-intake.max-concurrent-uploads`, `retry-after` | `2`, `10s` | 동시에 메모리로 읽어 저장하는 원본 파일 수. 넘으면 기다리지 않고 `503 UPLOAD_BUSY`와 `Retry-After` |
+| `santacut.request-body.max-size` | `2MB` | 파일 업로드가 아닌 요청 본문 상한. 넘으면 `413 REQUEST_TOO_LARGE` |
 | `santacut.ai.budget.daily-usd` (`AI_BUDGET_DAILY_USD`) | `0`(끔) | 앱 안의 AI 비용 가드 하루 한도(달러). 0이면 하루 한도가 없다. Gemini를 선불 크레딧으로 쓰므로 기본으로 끈다 |
 | `santacut.ai.budget.monthly-usd` (`AI_BUDGET_MONTHLY_USD`) | `9` | 앱 안의 AI 비용 가드 한 달 한도(달러). 호출 전 어림 비용을 더해 넘을 것 같아도 부르지 않는다. 넣지 않아도 된다 |
 
@@ -94,19 +102,25 @@ Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정�
 - Gemini 호출 하나의 시간 상한은 60초이고 SDK 재시도는 하지 않는다. `GeminiClientConfiguration`에 있다.
 - 선불 크레딧이 떨어지면 Gemini가 `429 RESOURCE_EXHAUSTED`로 막는다. 작업은 실패하지 않고 `QUEUED`에 남으며 작업자는 15분씩 멈췄다 다시 시도한다. AI Studio에서 크레딧을 채우면 이어서 처리한다.
 
+IP 한도는 앱 메모리에서 센다. 앱이 하나뿐이라 충분하지만 앱이 다시 뜨면 처음부터 센다. IP는 운영 프로필에서 Tomcat이 믿는 프록시(Caddy)가 붙인 `X-Forwarded-For`로 바꾼 값이다. Caddy는 밖에서 온 `X-Forwarded-For`를 믿지 않고 실제 접속 IP로 덮어쓰므로 클라이언트가 IP를 꾸밀 수 없다. 통신사 NAT처럼 여러 사람이 IP 하나를 함께 쓰면 한도에 먼저 닿을 수 있으니, 문의가 오면 한도를 올린다. 사람인지 확인(Turnstile 같은 캡차)은 후속 과제다.
+
 `poll-delay-ms` 두 키는 Compose에 넣지 않았다. 바꿀 때는 `SANTACUT_AI_POLL_DELAY_MS`, `SANTACUT_UPLOAD_POLL_DELAY_MS` 환경 변수(Spring 완화 바인딩)를 앱 서비스에 더한다.
 
 ### 업로드 크기 제한
 
-원본 파일은 20MB까지 받는다. 앞단과 앱이 함께 막는다.
+원본 파일은 20MB까지 받는다. 앞단과 앱이 함께 막는다. 원본 파일 업로드(`/v1/analyses/files`)가 아닌 요청 본문은 2MB까지만 받는다.
 
 | 위치 | 설정 | 값 |
 | --- | --- | --- |
-| `ci-cd/deploy/Caddyfile` | `request_body max_size` | 21MB |
+| `ci-cd/deploy/Caddyfile` | `request_body @upload max_size` | 21MB |
+| `ci-cd/deploy/Caddyfile` | `request_body @notUpload max_size` | 2MB |
+| `application.yml` | `santacut.request-body.max-size`(multipart가 아닌 요청의 Content-Length) | 2MB |
 | `application.yml` | `spring.servlet.multipart.max-file-size` / `max-request-size` | 20MB / 21MB |
 | `application.yml` | `server.tomcat.max-swallow-size` | 21MB |
 
-Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보다 1MB 크다. Tomcat `max-swallow-size`는 업로드를 거절한 뒤에도 남은 본문을 읽어, 연결을 끊지 않고 `413 FILE_TOO_LARGE` JSON을 보내게 한다. Caddy가 먼저 막으면 `code` 없는 `413`이 간다. 한도를 바꿀 때는 세 곳을 함께 바꾼다. 업로드 원본은 `analysis_uploads` 테이블에 잠깐 머물다 검증이 끝나면 지워지므로 별도 볼륨은 필요 없다.
+Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보다 1MB 크다. Tomcat `max-swallow-size`는 업로드를 거절한 뒤에도 남은 본문을 읽어, 연결을 끊지 않고 `413 FILE_TOO_LARGE` JSON을 보내게 한다. Caddy가 먼저 막으면 `code` 없는 `413`이 간다. 한도를 바꿀 때는 세 곳을 함께 바꾼다.
+
+256MB 힙을 지키려고 원본 파일 접수는 이 순서로 한다. 시즌·참가자·같은 `Idempotency-Key`의 작업·하루 제출 한도·IP 한도를 먼저 보고, 통과한 요청만 파일 내용을 메모리로 한 번 읽는다. 요청 해시는 내용을 이어 붙이지 않고 해시에 바로 흘려 넣으며, 저장할 때도 복사하지 않는다. 내용을 읽고 저장하는 일은 동시에 2개(`santacut.upload-intake.max-concurrent-uploads`)까지만 하고, 넘으면 `503 UPLOAD_BUSY`로 바로 돌려보낸다. 업로드 원본은 `analysis_uploads` 테이블에 잠깐 머물다 검증이 끝나면 지워지므로 별도 볼륨은 필요 없다.
 
 ### 지역 시드
 
@@ -116,11 +130,13 @@ Caddy 한도는 multipart 경계와 다른 파트를 감안해 파일 한도보�
 
 `backend/ci-cd/scripts/backup.sh`가 한 시간마다 돈다(cron 설치는 인프라 레포 7절).
 
-1. 실행 중인 앱 컨테이너에서 `sqlite3 .backup`으로 일관된 복사본을 뜬다.
+1. 실행 중인 앱 컨테이너에서 `sqlite3 .backup`으로 일관된 복사본을 뜬다. 복사본은 데이터 볼륨의 `/app/data/backup-tmp/`에 뜨고, 서버로 옮긴 뒤 바로 지운다. 컨테이너 `/tmp`는 64MB tmpfs라 DB가 60MB를 넘으면 `.backup`이 실패해 배포까지 막혔기 때문이다. 그래서 볼륨에는 DB 크기만큼 빈 공간이 더 있어야 한다.
 2. 서버에서 `PRAGMA integrity_check`로 확인하고 `/opt/santacut/backups/santacut-<시각>.sqlite`(600)로 둔다.
 3. rclone으로 `$BACKUP_REMOTE/santacut-<시각>.sqlite`(버킷의 `backups/sqlite/`)에 올린다. 암호화는 S3가 환경 KMS 키로 한다.
 4. 올린 파일을 내려받아 바이트 단위로 대조한다(`rclone check --download`). 이게 통과해야 성공이다.
 5. 서버의 로컬 복사본은 2일만 남긴다.
+
+`VACUUM`은 자동으로 돌리지 않는다. DB 크기만큼 공간을 더 쓰고 도는 동안 쓰기를 모두 막아, 연결이 하나뿐인 앱이 그동안 멈추기 때문이다. 순위 스냅숏은 계산할 때마다 지우고 다시 쓰므로 빈 페이지는 SQLite가 다시 쓴다. 파일이 지나치게 커졌으면 점검 시간에 앱을 멈추고 `sqlite3 santacut.db 'VACUUM;'`을 한 번 돌린다.
 
 `/opt/santacut/backup.env`(600)에 `BACKUP_REMOTE`를 둔다. 예시는 `backend/ci-cd/deploy/backup.env.example`이다. 비밀값은 없다.
 

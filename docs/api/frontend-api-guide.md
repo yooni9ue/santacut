@@ -43,14 +43,14 @@
 - 서버는 `APP_CORS_ALLOWED_ORIGINS`에 적은 출처만 허용한다. 코드 기본값은 `https://www.santacut.me,https://santacut.me`다. dev 서버는 여기에 `https://dev.santacut.me`와 `http://localhost:3000`을 더해 둔다. 다른 출처(예: Vercel 미리보기 주소)에서 부르려면 백엔드에 그 출처를 넣어 달라고 한다. 허용하지 않은 출처의 사전 요청(preflight)은 `403`이다.
 - 허용 메서드는 `GET`, `POST`, `PATCH`, `DELETE`이고, 허용 요청 헤더는 `Content-Type`, `X-XSRF-TOKEN`, `Last-Event-ID`다. 응답 헤더 가운데 `Retry-After`를 읽을 수 있다. 사전 요청 결과는 3,600초 캐시된다.
 - 모든 `fetch`에 `credentials: 'include'`를 넣는다. 빠뜨리면 세션 쿠키도 CSRF 쿠키도 가지 않아 `401`이나 `403`이 난다. `EventSource`는 `{ withCredentials: true }`로 연다.
-- CSRF 쿠키(`XSRF-TOKEN`)는 API 호스트의 HttpOnly 쿠키라 화면의 `document.cookie`로는 읽을 수 없다. 토큰은 쿠키가 아니라 `GET /v1/csrf` 응답 본문에서 꺼낸다(§3).
+- CSRF 쿠키(HTTPS인 dev·운영은 `__Host-XSRF-TOKEN`, 로컬 HTTP는 `XSRF-TOKEN`)는 API 호스트의 HttpOnly 쿠키라 화면의 `document.cookie`로는 읽을 수 없다. 토큰은 쿠키가 아니라 `GET /v1/csrf` 응답 본문에서 꺼낸다(§3).
 - dev 서버는 쿠키를 `SameSite=None; Secure`로 내린다(`APP_SESSION_SECURE=true`, `APP_SESSION_SAME_SITE=None`). 그래서 `http://localhost:3000`에서 `https://api-dev.santacut.me`를 바로 불러도 쿠키가 실린다. 다만 브라우저가 서드파티 쿠키를 막으면(Safari 기본값, Chrome 시크릿 창 등) 쿠키가 빠져 `401`이나 `403`이 나므로, 이때는 프록시를 쓴다.
 - 운영은 화면과 API가 같은 사이트(`santacut.me`)라 `SameSite=Lax`(기본값)로도 쿠키가 간다.
 
 ## 3. 인증과 CSRF
 
 1. 페이지 로드 시 `GET /v1/me`를 호출한다. `200`이면 로그인 상태, `401`이면 미등록 상태다.
-2. 쓰기 요청(`POST`, `PATCH`, `DELETE`) 직전에 `GET /v1/csrf`를 호출한다. 응답 `{ headerName, token }`의 `token`을 `headerName`(기본 `X-XSRF-TOKEN`) 헤더로 보낸다. 같은 응답이 `XSRF-TOKEN` 쿠키도 설정하므로 쿠키를 지우지 않는다.
+2. 쓰기 요청(`POST`, `PATCH`, `DELETE`) 직전에 `GET /v1/csrf`를 호출한다. 응답 `{ headerName, token }`의 `token`을 `headerName`(기본 `X-XSRF-TOKEN`) 헤더로 보낸다. 같은 응답이 CSRF 쿠키(`__Host-XSRF-TOKEN`, 로컬 HTTP는 `XSRF-TOKEN`)도 설정하므로 쿠키를 지우지 않는다. 화면은 쿠키 이름에 기대지 않는다.
 3. `POST /v1/participants`로 등록하면 세션이 HttpOnly 쿠키로 설정된다. 쿠키 이름은 HTTPS로 띄운 dev·운영(`APP_SESSION_SECURE=true`)에서 `__Host-sc_session`, 로컬 HTTP(`APP_SESSION_SECURE=false`)에서 `sc_session`이다. 프론트엔드는 HttpOnly라 쿠키를 직접 읽지 않으므로 이름에 기대지 않는다. 세션은 30일간 유효하며 JSON 응답에는 세션 값이 없다.
 4. 이후 요청은 쿠키가 자동으로 실려 인증된다. 세션이 없거나 만료되면 `401`이다.
 
@@ -304,6 +304,9 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 | 닉네임 동시 등록 충돌 | `409` | `NICKNAME_TAKEN` | 닉네임만 수정 |
 | 지역 선택 오류 | `400` | `UNSUPPORTED_REGION` | 없는 코드이거나 하위 지역을 골라야 하는 시·도 |
 | 요청 한도 초과 | `429` | `DAILY_USER_LIMIT` | 본문 `retry_at`(UTC)과 `Retry-After` 헤더(초)로 다시 가능한 시점을 안내 |
+| 같은 네트워크(IP)의 요청이 너무 많음 | `429` | `CLIENT_RATE_LIMITED` | 참가 등록·분석 제출. 본문 `retry_at`과 `Retry-After`로 안내 |
+| 요청 본문이 너무 큼 | `413` | `REQUEST_TOO_LARGE` | 파일 업로드가 아닌 본문 2MB 초과. 프록시가 막으면 `code`가 없다 |
+| 원본 파일 접수가 몰림 | `503` | `UPLOAD_BUSY` | 같은 `Idempotency-Key`로 `Retry-After` 뒤 다시 올린다 |
 | 세션 만료·쿠키 분실 | `401` | `NOT_AUTHENTICATED` | 공개 링크 보기 / 새 참여 안내 |
 | 시즌 동결 | `409` | `SEASON_FROZEN` | 분석 요청·지역 변경 모두. 결과 보기 |
 | 공유 비활성·존재하지 않음 | `404` | `SHARE_NOT_FOUND` | `Accept`에 `text/html`이 있는 `/s/{token}`·`/s/{token}/image.png` 요청은 JSON 대신 안내 HTML |
@@ -322,9 +325,13 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 | 대상 | 한도 | 넘으면 |
 | --- | --- | --- |
 | 분석 제출(`POST /v1/analyses`·`/files` 합산) | 참가자당 최근 24시간 3회 | `429` `DAILY_USER_LIMIT`. 본문 `retry_at`과 `Retry-After`(초) |
+| 참가 등록(`POST /v1/participants`) | IP당 1시간 10회 | `429` `CLIENT_RATE_LIMITED`. 본문 `retry_at`과 `Retry-After`(초) |
+| 분석 제출(IP 단위, `POST /v1/analyses`·`/files` 합산) | IP당 24시간 20회 | `429` `CLIENT_RATE_LIMITED`. 본문 `retry_at`과 `Retry-After`(초) |
 | 원본 파일 | 20MB | `413` `FILE_TOO_LARGE` |
+| 원본 파일 동시 접수 | 서버 전체 2개 | `503` `UPLOAD_BUSY`. `Retry-After` 10초 |
+| 파일이 아닌 요청 본문 | 2MB | `413` `REQUEST_TOO_LARGE` |
 | 이벤트 JSON | 20~2,000개, 이벤트당 1~2,000자, 합계 200,000자 | `400` |
 | 진행 상황 스트림 | 참가자당 1개(새로 열면 이전 것이 닫힘), 서버 전체 200개, 연결당 5분 | `503` `ANALYSIS_STREAM_LIMIT`. `Retry-After` 30초 |
 | 순위표 | 한 페이지 50줄 | `next_cursor`로 다음 페이지 |
 
-IP 단위 요청 한도는 없다. 같은 키로 다시 보낸 제출(`Idempotency-Key` 재전송)은 한도를 새로 쓰지 않고 처음 작업을 돌려준다.
+IP 한도는 서버 메모리에서 센다. 같은 키로 다시 보낸 제출(`Idempotency-Key` 재전송)은 한도를 새로 쓰지 않고 처음 작업을 돌려준다. 원본 파일은 한도를 먼저 확인하고 나서 내용을 읽으므로, 한도에 걸린 요청은 파일 검사(`422`)보다 `429`가 먼저 온다.
