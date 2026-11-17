@@ -1,6 +1,8 @@
 package com.santacut
 
 import com.santacut.application.global.Facade
+import com.santacut.application.global.Runner
+import com.santacut.application.global.TransactionRunner
 import com.tngtech.archunit.core.domain.JavaClass
 import com.tngtech.archunit.core.domain.JavaClasses
 import com.tngtech.archunit.core.importer.ClassFileImporter
@@ -20,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.bind.annotation.RestControllerAdvice
 
 /**
- * 컨벤션 1~3장의 패키지 구성, 계층 의존 방향, facade·service 간 주입 금지, 스테레오타입 위치를 검사한다.
+ * 컨벤션 1~3장의 패키지 구성, 계층 의존 방향, facade·runner·service 간 주입 금지, 스테레오타입 위치를 검사한다.
  */
 class LayerDependencyTest {
     private val classes: JavaClasses = ClassFileImporter()
@@ -113,6 +115,14 @@ class LayerDependencyTest {
     }
 
     @Test
+    fun `runner는 facade나 TransactionRunner 말고 다른 runner를 주입받지 않는다`() {
+        classes().that().areAnnotatedWith(Runner::class.java)
+            .should(notInjectTypesAnnotatedWith(Runner::class.java, allowed = TransactionRunner::class.java))
+            .andShould(notInjectTypesAnnotatedWith(Facade::class.java))
+            .check(classes)
+    }
+
+    @Test
     fun `service는 다른 service를 주입받지 않는다`() {
         classes().that().areAnnotatedWith(Service::class.java)
             .should(notInjectTypesAnnotatedWith(Service::class.java))
@@ -130,9 +140,12 @@ class LayerDependencyTest {
     }
 
     @Test
-    fun `facade, service, 엔티티는 정해진 패키지에 있고 이름 규칙을 따른다`() {
+    fun `facade, runner, service, 엔티티는 정해진 패키지에 있고 이름 규칙을 따른다`() {
         classes().that().areAnnotatedWith(Facade::class.java)
             .should().resideInAPackage("$APPLICATION.*.facade").andShould().haveSimpleNameEndingWith("Facade")
+            .check(classes)
+        classes().that().areAnnotatedWith(Runner::class.java)
+            .should().resideInAnyPackage("$APPLICATION.*.runner", "$APPLICATION.global").andShould().haveSimpleNameEndingWith("Runner")
             .check(classes)
         classes().that().areAnnotatedWith(Service::class.java)
             .should().resideInAPackage("$DOMAIN.*.service").andShould().haveSimpleNameEndingWith("Service")
@@ -179,12 +192,12 @@ class LayerDependencyTest {
             .check(classes)
     }
 
-    /** 생성자 매개변수와 필드 중에 같은 역할(애노테이션)의 다른 클래스가 있으면 위반이다. */
-    private fun notInjectTypesAnnotatedWith(annotation: Class<out Annotation>): ArchCondition<JavaClass> =
+    /** 생성자 매개변수와 필드 중에 같은 역할(애노테이션)의 다른 클래스가 있으면 위반이다. [allowed]는 예외로 둔다. */
+    private fun notInjectTypesAnnotatedWith(annotation: Class<out Annotation>, allowed: Class<*>? = null): ArchCondition<JavaClass> =
         object : ArchCondition<JavaClass>("같은 역할의 다른 빈(${annotation.simpleName})을 주입받지 않는다") {
             override fun check(item: JavaClass, events: ConditionEvents) {
                 injectedTypesOf(item)
-                    .filter { it != item && it.isAnnotatedWith(annotation) }
+                    .filter { it != item && allowed?.let { type -> it.isEquivalentTo(type) } != true && it.isAnnotatedWith(annotation) }
                     .forEach { events.add(SimpleConditionEvent.violated(item, "${item.name}이(가) ${it.name}을(를) 주입받는다")) }
             }
         }
@@ -222,7 +235,7 @@ class LayerDependencyTest {
         private val DOMAINS = setOf("participant", "session", "analysis", "ranking", "share", "prompt")
         private val DOMAIN_ROLES = mapOf(
             "presentation" to setOf("controller", "request", "response", "stream", "docs"),
-            "application" to setOf("facade", "command", "result"),
+            "application" to setOf("facade", "runner", "command", "result"),
             "domain" to setOf("model", "service"),
             "infrastructure" to setOf("repository", "client", "render"),
         )
