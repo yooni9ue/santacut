@@ -30,6 +30,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.BDDMockito.given
+import org.mockito.BDDMockito.willReturn
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
@@ -46,6 +47,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -130,6 +132,20 @@ class AnalysisWorkerConcurrencyTest @Autowired constructor(
 
         awaitUntil { jobs.all { analysisFacade.getStatus(it).status == "SUCCEEDED" } }
         assertEquals(WORKER_CONCURRENCY, peak.get())
+    }
+
+    @Test
+    fun `작업을 잡다가 예외가 나도 채점 스레드 자리를 잃지 않는다`() {
+        given(scoreClient.isEnabled()).willThrow(IllegalStateException("AI 설정 읽기 실패"))
+        repeat(WORKER_CONCURRENCY) { assertFailsWith<IllegalStateException> { analysisWorkerFacade.dispatchJobs() } }
+        // 예외를 던지게 스텁한 메서드를 다시 부르지 않도록 willReturn부터 쓴다.
+        willReturn(true).given(scoreClient).isEnabled()
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer { slowAnswer(USAGE) }
+        val jobs = List(JOB_COUNT) { submitAnalysis() }
+
+        analysisWorkerFacade.dispatchJobs()
+
+        awaitUntil { jobs.all { analysisFacade.getStatus(it).status == "SUCCEEDED" } }
     }
 
     private fun slowAnswer(usage: ModelUsage): ScoreAnswer {

@@ -89,10 +89,21 @@ class AnalysisWorkerFacade(
     private tailrec fun dispatchWhileSlotsFree() {
         if (!workerSlots.tryAcquire()) return
         val lease = newLease()
-        val job = claimNextJob(lease)
-        if (job == null) return workerSlots.release()
+        val job = claimForSlot(lease) ?: return
         startWorker(job, lease)
         dispatchWhileSlotsFree()
+    }
+
+    /** 방금 얻은 자리로 작업을 잡는다. 잡을 작업이 없거나 잡다가 예외가 나면 자리를 돌려준다. */
+    private fun claimForSlot(lease: String): AnalysisJob? {
+        val job = try {
+            claimNextJob(lease)
+        } catch (exception: RuntimeException) {
+            workerSlots.release()
+            throw exception
+        }
+        if (job == null) workerSlots.release()
+        return job
     }
 
     /** 잡은 작업을 채점 스레드에 넘긴다. 스레드는 대기열이 빌 때까지 이어서 채점한 뒤 자리를 돌려준다. */
