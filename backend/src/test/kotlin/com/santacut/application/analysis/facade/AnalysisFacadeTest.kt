@@ -23,6 +23,7 @@ import kotlin.test.assertNull
 @IntegrationTest
 class AnalysisFacadeTest @Autowired constructor(
     private val analysisFacade: AnalysisFacade,
+    private val analysisStatusFacade: AnalysisStatusFacade,
     private val participantFacade: ParticipantFacade,
     clock: Clock,
 ) {
@@ -35,14 +36,14 @@ class AnalysisFacadeTest @Autowired constructor(
         val submitted = analysisFacade.submit(submitCommand(participantId, newKey(), "고마워"))
         assertEquals("QUEUED", submitted.status)
 
-        val status = analysisFacade.getStatus(AnalysisJobCommand(participantId, UUID.fromString(submitted.id)))
+        val status = analysisStatusFacade.getStatus(AnalysisJobCommand(participantId, UUID.fromString(submitted.id)))
         assertEquals("QUEUED", status.status)
         assertNull(status.errorCode)
         assertNull(status.finishedAt)
-        assertEquals(status, analysisFacade.getLatestStatus(LatestAnalysisCommand(participantId)))
+        assertEquals(status, analysisStatusFacade.getLatestStatus(LatestAnalysisCommand(participantId)))
 
         assertErrorCode(ErrorCode.NOT_FOUND) {
-            analysisFacade.getStatus(AnalysisJobCommand(registerParticipant(), UUID.fromString(submitted.id)))
+            analysisStatusFacade.getStatus(AnalysisJobCommand(registerParticipant(), UUID.fromString(submitted.id)))
         }
     }
 

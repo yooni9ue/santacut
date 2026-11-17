@@ -54,6 +54,7 @@ import kotlin.test.assertTrue
 class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     private val analysisUploadWorkerFacade: AnalysisUploadWorkerFacade,
     private val analysisFacade: AnalysisFacade,
+    private val analysisStatusFacade: AnalysisStatusFacade,
     private val participantFacade: ParticipantFacade,
     private val scoreClient: ScoreClient,
     private val clock: MutableClock,
@@ -75,7 +76,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
 
         analysisUploadWorkerFacade.validateNextUpload()
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals("QUEUED", analysisStatusFacade.getStatus(job).status)
         val payload = analysisJobRepository.findById(job.jobId.toString()).orElseThrow().requirePayload()
         assertTrue(payload.contains("고마워 0"))
         assertTrue(payload.contains(OTHER_TEXT))
@@ -89,7 +90,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
 
         analysisUploadWorkerFacade.validateNextUpload()
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals("QUEUED", analysisStatusFacade.getStatus(job).status)
         val payload = analysisJobRepository.findById(job.jobId.toString()).orElseThrow().requirePayload()
         assertTrue(payload.contains("고마워 0"))
         assertTrue(payload.contains("INSTAGRAM"))
@@ -112,12 +113,12 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
 
         analysisUploadWorkerFacade.validateNextUpload()
 
-        assertEquals("VALIDATING", analysisFacade.getStatus(job).status)
+        assertEquals("VALIDATING", analysisStatusFacade.getStatus(job).status)
         assertTrue(analysisUploadRepository.existsById(job.jobId.toString()))
 
         analysisUploadWorkerFacade.validateNextUpload()
 
-        assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals("QUEUED", analysisStatusFacade.getStatus(job).status)
         assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
     }
 
@@ -192,7 +193,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     /** 검증 작업자를 한 번 돌린 뒤(이미 돌렸으면 남은 원본이 없어 아무 일도 없다) 상태와 원본 삭제를 확인한다. */
     private fun assertRejected(job: AnalysisJobCommand, status: String, errorCode: String) {
         analysisUploadWorkerFacade.validateNextUpload()
-        val result = analysisFacade.getStatus(job)
+        val result = analysisStatusFacade.getStatus(job)
         assertEquals(status, result.status)
         assertEquals(errorCode, result.errorCode)
         assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))

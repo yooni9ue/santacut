@@ -3,6 +3,7 @@ package com.santacut.presentation.analysis.controller
 import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.LatestAnalysisCommand
 import com.santacut.application.analysis.facade.AnalysisFacade
+import com.santacut.application.analysis.facade.AnalysisStatusFacade
 import com.santacut.presentation.analysis.docs.GetAnalysisApi
 import com.santacut.presentation.analysis.docs.GetLatestAnalysisApi
 import com.santacut.presentation.analysis.docs.SubmitAnalysisApi
@@ -32,6 +33,7 @@ import java.util.UUID
 @RestController
 class AnalysisController(
     private val analysisFacade: AnalysisFacade,
+    private val analysisStatusFacade: AnalysisStatusFacade,
 ) {
     @PostMapping("/v1/analyses")
     @SubmitAnalysisApi
@@ -63,10 +65,10 @@ class AnalysisController(
         @AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID,
         @PathVariable id: UUID,
     ): AnalysisStatusResponse =
-        AnalysisStatusResponse.from(analysisFacade.getStatus(AnalysisJobCommand(participantId, id)))
+        AnalysisStatusResponse.from(analysisStatusFacade.getStatus(AnalysisJobCommand(participantId, id)))
 
     @GetMapping("/v1/me/analysis")
     @GetLatestAnalysisApi
     fun latestStatus(@AuthenticationPrincipal @Parameter(hidden = true) participantId: UUID): AnalysisStatusResponse =
-        AnalysisStatusResponse.from(analysisFacade.getLatestStatus(LatestAnalysisCommand(participantId)))
+        AnalysisStatusResponse.from(analysisStatusFacade.getLatestStatus(LatestAnalysisCommand(participantId)))
 }

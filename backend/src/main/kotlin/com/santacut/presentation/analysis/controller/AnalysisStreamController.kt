@@ -2,7 +2,7 @@ package com.santacut.presentation.analysis.controller
 
 import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.OpenAnalysisStreamCommand
-import com.santacut.application.analysis.facade.AnalysisFacade
+import com.santacut.application.analysis.facade.AnalysisStatusFacade
 import com.santacut.application.analysis.result.AnalysisStatusChangeResult
 import com.santacut.presentation.analysis.docs.StreamAnalysisStatusApi
 import com.santacut.presentation.analysis.stream.AnalysisStatusEvent
@@ -27,7 +27,7 @@ import java.util.UUID
  */
 @RestController
 class AnalysisStreamController(
-    private val analysisFacade: AnalysisFacade,
+    private val analysisStatusFacade: AnalysisStatusFacade,
 ) {
     private val streams = AnalysisStatusStreams()
 
@@ -41,8 +41,8 @@ class AnalysisStreamController(
         streams.open(
             participantId,
             stream,
-            { openStreams, replacing -> analysisFacade.verifyStreamOpenable(OpenAnalysisStreamCommand(openStreams, replacing)) },
-            { AnalysisStatusEvent.from(analysisFacade.getStatus(AnalysisJobCommand(participantId, id))) },
+            { openStreams, replacing -> analysisStatusFacade.verifyStreamOpenable(OpenAnalysisStreamCommand(openStreams, replacing)) },
+            { AnalysisStatusEvent.from(analysisStatusFacade.getStatus(AnalysisJobCommand(participantId, id))) },
         )
         return ResponseEntity.ok(stream.emitter)
     }

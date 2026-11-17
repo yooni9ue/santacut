@@ -21,6 +21,9 @@ class ScoringChunkAnswers(private val values: List<ScoringChunkAnswer>) {
 
     fun size(): Int = values.size
 
+    /** 사용량이 잡힌 호출이 하나라도 있으면(이미 과금됐으면) 참. */
+    fun isBilled(): Boolean = usage().isMeasured()
+
     /** 구간 점수를 항목마다 합치고 [shrinkage]로 수축해 합계를 한 번만 반올림한다. */
     fun toScore(shrinkage: ScoreShrinkage): Score {
         values.forEach { chunkAnswer -> chunkAnswer.answer.verifyAnswered() }

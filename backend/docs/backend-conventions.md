@@ -27,9 +27,10 @@ com.santacut
 ├─ application                    유스케이스 조합, 트랜잭션 경계
 │  ├─ <도메인>
 │  │  ├─ facade                   XxxFacade
+│  │  ├─ runner                   XxxRunner (facade가 쓰는 실행 기법)
 │  │  ├─ command                  XxxCommand, XxxCommands
 │  │  └─ result                   XxxResult, XxxResults
-│  └─ global                      @Facade 애노테이션
+│  └─ global                      @Facade·@Runner 애노테이션, TransactionRunner
 ├─ domain                         비즈니스 규칙
 │  ├─ <도메인>
 │  │  ├─ model                    엔티티, 값 객체, 일급 컬렉션, 열거형
@@ -65,7 +66,7 @@ presentation ──▶ application ──▶ domain ──▶ infrastructure
 | 계층 | 의존해도 되는 것 | 의존하면 안 되는 것 |
 | --- | --- | --- |
 | presentation | application(facade, command, result), presentation 내부 | domain, infrastructure |
-| application | domain(service, model, exception), application 내부 | presentation, infrastructure, **다른 facade** |
+| application | domain(service, model, exception), application 내부 | presentation, infrastructure, **다른 facade**(runner는 facade와 다른 runner도) |
 | domain | infrastructure(repository, client, render, config), domain 내부 | presentation, application, **다른 service** |
 | infrastructure | domain.model(repository: 엔티티 제네릭과 반환 타입, client: 값 객체·열거형 입출력), infrastructure 내부 | presentation, application, domain.service, domain.exception, domain.config |
 
@@ -76,10 +77,11 @@ presentation ──▶ application ──▶ domain ──▶ infrastructure
 - 그 밖의 infrastructure(render, config)는 domain을 참조하지 않는다. render는 자기 패키지의 값 타입(`ShareCard` 등)을 입력으로 받고, 엔티티를 그 값으로 바꾸는 일은 domain service가 한다.
 - **facade는 다른 facade를 주입받지 않는다.** 두 유스케이스가 같은 로직을 쓰면 그 로직을 domain service로 내린다.
 - **service는 다른 service를 주입받지 않는다.** 여러 service를 조합하는 일은 facade가 한다.
-- **facade는 흐름만 쓴다.** public 메서드는 유스케이스 단계를 높은 추상화 수준으로 나열해 위에서 아래로 읽혀야 한다. 한 메서드 안에 추상화 수준을 섞지 않는다. 스레드·슬롯·잠금·리스·재시도 같은 실행 기법과 점수 계산·실패 분류 같은 업무 규칙은 이름 있는 협력 객체로 내린다. 실행 기법은 application 컴포넌트로, 업무 규칙은 domain service나 domain.model 정책으로 보낸다. 의존성 6개 이상이나 private 함수 10개 이상이면 관심사를 나눌 신호다.
+- **runner는 facade나 다른 runner를 주입받지 않는다.** runner는 service와 `TransactionRunner`만 써서 실행 기법 하나를 감싸고, 여러 runner를 엮는 일은 facade가 한다. 예외로 application.global의 `TransactionRunner`는 다른 runner가 주입받을 수 있다(트랜잭션 경계는 runner 안에서도 이것으로만 연다).
+- **facade는 흐름만 쓴다.** public 메서드는 유스케이스 단계를 높은 추상화 수준으로 나열해 위에서 아래로 읽혀야 한다. 한 메서드 안에 추상화 수준을 섞지 않는다. 스레드·슬롯·잠금·리스·재시도 같은 실행 기법과 점수 계산·실패 분류 같은 업무 규칙은 이름 있는 협력 객체로 내린다. 실행 기법은 application runner(3장)로, 업무 규칙은 domain service나 domain.model 정책으로 보낸다. 의존성 6개 이상이나 private 함수 10개 이상이면 관심사를 나눌 신호다.
   - 확인: 리뷰어가 facade public 메서드를 처음부터 끝까지 읽고 유스케이스 단계를 업무 용어로 한 줄씩 말할 수 있어야 한다. 실행 기법(`Executor`, `Semaphore`, `synchronized`, `TransactionTemplate` 직접 조합, 재시도 루프)이 facade public 메서드 본문에 보이면 위반이다.
 - 엔티티는 application 밖(presentation)으로 나가지 않는다.
-- 확인: `backend/src/test`의 ArchUnit 테스트(`LayerDependencyTest`)가 위 표, infrastructure의 domain.model 참조 예외, facade 간 주입 금지, service 간 주입 금지를 검사하고 `./gradlew check`에서 통과해야 한다.
+- 확인: `backend/src/test`의 ArchUnit 테스트(`LayerDependencyTest`)가 위 표, infrastructure의 domain.model 참조 예외, facade 간 주입 금지, runner의 facade·runner 주입 금지, service 간 주입 금지를 검사하고 `./gradlew check`에서 통과해야 한다.
 
 ## 3. 컴포넌트 역할 명확화
 
@@ -89,6 +91,7 @@ presentation ──▶ application ──▶ domain ──▶ infrastructure
 | --- | --- | --- | --- |
 | HTTP 진입점 | presentation.<도메인>.controller | `@RestController` | `XxxController` |
 | 유스케이스 조합 | application.<도메인>.facade | `@Facade` (application.global의 커스텀 애노테이션, `@Component` 메타) | `XxxFacade` |
+| 실행 기법(트랜잭션 나누기, 스레드·슬롯, 잠금, 리스, 비용 예약) | application.<도메인>.runner, application.global | `@Runner` (application.global의 커스텀 애노테이션, `@Component` 메타) | `XxxRunner` |
 | 비즈니스 규칙 | domain.<도메인>.service | `@Service` | `XxxService` |
 | 데이터 접근 | infrastructure.<도메인>.repository | Spring Data 인터페이스 | `XxxRepository` |
 | 외부 연동·기술 도구 | infrastructure.<도메인>.client, infrastructure.<도메인>.render | `@Component` | 하는 일을 드러내는 명사 (`ScoreClient`, `ShareImageRenderer`) |
@@ -139,9 +142,9 @@ Response ◀──from()──── Result ◀──from()── Model
 ## 7. 트랜잭션과 JPA
 
 - 트랜잭션 경계는 facade 메서드다. 쓰기는 `@Transactional`, 읽기는 `@Transactional(readOnly = true)`.
-- `TransactionTemplate`은 아래 두 경우에만 쓰고, 그 이유를 주석으로 남긴다.
+- 한 메서드에서 트랜잭션을 직접 나눠야 하면 application.global의 `TransactionRunner`(`run`, `call`)를 쓴다. `TransactionTemplate`은 `TransactionRunner` 안에서만 쓴다. `TransactionRunner`는 아래 두 경우에만 쓰고, 그 이유를 주석으로 남긴다.
   - 백그라운드 작업처럼 한 흐름에서 트랜잭션을 여러 번 나눠야 할 때.
-  - 실패해도 호출한 쪽을 막으면 안 되는 부수 작업(앱 시작 때 다시 세기 등)에서 트랜잭션을 롤백한 뒤 예외를 잡아 로그만 남겨야 할 때. `@Transactional` 메서드 안에서 예외를 잡으면 반쯤 쓴 변경이 커밋되거나, 안쪽 트랜잭션이 rollback-only로 표시해 커밋 때 `UnexpectedRollbackException`이 난다. 그래서 트랜잭션을 롤백으로 끝낸 뒤 경계 바깥에서 잡는다. 예: `ResultFacade.refreshPopulation`.
+  - 실패해도 호출한 쪽을 막으면 안 되는 부수 작업(앱 시작 때 다시 세기 등)에서 트랜잭션을 롤백한 뒤 예외를 잡아 로그만 남겨야 할 때. `@Transactional` 메서드 안에서 예외를 잡으면 반쯤 쓴 변경이 커밋되거나, 안쪽 트랜잭션이 rollback-only로 표시해 커밋 때 `UnexpectedRollbackException`이 난다. 그래서 트랜잭션을 롤백으로 끝낸 뒤 경계 바깥에서 잡는다. 예: `ResultFacade.refreshPopulation`의 `transaction.run { ... }`.
 - 엔티티 하나당 파일 하나, 리포지토리 하나당 파일 하나.
 
 ## 8. 한국어 규칙

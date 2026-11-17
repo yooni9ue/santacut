@@ -71,6 +71,7 @@ import kotlin.test.assertTrue
 class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
     private val analysisWorkerFacade: AnalysisWorkerFacade,
     private val analysisFacade: AnalysisFacade,
+    private val analysisStatusFacade: AnalysisStatusFacade,
     private val rankingRebuildFacade: RankingRebuildFacade,
     private val resultFacade: ResultFacade,
     private val participantFacade: ParticipantFacade,
@@ -211,7 +212,7 @@ class AnalysisWorkerSamplingFacadeTest @Autowired constructor(
     /** 쌓인 순위 다시 계산 요청을 처리한 뒤 작업 상태를 읽는다. 성공한 작업은 순위에 반영돼야 SUCCEEDED다. */
     private fun rankedStatus(command: AnalysisJobCommand): AnalysisStatusResult {
         rankingRebuildFacade.rebuildIfRequested()
-        return analysisFacade.getStatus(command)
+        return analysisStatusFacade.getStatus(command)
     }
 
     companion object {

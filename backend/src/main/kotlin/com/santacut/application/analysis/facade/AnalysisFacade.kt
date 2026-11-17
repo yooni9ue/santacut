@@ -1,31 +1,24 @@
 package com.santacut.application.analysis.facade
 
-import com.santacut.application.analysis.command.AnalysisJobCommand
-import com.santacut.application.analysis.command.LatestAnalysisCommand
-import com.santacut.application.analysis.command.OpenAnalysisStreamCommand
 import com.santacut.application.analysis.command.SubmitAnalysisCommand
 import com.santacut.application.analysis.command.UploadAnalysisCommand
-import com.santacut.application.analysis.result.AnalysisStatusChangeResult
-import com.santacut.application.analysis.result.AnalysisStatusResult
 import com.santacut.application.analysis.result.AnalysisSubmissionResult
 import com.santacut.application.global.Facade
 import com.santacut.domain.analysis.model.AnalysisJob
-import com.santacut.domain.analysis.model.AnalysisJobChange
-import com.santacut.domain.analysis.model.AnalysisProgress
+import com.santacut.domain.analysis.model.AnalysisPayload
+import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AnalysisScoringService
 import com.santacut.domain.analysis.service.AnalysisUploadService
 import com.santacut.domain.participant.service.ParticipantService
 import com.santacut.domain.ranking.service.RankingService
-import org.slf4j.LoggerFactory
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.annotation.Transactional
-import org.springframework.transaction.event.TransactionalEventListener
 import java.time.Clock
 import java.time.Instant
 import java.util.UUID
 
+/** 분석 요청(JSON 제출, 원본 파일)을 받아 작업으로 저장한다. 진행 단계 조회와 알림은 [AnalysisStatusFacade]가 한다. */
 @Facade
 class AnalysisFacade(
     private val analysisJobService: AnalysisJobService,
@@ -33,11 +26,8 @@ class AnalysisFacade(
     private val analysisScoringService: AnalysisScoringService,
     private val analysisUploadService: AnalysisUploadService,
     private val rankingService: RankingService,
-    private val eventPublisher: ApplicationEventPublisher,
     private val clock: Clock,
 ) {
-    private val logger = LoggerFactory.getLogger(AnalysisFacade::class.java)
-
     /**
      * 분석 작업을 대기열에 넣는다. 같은 키와 같은 본문으로 다시 보내면 처음 작업을 그대로 돌려준다.
      */
@@ -46,15 +36,10 @@ class AnalysisFacade(
         val idempotencyKey = IdempotencyKey.from(command.idempotencyKey)
         val submission = command.toSubmission()
         val now = clock.instant()
-        analysisJobService.verifyAcceptable(submission, now)
-        val payload = analysisJobService.toPayload(submission)
-        participantService.verifyRegistered(command.participantId)
-        val replay = analysisJobService.findReplay(command.participantId, idempotencyKey, payload)
-        if (replay != null) return AnalysisSubmissionResult.from(replay, progressOf(replay, command.participantId))
-        analysisScoringService.verifyEnabled()
-        analysisJobService.verifyAcceptingSubmission(command.participantId, command.clientIp, now)
-        val job = analysisJobService.enqueue(command.participantId, idempotencyKey, submission, payload, now)
-        return AnalysisSubmissionResult.from(job, progressOf(job, command.participantId))
+        val payload = acceptSubmission(command.participantId, submission, now)
+        val job = analysisJobService.findReplay(command.participantId, idempotencyKey, payload)
+            ?: enqueueNew(command, idempotencyKey, submission, payload, now)
+        return AnalysisSubmissionResult.from(job, rankingService.progressOf(job, command.participantId))
     }
 
     /**
@@ -74,45 +59,28 @@ class AnalysisFacade(
             if (existing == null) verifyNewUploadAcceptable(command, now)
             receiveUpload(command, idempotencyKey, existing, now)
         }
-        return AnalysisSubmissionResult.from(job, progressOf(job, command.participantId))
+        return AnalysisSubmissionResult.from(job, rankingService.progressOf(job, command.participantId))
     }
 
-    /** 작업 하나의 현재 진행 단계. 화면은 끝날 때까지 이 조회를 반복한다. */
-    @Transactional(readOnly = true)
-    fun getStatus(command: AnalysisJobCommand): AnalysisStatusResult {
-        val job = analysisJobService.getOwned(command.jobId, command.participantId)
-        return AnalysisStatusResult.from(job, progressOf(job, command.participantId))
+    /** 시즌 마감 전이고 이벤트 범위가 맞고 등록한 참가자인지 확인한 뒤, 같은 요청을 알아볼 본문을 만든다. */
+    private fun acceptSubmission(participantId: UUID, submission: AnalysisSubmission, now: Instant): AnalysisPayload {
+        analysisJobService.verifyAcceptable(submission, now)
+        val payload = analysisJobService.toPayload(submission)
+        participantService.verifyRegistered(participantId)
+        return payload
     }
 
-    /** 참가자가 가장 최근에 낸 작업의 진행 단계. 재방문 때 이어 볼 작업을 찾는다. */
-    @Transactional(readOnly = true)
-    fun getLatestStatus(command: LatestAnalysisCommand): AnalysisStatusResult {
-        val job = analysisJobService.getLatestOwned(command.participantId)
-        return AnalysisStatusResult.from(job, progressOf(job, command.participantId))
-    }
-
-    /**
-     * 진행 상황 스트림을 하나 더 열 수 있는지 확인한다. 상한에 걸리면 ANALYSIS_STREAM_LIMIT(503)이고, 화면은 폴링으로 바꾼다.
-     * 연결하자마자 보낼 현재 상태는 스트림을 등록한 뒤 [getStatus]로 읽는다.
-     */
-    fun verifyStreamOpenable(command: OpenAnalysisStreamCommand) {
-        analysisJobService.verifyStreamOpenable(command.openStreams, command.replacing, clock.instant())
-    }
-
-    /**
-     * 작업 행을 저장한 트랜잭션이 커밋된 뒤 응답용 새 상태를 만들어 진행 상황 스트림에 알린다.
-     * 커밋 뒤 단계라 원래 트랜잭션 자원으로 읽기만 한다. 실패해도 작업 흐름을 막지 않도록 로그만 남긴다.
-     */
-    @TransactionalEventListener(fallbackExecution = true)
-    fun announceStatusChange(change: AnalysisJobChange) {
-        try {
-            val job = analysisJobService.find(change.jobId) ?: return
-            val participantId = UUID.fromString(job.userId)
-            val status = AnalysisStatusResult.from(job, progressOf(job, participantId))
-            eventPublisher.publishEvent(AnalysisStatusChangeResult(participantId, status))
-        } catch (exception: RuntimeException) {
-            logger.warn("분석 작업 {} 상태 알림 실패: {}", change.jobId, exception.javaClass.simpleName)
-        }
+    /** AI가 켜져 있고 제출 한도 안이면 새 작업을 대기열에 넣는다. */
+    private fun enqueueNew(
+        command: SubmitAnalysisCommand,
+        idempotencyKey: IdempotencyKey,
+        submission: AnalysisSubmission,
+        payload: AnalysisPayload,
+        now: Instant,
+    ): AnalysisJob {
+        analysisScoringService.verifyEnabled()
+        analysisJobService.verifyAcceptingSubmission(command.participantId, command.clientIp, now)
+        return analysisJobService.enqueue(command.participantId, idempotencyKey, submission, payload, now)
     }
 
     private fun verifyNewUploadAcceptable(command: UploadAnalysisCommand, now: Instant) {
@@ -137,7 +105,4 @@ class AnalysisFacade(
         analysisUploadService.store(job, command.selfSpeaker, file, now)
         return job
     }
-
-    private fun progressOf(job: AnalysisJob, participantId: UUID): AnalysisProgress =
-        job.progress(rankingService.findRankedAssessmentTime(participantId))
 }

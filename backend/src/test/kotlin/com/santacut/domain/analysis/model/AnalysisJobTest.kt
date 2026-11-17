@@ -289,6 +289,35 @@ class AnalysisJobTest {
     }
 
     @Test
+    fun `채점 실패 정리는 입력 탓 실패만 채점 입력 해시를 남기고 그 밖의 실패는 해시 없이 끝낸다`() {
+        val rejected = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
+        val errored = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
+
+        rejected.settle(ScoringFailure.INPUT_REJECTED, billed = true, now = createdAt, digestHash = DIGEST_HASH)
+        errored.settle(ScoringFailure.ANALYSIS_ERROR, billed = true, now = createdAt, digestHash = DIGEST_HASH)
+
+        assertEquals(AnalysisFailureCode.ANALYSIS_FAILED, rejected.errorCode)
+        assertEquals(DIGEST_HASH, rejected.digestHash)
+        assertEquals(AnalysisFailureCode.ANALYSIS_FAILED, errored.errorCode)
+        assertNull(errored.digestHash)
+    }
+
+    @Test
+    fun `채점 실패 정리는 과금한 차단이면 시도를 센 채, 과금하지 않은 차단이면 세지 않고 대기열로 되돌린다`() {
+        val billed = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
+        val unbilled = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
+
+        billed.settle(ScoringFailure.PROVIDER_BLOCKED, billed = true, now = createdAt, digestHash = DIGEST_HASH)
+        unbilled.settle(ScoringFailure.PROVIDER_BLOCKED, billed = false, now = createdAt, digestHash = DIGEST_HASH)
+
+        assertEquals(AnalysisJobStatus.QUEUED, billed.status)
+        assertEquals(1, billed.attempts)
+        assertEquals(AnalysisJobStatus.QUEUED, unbilled.status)
+        assertEquals(0, unbilled.attempts)
+        assertNull(unbilled.digestHash)
+    }
+
+    @Test
     fun `채점 입력 해시와 함께 끝낸 작업은 다시 쓸 결과를 알려 준다`() {
         val succeeded = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
         val failed = newJob().apply { startAttempt(LEASE, createdAt, LEASE_DURATION) }
