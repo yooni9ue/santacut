@@ -192,20 +192,29 @@ class AnalysisWorkerFacade(
     private fun underBudgetLock(action: () -> Unit) =
         budgetLock.withLock { transactionTemplate.executeWithoutResult { action() } }
 
-    /**
-     * 구간 답을 합쳐 점수로 바꾼다. 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는
-     * 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
-     */
+    /** 구간 답을 합쳐 점수로 바꾼다. 실패하면 [settleFailedAnswers]로 작업을 먼저 정리한 뒤 예외를 다시 던진다. */
     private fun scoreOf(attempt: ScoringAttempt, answers: ScoringChunkAnswers): Score {
         try {
             return analysisScoringService.score(answers).also { logUsage(attempt, answers, SCORED_OUTCOME) }
         } catch (exception: SantaCutException) {
             logUsage(attempt, answers, exception.errorCode.name)
-            if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
-                val failure = ScoringFailure.of(exception)
-                transactionTemplate.executeWithoutResult { finishIfHeld(attempt.job.id, attempt.lease, failure, attempt.digestHash) }
-            }
+            settleFailedAnswers(attempt, answers, exception)
             throw exception
+        }
+    }
+
+    /**
+     * 입력에 따라 정해지는 실패(근거 부족, 응답 오류)는 입력 해시와 함께 바로 기록해 같은 입력의 재제출이 AI를 다시 부르지 않게 한다.
+     * 앞 구간을 이미 과금한 뒤 제공자가 막았으면 이번 시도를 센 채 대기열로 되돌린다. 처음부터 다시 묻는 재시도는
+     * 앞 구간을 또 과금하므로, 그런 재시도를 [AnalysisJob.MAX_ATTEMPTS]번으로 묶어 같은 작업의 과금을 그 배수 안에 둔다.
+     * 한 번도 과금하지 않은 차단(첫 구간부터 막힘)은 시도를 세지 않으므로 제공자 차단만으로 작업이 실패하지는 않는다.
+     */
+    private fun settleFailedAnswers(attempt: ScoringAttempt, answers: ScoringChunkAnswers, exception: SantaCutException) {
+        val failure = ScoringFailure.of(exception)
+        if (AnalysisFailureCode.isReusableScoringFailure(exception)) {
+            transactionTemplate.executeWithoutResult { finishIfHeld(attempt.job.id, attempt.lease, failure, attempt.digestHash) }
+        } else if (failure == ScoringFailure.PROVIDER_BLOCKED && answers.usage().isMeasured()) {
+            transactionTemplate.executeWithoutResult { requeueIfHeld(attempt.job.id, attempt.lease) }
         }
     }
 
@@ -289,6 +298,12 @@ class AnalysisWorkerFacade(
         val job = analysisJobService.findHeld(jobId, lease) ?: return
         val failureCode = failure.failureCode ?: return analysisJobService.releaseLease(job)
         analysisJobService.fail(job, failureCode, clock.instant(), digestHash)
+    }
+
+    /** 리스를 아직 쥐고 있으면 써 버린 시도를 센 채 대기열로 되돌린다. 시도를 다 썼으면 RETRY_EXHAUSTED로 끝난다. */
+    private fun requeueIfHeld(jobId: String, lease: String) {
+        val job = analysisJobService.findHeld(jobId, lease) ?: return
+        analysisJobService.requeueSpentAttempt(job, clock.instant())
     }
 
     private fun failureReason(exception: Exception): String =

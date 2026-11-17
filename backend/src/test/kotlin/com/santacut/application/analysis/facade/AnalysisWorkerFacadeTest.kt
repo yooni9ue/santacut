@@ -49,6 +49,7 @@ import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
@@ -298,7 +299,28 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         analysisWorkerFacade.processNextJob()
 
         assertEquals("QUEUED", analysisFacade.getStatus(job).status)
+        assertEquals(0, storedJob(job).attempts)
         verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    fun `앞 구간을 과금한 뒤 제공자가 막으면 시도를 세어 되돌리고 시도를 다 쓰면 RETRY_EXHAUSTED로 끝낸다`() {
+        val calls = AtomicInteger()
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willAnswer {
+            if (calls.getAndIncrement() % CHUNK_COUNT == 0) fullAnswer() else ScoreAnswer.providerUnavailable()
+        }
+        val job = submitAnalysis(text = LONG_TEXT, eventCount = LONG_EVENT_COUNT)
+
+        repeat(AnalysisJob.MAX_ATTEMPTS) { round ->
+            clock.moveTo(OPEN_TIME.plus(PAUSE_PASSED.multipliedBy(round.toLong())))
+            analysisWorkerFacade.processNextJob()
+        }
+
+        val exhausted = storedJob(job)
+        assertEquals(AnalysisFailureCode.RETRY_EXHAUSTED, exhausted.errorCode)
+        assertNull(exhausted.payload)
+        verify(scoreClient, times(AnalysisJob.MAX_ATTEMPTS * CHUNK_COUNT)).requestAnswer(anyChunk(), anyString())
     }
 
     @Test
@@ -361,9 +383,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertTrue(aiBudgetService.isBlocked(clock.instant()))
     }
 
-    private fun submitAnalysis(participantId: UUID = registerParticipant(), text: String = SAMPLE_TEXT): AnalysisJobCommand {
+    private fun submitAnalysis(
+        participantId: UUID = registerParticipant(),
+        text: String = SAMPLE_TEXT,
+        eventCount: Int = EVENT_COUNT,
+    ): AnalysisJobCommand {
         val occurredAt = clock.instant().minus(Duration.ofDays(1))
-        val events = AnalysisEventCommands(List(EVENT_COUNT) { index -> AnalysisEventCommand(occurredAt.minus(Duration.ofHours(EVENT_SPACING_HOURS * index)), "$text $index") })
+        val events = AnalysisEventCommands(List(eventCount) { index -> AnalysisEventCommand(occurredAt.minus(Duration.ofHours(EVENT_SPACING_HOURS * index)), "$text $index") })
         val command = SubmitAnalysisCommand(participantId, "key-" + UUID.randomUUID(), DataSource.KAKAO.name, events)
         return AnalysisJobCommand(participantId, UUID.fromString(analysisFacade.submit(command).id))
     }
@@ -422,6 +448,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
 
         private const val MAX_CONSECUTIVE_FAILURES = 3
+        /** 메시지 하나의 정규화 상한(300자) 안에서 긴 글. 이벤트 30개면 약 8,500자라 구간 목표(6,700자)를 넘어 두 구간으로 나뉜다. */
+        private val LONG_TEXT = SAMPLE_TEXT.repeat(14)
+        private const val LONG_EVENT_COUNT = 30
+        private const val CHUNK_COUNT = 2
+
+        /** 제공자 차단 멈춤(15분)이 지난 시간. */
+        private val PAUSE_PASSED: Duration = Duration.ofMinutes(16)
         private const val ABANDONED_LEASE_TOKEN = "죽은 작업자의 리스"
         private val ABANDONED_LEASE: Duration = Duration.ofMinutes(10)
     }
