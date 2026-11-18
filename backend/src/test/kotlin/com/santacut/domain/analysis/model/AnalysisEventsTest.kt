@@ -2,6 +2,7 @@ package com.santacut.domain.analysis.model
 
 import com.santacut.ErrorCodeAssertions.assertErrorCode
 import com.santacut.domain.analysis.model.AnalysisEvents.Companion.MAX_EVENTS
+import com.santacut.domain.analysis.model.AnalysisEvents.Companion.MAX_TOTAL_EVENTS
 import com.santacut.domain.analysis.model.AnalysisEvents.Companion.MIN_EVENTS
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
@@ -19,10 +20,10 @@ class AnalysisEventsTest {
     private val utcNoon = Instant.parse("2026-11-01T12:00:00Z")
 
     @Test
-    fun `최근 90일 안이고 5분 뒤까지의 이벤트는 받아들인다`() {
+    fun `올해 1월 1일 0시(한국 시각)부터 5분 뒤까지의 이벤트는 받아들인다`() {
         val events = padded(
             listOf(
-                AnalysisEvent(now.minus(Duration.ofDays(90)), "가장 오래된 이벤트"),
+                AnalysisEvent(YEAR_START, "가장 오래된 이벤트"),
                 AnalysisEvent(now.plusSeconds(300), "가장 늦은 이벤트"),
             ),
         )
@@ -36,9 +37,8 @@ class AnalysisEventsTest {
     }
 
     @Test
-    fun `90일보다 오래된 이벤트가 있으면 범위 오류다`() {
-        val tooOld = now.minus(Duration.ofDays(90)).minusMillis(1)
-        assertRejected(padded(listOf(AnalysisEvent(tooOld, "오래된 이벤트"))))
+    fun `올해 1월 1일 0시(한국 시각)보다 앞선 이벤트가 있으면 범위 오류다`() {
+        assertRejected(padded(listOf(AnalysisEvent(YEAR_START.minusMillis(1), "작년 이벤트"))))
     }
 
     @Test
@@ -104,44 +104,67 @@ class AnalysisEventsTest {
                 AnalysisEvent(now.minusSeconds(60), "둘째"),
                 AnalysisEvent(now.plusSeconds(301), "미래"),
                 AnalysisEvent(now.minusSeconds(120), "첫째"),
-                AnalysisEvent(now.minus(Duration.ofDays(91)), "오래됨"),
+                AnalysisEvent(YEAR_START.minusMillis(1), "작년"),
                 AnalysisEvent(now.minusSeconds(60), "셋째"),
             ),
         )
-        assertEquals(listOf("첫째", "둘째", "셋째"), events.recentAt(now).toList().map { it.text })
+        assertEquals(listOf("첫째", "둘째", "셋째"), events.selectedAt(now).toList().map { it.text })
     }
 
     @Test
-    fun `원본에서 뽑은 이벤트는 최신 2,000개만 남긴다`() {
-        val events = AnalysisEvents(List(MAX_EVENTS + 1) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), "e$index") })
-        val recent = events.recentAt(now).toList()
-        assertEquals(MAX_EVENTS, recent.size)
-        assertEquals("e${MAX_EVENTS - 1}", recent.first().text)
-        assertEquals("e0", recent.last().text)
+    fun `본인 이벤트가 2,000개를 넘으면 달마다 고르게 2,000개를 고르고 각 달 최신부터 남긴다`() {
+        val events = AnalysisEvents(monthly(SELF_PER_MONTH) { month, index -> AnalysisEvent(at(month, index), "나$month-$index") })
+
+        val selected = events.selectedAt(now).toList()
+
+        assertEquals(MAX_EVENTS, selected.size)
+        assertEquals((1..NOVEMBER).toList(), selected.map { it.occurredAt.atZone(SeoulTime.ZONE).monthValue }.distinct())
+        assertEquals("나1-${SELF_PER_MONTH - MAX_EVENTS / NOVEMBER}", selected.first().text)
+        assertEquals(selected.sortedBy { it.occurredAt }, selected)
     }
 
     @Test
-    fun `원본에서 뽑은 이벤트는 최신부터 누적 200,000자까지만 남긴다`() {
+    fun `상대 이벤트가 많아도 본인 이벤트는 모두 남기고 상대 이벤트만 전체 6,000개 안으로 고른다`() {
+        val selves = List(SELF_COUNT) { index -> AnalysisEvent(now.minus(Duration.ofDays(30)).plusSeconds(index.toLong()), "나$index") }
+        val partners = List(MAX_TOTAL_EVENTS * 2) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), "상대$index", "상대") }
+
+        val selected = AnalysisEvents(partners + selves).selectedAt(now)
+
+        assertEquals(MAX_TOTAL_EVENTS, selected.size())
+        assertEquals(SELF_COUNT, selected.toList().count { it.isSelf() })
+        assertEquals(selected.toList().sortedBy { it.occurredAt }, selected.toList())
+        selected.verifyAcceptableAt(now)
+    }
+
+    @Test
+    fun `원본에서 뽑은 이벤트는 누적 200,000자까지만 남긴다`() {
         val longText = "가".repeat(2000)
         val events = AnalysisEvents(List(101) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), longText) })
-        val recent = events.recentAt(now)
-        assertEquals(100, recent.size())
-        assertEquals(now.minusSeconds(99), recent.toList().first().occurredAt)
-        recent.verifyAcceptableAt(now)
+        val selected = events.selectedAt(now)
+        assertEquals(100, selected.size())
+        assertEquals(now.minusSeconds(99), selected.toList().first().occurredAt)
+        selected.verifyAcceptableAt(now)
     }
 
     @Test
-    fun `상대 메시지가 많은 단체방에서도 최신 본인 이벤트에 자리를 먼저 주고 2,000개만 남긴다`() {
-        val selfEvents = List(SELF_COUNT) { index -> AnalysisEvent(now.minus(Duration.ofDays(30)).plusSeconds(index.toLong()), "나$index") }
-        val partnerEvents = List(MAX_EVENTS * 2) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), "상대$index", "상대") }
+    fun `본인 이벤트가 2,000개를 넘거나 전체 이벤트가 6,000개를 넘으면 TOO_MANY_EVENTS다`() {
+        val self = AnalysisEvent(now, "나")
+        val partner = AnalysisEvent(now, "상대", "상대")
+        AnalysisEvents(List(MAX_EVENTS) { self } + List(MAX_TOTAL_EVENTS - MAX_EVENTS) { partner }).verifyAcceptableAt(now)
 
-        val recent = AnalysisEvents(partnerEvents + selfEvents).recentAt(now)
-
-        assertEquals(MAX_EVENTS, recent.size())
-        assertEquals(SELF_COUNT, recent.toList().count { it.isSelf() })
-        assertEquals(recent.toList().sortedBy { it.occurredAt }, recent.toList())
-        recent.verifyAcceptableAt(now)
+        assertErrorCode(ErrorCode.TOO_MANY_EVENTS) { AnalysisEvents(List(MAX_EVENTS + 1) { self }).verifyAcceptableAt(now) }
+        assertErrorCode(ErrorCode.TOO_MANY_EVENTS) {
+            AnalysisEvents(List(MIN_EVENTS) { self } + List(MAX_TOTAL_EVENTS - MIN_EVENTS + 1) { partner }).verifyAcceptableAt(now)
+        }
     }
+
+    /** 1월부터 11월까지 달마다 [count]개씩 만든다. */
+    private fun monthly(count: Int, event: (Int, Int) -> AnalysisEvent): List<AnalysisEvent> =
+        (1..NOVEMBER).flatMap { month -> List(count) { index -> event(month, index) } }
+
+    /** [month]월 2일 정오(한국 시각)부터 [index]분 뒤. */
+    private fun at(month: Int, index: Int): Instant =
+        LocalDateTime.of(2026, month, 2, 12, 0).plusMinutes(index.toLong()).atZone(SeoulTime.ZONE).toInstant()
 
     /** 이벤트 수 하한을 채우도록 정상 이벤트를 뒤에 붙인다. */
     private fun padded(events: List<AnalysisEvent>): AnalysisEvents =
@@ -154,5 +177,8 @@ class AnalysisEventsTest {
 
     companion object {
         private const val SELF_COUNT = 100
+        private const val SELF_PER_MONTH = 400
+        private const val NOVEMBER = 11
+        private val YEAR_START: Instant = Instant.parse("2025-12-31T15:00:00Z")
     }
 }

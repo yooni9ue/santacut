@@ -335,7 +335,7 @@ class ScoringContextEvalTest {
         val start = now.minus(Duration.ofDays(LONG_CHAT_DAYS))
         val step = Duration.ofDays(LONG_CHAT_DAYS).dividedBy(messages.size.toLong())
         val timed = messages.mapIndexed { index, source -> ChatMessage(source.speaker, start.plus(step.multipliedBy(index.toLong())), source.text) }
-        return AnalysisSubmission(DataSource.KAKAO, ChatMessages(timed).eventsFor(SELF).recentAt(now))
+        return AnalysisSubmission(DataSource.KAKAO, ChatMessages(timed).eventsFor(SELF).selectedAt(now))
     }
 
     private fun standardDeviation(values: List<Double>): Double {

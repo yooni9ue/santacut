@@ -5,7 +5,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 /**
- * 통합 테스트가 올릴 카카오톡 iOS 형식과 인스타그램 JSON 형식 대화 파일. 이벤트 시각 범위(최근 90일)를 지키도록 기준 시각에서 거꾸로 만든다.
+ * 통합 테스트가 올릴 카카오톡 iOS 형식과 인스타그램 JSON 형식 대화 파일. 이벤트 시각 범위(올해 1월 1일부터)를 지키도록 기준 시각에서 거꾸로 만든다.
  */
 object TestChatFiles {
     const val SELF_SPEAKER = "산타"

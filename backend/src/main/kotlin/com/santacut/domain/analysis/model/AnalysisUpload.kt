@@ -56,7 +56,7 @@ class AnalysisUpload(
      * 인스타그램 JSON은 [readInstagramThread]로 읽는다. 본인 이벤트가 20개보다 적으면 INSUFFICIENT_EVENTS다.
      */
     fun normalize(now: Instant, readInstagramThread: (String) -> InstagramThread): AnalysisSubmission {
-        val events = toRawFile().readMessages(readInstagramThread).eventsFor(selfSpeaker).recentAt(now)
+        val events = toRawFile().readMessages(readInstagramThread).eventsFor(selfSpeaker).selectedAt(now)
         return AnalysisSubmission(source, events).also { it.verifyAcceptableAt(now) }
     }
 
