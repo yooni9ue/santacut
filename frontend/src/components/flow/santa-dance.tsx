@@ -127,8 +127,8 @@ export function SantaDance({ active = true }: { active?: boolean }) {
 
   return <section className="santa-dance" aria-label="산타와 루돌프의 댄스">
     {active && <div className="dance-selector" role="group" aria-label="춤 선택">
-      <button type="button" aria-pressed={dance === "neon"} onClick={() => selectDance("neon")}>{dances.neon.label}</button>
       <button type="button" aria-pressed={dance === "center"} onClick={() => selectDance("center")}>{dances.center.label}</button>
+      <button type="button" aria-pressed={dance === "neon"} onClick={() => selectDance("neon")}>{dances.neon.label}</button>
     </div>}
     <svg className="dance-duo" viewBox="0 -188 570 474" fill="none" aria-hidden="true">
       {dance === "center" ? <g transform="translate(40 25) scale(.86)">
