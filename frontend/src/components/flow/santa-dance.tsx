@@ -11,7 +11,7 @@ const sourceFps = 30;
 const rudolphEntranceFrame = 33;
 const dances = {
   neon: { label: "니욘 앤 비욘", motion },
-  center: { label: "센터 안무", motion: [centerMotion, centerMotion] },
+  center: { label: "아일릿 · 체포하겠어", motion: [centerMotion, centerMotion] },
 };
 type Dance = keyof typeof dances;
 const middle = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
