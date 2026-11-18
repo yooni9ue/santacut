@@ -2,16 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import motion from "./neon-motion.json";
-import { shuffleMotion } from "./shuffle-motion";
+import centerMotion from "./center-motion.json";
 import "./santa-dance.css";
 
 type Point = [number, number];
-// Front pair from the full 22.27s reference. Frames store x/y pairs in the order below.
+// Motion tracks are sampled at 30fps and store x/y pairs in the joint order below.
 const sourceFps = 30;
 const rudolphEntranceFrame = 33;
 const dances = {
   neon: { label: "니욘 앤 비욘", motion },
-  shuffle: { label: "굴뚝 셔플", motion: shuffleMotion },
+  center: { label: "센터 안무", motion: [centerMotion, centerMotion] },
 };
 type Dance = keyof typeof dances;
 const middle = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
@@ -44,7 +44,9 @@ function Limb({ points, color, width }: { points: Point[]; color: string; width:
   </>;
 }
 
-function Dancer({ pose, rudolph = false, opacity = 1 }: { pose: number[]; rudolph?: boolean; opacity?: number }) {
+function Dancer({ pose, rudolph = false, opacity = 1, offsetX = 0 }: {
+  pose: number[]; rudolph?: boolean; opacity?: number; offsetX?: number;
+}) {
   const [nose, leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle] =
     Array.from({ length: 13 }, (_, index): Point => [pose[index * 2], pose[index * 2 + 1]]);
   const shoulder = middle(leftShoulder, rightShoulder);
@@ -53,7 +55,7 @@ function Dancer({ pose, rudolph = false, opacity = 1 }: { pose: number[]; rudolp
   const headX = shoulder[0] + Math.max(-27, Math.min(27, nose[0] - shoulder[0]));
   const headY = shoulder[1] - Math.max(16, Math.min(55, shoulder[1] - nose[1]));
   const coat = rudolph ? "#bc8c65" : "#d94636";
-  return <g className="dance-character" opacity={opacity}>
+  return <g className="dance-character" opacity={opacity} transform={`translate(${offsetX} 0)`}>
     <ellipse cx={hip[0]} cy="236" rx="55" ry="7" fill="#242424" opacity=".08" />
     <g stroke="#303030" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <Limb points={[leftHip, leftKnee, leftAnkle]} color={coat} width={21} />
@@ -116,11 +118,16 @@ export function SantaDance({ active = true }: { active?: boolean }) {
   return <section className="santa-dance" aria-label="산타와 루돌프의 댄스">
     {active && <div className="dance-selector" role="group" aria-label="춤 선택">
       <button type="button" aria-pressed={dance === "neon"} onClick={() => selectDance("neon")}>{dances.neon.label}</button>
-      <button type="button" aria-pressed={dance === "shuffle"} onClick={() => selectDance("shuffle")}>{dances.shuffle.label}</button>
+      <button type="button" aria-pressed={dance === "center"} onClick={() => selectDance("center")}>{dances.center.label}</button>
     </div>}
     <svg className="dance-duo" viewBox="0 -188 570 474" fill="none" aria-hidden="true">
-      <Dancer pose={track[1][frame]} rudolph opacity={dance === "neon" ? Math.max(0, Math.min(1, (frame - rudolphEntranceFrame) / 6)) : 1} />
-      <Dancer pose={track[0][frame]} />
+      {dance === "center" ? <g transform="translate(40 25) scale(.86)">
+        <Dancer pose={track[0][frame]} offsetX={-139} />
+        <Dancer pose={track[0][frame]} rudolph offsetX={139} />
+      </g> : <>
+        <Dancer pose={track[1][frame]} rudolph opacity={Math.max(0, Math.min(1, (frame - rudolphEntranceFrame) / 6))} />
+        <Dancer pose={track[0][frame]} />
+      </>}
     </svg>
     <p className="dance-note">{active ? "심사는 맡겨놓고 둘이 이러는 중." : "크흠. 아무 일도 없었습니다."}</p>
     {active && <div className="dance-controls">
