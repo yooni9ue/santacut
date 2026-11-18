@@ -5,7 +5,7 @@ import com.santacut.domain.global.exception.SantaCutException
 
 /**
  * AI 채점에 쓰는 입력. 분석 기간의 대화 전체(본인과 상대)를 정규화한 대화문([turns])이다.
- * 너무 길면 최근 줄만 남기고 뺀 줄 수를 [omittedTurns]에 적는다.
+ * 너무 길면 달마다 고르게 줄을 남기고([TranscriptTurns.spreadWithin]) 뺀 줄 수를 [omittedTurns]에 적는다.
  *
  * @property messageCount 분석 기간의 메시지 수. AI에는 보내지 않고 사용량 로그에만 남긴다.
  * @property selfMessageCount 대화문에 들어간 본인 메시지 수. 잇달아 보낸 메시지를 한 줄로 잇기 전의 수다.
@@ -35,14 +35,14 @@ class ScoringDigest(
         const val MIN_SELF_CHARS = 300
 
         /**
-         * 대화문 본문 글자 수 합의 상한. 한국어 대화문은 약 1.4자가 토큰 하나라, 줄 번호·화자 표시(줄 2,000개)와 시스템 프롬프트를
-         * 더해도 입력이 약 4만 5천 토큰을 넘지 않게 잡았다. 제출 한도(최근 90일, 이벤트 2,000개)로 만든 보통 대화는 이 상한에 닿지 않는다.
+         * 대화문 본문 글자 수 합의 상한. 한국어 대화문은 약 1.4자가 토큰 하나라, 줄 번호·화자 표시와 구간마다 붙는 시스템 프롬프트를
+         * 더해도 입력이 약 6만 토큰을 넘지 않게 잡았다. 상대 본문을 짧게 잘라([ScoringMessage.normalizedText]) 본인 말이 더 많이 들어간다.
          */
-        const val MAX_TRANSCRIPT_CHARS = 40_000
+        const val MAX_TRANSCRIPT_CHARS = 52_000
 
         fun of(messages: ScoringMessages): ScoringDigest {
             val all = messages.toTurns()
-            val kept = all.recentWithin(MAX_TRANSCRIPT_CHARS)
+            val kept = all.spreadWithin(MAX_TRANSCRIPT_CHARS)
             return ScoringDigest(messages.size(), messages.selfCount(), kept, all.size() - kept.size())
         }
     }

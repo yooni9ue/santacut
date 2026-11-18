@@ -4,11 +4,11 @@ import com.santacut.domain.analysis.model.ScoringChunk
 
 /**
  * AI 모델에 보내는 사용자 메시지 본문. 정규화한 대화문(긴 대화는 그 한 구간)을 한 줄에 한 턴씩 보낸다.
- * 길이 한도로 앞선 줄을 뺐으면 머리에 그 수를 적는다. 앞 구간과 겹친 줄을 실었으면 그 줄까지는 맥락뿐이라고 적는다.
+ * 길이 한도로 줄을 뺐으면 머리에 그 수를 적는다. 줄은 달마다 고르게 남기므로 빠진 줄은 대화 곳곳에 있다. 앞 구간과 겹친 줄을 실었으면 그 줄까지는 맥락뿐이라고 적는다.
  *
  * ```text
  * [대화]
- * (앞선 120줄은 길이 한도로 뺐다)
+ * (길이 한도로 120줄을 달마다 고르게 뺐다)
  * 1|상대|오늘 발표 망했어 ㅠㅠ
  * 2|나|헐 괜찮아? / 끝나고 밥 먹자
  * (2일 뒤)
@@ -30,8 +30,8 @@ class ScoreModelInput(
 
     companion object {
         private const val HEADER = "[대화]\n"
-        private const val OMITTED_PREFIX = "(앞선 "
-        private const val OMITTED_SUFFIX = "줄은 길이 한도로 뺐다)"
+        private const val OMITTED_PREFIX = "(길이 한도로 "
+        private const val OMITTED_SUFFIX = "줄을 달마다 고르게 뺐다)"
         private const val OVERLAP_PREFIX = "("
         private const val OVERLAP_SUFFIX = "번 줄까지는 앞 구간과 겹친 맥락)"
         private const val LINE_SEPARATOR = "\n"

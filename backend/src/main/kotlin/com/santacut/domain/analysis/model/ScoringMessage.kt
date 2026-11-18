@@ -19,7 +19,8 @@ data class ScoringMessage(
 
     /**
      * 뜻을 잃지 않게 줄인 본문. 링크는 `(링크)`로 바꾸고, 줄바꿈과 겹친 공백을 공백 하나로 바꾸고, ㅋ·ㅎ는 세 개,
-     * ㅠ·ㅜ와 문장 부호, 잇단 이모지는 두 개까지만 남긴다. 그래도 [MAX_TEXT_LENGTH]자를 넘으면 앞부분만 두고 `(긴 글 생략)`을 붙인다.
+     * ㅠ·ㅜ와 문장 부호, 잇단 이모지는 두 개까지만 남긴다. 그래도 본인은 [MAX_TEXT_LENGTH]자, 상대는 [MAX_PARTNER_TEXT_LENGTH]자를
+     * 넘으면 앞부분만 두고 `(긴 글 생략)`을 붙인다.
      */
     fun normalizedText(): String = shortened(
         text
@@ -33,8 +34,9 @@ data class ScoringMessage(
 
     /** 이모지 같은 서로게이트 쌍을 반으로 자르지 않게, 자른 끝이 앞쪽 반이면 그 글자를 뺀다. */
     private fun shortened(normalized: String): String {
-        if (normalized.length <= MAX_TEXT_LENGTH) return normalized
-        val head = normalized.take(MAX_TEXT_LENGTH)
+        val maxLength = if (isSelf()) MAX_TEXT_LENGTH else MAX_PARTNER_TEXT_LENGTH
+        if (normalized.length <= maxLength) return normalized
+        val head = normalized.take(maxLength)
         return (if (head.last().isHighSurrogate()) head.dropLast(1) else head).trimEnd() + LONG_TEXT_SUFFIX
     }
 
@@ -56,8 +58,11 @@ data class ScoringMessage(
         private const val LINK = "(링크)"
         private val URL = Regex("""(?:https?://|www\.)\S+""", RegexOption.IGNORE_CASE)
 
-        /** 한 메시지 본문의 최대 글자 수. 넘으면 앞부분만 보낸다. */
+        /** 본인 메시지 본문의 최대 글자 수. 넘으면 앞부분만 보낸다. */
         private const val MAX_TEXT_LENGTH = 300
+
+        /** 상대 메시지 본문의 최대 글자 수. 상대 말은 점수에 들어가지 않고 문맥만 주므로 본인보다 짧게 둔다. */
+        private const val MAX_PARTNER_TEXT_LENGTH = 150
         private const val LONG_TEXT_SUFFIX = " (긴 글 생략)"
         private const val EMOJI_BASE = """\x{1F000}-\x{1FAFF}\x{2600}-\x{27BF}"""
         private const val VARIATION_SELECTOR = """\x{FE0F}"""

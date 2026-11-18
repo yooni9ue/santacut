@@ -12,13 +12,12 @@ class TranscriptTurns(private val values: List<TranscriptTurn>) {
     /** 모든 줄 본문 글자 수의 합. */
     fun totalLength(): Int = values.sumOf { turn -> turn.length() }
 
-    /** 최근 줄부터 본문 글자 수 합이 [maxChars]를 넘기 전까지만 남긴다. 순서는 시각순 그대로다. */
-    fun recentWithin(maxChars: Int): TranscriptTurns {
-        val kept = values.asReversed().runningFold(0) { total, turn -> total + turn.length() }
-            .drop(1)
-            .count { total -> total <= maxChars }
-        return TranscriptTurns(values.takeLast(kept))
-    }
+    /**
+     * 본문 글자 수 합이 [maxChars]를 넘으면 [SpreadCandidates] 규칙으로 달마다 고르게 남긴다. 순서는 시각순 그대로다.
+     * 최신 줄만 남기면 대화가 많은 사람은 최근 몇 주만 채점되기 때문이다.
+     */
+    fun spreadWithin(maxChars: Int): TranscriptTurns =
+        TranscriptTurns(SpreadCandidates(values.map { turn -> turn.toSpreadCandidate() }).within(maxChars))
 
     /** [firstNumber]부터 붙인 번호와 바로 앞 줄(첫 줄이면 null)을 함께 넘겨 각 줄을 바꾼다. */
     fun <T> mapNumbered(firstNumber: Int = FIRST_NUMBER, transform: (Int, TranscriptTurn, TranscriptTurn?) -> T): List<T> =
