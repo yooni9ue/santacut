@@ -47,7 +47,7 @@ test("SSE sends credentials, accepts queue regressions, and closes on completion
   expect(fallback).not.toHaveBeenCalled();
   expect(isFinished("FAILED")).toBe(true);
 });
-test("broken SSE falls back once and unmount cleanup prevents later updates", () => {
+test("broken SSE reports disconnection once and cleanup prevents later updates", () => {
   vi.stubGlobal("EventSource", Stream);
   const fallback = vi.fn(); const update = vi.fn();
   const stop = watchAnalysis("job", update, fallback);

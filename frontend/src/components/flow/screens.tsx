@@ -153,13 +153,15 @@ function LiveAnalysisScreen() {
   const { data } = usePreview();
   const [status, setStatus] = useState<AnalysisStatus | null>(null);
   const [error, setError] = useState("");
-  const [fallback, setFallback] = useState(false);
+  const [disconnected, setDisconnected] = useState(false);
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [jobId, setJobId] = useState(data.analysisId);
   useEffect(() => { let active = true; (async () => { try { const latest = jobId ? await getAnalysis(jobId) : await getLatestAnalysis(); if (active) { setStatus(latest); if (latest) setJobId(latest.id); } } catch (failure) { if (active) setError(analysisError(failure)); } })(); return () => { active = false; }; }, [jobId]);
-  useEffect(() => { if (!jobId || !status || isFinished(status.status)) return; return watchAnalysis(jobId, next => setStatus(next), () => setFallback(true)); }, [jobId, status?.status]);
-  useEffect(() => { if (!fallback || !jobId || status && isFinished(status.status)) return; const timer = window.setInterval(() => { getAnalysis(jobId).then(setStatus).catch(failure => setError(analysisError(failure))); }, 3000); return () => window.clearInterval(timer); }, [fallback, jobId, status]);
+  const finished = isFinished(status?.status);
+  const hasStatus = status !== null;
+  useEffect(() => { if (!jobId || !hasStatus || finished) return; return watchAnalysis(jobId, next => { setStatus(next); setDisconnected(false); }, () => setDisconnected(true)); }, [jobId, hasStatus, finished, connectionAttempt]);
   const title = !status ? "심사 상태를 확인하는 중." : status.status === "SUCCEEDED" ? "심사가 끝났어요." : status.status === "FAILED" ? "심사가 멈췄어요." : status.status === "QUEUED" ? "산타 앞에 줄 서는 중." : status.status === "RANKING_PENDING" ? "순위를 정리하는 중." : "산타가 기록을 읽는 중.";
-  return <FlowFrame back="/review" step={2} title={<>판정 중에는<br />얌전히 계세요.</>} description="실제 심사 상태를 서버에서 확인하고 있어요."><div className={`flow-analysis ${status?.status === "FAILED" ? "is-failed" : ""}`}><span className="flow-analysis-face" aria-hidden="true">{status?.status === "FAILED" ? "( •_• )" : "( ◉_◉ )"}</span><span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2><p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : status?.status === "SUCCEEDED" ? "실제 결과 화면을 준비하고 있어요. 이 페이지를 닫지 않아도 돼요." : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p></div>{error && <p className="flow-error" role="alert">{error}</p>}{status?.status === "FAILED" && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}</FlowFrame>;
+  return <FlowFrame back="/review" step={2} title={<>판정 중에는<br />얌전히 계세요.</>} description="실제 심사 상태를 서버에서 확인하고 있어요."><div className={`flow-analysis ${status?.status === "FAILED" ? "is-failed" : ""}`}><span className="flow-analysis-face" aria-hidden="true">{status?.status === "FAILED" ? "( •_• )" : "( ◉_◉ )"}</span><span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2><p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : status?.status === "SUCCEEDED" ? "실제 결과 화면을 준비하고 있어요. 이 페이지를 닫지 않아도 돼요." : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p></div>{disconnected && !finished && <div role="alert"><p>실시간 연결이 끊겼어요. 다시 연결하면 최신 상태를 확인할 수 있어요.</p><button className="flow-secondary" onClick={() => { setDisconnected(false); setConnectionAttempt(value => value + 1); }}>실시간 상태 다시 연결</button></div>}{error && <p className="flow-error" role="alert">{error}</p>}{status?.status === "FAILED" && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}</FlowFrame>;
 }
 
 export function ResultScreen() {
