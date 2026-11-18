@@ -137,6 +137,23 @@ class AnalysisEventsTest {
     }
 
     @Test
+    fun `상대가 긴 메시지를 많이 보내는 단체방에서도 글자 수 한도가 본인 이벤트를 밀어내지 않는다`() {
+        val selves = List(SELF_COUNT) { index -> AnalysisEvent(now.minus(Duration.ofDays(10)).plusSeconds(index.toLong()), "나$index") }
+        val partners = List(MAX_TOTAL_EVENTS) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), "가".repeat(100), "상대") }
+
+        val selected = AnalysisEvents(partners + selves).selectedAt(now)
+
+        assertEquals(SELF_COUNT, selected.toList().count { it.isSelf() })
+        selected.verifyAcceptableAt(now)
+    }
+
+    @Test
+    fun `분석 기간은 한국 시각 기준으로 해가 바뀐다`() {
+        assertEquals(Instant.parse("2026-12-31T15:00:00Z"), AnalysisEvent.periodStart(Instant.parse("2026-12-31T15:30:00Z")))
+        assertEquals(YEAR_START, AnalysisEvent.periodStart(Instant.parse("2026-12-31T14:59:59Z")))
+    }
+
+    @Test
     fun `원본에서 뽑은 이벤트는 누적 200,000자까지만 남긴다`() {
         val longText = "가".repeat(2000)
         val events = AnalysisEvents(List(101) { index -> AnalysisEvent(now.minusSeconds(index.toLong()), longText) })

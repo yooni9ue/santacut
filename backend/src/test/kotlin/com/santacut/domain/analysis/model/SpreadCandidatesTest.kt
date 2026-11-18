@@ -31,6 +31,18 @@ class SpreadCandidatesTest {
     }
 
     @Test
+    fun `예산이 달 수로 나누어떨어지지 않으면 나머지를 뒤 달에 주어 예산을 다 쓴다`() {
+        val kept = candidates(JANUARY to 10, MARCH to 10, NOVEMBER to 10).within(10)
+
+        assertEquals(listOf("1-7", "1-8", "1-9", "3-7", "3-8", "3-9", "11-6", "11-7", "11-8", "11-9"), kept)
+    }
+
+    @Test
+    fun `예산이 0이면 몫이 0인 후보만 남긴다`() {
+        assertEquals(emptyList(), candidates(JANUARY to 3).within(0))
+    }
+
+    @Test
     fun `몫이 0인 후보는 예산과 상관없이 늘 남긴다`() {
         val month = YearMonth.of(2026, NOVEMBER)
         val candidates = SpreadCandidates(

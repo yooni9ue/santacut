@@ -30,9 +30,31 @@ class TranscriptTurnsTest {
         val march = turn("나", "삼월", noon.withMonth(3))
         val recent = List(5) { index -> turn("나", "십일월$index", noon.plusMinutes(index.toLong())) }
 
-        val kept = TranscriptTurns(listOf(march) + recent).spreadWithin(10)
+        val kept = TranscriptTurns(listOf(march) + recent).spreadWithin(20)
 
-        assertEquals(listOf("삼월", "십일월3", "십일월4"), kept.mapNumbered { _, turn, _ -> turn.text })
+        assertEquals(listOf("삼월", "십일월1", "십일월2", "십일월3", "십일월4"), kept.mapNumbered { _, turn, _ -> turn.text })
+    }
+
+    @Test
+    fun `상대 줄이 길고 많아도 본인 줄을 먼저 남기고 상대 줄은 남은 길이로 고른다`() {
+        val self = turn("나", "고마워 잘 받았어", noon)
+        val partners = List(100) { index -> turn("상대", "가".repeat(100), noon.plusMinutes(index + 1L)) }
+
+        val kept = TranscriptTurns(listOf(self) + partners).spreadWithin(1000)
+
+        assertEquals(1, kept.mapNumbered { _, turn, _ -> turn }.count { it.isSelf() })
+        assertEquals(9, kept.size() - 1)
+    }
+
+    @Test
+    fun `본인 줄만으로 길이 한도를 넘어도 상대 줄 몫 30%는 남긴다`() {
+        val selves = List(20) { index -> turn("나", "나".repeat(100), noon.plusMinutes(index * 2L)) }
+        val partners = List(20) { index -> turn("상대", "상".repeat(100), noon.plusMinutes(index * 2L + 1)) }
+
+        val kept = TranscriptTurns((selves + partners).sortedBy { it.startedAt }).spreadWithin(1000)
+
+        assertEquals(7, kept.mapNumbered { _, turn, _ -> turn }.count { it.isSelf() })
+        assertEquals(3, kept.mapNumbered { _, turn, _ -> turn }.count { !it.isSelf() })
     }
 
     @Test

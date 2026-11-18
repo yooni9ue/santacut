@@ -45,7 +45,7 @@ class ScoreModelInputTest {
         val noon = LocalDateTime.of(2026, 11, 14, 12, 0)
         val digest = ScoringDigest(3, 1, TranscriptTurns(listOf(TranscriptTurn("나", noon, noon, "고마워"))), 2)
 
-        assertTrue(ScoreModelInput.from(ScoringChunk.whole(digest)).toText().startsWith("[대화]\n(길이 한도로 2줄을 달마다 고르게 뺐다)\n1|나|고마워"))
+        assertTrue(ScoreModelInput.from(ScoringChunk.whole(digest)).toText().startsWith("[대화]\n(길이 한도로 대화 곳곳에서 2줄을 뺐다)\n1|나|고마워"))
     }
 
     @Test

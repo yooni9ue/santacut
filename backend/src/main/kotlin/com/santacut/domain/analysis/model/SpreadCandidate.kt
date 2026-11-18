@@ -12,4 +12,8 @@ data class SpreadCandidate<T>(
     val value: T,
     val month: YearMonth,
     val cost: Int,
-)
+) {
+    init {
+        require(cost >= 0) { "몫은 0 이상이어야 한다" }
+    }
+}

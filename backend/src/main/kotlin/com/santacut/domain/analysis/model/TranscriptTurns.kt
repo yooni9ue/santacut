@@ -14,10 +14,22 @@ class TranscriptTurns(private val values: List<TranscriptTurn>) {
 
     /**
      * 본문 글자 수 합이 [maxChars]를 넘으면 [SpreadCandidates] 규칙으로 달마다 고르게 남긴다. 순서는 시각순 그대로다.
-     * 최신 줄만 남기면 대화가 많은 사람은 최근 몇 주만 채점되기 때문이다.
+     * 최신 줄만 남기면 대화가 많은 사람은 최근 몇 주만 채점되기 때문이다. 본인 줄을 먼저 [selfBudget]까지 고르고
+     * 상대 줄은 남은 글자 수로 고른다. 상대가 많은 단체방에서도 본인 줄이 밀려나지 않고, 본인 말이 길어도 상대 문맥이 남는다.
      */
-    fun spreadWithin(maxChars: Int): TranscriptTurns =
-        TranscriptTurns(SpreadCandidates(values.map { turn -> turn.toSpreadCandidate() }).within(maxChars))
+    fun spreadWithin(maxChars: Int): TranscriptTurns {
+        if (totalLength() <= maxChars) return this
+        val selves = spread(values, selfBudget(maxChars)) { turn -> if (turn.isSelf()) turn.length() else 0 }
+        val selfLength = selves.filter { turn -> turn.isSelf() }.sumOf { turn -> turn.length() }
+        return TranscriptTurns(spread(selves, maxChars - selfLength) { turn -> if (turn.isSelf()) 0 else turn.length() })
+    }
+
+    /** 본인 줄 예산. 기본은 [maxChars]의 [SELF_SHARE_PERCENT]%이고, 상대 줄이 짧아 남는 몫이 있으면 본인에게 준다. */
+    private fun selfBudget(maxChars: Int): Int =
+        maxOf(maxChars * SELF_SHARE_PERCENT / PERCENT, maxChars - values.filterNot { turn -> turn.isSelf() }.sumOf { turn -> turn.length() })
+
+    private fun spread(turns: List<TranscriptTurn>, budget: Int, cost: (TranscriptTurn) -> Int): List<TranscriptTurn> =
+        SpreadCandidates(turns.map { turn -> turn.toSpreadCandidate(cost(turn)) }).within(budget)
 
     /** [firstNumber]부터 붙인 번호와 바로 앞 줄(첫 줄이면 null)을 함께 넘겨 각 줄을 바꾼다. */
     fun <T> mapNumbered(firstNumber: Int = FIRST_NUMBER, transform: (Int, TranscriptTurn, TranscriptTurn?) -> T): List<T> =
@@ -56,5 +68,9 @@ class TranscriptTurns(private val values: List<TranscriptTurn>) {
 
         /** 이보다 짧은 토막(ㅇㅇ, ㅋㅋ)은 한마디로 고르지 않는다. */
         private const val MIN_QUOTE_CHARS = 4
+
+        /** 길이 한도에서 본인 줄이 먼저 쓸 수 있는 몫(%). */
+        private const val SELF_SHARE_PERCENT = 70
+        private const val PERCENT = 100
     }
 }

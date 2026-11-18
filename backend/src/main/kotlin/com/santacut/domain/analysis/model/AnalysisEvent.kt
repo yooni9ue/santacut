@@ -42,7 +42,10 @@ data class AnalysisEvent(
 
         private val MAX_FUTURE_SKEW: Duration = Duration.ofSeconds(300)
 
-        /** 분석 기간의 시작. [now]가 속한 해(한국 시각)의 1월 1일 0시다. 올해 대화로 산타 명단을 정한다. */
+        /**
+         * 분석 기간의 시작. [now]가 속한 해(한국 시각)의 1월 1일 0시다. 올해 대화로 산타 명단을 정한다.
+         * 시즌은 12월 25일에 마감하고(SEASON_FROZEN) 서비스는 12월 31일에 끝나므로 해가 바뀐 1월 제출은 없다.
+         */
         fun periodStart(now: Instant): Instant =
             Year.from(now.atZone(SeoulTime.ZONE)).atDay(1).atStartOfDay(SeoulTime.ZONE).toInstant()
     }

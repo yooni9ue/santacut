@@ -8,7 +8,7 @@ import com.santacut.domain.analysis.model.ScoringChunk
  *
  * ```text
  * [대화]
- * (길이 한도로 120줄을 달마다 고르게 뺐다)
+ * (길이 한도로 대화 곳곳에서 120줄을 뺐다)
  * 1|상대|오늘 발표 망했어 ㅠㅠ
  * 2|나|헐 괜찮아? / 끝나고 밥 먹자
  * (2일 뒤)
@@ -30,8 +30,8 @@ class ScoreModelInput(
 
     companion object {
         private const val HEADER = "[대화]\n"
-        private const val OMITTED_PREFIX = "(길이 한도로 "
-        private const val OMITTED_SUFFIX = "줄을 달마다 고르게 뺐다)"
+        private const val OMITTED_PREFIX = "(길이 한도로 대화 곳곳에서 "
+        private const val OMITTED_SUFFIX = "줄을 뺐다)"
         private const val OVERLAP_PREFIX = "("
         private const val OVERLAP_SUFFIX = "번 줄까지는 앞 구간과 겹친 맥락)"
         private const val LINE_SEPARATOR = "\n"

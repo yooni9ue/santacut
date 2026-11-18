@@ -11,6 +11,7 @@ class SpreadCandidates<T>(private val values: List<SpreadCandidate<T>>) {
      * 몫의 합이 [budget] 이하가 되게 고른 값 목록. 시각순 그대로다.
      * 예산은 후보가 있는 달에 똑같이 나누고, 몫이 그보다 적은 달이 남긴 예산은 나머지 달에 다시 나눈다.
      * 달마다 최신 후보부터 그 달 예산까지 이어진 구간을 남겨 문맥이 끊기지 않게 한다. 몫이 0인 후보는 늘 남긴다.
+     * 한 달 안에서 다음 후보가 그 달 예산을 넘겨 남은 자투리는 다른 달로 넘기지 않는다. 그래서 몫 합이 예산보다 조금 모자랄 수 있다.
      */
     fun within(budget: Int): List<T> {
         if (values.sumOf { it.cost } <= budget) return values.map { it.value }
@@ -24,12 +25,10 @@ class SpreadCandidates<T>(private val values: List<SpreadCandidate<T>>) {
     private fun monthShares(budget: Int): Map<YearMonth, Int> {
         val ascending = values.groupBy { it.month }.mapValues { (_, candidates) -> candidates.sumOf { it.cost } }
             .entries.sortedBy { it.value }
-        var remaining = budget
-        return ascending.mapIndexed { index, (month, total) ->
-            val share = minOf(total, remaining / (ascending.size - index))
-            remaining -= share
-            month to share
-        }.toMap()
+        return ascending.foldIndexed(emptyMap<YearMonth, Int>()) { index, shares, (month, total) ->
+            val remaining = budget.coerceAtLeast(0) - shares.values.sum()
+            shares + (month to minOf(total, remaining / (ascending.size - index)))
+        }
     }
 
     /** 한 달 후보 가운데 최신부터 몫 합이 [share]를 넘기 전까지 이어진 구간과, 그보다 앞선 몫 0 후보. 시각순이다. */
