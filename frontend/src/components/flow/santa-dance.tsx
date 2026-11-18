@@ -2,12 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import motion from "./neon-motion.json";
+import { shuffleMotion } from "./shuffle-motion";
 import "./santa-dance.css";
 
 type Point = [number, number];
 // Front pair from the full 22.27s reference. Frames store x/y pairs in the order below.
 const sourceFps = 30;
 const rudolphEntranceFrame = 33;
+const dances = {
+  neon: { label: "니욘 앤 비욘", motion },
+  shuffle: { label: "굴뚝 셔플", motion: shuffleMotion },
+};
+type Dance = keyof typeof dances;
 const middle = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 
 function Face({ rudolph }: { rudolph: boolean }) {
@@ -69,10 +75,19 @@ function Dancer({ pose, rudolph = false, opacity = 1 }: { pose: number[]; rudolp
 }
 
 export function SantaDance({ active = true }: { active?: boolean }) {
+  const [dance, setDance] = useState<Dance>("neon");
   const [paused, setPaused] = useState(false);
   const [wild, setWild] = useState(false);
   const [frame, setFrame] = useState(0);
   const playhead = useRef(0);
+  const track = dances[dance].motion;
+
+  function selectDance(next: Dance) {
+    if (dance === next) return;
+    playhead.current = 0;
+    setFrame(0);
+    setDance(next);
+  }
 
   useEffect(() => {
     if (!active || paused) return;
@@ -82,7 +97,7 @@ export function SantaDance({ active = true }: { active?: boolean }) {
     function tick(now: number) {
       if (last !== undefined) playhead.current += Math.min(now - last, 100) * (wild ? 1.33 : 1);
       last = now;
-      setFrame(Math.floor(playhead.current * sourceFps / 1000) % motion[0].length);
+      setFrame(Math.floor(playhead.current * sourceFps / 1000) % track[0].length);
       request = requestAnimationFrame(tick);
     }
     function updatePreference() {
@@ -96,13 +111,16 @@ export function SantaDance({ active = true }: { active?: boolean }) {
       preference.removeEventListener("change", updatePreference);
       cancelAnimationFrame(request);
     };
-  }, [active, paused, wild]);
+  }, [active, paused, track, wild]);
 
-  return <section className="santa-dance" aria-label="산타와 루돌프의 니욘 앤 비욘 댄스">
-    <div className="dance-caption" aria-hidden="true"><span>니욘</span><span>앤 비욘</span></div>
+  return <section className="santa-dance" aria-label="산타와 루돌프의 댄스">
+    {active && <div className="dance-selector" role="group" aria-label="춤 선택">
+      <button type="button" aria-pressed={dance === "neon"} onClick={() => selectDance("neon")}>{dances.neon.label}</button>
+      <button type="button" aria-pressed={dance === "shuffle"} onClick={() => selectDance("shuffle")}>{dances.shuffle.label}</button>
+    </div>}
     <svg className="dance-duo" viewBox="0 -188 570 474" fill="none" aria-hidden="true">
-      <Dancer pose={motion[1][frame]} rudolph opacity={Math.max(0, Math.min(1, (frame - rudolphEntranceFrame) / 6))} />
-      <Dancer pose={motion[0][frame]} />
+      <Dancer pose={track[1][frame]} rudolph opacity={dance === "neon" ? Math.max(0, Math.min(1, (frame - rudolphEntranceFrame) / 6)) : 1} />
+      <Dancer pose={track[0][frame]} />
     </svg>
     <p className="dance-note">{active ? "심사는 맡겨놓고 둘이 이러는 중." : "크흠. 아무 일도 없었습니다."}</p>
     {active && <div className="dance-controls">
