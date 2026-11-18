@@ -2,9 +2,9 @@
 
 산타컷 백엔드 API를 화면에서 부를 때 알아야 할 흐름을 정리한 문서다. 요청·응답 필드의 정확한 정의는 OpenAPI(Swagger)가 기준이고, 이 문서는 호출 순서와 규칙을 설명한다. 이 문서의 엔드포인트와 필드는 2026-11-17 dev 서버의 `/v3/api-docs`와 맞췄다.
 
-## 프론트 반영 체크리스트 (2026-11-17 백엔드 변경분, #47~#60)
+## 프론트 반영 체크리스트 (백엔드 계약 요구사항)
 
-백엔드가 바뀌면서 화면에서 손봐야 할 일을 모았다. 자세한 규칙은 각 절에 있다.
+백엔드 계약을 화면에 적용할 때의 요구사항이다. 아래 체크박스는 통합 검증 완료 표시가 아니다. 2026-11-18 현재 실제 연결·미반영 항목은 [화면별 구현 범위](../../frontend/docs/screens.md), [전체 점검 기록](../development/implementation-audit.md)에 구분한다.
 
 - [ ] **API 주소**: Vercel Preview·Development에 `https://api-dev.santacut.me`, Production은 운영 서버를 켠 뒤 `https://api.santacut.me`(0절).
 - [ ] **도메인 연결**: Vercel Settings → Domains에 `santacut.me`, `www.santacut.me`(main), `dev.santacut.me`(develop)를 추가한다. DNS는 백엔드가 Route 53에 걸어 두었다.
@@ -36,7 +36,7 @@
 
 1. 닉네임과 지역(시·도 → 시·군·구)을 골라 참가 등록한다. 지역은 전국 시·도 16개와 그 아래 시·군·구 255개다.
 2. 카카오톡·인스타그램 내보내기 원본 파일을 올리거나, 정규화한 이벤트 목록을 보내 분석을 요청한다.
-3. 분석 진행 상황을 SSE 스트림으로 받거나 폴링으로 확인하고, 끝나면 결과를 조회한다.
+3. 분석 진행 상황은 SSE로 받고, 끊기면 같은 작업의 SSE를 수동 재연결한다. 상태 GET은 초기 확인·복구용으로 제공하며 현재 프론트는 주기적으로 폴링하지 않는다.
 4. 내 점수·순위·선물 도착 예정 시각, 산타 유형·배지·항목 막대와 전체 랭킹을 본다.
 5. 결과 공유 링크를 만들거나 폐기한다.
 
@@ -136,7 +136,7 @@
 - 전체 글자 수 20만 자 이하, 이벤트 시각은 최근 90일 안이고 현재보다 5분 넘게 미래가 아니어야 한다(`400`, `INVALID_EVENT_RANGE`).
 - 한 사람당 24시간에 3번까지(`429`, `DAILY_USER_LIMIT`). 응답의 `retry_at`과 `Retry-After` 헤더가 다시 낼 수 있는 시점이다. 12월 25일 0시(한국 시간) 이후에는 시즌 마감(`409`).
 
-응답 `202 { id, status }`의 `id`로 진행 단계를 따라간다. 먼저 SSE 스트림(§6.0)을 열고, 안 되면 `GET /v1/analyses/{id}`를 2~3초 간격으로 다시 조회한다. 응답의 `status`가 진행 단계다. 202 응답의 `status`도 같은 값을 쓴다.
+응답 `202 { id, status }`의 `id`로 진행 단계를 따라간다. 초기 상태 GET 이후 SSE(§6.0)로 변경을 받는다. 끊기면 연결을 닫고 재연결 버튼을 제공한다. 새 분석 제출이나 주기적인 GET 폴링으로 전환하지 않는다. 202 응답의 `status`도 상태 조회와 같은 값을 쓴다.
 
 | `status` | 화면 문구(기획 §4.7) | 다음 행동 |
 | --- | --- | --- |
@@ -158,47 +158,39 @@
 
 ### 6.0 진행 상황 스트림 `GET /v1/analyses/{id}/events`
 
-폴링 대신 SSE로 진행 단계를 받을 수 있다. 폴링은 그대로 있으며, 스트림이 안 되면 폴링으로 바꾼다.
+현재 프론트 정책은 SSE 단독 구독이다. GET 상태 API가 남아 있는 것은 초기 확인·복구를 위한 것으로 폴링 fallback을 뜻하지 않는다. 구현 기준은 `frontend/src/lib/analyses.ts`의 `watchAnalysis`와 `screens.tsx`의 `LiveAnalysisScreen`이다.
 
 - 연결하자마자 현재 단계를 한 번 받고, 단계가 바뀔 때마다 하나씩 받는다.
 - 이벤트 이름은 `status`, `data`는 `GET /v1/analyses/{id}`와 같은 JSON이다.
 - `id`는 진행 단계 순번이다(`VALIDATING` 0, `QUEUED` 1, `ANALYZING` 2, `RANKING_PENDING` 3, `SUCCEEDED` 4, `FAILED` 5). AI 제공자가 잠시 막아 대기열로 돌아가면 작아질 수 있다.
 - `SUCCEEDED`나 `FAILED`를 보낸 뒤 서버가 닫는다. 이미 끝난 작업에 연결하면 끝난 단계를 받고 바로 닫힌다.
 - 15초마다 주석 줄(`: heartbeat`)이 온다. `EventSource`는 이 줄을 이벤트로 넘기지 않는다.
-- 5분이 지나면 서버가 닫는다. 브라우저 `EventSource`는 `Last-Event-ID`를 붙여 다시 연결하고, 서버는 현재 단계를 처음부터 다시 보낸다.
+- 5분이 지나면 서버가 닫는다. 기본 EventSource에는 자동 재연결 기능이 있지만 현재 프론트는 오류 시 `close()`하고 수동 재연결 안내를 한다. 새 연결에서도 서버가 현재 상태를 보내므로 과거 이벤트 재생에 의존하지 않는다.
 - 인증과 소유 규칙은 상태 조회와 같다. 세션이 없으면 `401`, 다른 참가자의 작업이면 `404`다.
 - 참가자 한 명은 스트림을 하나만 쓴다. 새로 열면 이전 스트림이 닫힌다(탭을 여러 개 열면 마지막 탭만 받는다).
-- 서버 전체 스트림 수가 상한에 닿으면 `503`(`ANALYSIS_STREAM_LIMIT`)과 `Retry-After`가 온다. 이때는 폴링으로 바꾼다.
+- 서버 전체 스트림 수가 상한에 닿으면 `503`(`ANALYSIS_STREAM_LIMIT`)과 `Retry-After`가 온다. 잠시 뒤 같은 SSE를 다시 연다.
 
-`EventSource`는 응답 코드와 본문을 알려 주지 않는다. 그래서 처음 연결이 실패하면(`503` 포함) 이유를 따지지 않고 폴링으로 바꾼다.
+`EventSource`는 응답 코드와 본문을 알려 주지 않는다. 연결 실패 사유를 확정하지 말고 연결 종료 안내와 재연결 버튼을 보여준다. 아래는 호출 형태이며 검증·중복 종료 방지는 실제 유틸에서 수행한다.
 
 ```ts
-const POLL_INTERVAL_MS = 3000; // 폴링은 2~3초 간격을 권장한다
-
-function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
-  let opened = false;
+function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, onDisconnect: () => void) {
   const source = new EventSource(`/v1/analyses/${id}/events`, { withCredentials: true });
 
-  source.addEventListener("open", () => { opened = true; });
   source.addEventListener("status", (event) => {
     const status = JSON.parse((event as MessageEvent).data) as AnalysisStatus;
     onStatus(status);
     if (status.status === "SUCCEEDED" || status.status === "FAILED") source.close();
   });
   source.addEventListener("error", () => {
-    // 한 번도 열리지 않았으면(401, 404, 503 등) 스트림을 접고 폴링한다.
-    // 열린 뒤 끊긴 것은 EventSource가 Last-Event-ID를 붙여 다시 연결하게 둔다.
-    if (!opened || source.readyState === EventSource.CLOSED) {
-      source.close();
-      startPolling(id, onStatus, POLL_INTERVAL_MS);
-    }
+    source.close();
+    onDisconnect(); // UI의 재연결 버튼에서 같은 작업을 다시 구독한다.
   });
   return () => source.close();
 }
 ```
 
 - 예시는 §2의 같은 출처 프록시를 쓴다고 보고 상대 경로로 연다. API 주소로 바로 열 때는 앞에 API 주소를 붙이고, 그때는 `withCredentials: true`가 있어야 세션 쿠키가 함께 간다.
-- 스트림을 쓰는 동안에는 폴링을 멈춘다. 화면을 떠나면 `close()`로 닫는다.
+- 화면을 떠나면 `close()`로 닫는다. 동시에 여러 스트림을 열지 않는다.
 
 ### 6.1 원본 파일 업로드 `POST /v1/analyses/files`
 
@@ -209,7 +201,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 1. 파일을 고르면 브라우저에서 읽어 화자 목록을 뽑는다(아래 정규식). 등록 전에는 파일을 서버로 보내지 않는다(기획 §2·§4.4).
 2. 화자 목록에서 본인을 고르게 한다. 카카오톡과 인스타그램 모두 고른다. 인스타그램 파일에는 소유자 표시가 없다.
 3. 참가 등록과 동의를 마친 뒤 multipart로 올린다. 파트는 `file`(필수), `source`(`KAKAO`·`INSTAGRAM`), `self_speaker`(1~100자)다. 헤더는 `Idempotency-Key`와 `X-XSRF-TOKEN`이다.
-4. 응답은 `202 { id, status: "VALIDATING" }`이다. 이후 폴링은 §6과 같다. 검증을 통과하면 `QUEUED`로 바뀐다.
+4. 응답은 `202 { id, status: "VALIDATING" }`이다. 이후 상태 확인은 §6의 SSE 흐름을 따른다. 검증을 통과하면 `QUEUED`로 바뀐다. 같은 키 재전송은 기존 작업의 현재 상태를 반환할 수 있다.
 
 규칙:
 
@@ -343,7 +335,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void) {
 | 세션의 참가자가 지워짐 | `404` | `PARTICIPANT_NOT_FOUND` | 새 참여 안내 |
 | 잘못된 Idempotency-Key | `400` | `INVALID_IDEMPOTENCY_KEY` | 키 생성 코드 버그 |
 | 같은 키로 다른 요청 | `409` | `IDEMPOTENCY_CONFLICT` | 새 제출에는 새 키를 만든다 |
-| 진행 상황 스트림이 꽉 참 | `503` | `ANALYSIS_STREAM_LIMIT` | 폴링으로 바꾼다. `Retry-After` 뒤에 다시 열어 봐도 된다 |
+| 진행 상황 스트림이 꽉 참 | `503` | `ANALYSIS_STREAM_LIMIT` | 연결 종료 안내 후 같은 SSE 재연결. EventSource에서는 Retry-After 헤더를 직접 읽을 수 없음 |
 | AI 모델 미설정 | `503` | `AI_NOT_CONFIGURED` | 지금은 분석을 받을 수 없다고 안내 |
 | 랭킹 cursor 오류 | `400` | `INVALID_CURSOR` | 받은 `next_cursor`만 보낸다 |
 | 페이지 사이에 순위가 다시 계산됨 | `409` | `RANKING_SNAPSHOT_CHANGED` | 목록을 비우고 `cursor` 없이 첫 페이지부터 다시 읽는다 |

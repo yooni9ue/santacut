@@ -27,6 +27,10 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 
 <p align="center"><img src="docs/images/divider-snow.svg" alt="" width="100%"></p>
 
+## 문서 기준
+
+현재 API 계약은 DTO·OpenAPI, 런타임 기본값은 `application.yml`, 배포는 워크플로·Compose를 기준으로 확인한다. 아래 그림의 시험 수·성능·비용·시즌 카운트다운은 작성 시점 기록이며 실시간 지표가 아니다. 그림에 남은 폴링 대안도 과거 설명으로, 현재 프론트는 SSE와 수동 재연결을 사용한다. 문서와 코드의 미완료 연결은 [전체 점검 기록](../docs/development/implementation-audit.md)을 참고한다.
+
 ## 한눈에 보기
 
 <p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: HTTP 엔드포인트 18개(dev 전용 3개 별도), SQLite 테이블 13개, 자동 테스트 575개, 오류 코드 39개, 지역 271개, 참가자당 24시간 3회 제출(AI 비용은 앱 안의 토큰 가드가 막음). 검증 작업자 1초, 분석 작업자 3초, 작업 임대 7분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
@@ -40,7 +44,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 - 상대 말이 담긴 대화 내용은 작업이 끝나면(성공·실패 모두) 지운다. 원본 파일은 검증이 끝나면 바로 지운다.
 - AI가 네 항목(공감 30%, 응원 25%, 존중 25%, 협력 20%)을 채점한다. 순위와 선물 도착 시각은 서버가 계산한다.
 - 결과에는 크리스마스 유형 10종, 배지, 본인 한마디(`quote`), 항목 막대 4개, 가장 약한 항목, 상위 %, 같은 유형 비율이 함께 나온다.
-- 진행 상태는 SSE 스트림으로 받고, 안 되면 폴링으로 본다. 창을 닫았다가 다시 와도 이어서 본다.
+- 진행 상태 SSE와 단건 조회 API를 제공한다. 현재 프론트는 SSE 연결 종료 시 수동 재연결하며 폴링하지 않는다. 최근 작업 조회 API는 있지만 프론트 새로고침 복귀 동선은 보완이 필요하다.
 - 순위표는 공개다. 50줄씩 cursor로 넘기고, 동점은 `공동 N위`로 보인다. 남에게는 도착 날짜(`eta_date`)만 보이고, 정확한 도착 시각은 본인 결과에만 있다.
 - 공유 링크는 그 순간의 결과를 1200×630 카드와 HTML로 고정한다. 한마디는 본인이 고를 때만(`include_quote`) 싣고, 다시 공유하면 같은 링크에서 넣고 뺄 수 있다. 상대 말은 싣지 않는다. 취소한 링크는 안내 페이지로 바뀐다.
 - 시즌 마감 전에는 지역을 24시간 2번, 시즌 5번까지 바꿀 수 있다. 내 데이터는 언제든 지운다.
@@ -62,7 +66,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 
 <p align="center"><img src="docs/images/architecture.svg" alt="요청 흐름: 클라이언트가 HTTPS(Caddy, Let's Encrypt 인증서, HSTS)를 거쳐 Lightsail micro_3_0(1GB) 위 Spring Boot 앱의 4계층으로 들어간다. application은 흐름만 쓰는 facade와 실행 기법을 맡는 runner로 나뉜다. 진행 상황은 SSE 스트림이나 폴링으로 받는다. 작업자 셋이 원본 검증(1초), AI 채점(3초, 동시 3개), 순위 모아 계산(30초)을 하고, SQLite에 저장하고, Gemini 3.5 Flash-Lite를 부른다. SQLite는 매시 KMS로 암호화한 S3로 백업한다" width="100%"></p>
 
-- 분석은 큐에 넣는다. 화면은 진행 상태를 SSE 스트림(`/v1/analyses/{id}/events`)으로 받거나 폴링한다.
+- 분석은 큐에 넣는다. 화면은 SSE(`/v1/analyses/{id}/events`)로 상태를 받는다. GET은 초기 확인·복구용이며 주기적인 브라우저 폴링은 하지 않는다.
 - 작업자는 셋이다. 원본 검증은 1초, AI 채점은 3초 간격으로 돌고, 채점은 작업 3개를 동시에 한다(`ANALYSIS_WORKER_CONCURRENCY`). 순위는 30초마다 모아서 계산한다.
 - AI 채점은 Spring AI와 Google Gemini 3.5 Flash-Lite(Gemini Developer API)다.
 - 채점 프롬프트는 DB(`prompts`)에 판으로 쌓인다. AI를 부를 때마다 최신 판을 읽는다.
@@ -151,7 +155,7 @@ sequenceDiagram
     end
     C->>API: GET /v1/analyses/{id}/events (SSE)
     API-->>C: event: status (VALIDATING → QUEUED → ANALYZING → RANKING_PENDING → SUCCEEDED)
-    Note over C,API: 스트림이 안 되면 GET /v1/analyses/{id}를 2~3초마다 폴링
+    Note over C,API: 스트림 종료 안내 후 같은 작업의 SSE를 수동 재연결
 ```
 
 </details>

@@ -1,6 +1,8 @@
 ﻿# SantaCut 시스템 아키텍처
 
-작성: 2026-11-15 · 상태: 구현을 위한 설계 기준
+작성: 2026-11-15 · 구현 대조: 2026-11-18
+
+현재 코드 요약은 첫 절을 따른다. 본문에 남긴 SKIP LOCKED·fencing token·snapshot version·확장안은 초기 설계 목표로 현재 SQLite 구현 보장이 아니다. 현재 작업 임대는 `lease_token`과 앱 내부 잠금으로 보호한다. 프론트 연결의 미완료 항목과 문서 대조 근거는 [전체 점검 기록](../../docs/development/implementation-audit.md)에 정리한다.
 
 ## 구현 현황
 
@@ -11,7 +13,7 @@
 - AI 호출은 Spring AI Google GenAI로 Gemini 3.5 Flash-Lite(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 참여자 이름을 `나`·`상대`로 바꾼 두 화자 대화 전체(정규화 뒤 최대 40,000자)다. 긴 대화는 약 6,700자씩 최대 6구간으로 나눠 채점하고, 한 구간에 들어가는 대화는 세 번 따로 채점해 항목별 중앙값을 낸다. 점수는 본인 말만 매기고, 상대 말을 포함한 대화 내용은 작업이 끝나면(성공·실패 모두) 지운다. 점수 규칙은 `Score.RULE_VERSION` 7판, 채점 프롬프트는 DB `prompts`의 `score` 7판이다.
 - 분석 API는 원본 파일 업로드(`POST /v1/analyses/files`)와 정규화된 이벤트 JSON(`POST /v1/analyses`)을 둘 다 받는다. 카카오톡 TXT(PC·모바일)와 인스타그램 `message_1.json` 파서가 있다. 다만 공개 내보내기 예시로 만든 것이라 실제 샘플 검증은 출시 전에 해야 한다.
 - 지역은 전국 시·도 16개와 시·군·구 255개(모두 271개)다. 서울은 `seed.sql`이, 나머지는 `regions.sql`이 앱 시작 때마다 넣는다(`INSERT OR IGNORE`).
-- 분석 진행 상태는 진행 상황 스트림(`GET /v1/analyses/{id}/events`, SSE)으로 받거나 폴링(`GET /v1/analyses/{id}`, `GET /v1/me/analysis`)으로 읽는다. 스트림 상한에 걸리면 폴링으로 바꾼다. 결과는 `GET /v1/me/result`로 따로 읽는다.
+- 분석 상태는 SSE로 받는다. 상태 GET과 최근 작업 GET은 초기 조회·복구용이며 프론트는 연결 오류 시 스트림을 닫고 수동 재연결한다. 결과는 `GET /v1/me/result`로 따로 읽는다.
 - dev 서버는 `https://api-dev.santacut.me`(Lightsail `micro_3_0`, 1GB)에서 `develop` 브랜치를 자동 배포로 돌린다. 화면은 Vercel(`dev.santacut.me`, 운영은 `santacut.me`·`www.santacut.me`)이 맡고 `/v1/**`, `/s/**`를 API로 넘긴다(rewrite). 운영 API `api.santacut.me`는 아직 켜지 않았다.
 - 백엔드 코드는 `presentation → application → domain → infrastructure` 4계층 레이어드 아키텍처를 따른다. 의존은 위에서 아래로만 흐르고 포트·어댑터는 쓰지 않는다. 규칙은 [백엔드 코드 컨벤션](backend-conventions.md)에 정의한다.
 
@@ -47,7 +49,7 @@ flowchart LR
 
 - JVM: Java 25를 기준으로 Gradle toolchain과 CI를 일치시킨다.
 - Kotlin/Spring Boot/Gradle: 선택한 Boot BOM과 호환되는 패치 버전을 build 파일·Wrapper에 고정한다. 업그레이드는 테스트·취약점 검증 후 PR로 수행한다.
-- Spring MVC + Spring Data JPA: 데이터 접근은 infrastructure 계층의 리포지토리에 모은다. SQLite 작업 큐의 단일 worker는 짧은 트랜잭션과 DB 호환 쿼리만 사용한다.
+- Spring MVC + Spring Data JPA: 데이터 접근은 infrastructure 계층 리포지토리에 모은다. 같은 JVM의 분석 작업자는 기본 동시성 3이고 DB 풀은 1개다. 외부 AI 호출은 짧은 트랜잭션 밖에서 수행한다.
 - SQLite: 한 파일에 사용자·세션·작업·분석·랭킹·공유를 저장하고 파일 백업을 외부로 전송한다. 현재 구현은 Hibernate `ddl-auto: update`(엔티티가 스키마를 정함)와 `seed.sql` 시드를 사용하며, 프로덕션 데이터 변경 전 백업과 복원 검증이 필요하다.
 - HTML 공유 페이지: 서버 렌더링으로 Open Graph 메타 태그를 첫 응답에 포함한다. JavaScript를 실행하지 않는 카카오톡·SNS 크롤러도 읽을 수 있어야 한다.
 - PNG: Java2D/ImageIO 등 JVM 안에서 그리는 1200×630 이미지. headless 브라우저는 메모리 때문에 기본 배제한다. 한글 폰트를 이미지에 포함하고 라이선스를 보관한다.
@@ -71,7 +73,7 @@ flowchart LR
 1. 같은 origin에서 참가자 세션을 발급하고 CSRF 토큰을 받는다.
 2. 닉네임과 지역 코드를 등록한다. 닉네임 가용성 조회 후에도 DB UNIQUE 충돌을 처리한다.
 3. 데이터 받기 화면에서 출처를 고르고 내보내기 절차를 안내한다.
-4. 원본 파일(multipart)이나 정규화한 이벤트 JSON을 서버에 제출하고 작업 ID를 202로 받는다. HTTP 요청은 검증이나 AI 완료를 기다리지 않는다. 화면은 진행 상황 스트림(`GET /v1/analyses/{id}/events`)으로 바뀐 상태를 받고, 스트림을 쓸 수 없으면 몇 초마다 폴링한다.
+4. 원본 파일(multipart)이나 정규화한 이벤트 JSON을 서버에 제출하고 작업 ID를 202로 받는다. HTTP 요청은 검증이나 AI 완료를 기다리지 않는다. 화면은 SSE로 바뀐 상태를 받고, 연결 종료 시 같은 SSE의 수동 재연결을 안내한다.
 5. worker가 유효한 데이터를 확인해 AI를 호출한다.
 6. schema와 근거를 검증하고 점수를 서버에서 계산한다. 최신 요청만 활성 결과로 게시한다.
 7. 랭킹·ETA 스냅샷을 재계산한다. 완료 스냅샷을 한 번에 바꾼다.
@@ -110,7 +112,7 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 - 종료 직전 결과 저장에는 job ID + fencing token을 조건으로 사용해 기한 지난 worker가 최신 결과를 덮어쓰지 못한다.
 - 프로세스가 죽으면 lease가 만료된 작업만 회수한다. 모든 재시도는 같은 캐시·idempotency 문맥을 유지한다.
 - AI 공급자가 요청 멱등성을 제공하지 않으면 네트워크 실패 시 중복 과금 가능성이 남는다. exactly-once 과금을 보장하지 않는다.
-- 사용자·시즌의 최신 request_sequence와 일치하는 정상 결과만 활성화한다. 이전 작업은 기록으로 남아도 활성 점수를 바꾸지 않는다.
+- 현재 `request_sequence`는 없다. 평가는 완료 시각으로 저장하고(`Assessment.record`), 참가자별 최신 평가는 `createdAt DESC, id DESC`로 고른다(`AssessmentRepository`). 따라서 늦게 완료된 이전 제출이 최신 제출 결과를 덮어쓰지 않는다는 보장은 별도 구현·검증이 필요하다.
 - 성공 결과 캐시 키에는 사용자, 파일 hash, source, 본인 화자, 정규화·표본 기간, parser/prompt/model/score 버전을 모두 포함한다.
 
 **[대체됨]** 처음에는 DB에 일별 예산 ledger를 두고 최악 토큰 비용을 먼저 reserve하는 방식을 계획했다. 지금 앱에는 AI 호출 수 한도가 없다. 대신 날짜별 토큰 합계로 한 달 9달러를 넘지 않게 막고, 호출 전에 그 호출의 어림 비용을 더해 확인하는 비용 가드가 있다. 하루 한도는 설정으로만 켠다. Gemini는 선불 크레딧으로 쓴다. 앱에는 참가자별 24시간 3회 제출 한도와 이벤트 수·글자 수 제한만 남아 있다.
@@ -135,7 +137,7 @@ season current_snapshot_id는 계산 완료 후 짧은 트랜잭션으로 교체
 
 ## 7. JSON 결과 공유의 완성 조건
 
-`POST /v1/shares`는 로그인한 세션의 완료 결과만 가져와 불변 공유 스냅샷을 만든다. 공개 token은 충분한 entropy의 난수이고 닉네임 또는 순번으로 추측할 수 없어야 한다.
+`POST /v1/shares`는 로그인한 세션의 순위 결과를 공유 스냅샷으로 만든다. 기존 링크 재사용 시 점수·순위는 고정하지만 `include_quote`로 본인 인용 포함 여부를 변경할 수 있으므로 모든 필드가 불변인 것은 아니다. 공개 token은 난수이며 닉네임·순번으로 추측할 수 없어야 한다.
 
 공유 payload에는 닉네임, 점수 문자열, rank, ETA, 판정문, 계산 시각, 시즌, snapshot version만 포함한다. 지금 `shares` 행에는 닉네임, 점수, 순위, 공동 순위(`tied`), 확정 상태(`stage`), ETA, 판정·한마디, 계산 시각, 공유 시각(`created_at`)을 복사해 둔다. 원본 JSON, 대화 내용, AI 프롬프트, region의 상세 좌표, 산타 출발지, 세션 ID는 제외한다.
 
@@ -161,11 +163,11 @@ Gemini API 키·AWS 키·SSH 키 같은 비밀값은 저장소·Docker image·wo
 
 ## 9. 초저예산 서버·도메인 예산
 
-사용자 제약: 서버 월 20,000원 이하, 도메인은 가비아에서 신규 구매. 도메인 이름은 미정이다. 가격 확인일 2026-11-15. 세금·환율·프로모션·초과 트래픽은 주문 화면에서 다시 확인하고 서버 예산에 백업비 여유도 포함한다. AI와 연간 도메인 비용은 별도 산정한다.
+사용자 제약은 서버 월 20,000원 이하이며 구매한 도메인은 `santacut.me`다. 현재 DNS는 Route 53에 위임한 구성이다. 아래 비용 비교는 2026-11-15의 설계 기록이며 현재 청구 검증값이 아니다. AI와 연간 도메인 비용은 별도 산정한다.
 
 | 선택 | 월 서버 비용 | 결정 |
 | --- | ---: | --- |
-| AWS Lightsail `micro_3_0` / public IPv4 / 1GB / 2vCPU / 40GB | USD 7 | 현재 선택(2026-11-16에 `nano_3_0` 512MB에서 올림). worker 1개, 단일 JVM |
+| AWS Lightsail `micro_3_0` / public IPv4 / 1GB / 2vCPU / 40GB | USD 7 | 현재 선택(2026-11-16 증설). 단일 JVM, 분석 동시 작업 3개 |
 | AWS Lightsail Linux / public IPv4 / 2GB / 2vCPU / 60GB | USD 12 | 메모리가 모자랄 때 먼저 올릴 번들 |
 | AWS Lightsail Linux / public IPv4 / 4GB / 2vCPU / 80GB | USD 24 | 예산 증액 시 확장안. 현재 월 2만원 제약의 기본 선택이 아님 |
 | Hetzner CX23 / 4GB / 2vCPU | EUR 5.49 기준, IPv4·VAT 별도 | 초저예산 대안. 유럽 지연과 현재 재고·최종 견적 확인 필요 |
@@ -182,13 +184,15 @@ Lightsail 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/
 
 ## 10. CI/CD와 배포 계약
 
-PR CI: Wrapper checksum 확인 → Java toolchain → compile/test → SQLite 통합 테스트 → bootJar → container build → 비밀·의존성 검사. main의 같은 커밋으로 검증된 image를 GHCR에 게시한다. 배포는 image tag가 아니라 digest를 기록한다.
+현재 PR CI는 Java 25 설정 → 배포 셸 문법·Compose 검사 → `clean check bootJar` → 게시 없는 Docker 빌드다. 별도 비밀·의존성 스캔 단계가 실행된다고 가정하지 않는다. develop/main push는 검증된 이미지를 GHCR에 게시하며 배포에는 tag 대신 digest를 사용한다.
 
 GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:write. 외부 PR에 배포 secrets를 전달하지 않는다. production environment에 서버 키·known_hosts를 저장하고 SSH host key를 대역 외 확인한다. 실행 때 `ssh-keyscan`만으로 처음 본 키를 무조건 신뢰하지 않는다.
 
 `develop` 푸시는 테스트·이미지 게시 뒤 dev 서버에 자동 배포한다. GitHub OIDC로 AWS 배포 역할을 맡아 러너 IP에만 SSH(22번)를 잠깐 열고, 배포가 끝나면 닫는다. `main` 푸시는 이미지 게시까지만 하고, 운영 배포는 수동 `workflow_dispatch`(`deploy=true`)로 검증된 digest를 고른다. 배포 concurrency group은 한 서버당 하나이며 배포 중 취소하지 않는다. GitHub concurrency와 별도로 서버 파일 lock으로 겹치는 실행을 막는다.
 
-배포 순서:
+아래는 배포 설계 목표다. 현재 `deploy.sh`가 자동 수행하는 것은 Compose 검사·이미지 pull → 기존 릴리스가 있으면 전체 DB 백업 → `compose up --wait` → 내부 readiness → 성공한 digest·릴리스 갱신이다. 실패하면 이전 이미지로 복구를 시도한다. 별도의 worker claim 중단·명시적 drain·디스크 여유 검사·외부 health 검사는 스크립트에 없으며, dev 워크플로는 배포 후 OpenAPI 응답을 확인한다. `/actuator`는 외부에서 404이므로 공개 health URL로 사용하지 않는다.
+
+배포 설계 목표(자동 수행 범위는 위 설명 참고):
 
 1. compose 구문·필수 환경변수·디스크 여유·최근 백업을 확인한다.
 2. 새 이미지를 pull하고 이전 image digest를 기록한다.
@@ -218,7 +222,7 @@ GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:
 
 초기 목표는 RPO 24시간, RTO 2시간이며 실제 복원 리허설로 검증하기 전에는 보장하지 않는다. 지금은 매시 SQLite 온라인 백업(`sqlite3 .backup`)을 checksum과 함께 S3 `backups/`에 올리고, 버킷이 환경별 KMS 키로 암호화한다(SSE-KMS). 14일 뒤 이전 버전이 되고 7일 뒤 지워져 최대 21일 남는다. 여기에 Lightsail 자동 스냅숏(매일 03:00 KST)을 더한다. 같은 서버 디스크의 backup 폴더만으로 완료 처리하지 않는다. 복원 절차는 [배포 운영서](deployment.md)에 있다.
 
-원본 업로드는 24시간 이내 삭제 대상이므로 장기 backup에 넣지 않는다. 공개 이미지도 DB의 안전한 share payload로 다시 생성할 수 있다면 별도 장기 백업을 생략한다. 운영 설정은 비밀 관리 경로에서 별도로 복구할 수 있어야 한다.
+현재 `backup.sh`는 DB 전체를 `.backup`하므로 아직 처리 중인 원본(`analysis_uploads`)·대화 페이로드도 백업에 포함될 수 있다. 라이브 DB의 24시간 원본 삭제는 기존 백업에서의 즉시 삭제를 보장하지 않는다. 백업 보존·복원 후 삭제 재적용 정책을 별도로 정해야 한다. 공개 이미지는 저장된 공유 데이터로 재생성하며 운영 설정은 별도 비밀 관리 경로에서 복구한다.
 
 복원 리허설: 격리된 디렉터리에 SQLite 백업 복원 → checksum 확인 → 스키마/사용자 수/샘플 공유/순위 검증 → 임시 환경 폐기. 운영 DB에 바로 덮어쓰기하지 않는다. 삭제된 사용자 정보가 과거 backup에 남는 보존 기간과 복원 후 삭제 재적용 절차를 운영 정책에 포함한다.
 
@@ -248,7 +252,7 @@ GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:
 
 [Vercel Functions 공식 runtime 목록](https://vercel.com/docs/functions/runtimes)에 일반적인 JVM Spring Boot 상주 프로세스가 기본 runtime으로 제공된다고 안내되어 있지 않다. 따라서 Kotlin Spring 서버와 SQLite·분석 worker를 Vercel frontend 배포로 대체하지 않는다.
 
-Vercel을 쓸 경우 `/api/*`, `/s/*`를 VPS의 HTTPS origin으로 [external rewrite](https://vercel.com/docs/routing/rewrites)할 수 있다. PUBLIC_BASE_URL은 사용자가 방문하는 가비아 도메인으로 고정하고 host-only 세션·CSRF Origin·multipart 크기·proxy timeout을 실제 환경에서 검증한다. 브라우저가 API subdomain을 직접 부르면 별도 CORS/쿠키 설계가 필요하므로 기본안은 same-origin rewrite다.
+현재 Vercel은 `/v1/*`, `/s/*`, Swagger 경로를 VPS HTTPS origin으로 external rewrite한다(`frontend/next.config.ts`). PUBLIC_BASE_URL은 공유에 사용할 공개 origin으로 정하고 쿠키·CSRF·multipart·SSE를 실제 환경에서 검증한다. API 서브도메인 직접 호출은 별도 CORS·쿠키 조건을 따른다.
 
 공유 HTML과 PNG는 Spring이 계속 소유한다. 외부 origin의 cache-control을 확인하고 원본·사용자 응답·폐기 가능한 공유에는 no-store를 유지한다. Vercel CDN을 쓴다고 폐기된 이미지가 자동 회수된다고 가정하지 않는다.
 
