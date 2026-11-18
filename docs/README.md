@@ -14,6 +14,9 @@
 
 ## 영역별 운영 문서
 
+- 현재 구현 대조·미완료 항목: [전체 문서 점검 기록](development/implementation-audit.md)
+- 프론트 화면·사용 흐름: [화면 안내](../frontend/docs/screens.md), [파일 분석](../frontend/docs/file-analysis-flow.md), [참가 등록](../frontend/docs/participant-registration.md), [GA 수집](../frontend/docs/analytics.md)
+
 - 프론트엔드: [Vercel 배포](../frontend/docs/deployment.md)
 - 백엔드: [백엔드 README](../backend/README.md), [백엔드 기획](../backend/docs/backend-design.md), [시스템 아키텍처](../backend/docs/system-architecture.md), [배포 운영서](../backend/docs/deployment.md)
 
