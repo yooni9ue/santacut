@@ -5,8 +5,8 @@ import motion from "./neon-motion.json";
 import "./santa-dance.css";
 
 type Point = [number, number];
-// Front pair from the supplied video, 2.0–15.0s. Each frame stores x/y pairs in the order below.
-const sourceFps = 15;
+// Front pair from the supplied video, approximately 2–15s. Frames store x/y pairs in the order below.
+const sourceFps = 30;
 const middle = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 
 function Face({ rudolph }: { rudolph: boolean }) {
