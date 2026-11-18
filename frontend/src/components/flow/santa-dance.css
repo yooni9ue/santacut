@@ -1,0 +1,23 @@
+.santa-dance{--dance-tempo:1.4s;width:100%;margin:10px auto 18px;position:relative;color:#303030}
+.dance-duo{display:flex;justify-content:center;gap:0;max-width:350px;margin:auto}
+.dance-character{width:50%;min-width:0;overflow:visible}
+.dance-caption{display:flex;justify-content:space-around;font-size:13px;font-weight:800;letter-spacing:2px;color:#d94636;transform:rotate(-3deg)}
+.santa-dance .dance-note{font-size:12px;color:#797971;text-align:center;margin-top:8px}
+.dance-controls{display:flex;justify-content:center;gap:8px;margin-top:14px;flex-wrap:wrap}
+.dance-controls button{min-height:44px;padding:8px 13px;border:1px solid #deded9;border-radius:24px;background:#fff;color:#52524b;font-size:12px;cursor:pointer}
+.dance-controls button[aria-pressed=true]{border-color:#d94636;color:#d94636;background:#fff6f4}
+.dance-upper{transform-origin:90px 182px;animation:duo-groove var(--dance-tempo) infinite}
+.dance-arm-left{transform-origin:62px 131px;animation:duo-arm-left var(--dance-tempo) infinite}
+.dance-arm-right{transform-origin:116px 132px;animation:duo-arm-right var(--dance-tempo) infinite}
+.dance-step-left{transform-origin:75px 192px;animation:duo-step var(--dance-tempo) infinite}
+.dance-step-right{transform-origin:98px 192px;animation:duo-step var(--dance-tempo) infinite reverse}
+.dance-pom{transform-origin:110px 50px;animation:duo-pom var(--dance-tempo) infinite}
+.is-rudolph .dance-upper,.is-rudolph .dance-arm,.is-rudolph .dance-step{animation-delay:-.12s}
+.is-wild{--dance-tempo:.85s}
+.is-still .dance-character *{animation-play-state:paused!important}
+@keyframes duo-groove{0%,100%{transform:translate(-6px,0) rotate(-9deg)}12.5%{transform:translate(-6px,6px) rotate(-9deg)}25%{transform:translate(0,-3px) rotate(0)}37.5%{transform:translate(6px,6px) rotate(9deg)}50%{transform:translate(6px,0) rotate(9deg)}62.5%{transform:translate(6px,6px) rotate(9deg)}75%{transform:translate(0,-3px) rotate(0)}87.5%{transform:translate(-6px,6px) rotate(-9deg)}}
+@keyframes duo-arm-left{0%,100%{transform:rotate(25deg)}25%{transform:rotate(-62deg)}50%{transform:rotate(-18deg)}75%{transform:rotate(35deg)}}
+@keyframes duo-arm-right{0%,100%{transform:rotate(18deg)}25%{transform:rotate(-35deg)}50%{transform:rotate(-25deg)}75%{transform:rotate(62deg)}}
+@keyframes duo-step{0%,50%,100%{transform:rotate(0)}25%{transform:rotate(14deg) translateY(-4px)}75%{transform:rotate(-7deg)}}
+@keyframes duo-pom{0%,50%,100%{transform:rotate(-10deg)}25%,75%{transform:rotate(20deg)}}
+@media(prefers-reduced-motion:reduce){.santa-dance .dance-character *{animation:none!important}.dance-caption{transform:none}.santa-dance .dance-controls{display:none}}
