@@ -57,7 +57,7 @@ Axios는 상대 경로 `/v1`을 사용한다. 브라우저가 AWS API 도메인�
 - 자동 실행 경로는 frontend/**와 워크플로 파일이다. 공통 문서만 변경되면 배포하지 않으며 필요하면 수동 실행한다.
 - 실패한 배포는 Vercel에서 로그를 확인하고, 서비스 복구가 필요하면 이전 정상 deployment로 rollback한다.
 - AWS 백엔드 파이프라인·Terraform 설정·DB는 프론트 배포에서 변경하지 않는다.
-- 실제 배포에는 Vercel 프로젝트·토큰·AWS HTTPS 백엔드가 필요하다. 이 PR에서 실제 계정 설정이나 배포는 수행하지 않았다.
+- 실제 배포 상태와 남은 연동 검증은 아래 기록을 참고한다.
 
 ## 검증
 
@@ -72,3 +72,29 @@ CI=true pnpm test:e2e
 ```
 
 [Preview 환경 설정](https://vercel.com/docs/cli/pull)·[Preview 도메인 연결](https://vercel.com/kb/guide/how-to-alias-a-preview-deployment-using-the-cli)과 [공식 Vercel GitHub Actions 가이드](https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel)와 [외부 rewrite 문서](https://vercel.com/docs/routing/rewrites)를 따른다.
+
+## 도메인·API 연결 확인 (2026-11-16)
+
+| 주소 | 연결 | 확인 결과 |
+| --- | --- | --- |
+| `https://santacut.me` | main 운영 프론트 | HTTPS·화면 HTTP 200 |
+| `https://www.santacut.me` | 운영 대표 주소로 이동 | 308 → `https://santacut.me/` |
+| `https://dev.santacut.me` | develop 개발 프론트 | HTTPS·화면 HTTP 200 |
+| 개발 프론트 `/v1/regions` | AWS 개발 API 프록시 | HTTP 200, 지역 목록 16개 |
+| 개발 프론트 `/v1/csrf` | AWS 개발 API 프록시 | HTTP 200, JSON의 headerName·token 확인 |
+
+DNS는 Route 53에서 관리한다. 현재 DNS로 HTTPS·라우팅은 정상이며 Vercel은 다음 전용 레코드로 갱신할 것을 권고한다. 네임서버를 옮길 필요는 없다.
+
+| 이름 | 유형 | Vercel 권고 값 |
+| --- | --- | --- |
+| 루트 (`santacut.me`) | A | `216.198.79.1`, `64.29.17.1` |
+| `www` | CNAME | `078a5d0c22ea7f07.vercel-dns-017.com` |
+| `dev` | CNAME | `078a5d0c22ea7f07.vercel-dns-017.com` |
+
+- Vercel 프로젝트의 Production은 main, 개발 도메인은 develop에 연결했다. GitHub vercel-development의 `VERCEL_DEVELOPMENT_DOMAIN=dev.santacut.me`로 이후 개발 배포의 alias도 갱신한다.
+- Preview·Development의 `BACKEND_ORIGIN=https://api-dev.santacut.me`를 설정했다. Production은 향후 운영 API 주소 `https://api.santacut.me`로 설정되어 있지만 운영 백엔드는 아직 없다. 운영 API 연동 완료를 의미하지 않는다.
+- 현재 브라우저 Axios는 상대 경로 `/v1`을 사용한다. 따라서 `NEXT_PUBLIC_API_BASE_URL`은 추가하지 않는다. API 주소는 서버의 `BACKEND_ORIGIN`으로 관리하고 Next.js rewrites를 통해 같은 출처로 요청한다. 로컬에서 원격 개발 API를 쓰려면 `frontend/.env.local`에 같은 BACKEND_ORIGIN을 넣고 dev 서버를 재시작한다.
+- Axios의 `withCredentials: true`는 fetch의 `credentials: 'include'`에 해당한다. 쓰기 직전 `/csrf` 응답 본문의 token을 headerName 헤더로 전송하며 document.cookie에서 읽지 않는다. 자동 XSRF 쿠키 읽기는 비활성화했다.
+- 분석 SSE 클라이언트는 아직 화면에 연결하지 않았다. 구현할 때 `{ withCredentials: true }`를 사용하고 완료·화면 이탈 시 연결을 닫는다. 실제 등록·업로드·분석 화면 연동과 세션을 포함한 통합 검증은 별도 작업이다.
+
+개발 API의 [Swagger](https://api-dev.santacut.me/swagger-ui/index.html)와 [연동 규칙](../../docs/api/frontend-api-guide.md)을 따른다. GET 응답 확인은 쓰기·업로드·세션·SSE 전체 흐름 검증을 대체하지 않는다.
