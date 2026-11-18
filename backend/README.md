@@ -27,6 +27,10 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 
 <p align="center"><img src="docs/images/divider-snow.svg" alt="" width="100%"></p>
 
+## 문서 기준
+
+현재 API 계약은 DTO·OpenAPI, 런타임 기본값은 `application.yml`, 배포는 워크플로·Compose를 기준으로 확인한다. 아래 그림의 시험 수·성능·비용·시즌 카운트다운은 작성 시점 기록이며 실시간 지표가 아니다. 그림에 남은 폴링 대안도 과거 설명으로, 현재 프론트는 SSE와 수동 재연결을 사용한다. 문서와 코드의 미완료 연결은 [전체 점검 기록](../docs/development/implementation-audit.md)을 참고한다.
+
 ## 한눈에 보기
 
 <p align="center"><img src="docs/images/stats.svg" alt="핵심 숫자: HTTP 엔드포인트 18개(dev 전용 3개 별도), SQLite 테이블 13개, 자동 테스트 575개, 오류 코드 39개, 지역 271개, 참가자당 24시간 3회 제출(AI 비용은 앱 안의 토큰 가드가 막음). 검증 작업자 1초, 분석 작업자 3초, 작업 임대 7분, 대기 작업 만료 24시간. 설계 선택 6가지." width="100%"></p>
