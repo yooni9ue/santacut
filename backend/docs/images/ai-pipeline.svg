@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="원본 대화 내보내기에서 점수까지: 최근 90일·최신 2,000개로 자르고, 이름을 나·상대로 바꾸고 간격 줄·링크·웃음·이모지·긴 글을 줄인 대화문을 약 6,700자씩 최대 6구간으로 나눠 Gemini 3.5 Flash-Lite에 보낸다. 답은 250토큰 이하 JSON이고, 코드가 3번 중앙값·구간 무게·수축으로 합쳐 점수·유형·배지를 만든다">
-  <title>원본 대화 내보내기에서 점수까지: 최근 90일·최신 2,000개로 자르고, 이름을 나·상대로 바꾸고 간격 줄·링크·웃음·이모지·긴 글을 줄인 대화문을 약 6,700자씩 최대 6구간으로 나눠 Gemini 3.5 Flash-Lite에 보낸다. 답은 250토큰 이하 JSON이고, 코드가 3번 중앙값·구간 무게·수축으로 합쳐 점수·유형·배지를 만든다</title>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 900" width="1200" height="900" role="img" aria-label="원본 대화 내보내기에서 점수까지: 올해 1월 1일부터 본인 2,000개·전체 6,000개를 달마다 고르게 고르고, 이름을 나·상대로 바꾸고 간격 줄·링크·웃음·이모지·긴 글을 줄인 대화문을 약 6,700자씩 최대 8구간으로 나눠 Gemini 3.5 Flash-Lite에 보낸다. 답은 250토큰 이하 JSON이고, 코드가 3번 중앙값·구간 무게·수축으로 합쳐 점수·유형·배지를 만든다">
+  <title>원본 대화 내보내기에서 점수까지: 올해 1월 1일부터 본인 2,000개·전체 6,000개를 달마다 고르게 고르고, 이름을 나·상대로 바꾸고 간격 줄·링크·웃음·이모지·긴 글을 줄인 대화문을 약 6,700자씩 최대 8구간으로 나눠 Gemini 3.5 Flash-Lite에 보낸다. 답은 250토큰 이하 JSON이고, 코드가 3번 중앙값·구간 무게·수축으로 합쳐 점수·유형·배지를 만든다</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
@@ -48,9 +48,9 @@
   <rect x="338" y="92" width="260" height="6" rx="3" fill="#8ECDF5"/>
   <circle cx="364" cy="126" r="13" fill="#E9B949"/>
   <text x="364" y="131" text-anchor="middle" font-size="14" font-weight="800" fill="#08121F">2</text>
-  <text x="386" y="131" class="h">기간 자르기</text>
-  <text x="358" y="166" class="s">최근 90일</text>
-  <text x="358" y="190" class="s">최신 메시지 2,000개</text>
+  <text x="386" y="131" class="h">올해 대화 고르기</text>
+  <text x="358" y="166" class="s">올해 1월 1일부터, 달마다 고르게</text>
+  <text x="358" y="190" class="s">본인 2,000개, 전체 6,000개</text>
   <text x="358" y="214" class="s">누적 200,000자, 한 개 2,000자</text>
   <path class="line" d="M598,167 H632" marker-end="url(#arr)"/>
   <rect class="card" x="636" y="92" width="524" height="430" rx="16"/>
@@ -88,9 +88,9 @@
   <text x="952" y="395" font-size="13" fill="#F5F8FC">(링크)</text>
   <rect x="652" y="412" width="492" height="40" rx="8" fill="#183152"/>
   <text x="666" y="437" font-size="14" font-weight="700" fill="#F7DE9F">긴 붙여넣기</text>
-  <text x="800" y="437" font-size="13" fill="#B4C4D8">300자 넘는 글</text>
+  <text x="800" y="437" font-size="13" fill="#B4C4D8">나 300자·상대 150자</text>
   <text x="930" y="437" font-size="14" fill="#E9B949">→</text>
-  <text x="952" y="437" font-size="13" fill="#F5F8FC">300자에서 자르고 (긴 글 생략)</text>
+  <text x="952" y="437" font-size="13" fill="#F5F8FC">넘으면 자르고 (긴 글 생략)</text>
   <text x="666" y="479" font-size="14" font-weight="700" fill="#F7DE9F">이모지 연타</text>
   <text x="800" y="479" font-size="13" fill="#B4C4D8">🎄🎄🎄🎄🎄</text>
   <text x="930" y="479" font-size="14" fill="#E9B949">→</text>
@@ -102,8 +102,8 @@
   <circle cx="66" cy="620" r="13" fill="#E9B949"/>
   <text x="66" y="625" text-anchor="middle" font-size="14" font-weight="800" fill="#08121F">4</text>
   <text x="88" y="625" class="h">구간 나누기</text>
-  <text x="60" y="660" class="s">본문 최대 40,000자</text>
-  <text x="60" y="684" class="s">약 6,700자씩, 최대 6구간</text>
+  <text x="60" y="660" class="s">본문 최대 52,000자</text>
+  <text x="60" y="684" class="s">약 6,700자씩, 최대 8구간</text>
   <text x="60" y="708" class="s">앞 구간 4줄을 머리에 싣되</text>
   <text x="60" y="732" class="s">그 줄은 맥락일 뿐 근거로 안 씀</text>
   <text x="60" y="768" font-size="13" fill="#F7DE9F">짧은 대화는 한 구간</text>

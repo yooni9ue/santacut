@@ -10,7 +10,8 @@
 - [ ] **도메인 연결**: Vercel Settings → Domains에 `santacut.me`, `www.santacut.me`(main), `dev.santacut.me`(develop)를 추가한다. DNS는 백엔드가 Route 53에 걸어 두었다.
 - [ ] **쿠키·CSRF**: 모든 `fetch`에 `credentials: 'include'`, SSE는 `{ withCredentials: true }`. 쓰기 요청 전 `GET /v1/csrf` 본문의 토큰을 `X-XSRF-TOKEN` 헤더로 보낸다. 쿠키는 다른 출처라 읽을 수 없다(2·3절).
 - [ ] **분석 제출**: `Idempotency-Key` 헤더 필수. 업로드가 몰리면 `503 UPLOAD_BUSY`(`Retry-After` 10초)가 오니 같은 키로 잠시 뒤 다시 보낸다. 같은 IP에서 너무 많이 내면 `429 CLIENT_RATE_LIMITED`(`retry_at`, `Retry-After`)다(8·9절).
-- [ ] **동의 문구**: 상대 메시지를 포함한 최근 대화가 Google Gemini로 전송되고 채점 뒤 삭제된다는 고지를 업로드 동의 화면에 넣는다(6.1절, 법률 검토 필요).
+- [ ] **동의 문구**: 상대 메시지를 포함한 올해 대화가 Google Gemini로 전송되고 채점 뒤 삭제된다는 고지를 업로드 동의 화면에 넣는다(6.1절, 법률 검토 필요).
+- [ ] **분석 범위 표기**: 업로드 화면과 동의 문구의 분석 범위를 "최근 90일"에서 "올해 1월 1일부터"로 바꾼다. 상한 표기도 "최대 2,000개"에서 "본인 메시지 2,000개(상대 포함 6,000개)"로 함께 고친다. 이벤트 JSON 제출은 그대로 2,000개까지다(6·6.1절).
 - [ ] **내 결과 화면** `GET /v1/me/result`: 새 필드 `archetype`, `dimension_scores`, `weakest_dimension`, `top_percent`(100명 미만이면 null), `archetype_share_percent`(30명 미만이면 null), `badges`, `quote`(null 가능), `low_confidence_dimensions`(근거 부족 항목에 "근거 적음" 표시). 정확한 도착 시각 `eta`는 본인 결과에만 있다(7절).
 - [ ] **랭킹 화면** `GET /v1/rankings`: 행의 도착 정보는 `eta_date`(서울 날짜)를 쓴다. `eta`는 항상 null이다. 페이지 사이에 순위가 다시 계산되면 `409 RANKING_SNAPSHOT_CHANGED`가 오니 목록을 비우고 첫 페이지부터 다시 읽는다. 예전 숫자 cursor는 `400`이다(7절).
 - [ ] **순위 반영 대기**: 분석이 끝난 뒤 순위는 최대 30초 안에 반영된다. SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 오고, 결과의 `ranking_pending`이 true인 동안은 "순위 계산 중"을 보여 준다(6.0절).
@@ -133,7 +134,7 @@
 - 서버에 AI 모델이 설정되지 않았으면 `503`(`AI_NOT_CONFIGURED`)이다. 두 제출 API 모두 같다.
 - 본문: `source`(`KAKAO` 또는 `INSTAGRAM`), `events` 20~2,000개. 각 이벤트는 `occurredAt`(ISO-8601 UTC)과 `text`(1~2,000자).
 - 이벤트 수가 20개 미만이면 `INSUFFICIENT_EVENTS`, 2,000개 초과면 `TOO_MANY_EVENTS`(`400`).
-- 전체 글자 수 20만 자 이하, 이벤트 시각은 최근 90일 안이고 현재보다 5분 넘게 미래가 아니어야 한다(`400`, `INVALID_EVENT_RANGE`).
+- 전체 글자 수 20만 자 이하, 이벤트 시각은 올해 1월 1일 0시(한국 시각) 이후이고 현재보다 5분 넘게 미래가 아니어야 한다(`400`, `INVALID_EVENT_RANGE`).
 - 한 사람당 24시간에 3번까지(`429`, `DAILY_USER_LIMIT`). 응답의 `retry_at`과 `Retry-After` 헤더가 다시 낼 수 있는 시점이다. 12월 25일 0시(한국 시간) 이후에는 시즌 마감(`409`).
 
 응답 `202 { id, status }`의 `id`로 진행 단계를 따라간다. 초기 상태 GET 이후 SSE(§6.0)로 변경을 받는다. 끊기면 연결을 닫고 재연결 버튼을 제공한다. 새 분석 제출이나 주기적인 GET 폴링으로 전환하지 않는다. 202 응답의 `status`도 상태 조회와 같은 값을 쓴다.
@@ -205,10 +206,10 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 
 규칙:
 
-- 서버는 최근 대화 전체를 채점에 쓴다. 점수는 본인 행동만 매기지만, 본인 말의 뜻을 읽으려고 상대(다른 참여자) 메시지도 함께 Google Gemini에 보낸다. 참여자 이름은 `나`·`상대`(단체 대화는 `상대1`, `상대2`)로 바꿔 보내고 저장하지 않는다.
+- 서버는 올해 대화를 달마다 고르게 골라 채점에 쓴다. 점수는 본인 행동만 매기지만, 본인 말의 뜻을 읽으려고 상대(다른 참여자) 메시지도 함께 Google Gemini에 보낸다. 참여자 이름은 `나`·`상대`(단체 대화는 `상대1`, `상대2`)로 바꿔 보내고 저장하지 않는다.
 - 상대 메시지를 포함한 대화 내용은 채점 작업에만 쓰고 작업이 끝나면(성공·실패 모두) 지운다.
-- 동의 화면 문구 제안(출시 전 법률 검토 필요): "고른 대화방의 최근 90일 대화(내 메시지와 상대방 메시지)를 점수 산정을 위해 Google Gemini로 보냅니다. 상대방 이름은 보내지 않고 '상대'로 바꿉니다. 점수는 내 말만 평가하며, 대화 내용은 채점이 끝나면 지웁니다. 상대방 메시지가 포함되므로 상대방이 원하지 않을 만한 대화는 올리지 마세요."
-- 최근 90일 안의 메시지 중 2,000개(본인 최신 1,000개를 먼저 남기고 나머지는 최신순), 누적 200,000자까지만 쓴다. 카카오톡 TXT가 100만 줄을, 인스타그램 JSON이 객체 100만 개를 넘으면 `UNSUPPORTED_FILE_FORMAT`이다. 메시지 하나는 2,000자에서 자른다.
+- 동의 화면 문구 제안(출시 전 법률 검토 필요): "고른 대화방의 올해(1월 1일부터) 대화(내 메시지와 상대방 메시지)를 점수 산정을 위해 Google Gemini로 보냅니다. 상대방 이름은 보내지 않고 '상대'로 바꿉니다. 점수는 내 말만 평가하며, 대화 내용은 채점이 끝나면 지웁니다. 상대방 메시지가 포함되므로 상대방이 원하지 않을 만한 대화는 올리지 마세요."
+- 올해 1월 1일 0시(한국 시각)부터의 메시지 중 본인 메시지 2,000개, 상대 포함 6,000개, 누적 200,000자까지만 쓴다. 넘으면 오류 없이 달마다 고르게 골라 줄인다. 카카오톡 TXT가 100만 줄을, 인스타그램 JSON이 객체 100만 개를 넘으면 `UNSUPPORTED_FILE_FORMAT`이다. 메시지 하나는 2,000자에서 자른다.
 - 원본과 본인 이름은 검증이 끝나면 지운다. 늦어도 24시간 뒤에는 지운다. 파일 이름은 저장하지 않는다.
 - 하루 3번 한도는 `POST /v1/analyses`와 함께 센다.
 - 같은 키로 같은 파일·출처·본인 이름을 다시 보내면 처음 작업을 준다. 하나라도 다르면 `409`(`IDEMPOTENCY_CONFLICT`)다. 같은 키를 두 엔드포인트에 같이 써도 `409`다.
@@ -310,14 +311,14 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | --- | --- | --- | --- |
 | 요청 형식 오류(본문 파싱·필드 검증 실패, 필수 헤더 누락, 잘못된 ID 형식) | `400` | `INVALID_REQUEST` | 화면 버그로 보고 입력을 유지한다 |
 | 최근 기록·근거 부족(보낼 이벤트가 적음) | `400` | `INSUFFICIENT_EVENTS` | 20개 미만 |
-| 한 번에 너무 많은 이벤트 | `400` | `TOO_MANY_EVENTS` | 2,000개 초과 |
+| 한 번에 너무 많은 이벤트 | `400` | `TOO_MANY_EVENTS` | 이벤트 JSON 제출에서 2,000개 초과. 파일 업로드는 서버가 본인 2,000개·상대 포함 6,000개 안으로 골라 쓰므로 화면에서 다룰 일이 없다 |
 | 이벤트 시각·글자 수 범위 밖 | `400` | `INVALID_EVENT_RANGE` | |
 | 최근 기록·근거 부족(AI 판정) | - | 상태 조회의 `error_code` `INSUFFICIENT_EVIDENCE` | 작업은 `FAILED`로 끝난다 |
 | 파일이 너무 큼 | `413` | `FILE_TOO_LARGE` | 20MB 초과. `code`가 없어도 같은 뜻 |
 | 지원하지 않는 파일 형식(빈 파일·zip·바이너리) | `422` | `UNSUPPORTED_FILE_FORMAT` | 업로드 즉시 거절. 파일 다시 고르기 |
 | 지원하지 않는 파일 형식(검증 중 발견) | - | 상태 조회의 `error_code` `UNSUPPORTED_FILE_FORMAT` | 인코딩·스키마 오류, 메시지 0개 |
 | 본인 이름을 대화에서 못 찾음 | - | 상태 조회의 `error_code` `SPEAKER_NOT_IDENTIFIED` | 본인 다시 고르기 |
-| 본인 메시지 부족 | - | 상태 조회의 `error_code` `INSUFFICIENT_EVENTS` | 최근 90일 본인 메시지 20개 미만 |
+| 본인 메시지 부족 | - | 상태 조회의 `error_code` `INSUFFICIENT_EVENTS` | 올해(1월 1일부터) 본인 메시지 20개 미만 |
 | AI 일시 오류 | - | 상태 조회의 `error_code` `ANALYSIS_FAILED`, `RETRY_EXHAUSTED` | 같은 작업 상태를 다시 확인한다 |
 | 닉네임 형식 오류 | `400` | `INVALID_NICKNAME` | 등록·가용성 확인 공통. 닉네임 입력란에 표시 |
 | 닉네임 동시 등록 충돌 | `409` | `NICKNAME_TAKEN` | 닉네임만 수정 |

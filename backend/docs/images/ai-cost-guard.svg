@@ -38,7 +38,7 @@
   <rect class="card" x="40" y="96" width="250" height="130" rx="16"/>
   <rect x="40" y="96" width="250" height="6" rx="3" fill="#8ECDF5"/>
   <text x="60" y="132" class="h">작업 잡기</text>
-  <text x="60" y="160" class="s">3초마다 동시 3개, 리스 7분</text>
+  <text x="60" y="160" class="s">3초마다 동시 3개, 리스 9분</text>
   <text x="60" y="184" class="s">최대 3번 시도</text>
   <path class="line" d="M290,161 H324" marker-end="url(#arr)"/>
   <rect class="card" x="328" y="96" width="400" height="130" rx="16"/>

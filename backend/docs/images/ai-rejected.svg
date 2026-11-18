@@ -103,7 +103,7 @@
   <rect x="324" y="662" width="56" height="24" rx="12" fill="#5B6E86"/>
   <text x="352.0" y="678.68" text-anchor="middle" font-size="13" font-weight="700" fill="#F5F8FC">판단</text>
   <text x="64" y="594" font-size="14" fill="#F5F8FC">응답 시간이 보장되지 않는다</text>
-  <text x="64" y="620" font-size="14" fill="#B4C4D8">작업 리스(7분)와 화면 대기에</text>
+  <text x="64" y="620" font-size="14" fill="#B4C4D8">작업 리스(9분)와 화면 대기에</text>
   <text x="64" y="646" font-size="14" fill="#B4C4D8">맞지 않는다</text>
   <rect class="card" x="420" y="512" width="360" height="190" rx="16"/>
   <circle cx="450" cy="544" r="13" fill="#B5123E"/>
