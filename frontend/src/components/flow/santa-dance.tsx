@@ -87,7 +87,7 @@ function Dancer({ pose, rudolph = false, opacity = 1, offsetX = 0, whistle = fal
 }
 
 export function SantaDance({ active = true }: { active?: boolean }) {
-  const [dance, setDance] = useState<Dance>("neon");
+  const [dance, setDance] = useState<Dance>("center");
   const [paused, setPaused] = useState(false);
   const [wild, setWild] = useState(false);
   const [frame, setFrame] = useState(0);
