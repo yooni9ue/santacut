@@ -51,13 +51,23 @@ Axios는 상대 경로 `/v1`을 사용한다. 브라우저가 AWS API 도메인�
 
 ## 운영
 
-- 개발: `vercel pull --environment=preview --git-branch=develop` → `vercel build` → `vercel deploy --prebuilt` → 선택한 개발 도메인 alias 갱신.
+- 개발: `vercel pull --environment=preview --git-branch=develop` → `vercel build` → `vercel deploy --prebuilt --environment=preview` → 선택한 개발 도메인 alias 갱신.
 - 운영: `vercel pull --environment=production` → `vercel build --prod` → `vercel deploy --prebuilt --prod`.
 - 브랜치별 Environment와 배포 concurrency 그룹을 사용한다. 개발과 운영은 독립적으로 실행하며 진행 중인 배포는 취소하지 않는다.
 - 자동 실행 경로는 frontend/**와 워크플로 파일이다. 공통 문서만 변경되면 배포하지 않으며 필요하면 수동 실행한다.
 - 실패한 배포는 Vercel에서 로그를 확인하고, 서비스 복구가 필요하면 이전 정상 deployment로 rollback한다.
 - AWS 백엔드 파이프라인·Terraform 설정·DB는 프론트 배포에서 변경하지 않는다.
-- 실제 배포에는 Vercel 프로젝트·토큰·AWS HTTPS 백엔드가 필요하다. 이 PR에서 실제 계정 설정이나 배포는 수행하지 않았다.
+- 프로젝트 `santacut`의 개발 배포 및 `dev.santacut.me` alias는 설정되어 있다. 운영 프론트와 운영 API 준비 여부는 별개이며, 운영 API 연결 완료를 프론트 배포 성공만으로 판단하지 않는다.
+
+## 현재 환경 구분
+
+| 환경 | 프론트 | 백엔드 설정 |
+| --- | --- | --- |
+| 개발(develop / Preview) | `https://dev.santacut.me` | `BACKEND_ORIGIN=https://api-dev.santacut.me` |
+| 로컬 | `http://localhost:3000` | 미설정 시 `http://127.0.0.1:8080` |
+| 운영(main / Production) | `https://santacut.me` | 운영 API 준비 후 `https://api.santacut.me` 연결·통합 확인 필요 |
+
+GA 환경 변수와 재배포 조건은 [GA 운영 안내](analytics.md)를 참고한다. 문서도 `frontend/**`에 있으면 위 CI/CD 경로 필터에 포함된다.
 
 ## 검증
 

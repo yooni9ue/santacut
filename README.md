@@ -34,7 +34,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-[http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 현재 메인 디자인 미리보기에는 환경 변수가 필요하지 않습니다. 화면에서 실제 API를 호출하는 기능은 아직 구현되지 않았습니다.
+[http://localhost:3000](http://localhost:3000)에서 확인할 수 있습니다. 참가 등록·파일 제출·SSE 상태·결과·랭킹·공유 API를 연결했습니다. 실제 흐름에는 백엔드가 필요하며, `/upload`의 `파일 없이 예시로 둘러보기`는 별도 예시 흐름입니다. 화면별 구현 범위와 남은 연결은 [화면 안내](frontend/docs/screens.md)를 참고하세요.
 
 `/v1`, `/s`, Swagger 경로는 기본적으로 `http://127.0.0.1:8080`으로 프록시합니다. 다른 서버를 사용하려면 `frontend/.env.local`에 `BACKEND_ORIGIN`을 설정한 뒤 개발 서버를 재시작하세요. 브라우저는 같은 출처의 상대 경로로 요청합니다.
 
@@ -66,7 +66,7 @@ pnpm exec playwright install chromium webkit  # 브라우저 최초 설치
 pnpm test:e2e             # 모바일 Chromium + WebKit
 ```
 
-E2E는 3100번 포트에서 서버를 자동 실행합니다. 로컬은 개발 서버, CI는 Next.js 프로덕션 빌드를 사용합니다. CI 방식으로 로컬 검증하려면 `pnpm build` 후 `CI=true pnpm test:e2e`를 실행합니다. 현재 테스트는 실제 백엔드 없이 공통 API 코드와 메인 미리보기 동작을 검증합니다.
+E2E는 3100번 포트에서 서버를 자동 실행합니다. 로컬은 개발 서버, CI는 Next.js 프로덕션 빌드를 사용합니다. CI 방식으로 로컬 검증하려면 `pnpm build` 후 `CI=true pnpm test:e2e`를 실행합니다. 테스트는 공통 API 코드·미리보기와 참가 등록·파일 제출·결과 공유의 모의 API 흐름을 검증합니다. 실제 백엔드·AI 통합 검증과는 구분합니다.
 
 ## 문서 찾아보기
 
@@ -99,14 +99,14 @@ cd backend
 - `/original`: 순한맛 손그림 시안
 - `/post-office`: 북극 심사국 시안
 
-메인 시작 버튼은 준비 중 안내를 표시합니다. 산타 꺼내기와 판정 예시 전환은 브라우저에서 동작하며 실제 AI 분석을 수행하지 않습니다.
+메인 시작 버튼은 `/start`로 이동합니다. 메인의 산타 꺼내기와 판정 예시 전환은 브라우저에서 동작하는 예시입니다.
 
 
 ## 프론트엔드 CI/CD
 
-- PR·main 변경: 린트, 타입 검사, 단위·컴포넌트 테스트, 모바일 Chromium/WebKit, 프로덕션 빌드
+- develop/main 대상 프론트 관련 PR·push: 린트, 타입 검사, 단위·컴포넌트 테스트, 모바일 Chromium/WebKit, 프로덕션 빌드
 - 프론트엔드: Vercel / 백엔드: AWS
-- Vercel 배포를 활성화하면 main 검증 성공 후 production에 배포
+- 배포 활성화 시 develop 검증 성공 후 Preview 개발 배포, main 검증 성공 후 Production 배포
 - 브라우저의 `/v1` 요청은 Next.js rewrite가 AWS의 `BACKEND_ORIGIN`으로 프록시
 - [Vercel 배포 설정과 운영서](frontend/docs/deployment.md)
 
