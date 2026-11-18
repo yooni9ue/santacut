@@ -44,8 +44,17 @@ function Limb({ points, color, width }: { points: Point[]; color: string; width:
   </>;
 }
 
-function Dancer({ pose, rudolph = false, opacity = 1, offsetX = 0 }: {
-  pose: number[]; rudolph?: boolean; opacity?: number; offsetX?: number;
+function Whistle({ wrist, elbow }: { wrist: Point; elbow: Point }) {
+  const angle = Math.atan2(wrist[1] - elbow[1], wrist[0] - elbow[0]) * 180 / Math.PI;
+  return <g className="dance-whistle" transform={`translate(${wrist}) rotate(${angle})`}>
+    <path d="M1-9h13c4-5 13-5 18 0 5 5 4 13-2 17-5 4-12 3-17-1H1Z" fill="#dce8f2" />
+    <path d="M9-4h7" stroke="#52677d" />
+    <circle cx="24" cy="-1" r="4" fill="#52677d" />
+  </g>;
+}
+
+function Dancer({ pose, rudolph = false, opacity = 1, offsetX = 0, whistle = false }: {
+  pose: number[]; rudolph?: boolean; opacity?: number; offsetX?: number; whistle?: boolean;
 }) {
   const [nose, leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle] =
     Array.from({ length: 13 }, (_, index): Point => [pose[index * 2], pose[index * 2 + 1]]);
@@ -71,6 +80,7 @@ function Dancer({ pose, rudolph = false, opacity = 1, offsetX = 0 }: {
       <Limb points={[leftShoulder, leftElbow, leftWrist]} color={coat} width={18} />
       <Limb points={[rightShoulder, rightElbow, rightWrist]} color={coat} width={18} />
       <circle cx={leftWrist[0]} cy={leftWrist[1]} r="10" fill={rudolph ? "#79573e" : "#fff"} />
+      {whistle && <Whistle wrist={rightWrist} elbow={rightElbow} />}
       <circle cx={rightWrist[0]} cy={rightWrist[1]} r="10" fill={rudolph ? "#79573e" : "#fff"} />
     </g>
   </g>;
@@ -122,8 +132,8 @@ export function SantaDance({ active = true }: { active?: boolean }) {
     </div>}
     <svg className="dance-duo" viewBox="0 -188 570 474" fill="none" aria-hidden="true">
       {dance === "center" ? <g transform="translate(40 25) scale(.86)">
-        <Dancer pose={track[0][frame]} offsetX={-139} />
-        <Dancer pose={track[0][frame]} rudolph offsetX={139} />
+        <Dancer pose={track[0][frame]} offsetX={-139} whistle />
+        <Dancer pose={track[0][frame]} rudolph offsetX={139} whistle />
       </g> : <>
         <Dancer pose={track[1][frame]} rudolph opacity={Math.max(0, Math.min(1, (frame - rudolphEntranceFrame) / 6))} />
         <Dancer pose={track[0][frame]} />
