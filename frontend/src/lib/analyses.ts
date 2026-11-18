@@ -37,23 +37,23 @@ export async function getLatestAnalysis(signal?: AbortSignal): Promise<AnalysisS
   }
 }
 
-export function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, onFallback: () => void) {
+export function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, onDisconnect: () => void) {
   let source: EventSource;
   try { source = new EventSource(`/v1/analyses/${encodeURIComponent(id)}/events`, { withCredentials: true }); }
-  catch { onFallback(); return () => {}; }
+  catch { onDisconnect(); return () => {}; }
   let closed = false;
   function stop() { if (!closed) { closed = true; source.close(); } }
-  function fallback() { if (!closed) { stop(); onFallback(); } }
+  function disconnect() { if (!closed) { stop(); onDisconnect(); } }
   source.addEventListener("status", event => {
     if (closed) return;
     try {
       const status: AnalysisStatus = JSON.parse((event as MessageEvent).data);
-      if (status.id !== id || !analysisStates.includes(status.status)) { fallback(); return; }
+      if (status.id !== id || !analysisStates.includes(status.status)) { disconnect(); return; }
       onStatus(status);
       if (isFinished(status.status)) stop();
-    } catch { fallback(); }
+    } catch { disconnect(); }
   });
-  source.addEventListener("error", fallback);
+  source.addEventListener("error", disconnect);
   return stop;
 }
 
