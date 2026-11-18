@@ -74,7 +74,7 @@ santacut:
     # 제공자가 호출을 막았거나(권한, 요청 한도) 연달아 3번 실패하면 이만큼 작업 잡기를 멈춘다.
     pause: 15m
     max-consecutive-failures: 3
-  # 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 보통 3번(긴 대화는 최대 6구간) 동시에 부른다(backend-design.md).
+  # 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 한 구간 대화는 3번 동시에, 긴 대화는 최대 8구간을 차례로 부른다(backend-design.md).
   ai.worker:
     concurrency: ${ANALYSIS_WORKER_CONCURRENCY:3}
   # 순위 계산(backend-design.md §7.5). 변경은 요청 표시만 남기고 rebuild-delay-ms마다 모아서 다시 계산한다.

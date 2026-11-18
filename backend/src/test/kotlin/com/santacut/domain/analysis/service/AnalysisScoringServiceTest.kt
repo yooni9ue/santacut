@@ -76,7 +76,7 @@ class AnalysisScoringServiceTest @Autowired constructor(
         assertNotEquals(analysisScoringService.fingerprint(digest, 2), analysisScoringService.fingerprint(digest, 3))
     }
 
-    /** 90일에 고르게 퍼진 메시지 2,000개. 본인과 상대가 번갈아 보내고, 짧은 웃음과 아주 긴 메시지가 섞여 있다. */
+    /** 일정 간격으로 퍼진 메시지 2,000개. 본인과 상대가 번갈아 보내고, 짧은 웃음과 아주 긴 메시지가 섞여 있다. */
     private fun largeSubmission(partnerSuffix: String = ""): AnalysisSubmission = AnalysisSubmission(
         DataSource.KAKAO,
         AnalysisEvents(

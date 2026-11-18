@@ -10,7 +10,7 @@
 - 저장소 코드는 Spring Data JPA Repository만 사용한다. 분석 큐, 점수, 순위 스냅샷, 공유도 JPA 엔티티로 관리한다.
 - Swagger UI와 OpenAPI 3 명세는 `/swagger-ui.html`과 `/v3/api-docs`에서 제공한다. 각 API의 설명은 endpoint 전용 `@Operation` 메타 애노테이션에 두고, 요청·응답 모델에는 필드별 스키마 설명을 둔다.
 - 저장소는 `backend/`와 `frontend/`를 나누는 모노레포다. `frontend/`는 프론트엔드 팀이 직접 구성하는 영역이며, 백엔드는 프론트엔드 소스나 빌드 도구에 의존하지 않는다. 두 앱의 계약은 OpenAPI 명세 하나다.
-- AI 호출은 Spring AI Google GenAI로 Gemini 3.5 Flash-Lite(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 참여자 이름을 `나`·`상대`로 바꾼 두 화자 대화 전체(정규화 뒤 최대 40,000자)다. 긴 대화는 약 6,700자씩 최대 6구간으로 나눠 채점하고, 한 구간에 들어가는 대화는 세 번 따로 채점해 항목별 중앙값을 낸다. 점수는 본인 말만 매기고, 상대 말을 포함한 대화 내용은 작업이 끝나면(성공·실패 모두) 지운다. 점수 규칙은 `Score.RULE_VERSION` 7판, 채점 프롬프트는 DB `prompts`의 `score` 7판이다.
+- AI 호출은 Spring AI Google GenAI로 Gemini 3.5 Flash-Lite(Gemini Developer API)를 부른다. API 키는 환경 변수 `GEMINI_API_KEY`에서 읽는다. 보내는 것은 참여자 이름을 `나`·`상대`로 바꾼 두 화자 대화(올해 1월 1일부터, 정규화 뒤 최대 52,000자)다. 긴 대화는 약 6,700자씩 최대 8구간으로 나눠 채점하고, 한 구간에 들어가는 대화는 세 번 따로 채점해 항목별 중앙값을 낸다. 점수는 본인 말만 매기고, 상대 말을 포함한 대화 내용은 작업이 끝나면(성공·실패 모두) 지운다. 점수 규칙은 `Score.RULE_VERSION` 7판, 채점 프롬프트는 DB `prompts`의 `score` 7판이다.
 - 분석 API는 원본 파일 업로드(`POST /v1/analyses/files`)와 정규화된 이벤트 JSON(`POST /v1/analyses`)을 둘 다 받는다. 카카오톡 TXT(PC·모바일)와 인스타그램 `message_1.json` 파서가 있다. 다만 공개 내보내기 예시로 만든 것이라 실제 샘플 검증은 출시 전에 해야 한다.
 - 지역은 전국 시·도 16개와 시·군·구 255개(모두 271개)다. 서울은 `seed.sql`이, 나머지는 `regions.sql`이 앱 시작 때마다 넣는다(`INSERT OR IGNORE`).
 - 분석 상태는 SSE로 받는다. 상태 GET과 최근 작업 GET은 초기 조회·복구용이며 프론트는 연결 오류 시 스트림을 닫고 수동 재연결한다. 결과는 `GET /v1/me/result`로 따로 읽는다.
@@ -104,11 +104,11 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 
 작업 상태(설계안)는 QUEUED → RUNNING → SUCCEEDED / INSUFFICIENT_DATA / FAILED이고 retry 가능 실패는 next_attempt_at을 둔다. DB row에는 attempts, lease_owner, lease_until, fencing_token, request_sequence, versions를 둔다.
 
-현재 구현: 원본 파일 작업은 `VALIDATING`에서 시작하고, 검증 작업자(기본 1초 간격)를 거쳐 `QUEUED`가 된다. 분석 작업자(기본 3초 간격으로 폴링, 동시 3개)가 `RUNNING`으로 임대(7분)하고 최대 3번 시도한다. 응답 진행 단계는 `VALIDATING`, `QUEUED`, `ANALYZING`, `RANKING_PENDING`, `SUCCEEDED`, `FAILED`다. DB row에는 `attempts`, `lease_token`, `lease_until`, `error_code`가 있고 next_attempt_at, fencing_token, request_sequence, versions는 두지 않았다. 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 AI가 꺼져 있어도 `EXPIRED`로 끝낸다. 전체 상태 전이는 [백엔드 설계 §10.1](backend-design.md)에 있다.
+현재 구현: 원본 파일 작업은 `VALIDATING`에서 시작하고, 검증 작업자(기본 1초 간격)를 거쳐 `QUEUED`가 된다. 분석 작업자(기본 3초 간격으로 폴링, 동시 3개)가 `RUNNING`으로 임대(9분)하고 최대 3번 시도한다. 응답 진행 단계는 `VALIDATING`, `QUEUED`, `ANALYZING`, `RANKING_PENDING`, `SUCCEEDED`, `FAILED`다. DB row에는 `attempts`, `lease_token`, `lease_until`, `error_code`가 있고 next_attempt_at, fencing_token, request_sequence, versions는 두지 않았다. 24시간 넘게 기다린 `VALIDATING`·`QUEUED` 작업은 AI가 꺼져 있어도 `EXPIRED`로 끝낸다. 전체 상태 전이는 [백엔드 설계 §10.1](backend-design.md)에 있다.
 
 - 짧은 트랜잭션에서 `FOR UPDATE SKIP LOCKED`로 하나를 claim하고 lease와 fencing token을 갱신한다. SQLite에는 `SKIP LOCKED`가 없다. 그래서 가장 오래된 `QUEUED` 행을 읽고 리스 토큰을 쓰는 트랜잭션을 커밋까지 앱 안 잠금으로 묶어, 채점 스레드 여럿이 같은 행을 잡지 않게 한다. 커넥션도 1개라 트랜잭션은 앱 안에서 줄을 선다.
 - 트랜잭션을 커밋한 뒤 AI HTTP 호출을 한다. 외부 호출 동안 DB connection/row lock을 잡지 않는다.
-- worker 동시성은 처음 1이었고, 부하 시험 뒤 3으로 올렸다(`santacut.ai.worker.concurrency`, [배포 운영서](deployment.md#분석-처리량)). 호출 timeout은 60초, lease는 7분이다.
+- worker 동시성은 처음 1이었고, 부하 시험 뒤 3으로 올렸다(`santacut.ai.worker.concurrency`, [배포 운영서](deployment.md#분석-처리량)). 호출 timeout은 60초, lease는 9분(60초 × 최대 8구간 + 1분)이다.
 - 종료 직전 결과 저장에는 job ID + fencing token을 조건으로 사용해 기한 지난 worker가 최신 결과를 덮어쓰지 못한다.
 - 프로세스가 죽으면 lease가 만료된 작업만 회수한다. 모든 재시도는 같은 캐시·idempotency 문맥을 유지한다.
 - AI 공급자가 요청 멱등성을 제공하지 않으면 네트워크 실패 시 중복 과금 가능성이 남는다. exactly-once 과금을 보장하지 않는다.
@@ -117,7 +117,7 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 
 **[대체됨]** 처음에는 DB에 일별 예산 ledger를 두고 최악 토큰 비용을 먼저 reserve하는 방식을 계획했다. 지금 앱에는 AI 호출 수 한도가 없다. 대신 날짜별 토큰 합계로 한 달 9달러를 넘지 않게 막고, 호출 전에 그 호출의 어림 비용을 더해 확인하는 비용 가드가 있다. 하루 한도는 설정으로만 켠다. Gemini는 선불 크레딧으로 쓴다. 앱에는 참가자별 24시간 3회 제출 한도와 이벤트 수·글자 수 제한만 남아 있다.
 
-입력은 90일 이내 대화 전체(최대 이벤트 2,000개)를 정규화한 대화문이고, 약 4만 5천 토큰 상한을 넘으면 최근 줄만 남긴다. 모델 이름을 바꾸면서 동일 버전 캐시를 재사용하지 않는다. provider URL은 운영 설정 allowlist만 허용하며 사용자 입력 URL로 데이터를 전송하지 않는다.
+입력은 올해 1월 1일(한국 시각)부터의 대화(본인 이벤트 2,000개, 전체 6,000개까지 달마다 고르게 고름)를 정규화한 대화문이다. 본문이 52,000자를 넘으면 달마다 고르게 줄을 남긴다. 모델 이름을 바꾸면서 동일 버전 캐시를 재사용하지 않는다. provider URL은 운영 설정 allowlist만 허용하며 사용자 입력 URL로 데이터를 전송하지 않는다.
 
 ## 6. 점수·랭킹·배송 원자성
 

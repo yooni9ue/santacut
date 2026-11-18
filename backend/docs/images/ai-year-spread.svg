@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 650" width="1200" height="650" role="img" aria-label="분석 기간과 대화문 고르기: 전에는 최근 90일을 최신순으로 2,000개까지 써서, 많이 쓰는 대화는 최근 몇 주만 남았다. 지금은 올해 1월 1일부터 달마다 같은 몫을 고르고, 모자란 달의 남는 몫은 다른 달로 넘긴다. 상대 말은 150자, 내 말은 300자까지 보낸다. 본인 2,000개, 전체 6,000개, 200,000자로 고른 뒤 AI 대화문은 52,000자, 최대 8구간이다">
+  <title>분석 기간과 대화문 고르기: 전에는 최근 90일을 최신순으로 2,000개까지 써서, 많이 쓰는 대화는 최근 몇 주만 남았다. 지금은 올해 1월 1일부터 달마다 같은 몫을 고르고, 모자란 달의 남는 몫은 다른 달로 넘긴다. 상대 말은 150자, 내 말은 300자까지 보낸다. 본인 2,000개, 전체 6,000개, 200,000자로 고른 뒤 AI 대화문은 52,000자, 최대 8구간이다</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
+    </linearGradient>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#B4C4D8"/>
+    </marker>
+    <marker id="arrLater" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8DA3BE"/>
+    </marker>
+    <symbol id="flake" viewBox="-10 -10 20 20" overflow="visible"><g fill="none" stroke-width="1.3" stroke-linecap="round"><g transform="rotate(0)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(60)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g><g transform="rotate(120)"><path d="M0,-9 V9"/><path d="M-2.6,-7.4 L0,-5 L2.6,-7.4"/><path d="M-2.6,7.4 L0,5 L2.6,7.4"/></g></g></symbol>
+    
+    <style>
+      text { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; }
+      text:not([fill]) { fill: #F5F8FC; }
+      .card { fill: #12263F; stroke: #1E3A5C; stroke-width: 1.5; }
+      .inner { fill: #183152; stroke: #2B4A70; stroke-width: 1; }
+      .ghost { fill: #0C1B2E; stroke: #8DA3BE; stroke-width: 1.5; stroke-dasharray: 6 5; }
+      .dev { fill: #0E3328; stroke: #134236; stroke-width: 1.5; }
+      .h { font-size: 17px; font-weight: 700; }
+      .s { font-size: 14px; fill: #B4C4D8; }
+      .code { font-family: ui-monospace, 'SF Mono', 'D2Coding', Consolas, 'Liberation Mono', monospace; font-size: 14px; fill: #8ECDF5; }
+      .line { stroke: #B4C4D8; stroke-width: 2; fill: none; }
+      .later { stroke: #8DA3BE; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+      
+    </style>
+  </defs>
+  <rect width="1200" height="650" rx="24" fill="url(#bg)"/>
+  <path d="M0,626 Q300,610 600,622 T1200,620 V626 A24,24 0 0 1 1176,650 H24 A24,24 0 0 1 0,626 z" fill="#F5F8FC" opacity="0.05"/>
+  <g fill="#F5F8FC"><circle cx="602" cy="74" r="1.2" opacity="0.4"/><circle cx="1090" cy="80" r="0.9" opacity="0.3"/><circle cx="598" cy="402" r="1.5" opacity="0.3"/><circle cx="330" cy="70" r="0.9" opacity="0.4"/></g>
+  <path d="M40,0 H64 V56 L52,47 L40,56 z" fill="#B5123E"/>
+  <path d="M43.5,0 V50 M60.5,0 V50" stroke="#E9B949" stroke-width="1" opacity="0.75"/>
+  <text x="82" y="48" font-size="28" font-weight="800">분석 기간과 대화문 고르기</text>
+  <text x="1160" y="48" text-anchor="end" font-size="16" fill="#B4C4D8">올해 대화를 한 달도 빠짐없이 본다</text>
+  <use href="#flake" xlink:href="#flake" x="1150" y="602" width="16" height="16" stroke="#F5F8FC" opacity="0.35"/>
+
+  <rect class="card" x="40" y="92" width="548" height="300" rx="16"/>
+  <rect x="40" y="92" width="548" height="6" rx="3" fill="#8DA3BE"/>
+  <text x="64" y="128" class="h">전: 최근 90일 · 최신순</text>
+  <text x="564" y="128" text-anchor="end" font-size="13" fill="#B4C4D8">많이 쓰는 대화 예</text>
+  <text x="64" y="150" font-size="13" fill="#B4C4D8">막대 높이는 그달 대화량, 칠한 곳이 AI에 간 부분</text>
+  <rect class="ghost" x="370" y="158" width="130" height="146" rx="8" fill="none"/>
+  <text x="435" y="176" text-anchor="middle" font-size="12" fill="#B4C4D8">최근 90일</text>
+  <rect x="68" y="230" width="30" height="70" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="109" y="245" width="30" height="55" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="150" y="210" width="30" height="90" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="191" y="240" width="30" height="60" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="232" y="200" width="30" height="100" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="273" y="225" width="30" height="75" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="314" y="180" width="30" height="120" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="355" y="215" width="30" height="85" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="396" y="190" width="30" height="110" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="437" y="205" width="30" height="95" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="437" y="270" width="30" height="30" rx="4" fill="#E9B949"/>
+  <rect x="478" y="170" width="30" height="130" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="478" y="170" width="30" height="130" rx="4" fill="#E9B949"/>
+  <rect class="ghost" x="519" y="276" width="30" height="24" rx="4"/>
+  <text x="83" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">1월</text>
+  <text x="124" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">2월</text>
+  <text x="165" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">3월</text>
+  <text x="206" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">4월</text>
+  <text x="247" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">5월</text>
+  <text x="288" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">6월</text>
+  <text x="329" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">7월</text>
+  <text x="370" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">8월</text>
+  <text x="411" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">9월</text>
+  <text x="452" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">10월</text>
+  <text x="493" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">11월</text>
+  <text x="534" y="320" text-anchor="middle" font-size="12" fill="#8DA3BE">12월</text>
+  <text x="64" y="350" font-size="13" fill="#F5F8FC">90일 밖은 보지 않았고, 최신 2,000개가</text>
+  <text x="64" y="372" font-size="13" fill="#F5F8FC">몇 주 만에 차서 그 앞은 모두 빠졌다</text>
+
+  <rect class="card" x="612" y="92" width="548" height="300" rx="16"/>
+  <rect x="612" y="92" width="548" height="6" rx="3" fill="#4CC38A"/>
+  <text x="636" y="128" class="h">지금: 올해 1월 1일부터 · 달마다 고르게</text>
+  <text x="1136" y="128" text-anchor="end" font-size="13" fill="#B4C4D8">같은 대화</text>
+  <text x="636" y="150" font-size="13" fill="#F5F8FC">점선이 달마다 같은 몫 <tspan fill="#B4C4D8">(1월 1일 0시 한국 시각부터 지금까지)</tspan></text>
+  <rect x="640" y="230" width="30" height="70" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="640" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="681" y="245" width="30" height="55" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="681" y="245" width="30" height="55" rx="4" fill="#4CC38A"/>
+  <rect x="722" y="210" width="30" height="90" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="722" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="763" y="240" width="30" height="60" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="763" y="240" width="30" height="60" rx="4" fill="#4CC38A"/>
+  <rect x="804" y="200" width="30" height="100" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="804" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="845" y="225" width="30" height="75" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="845" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="886" y="180" width="30" height="120" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="886" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="927" y="215" width="30" height="85" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="927" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="968" y="190" width="30" height="110" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="968" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="1009" y="205" width="30" height="95" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="1009" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect x="1050" y="170" width="30" height="130" rx="4" fill="#183152" stroke="#2B4A70" stroke-width="1"/>
+  <rect x="1050" y="238" width="30" height="62" rx="4" fill="#4CC38A"/>
+  <rect class="ghost" x="1091" y="276" width="30" height="24" rx="4"/>
+  <text x="655" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">1월</text>
+  <text x="696" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">2월</text>
+  <text x="737" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">3월</text>
+  <text x="778" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">4월</text>
+  <text x="819" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">5월</text>
+  <text x="860" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">6월</text>
+  <text x="901" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">7월</text>
+  <text x="942" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">8월</text>
+  <text x="983" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">9월</text>
+  <text x="1024" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">10월</text>
+  <text x="1065" y="320" text-anchor="middle" font-size="12" fill="#B4C4D8">11월</text>
+  <text x="1106" y="320" text-anchor="middle" font-size="12" fill="#8DA3BE">12월</text>
+  <path d="M634,238 H1086" stroke="#F7DE9F" stroke-width="1.5" stroke-dasharray="5 4" fill="none"/>
+  <text x="636" y="350" font-size="13" fill="#F5F8FC">대화가 적은 달(2월)이 남긴 몫은 다른 달로 간다.</text>
+  <text x="636" y="372" font-size="13" fill="#F5F8FC">한 달 안에서는 가장 최근의 이어진 대화를 남긴다</text>
+
+  <rect class="card" x="40" y="412" width="548" height="196" rx="16"/>
+  <text x="64" y="448" class="h">상대 말은 150자, 내 말은 300자까지</text>
+  <text x="64" y="472" font-size="13" fill="#B4C4D8">한 메시지가 넘으면 앞부분만 두고 (긴 글 생략)</text>
+  <text x="64" y="516" font-size="15" font-weight="700">나</text>
+  <rect x="124" y="496" width="360" height="28" rx="6" fill="#4CC38A"/>
+  <text x="496" y="516" font-size="14" font-weight="700" fill="#4CC38A">300자</text>
+  <text x="64" y="558" font-size="15" font-weight="700">상대</text>
+  <rect x="124" y="538" width="180" height="28" rx="6" fill="#8ECDF5"/>
+  <text x="316" y="558" font-size="14" font-weight="700" fill="#8ECDF5">150자</text>
+  <text x="64" y="592" font-size="13" fill="#F5F8FC">상대 말은 문맥일 뿐 점수는 내 말에만 매긴다. 그만큼 내 말이 더 들어간다</text>
+
+  <rect class="card" x="612" y="412" width="548" height="196" rx="16"/>
+  <text x="636" y="448" class="h">고르는 순서와 한도</text>
+  <text x="636" y="472" font-size="13" fill="#B4C4D8">단계마다 달마다 고르게 깎는다</text>
+  <rect class="inner" x="636" y="490" width="134" height="40" rx="8"/>
+  <text x="703" y="515" text-anchor="middle" font-size="14" font-weight="700" fill="#F7DE9F">본인 2,000개</text>
+  <path class="line" d="M774,510 H796" marker-end="url(#arr)"/>
+  <rect class="inner" x="800" y="490" width="134" height="40" rx="8"/>
+  <text x="867" y="515" text-anchor="middle" font-size="14" font-weight="700" fill="#F7DE9F">전체 6,000개</text>
+  <path class="line" d="M938,510 H960" marker-end="url(#arr)"/>
+  <rect class="inner" x="964" y="490" width="134" height="40" rx="8"/>
+  <text x="1031" y="515" text-anchor="middle" font-size="14" font-weight="700" fill="#F7DE9F">200,000자</text>
+  <text x="636" y="566" font-size="18" font-weight="800" fill="#4CC38A">→ AI 대화문 52,000자 · 최대 8구간</text>
+  <text x="636" y="592" font-size="13" fill="#B4C4D8">구간은 지금처럼 약 6,700자씩. 1~11월 합성 대화로 8번 호출</text>
+</svg>

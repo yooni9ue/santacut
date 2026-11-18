@@ -9,7 +9,7 @@ package com.santacut.domain.global.exception
 enum class ErrorCode(val status: Int, val message: String) {
     INVALID_REQUEST(400, "요청 형식이 올바르지 않습니다. 필수 값, 헤더, 값의 형식을 확인해 주세요."),
     INVALID_IDEMPOTENCY_KEY(400, "Idempotency-Key는 영문, 숫자, 밑줄, 하이픈으로 된 16~100자여야 합니다."),
-    INVALID_EVENT_RANGE(400, "이벤트 시각은 최근 90일 안이면서 5분 뒤보다 늦지 않아야 하고, 전체 텍스트는 200,000자 이하여야 합니다."),
+    INVALID_EVENT_RANGE(400, "이벤트 시각은 올해 1월 1일(한국 시각) 이후이면서 5분 뒤보다 늦지 않아야 하고, 전체 텍스트는 200,000자 이하여야 합니다."),
     INSUFFICIENT_EVENTS(400, "분석하려면 이벤트가 20개 이상 필요합니다."),
     TOO_MANY_EVENTS(400, "한 번에 보낼 수 있는 이벤트는 2,000개까지입니다."),
     INVALID_NICKNAME(400, "닉네임은 한글, 영문, 숫자, 밑줄로 된 2~16자여야 합니다."),

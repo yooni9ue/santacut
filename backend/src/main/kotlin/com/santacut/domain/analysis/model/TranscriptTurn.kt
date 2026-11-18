@@ -2,6 +2,7 @@ package com.santacut.domain.analysis.model
 
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.YearMonth
 
 /**
  * 채점 대화문의 한 줄. 같은 화자가 잇달아 보낸 메시지를 ` / `로 이은 것이다.
@@ -33,6 +34,9 @@ data class TranscriptTurn(
 
     /** 잇달아 보낸 메시지를 이은 본문을 다시 메시지별 토막으로 나눈다. */
     fun pieces(): List<String> = text.split(MERGE_SEPARATOR)
+
+    /** 달마다 고르게 고를 때 쓰는 후보. 첫 메시지가 속한 달이고, 예산에서 [cost]를 쓴다. */
+    fun toSpreadCandidate(cost: Int): SpreadCandidate<TranscriptTurn> = SpreadCandidate(this, YearMonth.from(startedAt), cost)
 
     /** [previous] 줄이 끝난 뒤 이 줄이 시작하기까지의 간격. */
     fun gapAfter(previous: TranscriptTurn): Duration = Duration.between(previous.endedAt, startedAt)

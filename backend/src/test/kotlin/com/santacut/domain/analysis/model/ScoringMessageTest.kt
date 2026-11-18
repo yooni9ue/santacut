@@ -54,6 +54,13 @@ class ScoringMessageTest {
     }
 
     @Test
+    fun `상대 본문은 150자를 넘으면 앞부분만 두고 (긴 글 생략)을 붙인다`() {
+        assertEquals("가".repeat(150) + " (긴 글 생략)", ScoringMessage(noon, "가".repeat(151), "상대").normalizedText())
+        assertEquals("가".repeat(150), ScoringMessage(noon, "가".repeat(150), "상대").normalizedText())
+        assertEquals("가".repeat(151), message("가".repeat(151)).normalizedText())
+    }
+
+    @Test
     fun `화자를 주지 않으면 본인이다`() {
         assertTrue(message("고마워").isSelf())
         assertFalse(ScoringMessage(noon, "고마워", "상대").isSelf())

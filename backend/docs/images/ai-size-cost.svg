@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 650" width="1200" height="650" role="img" aria-label="이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 지금 6구간은 약 46,100 토큰이다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 응답 스키마 뒤 0.281센트, 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)이고 캐시 읽기가 걸리면 0.82~1.28센트다">
-  <title>이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 지금 6구간은 약 46,100 토큰이다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 응답 스키마 뒤 0.281센트, 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)이고 캐시 읽기가 걸리면 0.82~1.28센트다</title>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 720" width="1200" height="720" role="img" aria-label="이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 6구간은 약 46,100 토큰이었다. 지금 8구간은 올해 대화문 기준 약 56,000 토큰으로 추정한다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 응답 스키마 뒤 0.281센트, 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)를 거쳐 약 1.9센트(8구간, 추정)이고, 6구간 때 캐시 읽기가 걸리면 0.82~1.28센트였다">
+  <title>이벤트 2,000개 긴 대화: 대화문 1,866줄, 시스템 프롬프트 포함 53,132자가 한 번 호출 37,838 입력 토큰(실측)이었고, 6구간은 약 46,100 토큰이었다. 지금 8구간은 올해 대화문 기준 약 56,000 토큰으로 추정한다. 분석 한 번 비용은 짧은 대화 0.085센트(1번)에서 0.254센트(3번 중앙값), 응답 스키마 뒤 0.281센트, 긴 대화 약 1.40센트(4구간)에서 약 1.56센트(6구간)를 거쳐 약 1.9센트(8구간, 추정)이고, 6구간 때 캐시 읽기가 걸리면 0.82~1.28센트였다</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C1B2E"/><stop offset="0.62" stop-color="#0B1D2D"/><stop offset="1" stop-color="#0B2422"/>
@@ -27,45 +27,51 @@
       
     </style>
   </defs>
-  <rect width="1200" height="650" rx="24" fill="url(#bg)"/>
-  <path d="M0,626 Q300,610 600,622 T1200,620 V626 A24,24 0 0 1 1176,650 H24 A24,24 0 0 1 0,626 z" fill="#F5F8FC" opacity="0.05"/>
+  <rect width="1200" height="720" rx="24" fill="url(#bg)"/>
+  <path d="M0,696 Q300,680 600,692 T1200,690 V696 A24,24 0 0 1 1176,720 H24 A24,24 0 0 1 0,696 z" fill="#F5F8FC" opacity="0.05"/>
   <g fill="#F5F8FC"><circle cx="968" cy="198" r="0.9" opacity="0.4"/><circle cx="868" cy="546" r="1.5" opacity="0.3"/><circle cx="290" cy="111" r="0.9" opacity="0.3"/><circle cx="982" cy="115" r="1.2" opacity="0.3"/><circle cx="648" cy="543" r="0.9" opacity="0.3"/><circle cx="683" cy="103" r="0.9" opacity="0.4"/><circle cx="494" cy="488" r="1.5" opacity="0.45"/></g>
   <path d="M40,0 H64 V56 L52,47 L40,56 z" fill="#B5123E"/>
   <path d="M43.5,0 V50 M60.5,0 V50" stroke="#E9B949" stroke-width="1" opacity="0.75"/>
   <text x="82" y="48" font-size="28" font-weight="800">입력 크기와 비용</text>
-  <text x="1160" y="48" text-anchor="end" font-size="16" fill="#B4C4D8">이벤트 2,000개 긴 대화 기준, ./gradlew eval 실측</text>
-  <use href="#flake" xlink:href="#flake" x="1150" y="602" width="16" height="16" stroke="#F5F8FC" opacity="0.35"/>
-  <rect class="card" x="40" y="92" width="1120" height="300" rx="16"/>
+  <text x="1160" y="48" text-anchor="end" font-size="16" fill="#B4C4D8">이벤트 2,000개 긴 대화 기준, ./gradlew eval 실측(8구간은 추정)</text>
+  <use href="#flake" xlink:href="#flake" x="1150" y="688" width="16" height="16" stroke="#F5F8FC" opacity="0.35"/>
+  <rect class="card" x="40" y="92" width="1120" height="370" rx="16"/>
   <text x="64" y="128" class="h">긴 대화 한 번에 보내는 양</text>
   <text x="1136" y="128" text-anchor="end" font-size="14" fill="#B4C4D8">한국어 대화문은 약 1.4자가 토큰 하나</text>
   <text x="64" y="180" font-size="15" font-weight="700">대화문 글자 수</text>
   <text x="64" y="202" font-size="12" fill="#B4C4D8">1,866줄, 시스템 프롬프트 포함</text>
   <rect x="330" y="160" width="640" height="34" rx="8" fill="#183152"/>
-  <rect x="330" y="160" width="640" height="34" rx="8" fill="#8ECDF5"/>
+  <rect x="330" y="160" width="607" height="34" rx="8" fill="#8ECDF5"/>
   <text x="986" y="183" font-size="15" font-weight="700" fill="#8ECDF5">53,132자</text>
   <text x="64" y="250" font-size="15" font-weight="700">한 번 호출 입력</text>
   <text x="64" y="272" font-size="12" fill="#B4C4D8">4판, countTokens 실측</text>
   <rect x="330" y="230" width="640" height="34" rx="8" fill="#183152"/>
-  <rect x="330" y="230" width="455" height="34" rx="8" fill="#E9B949"/>
+  <rect x="330" y="230" width="432" height="34" rx="8" fill="#E9B949"/>
   <text x="986" y="253" font-size="15" font-weight="700" fill="#E9B949">37,838 토큰</text>
-  <text x="64" y="320" font-size="15" font-weight="700">6구간 입력 합계(지금)</text>
+  <text x="64" y="320" font-size="15" font-weight="700">6구간 입력 합계(전)</text>
   <text x="64" y="342" font-size="12" fill="#B4C4D8">구간마다 시스템 프롬프트를 다시 보냄</text>
   <rect x="330" y="300" width="640" height="34" rx="8" fill="#183152"/>
-  <rect x="330" y="300" width="555" height="34" rx="8" fill="#4CC38A"/>
-  <text x="986" y="323" font-size="15" font-weight="700" fill="#4CC38A">약 46,100 토큰</text>
-  <text x="64" y="378" font-size="13" fill="#B4C4D8">서버는 호출 전에 글자 × 3/4로 어림한다(실측보다 약 5% 많게). 본문 상한 40,000자에는 닿지 않았다.</text>
-  <rect class="card" x="40" y="412" width="548" height="196" rx="16"/>
-  <text x="64" y="448" class="h">짧은 대화 한 번</text>
-  <text x="64" y="472" font-size="13" fill="#B4C4D8">한 구간, 입력 약 2천 토큰</text>
-  <text x="64" y="538" font-size="34" font-weight="800" fill="#B4C4D8">0.085¢</text>
-  <text x="196" y="536" font-size="26" fill="#E9B949">→</text>
-  <text x="236" y="538" font-size="40" font-weight="800" fill="#4CC38A">0.281¢</text>
-  <text x="64" y="580" font-size="13" fill="#F5F8FC">1번에서 3번 중앙값(0.254¢), 응답 스키마로 출력이 늘어 0.281¢</text>
-  <rect class="card" x="612" y="412" width="548" height="196" rx="16"/>
-  <text x="636" y="448" class="h">긴 대화 한 번</text>
-  <text x="636" y="472" font-size="13" fill="#B4C4D8">이벤트 2,000개</text>
-  <text x="636" y="538" font-size="34" font-weight="800" fill="#B4C4D8">1.40¢</text>
-  <text x="752" y="536" font-size="26" fill="#E9B949">→</text>
-  <text x="792" y="538" font-size="40" font-weight="800" fill="#4CC38A">1.56¢</text>
-  <text x="636" y="580" font-size="13" fill="#F5F8FC">4구간에서 6구간으로 0.16¢ 더. 캐시 읽기가 걸리면 0.82~1.28¢</text>
+  <rect x="330" y="300" width="527" height="34" rx="8" fill="#8DA3BE"/>
+  <text x="986" y="323" font-size="15" font-weight="700" fill="#8DA3BE">약 46,100 토큰</text>
+  <text x="64" y="390" font-size="15" font-weight="700">8구간 입력 합계(지금)</text>
+  <text x="64" y="412" font-size="12" fill="#B4C4D8">추정, 올해 1~11월 대화문 약 51,500자</text>
+  <rect x="330" y="370" width="640" height="34" rx="8" fill="#183152"/>
+  <rect x="330" y="370" width="640" height="34" rx="8" fill="#4CC38A" fill-opacity="0.75" stroke="#4CC38A" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="986" y="393" font-size="15" font-weight="700" fill="#4CC38A">약 56,000 토큰</text>
+  <text x="64" y="446" font-size="13" fill="#B4C4D8">서버는 호출 전에 글자 × 3/4로 어림한다(실측보다 약 5% 많게). 8구간 값은 이 어림으로 낸 추정이고, 사용량 로그로 확인한다.</text>
+  <rect class="card" x="40" y="482" width="548" height="196" rx="16"/>
+  <text x="64" y="518" class="h">짧은 대화 한 번</text>
+  <text x="64" y="542" font-size="13" fill="#B4C4D8">한 구간, 입력 약 2천 토큰</text>
+  <text x="64" y="608" font-size="34" font-weight="800" fill="#B4C4D8">0.085¢</text>
+  <text x="196" y="606" font-size="26" fill="#E9B949">→</text>
+  <text x="236" y="608" font-size="40" font-weight="800" fill="#4CC38A">0.281¢</text>
+  <text x="64" y="650" font-size="13" fill="#F5F8FC">1번에서 3번 중앙값(0.254¢), 응답 스키마로 출력이 늘어 0.281¢</text>
+  <rect class="card" x="612" y="482" width="548" height="196" rx="16"/>
+  <text x="636" y="518" class="h">긴 대화 한 번</text>
+  <text x="636" y="542" font-size="13" fill="#B4C4D8">4구간 1.40¢ → 6구간 1.56¢ → 8구간(추정)</text>
+  <text x="636" y="608" font-size="34" font-weight="800" fill="#B4C4D8">1.56¢</text>
+  <text x="752" y="606" font-size="26" fill="#E9B949">→</text>
+  <text x="792" y="608" font-size="40" font-weight="800" fill="#4CC38A">약 1.9¢</text>
+  <text x="960" y="606" font-size="14" font-weight="700" fill="#F7DE9F">추정, 약 20% 더</text>
+  <text x="636" y="650" font-size="13" fill="#F5F8FC">Gemini 실측 아님. 6구간 때 캐시 읽기가 걸리면 0.82~1.28¢였다</text>
 </svg>

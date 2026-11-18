@@ -4,7 +4,7 @@ package com.santacut.domain.analysis.model
  * 대화문을 나눈 채점 구간 하나. 줄 번호는 대화문 전체 기준([firstNumber]부터)이라 근거 번호가 구간끼리 겹치지 않는다.
  * 앞 구간과 이어지는 답장 맥락을 위해 앞 구간의 마지막 [overlapTurns]줄을 머리에 함께 싣는다.
  *
- * @property omittedTurns 길이 한도로 뺀 앞선 줄 수. 첫 구간만 가진다.
+ * @property omittedTurns 길이 한도로 뺀 줄 수([TranscriptTurns.spreadWithin]). 첫 구간만 가진다.
  */
 class ScoringChunk(
     val turns: TranscriptTurns,

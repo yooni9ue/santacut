@@ -27,15 +27,15 @@ class AnalysisUploadTest {
     }
 
     @Test
-    fun `최근 90일 밖이거나 5분 넘게 미래인 메시지는 버린다`() {
-        val stale = line(now.minus(Duration.ofDays(91)), SELF_SPEAKER, "오래된 메시지")
+    fun `올해 1월 1일(한국 시각) 전이거나 5분 넘게 미래인 메시지는 버린다`() {
+        val stale = line(AnalysisEvent.periodStart(now).minusSeconds(60), SELF_SPEAKER, "작년 메시지")
         val future = line(now.plus(Duration.ofMinutes(10)), SELF_SPEAKER, "미래 메시지")
         val submission = upload(listOf(stale) + ownLines(yesterday, MIN_EVENTS) + future).normalize(now, noInstagram)
         assertEquals(List(MIN_EVENTS) { "고마워 $it" }, texts(submission))
     }
 
     @Test
-    fun `본인 메시지가 2,000개를 넘으면 최신 2,000개만 남긴다`() {
+    fun `본인 메시지가 2,000개를 넘으면 한 달 안에서는 최신 2,000개만 남긴다`() {
         val lines = ownLines(now.minus(Duration.ofDays(2)), AnalysisEvents.MAX_EVENTS + 1)
         val texts = texts(upload(lines).normalize(now, noInstagram))
         assertEquals(AnalysisEvents.MAX_EVENTS, texts.size)
