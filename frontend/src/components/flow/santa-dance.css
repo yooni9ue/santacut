@@ -1,6 +1,5 @@
 .santa-dance { width: 100%; margin: 10px auto 18px; color: #303030; }
-.dance-duo { display: flex; justify-content: center; max-width: 350px; margin: auto; }
-.dance-character { display: block; width: 50%; min-width: 0; overflow: visible; }
+.dance-duo { display: block; width: 100%; max-width: 350px; margin: auto; }
 .dance-caption { display: flex; justify-content: space-around; font-size: 13px; font-weight: 800; letter-spacing: 2px; color: #d94636; transform: rotate(-3deg); }
 .santa-dance .dance-note { font-size: 12px; color: #797971; text-align: center; margin-top: 8px; }
 .dance-controls { display: flex; justify-content: center; gap: 8px; margin-top: 14px; flex-wrap: wrap; }

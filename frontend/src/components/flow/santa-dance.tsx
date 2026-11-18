@@ -5,8 +5,9 @@ import motion from "./neon-motion.json";
 import "./santa-dance.css";
 
 type Point = [number, number];
-// Front pair from the supplied video, approximately 2–15s. Frames store x/y pairs in the order below.
+// Front pair from the full 22.27s reference. Frames store x/y pairs in the order below.
 const sourceFps = 30;
+const rudolphEntranceFrame = 33;
 const middle = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 
 function Face({ rudolph }: { rudolph: boolean }) {
@@ -37,7 +38,7 @@ function Limb({ points, color, width }: { points: Point[]; color: string; width:
   </>;
 }
 
-function Dancer({ pose, rudolph = false }: { pose: number[]; rudolph?: boolean }) {
+function Dancer({ pose, rudolph = false, opacity = 1 }: { pose: number[]; rudolph?: boolean; opacity?: number }) {
   const [nose, leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist, rightWrist, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle] =
     Array.from({ length: 13 }, (_, index): Point => [pose[index * 2], pose[index * 2 + 1]]);
   const shoulder = middle(leftShoulder, rightShoulder);
@@ -46,8 +47,8 @@ function Dancer({ pose, rudolph = false }: { pose: number[]; rudolph?: boolean }
   const headX = shoulder[0] + Math.max(-27, Math.min(27, nose[0] - shoulder[0]));
   const headY = shoulder[1] - Math.max(16, Math.min(55, shoulder[1] - nose[1]));
   const coat = rudolph ? "#bc8c65" : "#d94636";
-  return <svg viewBox="-28 -164 268 414" fill="none" aria-hidden="true" className="dance-character">
-    <ellipse cx="106" cy="236" rx="60" ry="7" fill="#242424" opacity=".08" />
+  return <g className="dance-character" opacity={opacity}>
+    <ellipse cx={hip[0]} cy="236" rx="55" ry="7" fill="#242424" opacity=".08" />
     <g stroke="#303030" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
       <Limb points={[leftHip, leftKnee, leftAnkle]} color={coat} width={21} />
       <Limb points={[rightHip, rightKnee, rightAnkle]} color={coat} width={21} />
@@ -64,7 +65,7 @@ function Dancer({ pose, rudolph = false }: { pose: number[]; rudolph?: boolean }
       <circle cx={leftWrist[0]} cy={leftWrist[1]} r="10" fill={rudolph ? "#79573e" : "#fff"} />
       <circle cx={rightWrist[0]} cy={rightWrist[1]} r="10" fill={rudolph ? "#79573e" : "#fff"} />
     </g>
-  </svg>;
+  </g>;
 }
 
 export function SantaDance({ active = true }: { active?: boolean }) {
@@ -99,7 +100,10 @@ export function SantaDance({ active = true }: { active?: boolean }) {
 
   return <section className="santa-dance" aria-label="산타와 루돌프의 니욘 앤 비욘 댄스">
     <div className="dance-caption" aria-hidden="true"><span>니욘</span><span>앤 비욘</span></div>
-    <div className="dance-duo"><Dancer pose={motion[0][frame]} /><Dancer pose={motion[1][frame]} rudolph /></div>
+    <svg className="dance-duo" viewBox="0 -188 570 474" fill="none" aria-hidden="true">
+      <Dancer pose={motion[1][frame]} rudolph opacity={Math.max(0, Math.min(1, (frame - rudolphEntranceFrame) / 6))} />
+      <Dancer pose={motion[0][frame]} />
+    </svg>
     <p className="dance-note">{active ? "심사는 맡겨놓고 둘이 이러는 중." : "크흠. 아무 일도 없었습니다."}</p>
     {active && <div className="dance-controls">
       <button type="button" aria-pressed={wild} onClick={() => setWild(value => !value)}>{wild ? "진정해 얘들아" : "더 격하게"}</button>
