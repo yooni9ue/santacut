@@ -36,6 +36,7 @@
 | 높음 | 성공 상태 → 실제 결과 이동, 새로고침 후 최근 작업 복구 | `AnalysisScreen`의 sample 분기·`LiveAnalysisScreen` 성공 문구 |
 | 높음 | 근거 부족과 최저 항목 분리 | 결과 UI는 `weakest_dimension`에 근거 부족 표시. 실제 계약은 `low_confidence_dimensions` |
 | 높음 | 백업 내 원본 보존·복원 후 삭제 재적용 정책 확정 | `backup.sh` 전체 DB `.backup`, 라이브 삭제와 별개 |
+| 높음 | 늦게 끝난 이전 제출의 결과 역전 방지 | 평가는 완료 시각으로 저장하고 최신 평가는 `createdAt DESC, id DESC` 조회. 제출 순번 보호는 현재 없음 |
 | 보통 | 랭킹 스냅숏 변경 409 시 첫 페이지 재조회, 더 보기 중복 요청 방지 | `LiveRankingScreen.loadMore`, 서버 cursor 계약 |
 | 보통 | 공유 인용 옵션을 JSON `include_quote`로 전송하고 취소·이미지 미리보기 구현 | `results.ts`는 현재 미사용 true 옵션에 쿼리 사용. 서버는 RequestBody |
 | 보통 | 지역 변경·내 데이터 삭제 UI | 백엔드 API 존재, 프론트 미연결 |
@@ -48,6 +49,8 @@
 
 ## 검증과 한계
 
-검증 결과: 추적 중인 Markdown 31개의 로컬 경로 링크 122개에서 누락 경로 0개, `git diff --check origin/develop...HEAD` 통과. dev OpenAPI에서 공유·결과·랭킹의 핵심 필드 10개 존재를 대조했다. 링크의 섹션 앵커와 외부 사이트 전체 가용성은 별도 자동 검증하지 않았다.
+검증 결과: 추적 중인 Markdown 31개의 로컬 경로 링크 122개에서 누락 경로 0개, 명시된 Markdown 헤딩 앵커 9개 누락 0개, `git diff --check origin/develop...HEAD` 통과. dev OpenAPI에서 공유·결과·랭킹의 핵심 필드 10개 존재를 대조했다. 외부 사이트 전체 가용성은 별도 자동 검증하지 않았다.
+
+추가 점검에서 배포 스크립트와 설계 목표를 대조했다. 명시적 worker drain·외부 health·별도 보안 스캔은 현재 자동 실행 단계가 아니므로 자동화 완료로 해석하지 않도록 아키텍처에 구분했다.
 
 런타임 코드를 바꾸지 않아 애플리케이션 테스트·유료 AI 호출·부하 시험은 새로 실행하지 않았다. dev OpenAPI 조회는 읽기 전용이며 기존 사용자 계정이나 데이터를 생성·삭제하지 않았다.

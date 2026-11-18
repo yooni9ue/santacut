@@ -49,7 +49,7 @@ flowchart LR
 
 - JVM: Java 25를 기준으로 Gradle toolchain과 CI를 일치시킨다.
 - Kotlin/Spring Boot/Gradle: 선택한 Boot BOM과 호환되는 패치 버전을 build 파일·Wrapper에 고정한다. 업그레이드는 테스트·취약점 검증 후 PR로 수행한다.
-- Spring MVC + Spring Data JPA: 데이터 접근은 infrastructure 계층의 리포지토리에 모은다. SQLite 작업 큐의 단일 worker는 짧은 트랜잭션과 DB 호환 쿼리만 사용한다.
+- Spring MVC + Spring Data JPA: 데이터 접근은 infrastructure 계층 리포지토리에 모은다. 같은 JVM의 분석 작업자는 기본 동시성 3이고 DB 풀은 1개다. 외부 AI 호출은 짧은 트랜잭션 밖에서 수행한다.
 - SQLite: 한 파일에 사용자·세션·작업·분석·랭킹·공유를 저장하고 파일 백업을 외부로 전송한다. 현재 구현은 Hibernate `ddl-auto: update`(엔티티가 스키마를 정함)와 `seed.sql` 시드를 사용하며, 프로덕션 데이터 변경 전 백업과 복원 검증이 필요하다.
 - HTML 공유 페이지: 서버 렌더링으로 Open Graph 메타 태그를 첫 응답에 포함한다. JavaScript를 실행하지 않는 카카오톡·SNS 크롤러도 읽을 수 있어야 한다.
 - PNG: Java2D/ImageIO 등 JVM 안에서 그리는 1200×630 이미지. headless 브라우저는 메모리 때문에 기본 배제한다. 한글 폰트를 이미지에 포함하고 라이선스를 보관한다.
@@ -112,7 +112,7 @@ API 계약을 바꿀 때는 해당 엔드포인트의 전용 Swagger 애노테�
 - 종료 직전 결과 저장에는 job ID + fencing token을 조건으로 사용해 기한 지난 worker가 최신 결과를 덮어쓰지 못한다.
 - 프로세스가 죽으면 lease가 만료된 작업만 회수한다. 모든 재시도는 같은 캐시·idempotency 문맥을 유지한다.
 - AI 공급자가 요청 멱등성을 제공하지 않으면 네트워크 실패 시 중복 과금 가능성이 남는다. exactly-once 과금을 보장하지 않는다.
-- 사용자·시즌의 최신 request_sequence와 일치하는 정상 결과만 활성화한다. 이전 작업은 기록으로 남아도 활성 점수를 바꾸지 않는다.
+- 현재 `request_sequence`는 없다. 평가는 완료 시각으로 저장하고(`Assessment.record`), 참가자별 최신 평가는 `createdAt DESC, id DESC`로 고른다(`AssessmentRepository`). 따라서 늦게 완료된 이전 제출이 최신 제출 결과를 덮어쓰지 않는다는 보장은 별도 구현·검증이 필요하다.
 - 성공 결과 캐시 키에는 사용자, 파일 hash, source, 본인 화자, 정규화·표본 기간, parser/prompt/model/score 버전을 모두 포함한다.
 
 **[대체됨]** 처음에는 DB에 일별 예산 ledger를 두고 최악 토큰 비용을 먼저 reserve하는 방식을 계획했다. 지금 앱에는 AI 호출 수 한도가 없다. 대신 날짜별 토큰 합계로 한 달 9달러를 넘지 않게 막고, 호출 전에 그 호출의 어림 비용을 더해 확인하는 비용 가드가 있다. 하루 한도는 설정으로만 켠다. Gemini는 선불 크레딧으로 쓴다. 앱에는 참가자별 24시간 3회 제출 한도와 이벤트 수·글자 수 제한만 남아 있다.
@@ -184,13 +184,15 @@ Lightsail 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/
 
 ## 10. CI/CD와 배포 계약
 
-PR CI: Wrapper checksum 확인 → Java toolchain → compile/test → SQLite 통합 테스트 → bootJar → container build → 비밀·의존성 검사. main의 같은 커밋으로 검증된 image를 GHCR에 게시한다. 배포는 image tag가 아니라 digest를 기록한다.
+현재 PR CI는 Java 25 설정 → 배포 셸 문법·Compose 검사 → `clean check bootJar` → 게시 없는 Docker 빌드다. 별도 비밀·의존성 스캔 단계가 실행된다고 가정하지 않는다. develop/main push는 검증된 이미지를 GHCR에 게시하며 배포에는 tag 대신 digest를 사용한다.
 
 GitHub Actions 권한은 기본 contents:read, 이미지 게시 job만 packages:write. 외부 PR에 배포 secrets를 전달하지 않는다. production environment에 서버 키·known_hosts를 저장하고 SSH host key를 대역 외 확인한다. 실행 때 `ssh-keyscan`만으로 처음 본 키를 무조건 신뢰하지 않는다.
 
 `develop` 푸시는 테스트·이미지 게시 뒤 dev 서버에 자동 배포한다. GitHub OIDC로 AWS 배포 역할을 맡아 러너 IP에만 SSH(22번)를 잠깐 열고, 배포가 끝나면 닫는다. `main` 푸시는 이미지 게시까지만 하고, 운영 배포는 수동 `workflow_dispatch`(`deploy=true`)로 검증된 digest를 고른다. 배포 concurrency group은 한 서버당 하나이며 배포 중 취소하지 않는다. GitHub concurrency와 별도로 서버 파일 lock으로 겹치는 실행을 막는다.
 
-배포 순서:
+아래는 배포 설계 목표다. 현재 `deploy.sh`가 자동 수행하는 것은 Compose 검사·이미지 pull → 기존 릴리스가 있으면 전체 DB 백업 → `compose up --wait` → 내부 readiness → 성공한 digest·릴리스 갱신이다. 실패하면 이전 이미지로 복구를 시도한다. 별도의 worker claim 중단·명시적 drain·디스크 여유 검사·외부 health 검사는 스크립트에 없으며, dev 워크플로는 배포 후 OpenAPI 응답을 확인한다. `/actuator`는 외부에서 404이므로 공개 health URL로 사용하지 않는다.
+
+배포 설계 목표(자동 수행 범위는 위 설명 참고):
 
 1. compose 구문·필수 환경변수·디스크 여유·최근 백업을 확인한다.
 2. 새 이미지를 pull하고 이전 image digest를 기록한다.
