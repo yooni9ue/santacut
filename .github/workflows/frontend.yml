@@ -57,7 +57,10 @@ jobs:
       - name: Production build
         run: pnpm build
       - name: Install mobile browser engines
-        run: pnpm exec playwright install --with-deps chromium webkit
+        run: |
+          # Regional runner mirrors have timed out while fetching WebKit dependencies.
+          sudo sed -Ei 's|http://[^ /]+\.ec2\.archive\.ubuntu\.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          pnpm exec playwright install --with-deps chromium webkit
       - name: Mobile E2E against production build
         run: pnpm test:e2e
       - name: Browser reports
