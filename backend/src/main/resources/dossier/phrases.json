@@ -770,6 +770,45 @@
    "category": "agree"
   },
   {
+   "key": "okok",
+   "display": "ㅇㅋㅇㅋ",
+   "forms": [
+    "ㅇㅋㅇㅋ"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "agree",
+   "whole_word": true
+  },
+  {
+   "key": "giyeok_q",
+   "display": "ㄱ?",
+   "forms": [
+    "ㄱ?"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "question",
+   "whole_word": true
+  },
+  {
+   "key": "jojija",
+   "display": "조지자",
+   "forms": [
+    "조지자"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang",
+   "whole_word": true
+  },
+  {
+   "key": "haengnimdeul",
+   "display": "행님들",
+   "forms": [
+    "행님들"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang"
+  },
+  {
    "key": "eung",
    "display": "응",
    "forms": [
@@ -957,7 +996,7 @@
   },
   {
    "key": "gogo",
-   "display": "고고",
+   "display": "ㄱㄱ",
    "forms": [
     "ㄱㄱ",
     "고고"

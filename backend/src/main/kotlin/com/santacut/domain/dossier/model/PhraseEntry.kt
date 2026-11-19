@@ -8,6 +8,7 @@ import kotlin.math.ln
  *
  * @property baselinePer100 보통 사람의 본인 메시지 100개당 예상 사용 횟수. 특이도의 기준이다.
  * @property category 말의 분류. 장부 메모를 고를 때 쓴다.
+ * @property wholeWord 참이면 표면형 길이와 상관없이 낱말 경계에서만 센다. 짧은 자모 버릇('ㄱ?', 'ㅇㅋㅇㅋ')의 오탐을 줄인다.
  */
 data class PhraseEntry(
     val key: String,
@@ -15,7 +16,11 @@ data class PhraseEntry(
     val forms: TextForms,
     @JsonProperty("baseline_per_100") val baselinePer100: Double,
     val category: String,
+    @JsonProperty("whole_word") val wholeWord: Boolean = false,
 ) {
+    /** 본인 메시지 본문 [text]에서 이 말을 쓴 횟수. [wholeWord]면 앞뒤에 글자·숫자가 붙지 않은 자리만 센다('ㄱㄱ?' 속 'ㄱ?'는 세지 않는다). */
+    fun countIn(text: String): Int = forms.countIn(text, wholeWord)
+
     /** 규칙에 맞지 않는 곳의 설명. 맞으면 빈 목록이다. */
     fun violations(): List<String> = listOfNotNull(
         "phrases.$key: key는 영소문자, 숫자, 밑줄만 쓴다".takeUnless { KEY.matches(key) },

@@ -17,10 +17,13 @@ class TextForms @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
     /** 표면형이 하나도 없거나 빈 표면형이 섞여 있는지. */
     fun isMalformed(): Boolean = values.isEmpty() || values.any { form -> form.isBlank() }
 
-    /** [text] 안에 나온 모든 표면형의 횟수 합. */
-    fun countIn(text: String): Int = values.sumOf { form ->
-        if (form.length < MIN_SUBSTRING_LENGTH) tokenCount(text, form, 0, 0) else substringCount(text, form, 0, 0)
+    /** [text] 안에 나온 모든 표면형의 횟수 합. [wholeWord]면 길이와 상관없이 낱말 경계에서만 센다. */
+    fun countIn(text: String, wholeWord: Boolean = false): Int = values.sumOf { form ->
+        if (wholeWord || form.length < MIN_SUBSTRING_LENGTH) tokenCount(text, form, 0, 0) else substringCount(text, form, 0, 0)
     }
+
+    /** [text]에 표면형이 하나라도 나왔는지. */
+    fun appearsIn(text: String): Boolean = countIn(text) > 0
 
     private tailrec fun tokenCount(text: String, form: String, from: Int, found: Int): Int {
         val index = text.indexOf(form, from)
