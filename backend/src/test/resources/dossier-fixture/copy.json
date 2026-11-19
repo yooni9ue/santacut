@@ -1,0 +1,482 @@
+{
+ "version": 1,
+ "slots": [
+  {
+   "name": "message_count",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "laugh_count",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "phrase",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "count",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "bleep_count",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "value",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "top_percent",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "bottom_percent",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "month",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "hour",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "act_label",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "topic",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "case_no",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "label",
+   "format": "픽스처",
+   "used_in": []
+  },
+  {
+   "name": "kind_label",
+   "format": "픽스처",
+   "used_in": []
+  }
+ ],
+ "notes": [
+  "픽스처"
+ ],
+ "speakers": {
+  "elf": "계수 요정",
+  "rudolph": "루돌프",
+  "lawyer": "변호 요정",
+  "santa": "산타"
+ },
+ "teaser": [
+  "티저 {message_count}{message_count:을} 세는 중"
+ ],
+ "hook": {
+  "headline": [
+   "한마디 제목"
+  ],
+  "memo": [
+   "한마디 메모 '{phrase}'{phrase:을} {count}"
+  ]
+ },
+ "hook_fallback": {
+  "headline": [
+   "웃음 제목"
+  ],
+  "memo": [
+   "웃음 메모 {value}"
+  ]
+ },
+ "ledger": {
+  "headline": [
+   "장부 제목"
+  ],
+  "memo_by_category": {
+   "reaction": [
+    "반응 메모 '{phrase}' {count}"
+   ],
+   "agree": [
+    "승낙 메모 '{phrase}' {count}"
+   ]
+  },
+  "bleep": [
+   "삐 {bleep_count}"
+  ]
+ },
+ "extremes": {
+  "laugh_density": {
+   "speaker": "elf",
+   "high": {
+    "headline": [
+     "laugh_density 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "laugh_density 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "laugh_density 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "laugh_density 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "laugh_density 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "laugh_density 낮음 메모"
+    ]
+   }
+  },
+  "laugh_max_run": {
+   "speaker": "elf",
+   "high": {
+    "headline": [
+     "laugh_max_run 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "laugh_max_run 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "laugh_max_run 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "laugh_max_run 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "laugh_max_run 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "laugh_max_run 낮음 메모"
+    ]
+   }
+  },
+  "cry_density": {
+   "speaker": "elf",
+   "high": {
+    "headline": [
+     "cry_density 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "cry_density 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "cry_density 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "cry_density 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "cry_density 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "cry_density 낮음 메모"
+    ]
+   }
+  },
+  "night_ratio": {
+   "speaker": "rudolph",
+   "high": {
+    "headline": [
+     "night_ratio 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "night_ratio 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "night_ratio 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "night_ratio 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "night_ratio 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "night_ratio 낮음 메모"
+    ]
+   }
+  },
+  "message_count": {
+   "speaker": "elf",
+   "high": {
+    "headline": [
+     "message_count 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "message_count 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "message_count 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "message_count 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "message_count 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "message_count 낮음 메모"
+    ]
+   }
+  },
+  "avg_length": {
+   "speaker": "elf",
+   "high": {
+    "headline": [
+     "avg_length 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "avg_length 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "avg_length 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "avg_length 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "avg_length 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "avg_length 낮음 메모"
+    ]
+   }
+  },
+  "reply_median_minutes": {
+   "speaker": "elf",
+   "high": {
+    "headline": [
+     "reply_median_minutes 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "reply_median_minutes 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "reply_median_minutes 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "reply_median_minutes 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "reply_median_minutes 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "reply_median_minutes 낮음 메모"
+    ]
+   }
+  },
+  "bleep_density": {
+   "speaker": "elf",
+   "high": {
+    "headline": [
+     "bleep_density 높음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "bleep_density 높음 줄 {value} {top_percent}"
+    ],
+    "memo": [
+     "bleep_density 높음 메모"
+    ]
+   },
+   "low": {
+    "headline": [
+     "bleep_density 낮음 제목"
+    ],
+    "big": "{value}",
+    "lines": [
+     "bleep_density 낮음 줄 {value} {bottom_percent}"
+    ],
+    "memo": [
+     "bleep_density 낮음 메모"
+    ]
+   }
+  }
+ },
+ "acts": {
+  "headline": [
+   "삼막 제목"
+  ],
+  "line": [
+   "{act_label} 화제 '{topic}' {count}"
+  ],
+  "empty": [
+   "{act_label} 빈 막"
+  ]
+ },
+ "dossier": {
+  "header": [
+   "조서 {case_no}"
+  ],
+  "charges": {
+   "phrase_top": [
+    "죄목 입버릇 '{phrase}'{phrase:을} {count}"
+   ],
+   "phrase_distinct": [
+    "죄목 특이 '{phrase}' {count}"
+   ],
+   "laugh_density": [
+    "죄목 웃음 {value}"
+   ],
+   "laugh_density_low": [
+    "죄목 웃음 적음 {value}"
+   ],
+   "avg_length": [
+    "죄목 길이 {value}"
+   ],
+   "avg_length_low": [
+    "죄목 길이 짧음 {value}"
+   ],
+   "night_ratio": [
+    "죄목 심야 {value}"
+   ],
+   "reply_median_minutes": [
+    "죄목 답장 느림 {value}"
+   ]
+  },
+  "merits": {
+   "thanks": [
+    "공로 '{label}' {count}"
+   ],
+   "care": [
+    "공로 '{label}' {count}"
+   ],
+   "busiest_month": [
+    "공로 {month} {value}"
+   ],
+   "message_count": [
+    "공로 말풍선 {value}"
+   ]
+  },
+  "summary_by_band": {
+   "top": [
+    "총평 최상"
+   ],
+   "high": [
+    "총평 상"
+   ],
+   "mid": [
+    "총평 중"
+   ],
+   "low": [
+    "총평 하"
+   ]
+  }
+ },
+ "verdict": {
+  "reason_by_dimension": {
+   "care_empathy": [
+    "사유 공감 '{kind_label}' {count}{count:이}"
+   ],
+   "positivity_support": [
+    "사유 응원 '{kind_label}' {count}"
+   ],
+   "respectful_communication": [
+    "사유 존중 '{kind_label}' {count}"
+   ],
+   "cooperation_sharing": [
+    "사유 협력 '{kind_label}' {count}"
+   ]
+  },
+  "note": {
+   "laugh_max_run": [
+    "주석 연타 {value}"
+   ],
+   "default": [
+    "주석 기본"
+   ]
+  },
+  "low_band_title": [
+   "하위 판정 줄"
+  ]
+ },
+ "summons": [
+  "소환 '{phrase}' {count}",
+  "소환 칭호 받아 와",
+  "소환 다른 방"
+ ],
+ "low_data": [
+  "적은 말풍선 안내"
+ ],
+ "reupload": [
+  "재업로드 안내"
+ ],
+ "mild": {
+  "extremes_memo": [
+   "담백 메모"
+  ],
+  "summary": [
+   "담백 총평"
+  ]
+ },
+ "titles": {
+  "modifier_by_metric": {
+   "laugh_density": [
+    "웃음 과다"
+   ],
+   "laugh_density_low": [
+    "웃음 절약"
+   ]
+  },
+  "role_by_metric": {
+   "night_ratio": [
+    "야간 근무자"
+   ],
+   "avg_length": [
+    "장문 작가"
+   ]
+  },
+  "default_modifier": [
+   "무난한"
+  ],
+  "default_role": [
+   "말풍선 운송 기사"
+  ]
+ }
+}

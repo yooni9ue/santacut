@@ -1,0 +1,8 @@
+{"version":1,"phrases":[
+  {"key":"jinjja","display":"진짜","forms":["진짜","찐짜"],"baseline_per_100":5.0,"category":"reaction"},
+  {"key":"okay","display":"ㅇㅋ","forms":["ㅇㅋ","오케이"],"baseline_per_100":2.0,"category":"agree"},
+  {"key":"heol","display":"헐","forms":["헐"],"baseline_per_100":0.1,"category":"reaction"},
+  {"key":"daebak","display":"대박","forms":["대박"],"baseline_per_100":1.2,"category":"reaction"},
+  {"key":"geunde","display":"근데","forms":["근데"],"baseline_per_100":3.0,"category":"filler"},
+  {"key":"ani","display":"아니","forms":["아니"],"baseline_per_100":3.0,"category":"filler"}
+]}

@@ -232,7 +232,7 @@ class LayerDependencyTest {
         private const val INFRASTRUCTURE = "$ROOT.infrastructure"
         private const val APPLICATION_CLASS_NAME = "SantaCutApplication"
         private const val GLOBAL = "global"
-        private val DOMAINS = setOf("participant", "session", "analysis", "ranking", "share", "prompt")
+        private val DOMAINS = setOf("participant", "session", "analysis", "ranking", "share", "prompt", "dossier")
         private val DOMAIN_ROLES = mapOf(
             "presentation" to setOf("controller", "request", "response", "stream", "docs"),
             "application" to setOf("facade", "runner", "command", "result"),

@@ -1,0 +1,6 @@
+{"version":1,"kinds":[
+  {"key":"thanks","label":"고마워","dimension":"positivity_support","forms":["고마워","고맙"]},
+  {"key":"care","label":"괜찮아?","dimension":"care_empathy","forms":["괜찮아?","조심히"]},
+  {"key":"sorry","label":"미안","dimension":"respectful_communication","forms":["미안"]},
+  {"key":"together","label":"같이","dimension":"cooperation_sharing","forms":["같이"]}
+]}

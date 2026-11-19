@@ -49,6 +49,9 @@ management:
           include: readinessState,db
       show-details: never
 santacut:
+  # 「2026 산타 조서」 리소스(입버릇·주제·따뜻한 말·욕설·위기어 사전, 극값 기준표, 문구 템플릿). 앱이 뜰 때 읽어 검사한다.
+  dossier:
+    resource-location: classpath:dossier/
   # dev 전용 프롬프트 관리 API(/v1/admin/prompts). 운영은 끈 채로 둔다(404).
   # 켜도 관리 토큰(PROMPT_ADMIN_TOKEN)이 없으면 뜨지 않는다. 요청은 X-Admin-Token 헤더에 이 토큰을 실어야 한다.
   prompt-admin:

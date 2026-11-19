@@ -1,0 +1,3850 @@
+{
+ "version": 1,
+ "phrases": [
+  {
+   "key": "jinjja",
+   "display": "진짜",
+   "forms": [
+    "진짜",
+    "찐짜",
+    "진쨔",
+    "ㅈㅉ"
+   ],
+   "baseline_per_100": 5.0,
+   "category": "reaction"
+  },
+  {
+   "key": "heol",
+   "display": "헐",
+   "forms": [
+    "헐",
+    "헐랭",
+    "헐퀴",
+    "ㅎㄹ"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "reaction"
+  },
+  {
+   "key": "daebak",
+   "display": "대박",
+   "forms": [
+    "대박",
+    "대바악",
+    "대애박"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "reaction"
+  },
+  {
+   "key": "michyeotda",
+   "display": "미쳤다",
+   "forms": [
+    "미쳤",
+    "ㅁㅊ"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "reaction"
+  },
+  {
+   "key": "rejeondeu",
+   "display": "레전드",
+   "forms": [
+    "레전드",
+    "ㄹㅈㄷ",
+    "레게노"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "silhwanya",
+   "display": "실화냐",
+   "forms": [
+    "실화냐",
+    "실화임",
+    "실화야",
+    "실환가"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "reaction"
+  },
+  {
+   "key": "wa",
+   "display": "와",
+   "forms": [
+    "와",
+    "와우",
+    "우와",
+    "우왕"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "reaction"
+  },
+  {
+   "key": "oo",
+   "display": "오오",
+   "forms": [
+    "오오",
+    "오호",
+    "오홍"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "reaction"
+  },
+  {
+   "key": "ool",
+   "display": "오올",
+   "forms": [
+    "오올",
+    "올ㅋ"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "eng",
+   "display": "엥",
+   "forms": [
+    "엥",
+    "에엥"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "at",
+   "display": "앗",
+   "forms": [
+    "앗",
+    "아앗"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "heok",
+   "display": "헉",
+   "forms": [
+    "헉",
+    "허억",
+    "헉스"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "eomeo",
+   "display": "어머",
+   "forms": [
+    "어머"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "sesange",
+   "display": "세상에",
+   "forms": [
+    "세상에"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "reaction"
+  },
+  {
+   "key": "mwoya",
+   "display": "뭐야",
+   "forms": [
+    "뭐야",
+    "모야",
+    "머야"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "reaction"
+  },
+  {
+   "key": "mwoji",
+   "display": "뭐지",
+   "forms": [
+    "뭐지",
+    "모지",
+    "머지"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "reaction"
+  },
+  {
+   "key": "mwoim",
+   "display": "뭐임",
+   "forms": [
+    "뭐임",
+    "머임"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "wae_irae",
+   "display": "왜 이래",
+   "forms": [
+    "왜이래",
+    "왜 이래"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "maldo_an_dwae",
+   "display": "말도 안 돼",
+   "forms": [
+    "말도 안돼",
+    "말도 안 돼",
+    "말도안돼",
+    "말도 안됨"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "jjeonda",
+   "display": "쩐다",
+   "forms": [
+    "쩐다",
+    "쩔어",
+    "쩐당"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "nanri",
+   "display": "난리",
+   "forms": [
+    "난리"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "reaction"
+  },
+  {
+   "key": "soreum",
+   "display": "소름",
+   "forms": [
+    "소름"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "chunggyeok",
+   "display": "충격",
+   "forms": [
+    "충격"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "molra",
+   "display": "몰라",
+   "forms": [
+    "몰라",
+    "ㅁㄹ",
+    "몰겠",
+    "모르겠"
+   ],
+   "baseline_per_100": 2.0,
+   "category": "reaction"
+  },
+  {
+   "key": "gidaryeo",
+   "display": "기다려",
+   "forms": [
+    "ㄱㄷ",
+    "기달",
+    "기다려"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "anya",
+   "display": "아냐",
+   "forms": [
+    "아냐",
+    "아니야",
+    "아님"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "reaction"
+  },
+  {
+   "key": "nn",
+   "display": "ㄴㄴ",
+   "forms": [
+    "ㄴㄴ",
+    "노노"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "reaction"
+  },
+  {
+   "key": "aigo",
+   "display": "아이고",
+   "forms": [
+    "아이고",
+    "아이구",
+    "에구",
+    "에고",
+    "어이구"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "reaction"
+  },
+  {
+   "key": "eohyu",
+   "display": "어휴",
+   "forms": [
+    "아휴",
+    "어휴",
+    "에휴"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "ei",
+   "display": "에이",
+   "forms": [
+    "에이",
+    "에잇"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "ao",
+   "display": "아오",
+   "forms": [
+    "아오"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "euak",
+   "display": "으악",
+   "forms": [
+    "으악",
+    "으아아",
+    "꺄악",
+    "꺅"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "oing",
+   "display": "오잉",
+   "forms": [
+    "오잉",
+    "오엥"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "reaction"
+  },
+  {
+   "key": "ttiyong",
+   "display": "띠용",
+   "forms": [
+    "띠용",
+    "띠요옹"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "reaction"
+  },
+  {
+   "key": "kkamjjak",
+   "display": "깜짝",
+   "forms": [
+    "깜짝",
+    "깜놀"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "eoieopne",
+   "display": "어이없네",
+   "forms": [
+    "어이없",
+    "어이 없",
+    "어이가 없"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "reaction"
+  },
+  {
+   "key": "manghaetda",
+   "display": "망했다",
+   "forms": [
+    "망했",
+    "망함",
+    "망해따"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "reaction"
+  },
+  {
+   "key": "keunil",
+   "display": "큰일",
+   "forms": [
+    "큰일"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "ireol_suga",
+   "display": "이럴 수가",
+   "forms": [
+    "이럴수가",
+    "이럴 수가"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "reaction"
+  },
+  {
+   "key": "mapsosa",
+   "display": "맙소사",
+   "forms": [
+    "맙소사"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "reaction"
+  },
+  {
+   "key": "omaigat",
+   "display": "오마이갓",
+   "forms": [
+    "오마이갓",
+    "omg",
+    "OMG",
+    "오마갓"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "reaction"
+  },
+  {
+   "key": "jotne",
+   "display": "좋네",
+   "forms": [
+    "좋네",
+    "좋넹",
+    "조쿤",
+    "좋구만"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "nappeuji_ana",
+   "display": "나쁘지 않아",
+   "forms": [
+    "낫배드",
+    "나쁘지 않",
+    "나쁘지않"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "reaction"
+  },
+  {
+   "key": "singihae",
+   "display": "신기해",
+   "forms": [
+    "신기"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "reaction"
+  },
+  {
+   "key": "wenil",
+   "display": "웬일",
+   "forms": [
+    "웬일",
+    "왠일"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "isanghae",
+   "display": "이상해",
+   "forms": [
+    "이상해",
+    "이상하",
+    "이상함"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "reaction"
+  },
+  {
+   "key": "susanghae",
+   "display": "수상해",
+   "forms": [
+    "수상해",
+    "수상하"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "reaction"
+  },
+  {
+   "key": "mwon_soriya",
+   "display": "뭔 소리야",
+   "forms": [
+    "뭔소리",
+    "뭔 소리",
+    "먼소리",
+    "무슨 소리",
+    "무슨소리"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "geureol_su_itji",
+   "display": "그럴 수 있지",
+   "forms": [
+    "그럴 수 있",
+    "그럴수있",
+    "그럴수도",
+    "그럴 수도"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "eojjeol_su_eopji",
+   "display": "어쩔 수 없지",
+   "forms": [
+    "어쩔 수 없",
+    "어쩔수없",
+    "어쩔 수가"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "aninde",
+   "display": "아닌데",
+   "forms": [
+    "아닌데",
+    "아닌뎅"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "geugeon_geurae",
+   "display": "그건 그래",
+   "forms": [
+    "그건 그래",
+    "그건그래",
+    "그건 맞"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "a_geurae_q",
+   "display": "아 그래?",
+   "forms": [
+    "아 그래?",
+    "아그래?"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "naiseu",
+   "display": "나이스",
+   "forms": [
+    "나이스",
+    "나이쓰",
+    "ㄴㅇㅅ"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "reaction"
+  },
+  {
+   "key": "gut",
+   "display": "굿",
+   "forms": [
+    "굿",
+    "굿굿",
+    "구웃",
+    "굳굳"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "reokki",
+   "display": "럭키",
+   "forms": [
+    "럭키"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "reaction"
+  },
+  {
+   "key": "oye",
+   "display": "오예",
+   "forms": [
+    "오예",
+    "아싸",
+    "앗싸",
+    "예쓰"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "reaction"
+  },
+  {
+   "key": "yaho",
+   "display": "야호",
+   "forms": [
+    "야호"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "reaction"
+  },
+  {
+   "key": "choego",
+   "display": "최고",
+   "forms": [
+    "최고",
+    "쵝오",
+    "짱짱"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "reaction"
+  },
+  {
+   "key": "jjang",
+   "display": "짱",
+   "forms": [
+    "짱",
+    "짱이다",
+    "짱이야",
+    "짱임"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "reaction"
+  },
+  {
+   "key": "daedanhae",
+   "display": "대단해",
+   "forms": [
+    "대단"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "reaction"
+  },
+  {
+   "key": "meotjida",
+   "display": "멋지다",
+   "forms": [
+    "멋지",
+    "멋있",
+    "머시써"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "reaction"
+  },
+  {
+   "key": "mworago",
+   "display": "뭐라고",
+   "forms": [
+    "뭐라고",
+    "뭐라구",
+    "머라고",
+    "뭐래"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "reaction"
+  },
+  {
+   "key": "dochak",
+   "display": "도착",
+   "forms": [
+    "도착"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "reaction"
+  },
+  {
+   "key": "chulbal",
+   "display": "출발",
+   "forms": [
+    "출발",
+    "ㅊㅂ"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "reaction"
+  },
+  {
+   "key": "ganeun_jung",
+   "display": "가는 중",
+   "forms": [
+    "가는중",
+    "가는 중",
+    "가고있",
+    "가고 있"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "reaction"
+  },
+  {
+   "key": "dd",
+   "display": "ㄷㄷ",
+   "forms": [
+    "ㄷㄷ",
+    "덜덜"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "reaction"
+  },
+  {
+   "key": "wanjeon",
+   "display": "완전",
+   "forms": [
+    "완전"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "reaction"
+  },
+  {
+   "key": "chucheon",
+   "display": "추천",
+   "forms": [
+    "추천",
+    "ㅊㅊ"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "reaction"
+  },
+  {
+   "key": "jjeop",
+   "display": "쩝",
+   "forms": [
+    "쩝",
+    "쩝쩝"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "reaction"
+  },
+  {
+   "key": "gangchu",
+   "display": "강추",
+   "forms": [
+    "강추"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "reaction"
+  },
+  {
+   "key": "oo_2",
+   "display": "ㅇㅇ",
+   "forms": [
+    "ㅇㅇ"
+   ],
+   "baseline_per_100": 8.0,
+   "category": "agree"
+  },
+  {
+   "key": "ok",
+   "display": "ㅇㅋ",
+   "forms": [
+    "ㅇㅋ"
+   ],
+   "baseline_per_100": 3.0,
+   "category": "agree"
+  },
+  {
+   "key": "eung",
+   "display": "응",
+   "forms": [
+    "응",
+    "응응"
+   ],
+   "baseline_per_100": 4.0,
+   "category": "agree"
+  },
+  {
+   "key": "ung",
+   "display": "웅",
+   "forms": [
+    "웅",
+    "웅웅"
+   ],
+   "baseline_per_100": 2.5,
+   "category": "agree"
+  },
+  {
+   "key": "neng",
+   "display": "넹",
+   "forms": [
+    "넹",
+    "넹넹"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "agree"
+  },
+  {
+   "key": "nep",
+   "display": "넵",
+   "forms": [
+    "넵",
+    "넵넵"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "agree"
+  },
+  {
+   "key": "nene",
+   "display": "네네",
+   "forms": [
+    "네네"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "agree"
+  },
+  {
+   "key": "yep",
+   "display": "옙",
+   "forms": [
+    "옙",
+    "예압"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "agree"
+  },
+  {
+   "key": "geunikka",
+   "display": "그니까",
+   "forms": [
+    "그니까",
+    "그니깐",
+    "긍까",
+    "근까"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "agree"
+  },
+  {
+   "key": "mata",
+   "display": "맞아",
+   "forms": [
+    "맞아",
+    "마자",
+    "맞어"
+   ],
+   "baseline_per_100": 2.5,
+   "category": "agree"
+  },
+  {
+   "key": "ro",
+   "display": "ㄹㅇ",
+   "forms": [
+    "ㄹㅇ"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "agree"
+  },
+  {
+   "key": "real",
+   "display": "레알",
+   "forms": [
+    "레알",
+    "리얼"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "agree"
+  },
+  {
+   "key": "injeong",
+   "display": "인정",
+   "forms": [
+    "인정",
+    "ㅇㅈ"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "agree"
+  },
+  {
+   "key": "dangyeonhaji",
+   "display": "당연하지",
+   "forms": [
+    "당연",
+    "당근이지",
+    "당근빠따"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "agree"
+  },
+  {
+   "key": "geuchi",
+   "display": "그치",
+   "forms": [
+    "그치",
+    "그쵸",
+    "그취"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "agree"
+  },
+  {
+   "key": "kol",
+   "display": "콜",
+   "forms": [
+    "콜",
+    "콜콜"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "agree"
+  },
+  {
+   "key": "oki",
+   "display": "오키",
+   "forms": [
+    "오키",
+    "오케",
+    "오킹"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "agree"
+  },
+  {
+   "key": "algeteo",
+   "display": "알겠어",
+   "forms": [
+    "알겠",
+    "알았어",
+    "알써",
+    "알겟"
+   ],
+   "baseline_per_100": 2.5,
+   "category": "agree"
+  },
+  {
+   "key": "aha",
+   "display": "아하",
+   "forms": [
+    "아하",
+    "ㅇㅎ"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "agree"
+  },
+  {
+   "key": "jotji",
+   "display": "좋지",
+   "forms": [
+    "좋지",
+    "조치"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "agree"
+  },
+  {
+   "key": "gogo",
+   "display": "고고",
+   "forms": [
+    "ㄱㄱ",
+    "고고"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "agree"
+  },
+  {
+   "key": "gaja",
+   "display": "가자",
+   "forms": [
+    "가자"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "agree"
+  },
+  {
+   "key": "nado",
+   "display": "나도",
+   "forms": [
+    "나도"
+   ],
+   "baseline_per_100": 2.5,
+   "category": "agree"
+  },
+  {
+   "key": "matne",
+   "display": "맞네",
+   "forms": [
+    "맞네",
+    "맞넹"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "agree"
+  },
+  {
+   "key": "geureoge",
+   "display": "그러게",
+   "forms": [
+    "그러게",
+    "그르게"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "agree"
+  },
+  {
+   "key": "geureone",
+   "display": "그러네",
+   "forms": [
+    "그러네",
+    "그르네"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "agree"
+  },
+  {
+   "key": "geureotji",
+   "display": "그렇지",
+   "forms": [
+    "그렇지",
+    "그럿지"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "agree"
+  },
+  {
+   "key": "nae_mali",
+   "display": "내 말이",
+   "forms": [
+    "내말이",
+    "내 말이"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "agree"
+  },
+  {
+   "key": "ogro",
+   "display": "ㅇㄱㄹㅇ",
+   "forms": [
+    "ㅇㄱㄹㅇ",
+    "이거레알"
+   ],
+   "baseline_per_100": 0.08,
+   "category": "agree"
+  },
+  {
+   "key": "paekteu",
+   "display": "팩트",
+   "forms": [
+    "팩트"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "agree"
+  },
+  {
+   "key": "banbakbulga",
+   "display": "반박불가",
+   "forms": [
+    "ㅂㅂㅂㄱ",
+    "반박불가"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "agree"
+  },
+  {
+   "key": "geuraegeurae",
+   "display": "그래그래",
+   "forms": [
+    "그래그래",
+    "그랭"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "agree"
+  },
+  {
+   "key": "geureoja",
+   "display": "그러자",
+   "forms": [
+    "그러자",
+    "그르자"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "agree"
+  },
+  {
+   "key": "geureotguna",
+   "display": "그렇구나",
+   "forms": [
+    "그렇구나",
+    "글쿤",
+    "글쿠나",
+    "그렇군",
+    "그쿤"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "agree"
+  },
+  {
+   "key": "ganeung",
+   "display": "가능",
+   "forms": [
+    "가능",
+    "ㄱㄴ"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "agree"
+  },
+  {
+   "key": "gwaenchana",
+   "display": "괜찮아",
+   "forms": [
+    "괜찮",
+    "ㄱㅊ",
+    "갠춘",
+    "괜춘",
+    "갠찮"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "agree"
+  },
+  {
+   "key": "hwakin",
+   "display": "확인",
+   "forms": [
+    "확인"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "agree"
+  },
+  {
+   "key": "dongui",
+   "display": "동의",
+   "forms": [
+    "동의"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "agree"
+  },
+  {
+   "key": "dwaeteo",
+   "display": "됐어",
+   "forms": [
+    "됐어",
+    "됐다",
+    "됐음"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "agree"
+  },
+  {
+   "key": "mulroniji",
+   "display": "물론이지",
+   "forms": [
+    "물론"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "agree"
+  },
+  {
+   "key": "ani",
+   "display": "아니",
+   "forms": [
+    "아니"
+   ],
+   "baseline_per_100": 4.0,
+   "category": "filler"
+  },
+  {
+   "key": "geunde",
+   "display": "근데",
+   "forms": [
+    "근데",
+    "근뎅"
+   ],
+   "baseline_per_100": 4.5,
+   "category": "filler"
+  },
+  {
+   "key": "geunyang",
+   "display": "그냥",
+   "forms": [
+    "그냥",
+    "걍",
+    "기냥"
+   ],
+   "baseline_per_100": 3.0,
+   "category": "filler"
+  },
+  {
+   "key": "yakgan",
+   "display": "약간",
+   "forms": [
+    "약간",
+    "야깐"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "filler"
+  },
+  {
+   "key": "mwonga",
+   "display": "뭔가",
+   "forms": [
+    "뭔가",
+    "먼가"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "filler"
+  },
+  {
+   "key": "soljikhi",
+   "display": "솔직히",
+   "forms": [
+    "솔직히",
+    "솔까"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "sasil",
+   "display": "사실",
+   "forms": [
+    "사실"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "ildan",
+   "display": "일단",
+   "forms": [
+    "일단"
+   ],
+   "baseline_per_100": 2.0,
+   "category": "filler"
+  },
+  {
+   "key": "geuraeseo",
+   "display": "그래서",
+   "forms": [
+    "그래서"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "filler"
+  },
+  {
+   "key": "geuraedo",
+   "display": "그래도",
+   "forms": [
+    "그래도"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "filler"
+  },
+  {
+   "key": "geureomyeon",
+   "display": "그러면",
+   "forms": [
+    "그러면",
+    "글면"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "amuteun",
+   "display": "아무튼",
+   "forms": [
+    "아무튼",
+    "암튼",
+    "여튼",
+    "어쨌든"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "eochapi",
+   "display": "어차피",
+   "forms": [
+    "어차피",
+    "어짜피"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "geurigo",
+   "display": "그리고",
+   "forms": [
+    "그리고"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "filler"
+  },
+  {
+   "key": "mak",
+   "display": "막",
+   "forms": [
+    "막"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "filler"
+  },
+  {
+   "key": "jom",
+   "display": "좀",
+   "forms": [
+    "좀"
+   ],
+   "baseline_per_100": 3.0,
+   "category": "filler"
+  },
+  {
+   "key": "doege",
+   "display": "되게",
+   "forms": [
+    "되게",
+    "디게"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "eomcheong",
+   "display": "엄청",
+   "forms": [
+    "엄청"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "neomu",
+   "display": "너무",
+   "forms": [
+    "너무",
+    "넘",
+    "너모",
+    "느무"
+   ],
+   "baseline_per_100": 3.5,
+   "category": "filler"
+  },
+  {
+   "key": "jinsim",
+   "display": "진심",
+   "forms": [
+    "진심"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "filler"
+  },
+  {
+   "key": "jeongmal",
+   "display": "정말",
+   "forms": [
+    "정말"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "ije",
+   "display": "이제",
+   "forms": [
+    "이제"
+   ],
+   "baseline_per_100": 2.0,
+   "category": "filler"
+  },
+  {
+   "key": "ajik",
+   "display": "아직",
+   "forms": [
+    "아직"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "filler"
+  },
+  {
+   "key": "beolsseo",
+   "display": "벌써",
+   "forms": [
+    "벌써"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "gapjagi",
+   "display": "갑자기",
+   "forms": [
+    "갑자기"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "wonrae",
+   "display": "원래",
+   "forms": [
+    "원래"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "yeoksi",
+   "display": "역시",
+   "forms": [
+    "역시",
+    "역쉬"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "geoui",
+   "display": "거의",
+   "forms": [
+    "거의"
+   ],
+   "baseline_per_100": 0.7,
+   "category": "filler"
+  },
+  {
+   "key": "daechung",
+   "display": "대충",
+   "forms": [
+    "대충"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "ani_geunde",
+   "display": "아니 근데",
+   "forms": [
+    "아니 근데",
+    "아니근데"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "filler"
+  },
+  {
+   "key": "geureonikka",
+   "display": "그러니까",
+   "forms": [
+    "그러니까"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "filler"
+  },
+  {
+   "key": "waenyamyeon",
+   "display": "왜냐면",
+   "forms": [
+    "왜냐면",
+    "왜냐하면"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "a_matda",
+   "display": "아 맞다",
+   "forms": [
+    "아 맞다",
+    "아맞다"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "itjana",
+   "display": "있잖아",
+   "forms": [
+    "있잖아",
+    "있자나"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "simjieo",
+   "display": "심지어",
+   "forms": [
+    "심지어"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "ohiryeo",
+   "display": "오히려",
+   "forms": [
+    "오히려"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "guti",
+   "display": "굳이",
+   "forms": [
+    "굳이",
+    "구지"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "charari",
+   "display": "차라리",
+   "forms": [
+    "차라리"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "filler"
+  },
+  {
+   "key": "hapil",
+   "display": "하필",
+   "forms": [
+    "하필"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "filler"
+  },
+  {
+   "key": "gyeolguk",
+   "display": "결국",
+   "forms": [
+    "결국"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "ama",
+   "display": "아마",
+   "forms": [
+    "아마"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "seolma",
+   "display": "설마",
+   "forms": [
+    "설마"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "jebal",
+   "display": "제발",
+   "forms": [
+    "제발",
+    "젭알",
+    "ㅈㅂ"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "filler"
+  },
+  {
+   "key": "geuchiman",
+   "display": "그치만",
+   "forms": [
+    "그치만",
+    "하지만"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "eum",
+   "display": "음",
+   "forms": [
+    "음",
+    "으음"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "heum",
+   "display": "흠",
+   "forms": [
+    "흠",
+    "흠흠",
+    "흐음"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "filler"
+  },
+  {
+   "key": "jigeum",
+   "display": "지금",
+   "forms": [
+    "지금",
+    "ㅈㄱ"
+   ],
+   "baseline_per_100": 2.5,
+   "category": "filler"
+  },
+  {
+   "key": "oneul",
+   "display": "오늘",
+   "forms": [
+    "오늘"
+   ],
+   "baseline_per_100": 3.0,
+   "category": "filler"
+  },
+  {
+   "key": "naeil",
+   "display": "내일",
+   "forms": [
+    "내일"
+   ],
+   "baseline_per_100": 2.0,
+   "category": "filler"
+  },
+  {
+   "key": "najunge",
+   "display": "나중에",
+   "forms": [
+    "나중에",
+    "낭중에"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "itta",
+   "display": "이따",
+   "forms": [
+    "이따",
+    "있다가"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "daeume",
+   "display": "다음에",
+   "forms": [
+    "다음에",
+    "담에"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "yojeum",
+   "display": "요즘",
+   "forms": [
+    "요즘",
+    "요새"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "maennal",
+   "display": "맨날",
+   "forms": [
+    "맨날",
+    "매일"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "filler"
+  },
+  {
+   "key": "gyesok",
+   "display": "계속",
+   "forms": [
+    "계속"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "tto",
+   "display": "또",
+   "forms": [
+    "또",
+    "또또"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "dasi",
+   "display": "다시",
+   "forms": [
+    "다시"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "akka",
+   "display": "아까",
+   "forms": [
+    "아까"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "filler"
+  },
+  {
+   "key": "banggeum",
+   "display": "방금",
+   "forms": [
+    "방금"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "deudieo",
+   "display": "드디어",
+   "forms": [
+    "드디어"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "hangsang",
+   "display": "항상",
+   "forms": [
+    "항상"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "jakku",
+   "display": "자꾸",
+   "forms": [
+    "자꾸"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "gakkeum",
+   "display": "가끔",
+   "forms": [
+    "가끔"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "jeoldae",
+   "display": "절대",
+   "forms": [
+    "절대"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "mujogeon",
+   "display": "무조건",
+   "forms": [
+    "무조건",
+    "무적권"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "baro",
+   "display": "바로",
+   "forms": [
+    "바로"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "byeolro",
+   "display": "별로",
+   "forms": [
+    "별로"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "eungeun",
+   "display": "은근",
+   "forms": [
+    "은근"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "waenji",
+   "display": "왠지",
+   "forms": [
+    "왠지",
+    "웬지"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "filler"
+  },
+  {
+   "key": "saenggakboda",
+   "display": "생각보다",
+   "forms": [
+    "생각보다"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "uioero",
+   "display": "의외로",
+   "forms": [
+    "의외"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "filler"
+  },
+  {
+   "key": "nareum",
+   "display": "나름",
+   "forms": [
+    "나름"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "saljjak",
+   "display": "살짝",
+   "forms": [
+    "살짝",
+    "샬짝"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "filler"
+  },
+  {
+   "key": "ppalri",
+   "display": "빨리",
+   "forms": [
+    "빨리",
+    "ㅃㄹ",
+    "빨랑",
+    "얼른"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "jogeum",
+   "display": "조금",
+   "forms": [
+    "조금",
+    "쪼금",
+    "쬐금",
+    "쪼끔"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "filler"
+  },
+  {
+   "key": "mani",
+   "display": "많이",
+   "forms": [
+    "많이",
+    "마니"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "filler"
+  },
+  {
+   "key": "jamsiman",
+   "display": "잠시만",
+   "forms": [
+    "잠시만",
+    "잠깐만",
+    "잠만",
+    "ㅈㅅㅁ"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "filler"
+  },
+  {
+   "key": "geunde_jinjja",
+   "display": "근데 진짜",
+   "forms": [
+    "근데 진짜",
+    "근데진짜"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "a_geunde",
+   "display": "아 근데",
+   "forms": [
+    "아 근데",
+    "아근데"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "ttakhi",
+   "display": "딱히",
+   "forms": [
+    "딱히"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "filler"
+  },
+  {
+   "key": "seulseul",
+   "display": "슬슬",
+   "forms": [
+    "슬슬"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "filler"
+  },
+  {
+   "key": "kingbatne",
+   "display": "킹받네",
+   "forms": [
+    "킹받"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "gatsaeng",
+   "display": "갓생",
+   "forms": [
+    "갓생"
+   ],
+   "baseline_per_100": 0.08,
+   "category": "slang"
+  },
+  {
+   "key": "eokkka",
+   "display": "억까",
+   "forms": [
+    "억까"
+   ],
+   "baseline_per_100": 0.08,
+   "category": "slang"
+  },
+  {
+   "key": "eokten",
+   "display": "억텐",
+   "forms": [
+    "억텐"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "slang"
+  },
+  {
+   "key": "jjinten",
+   "display": "찐텐",
+   "forms": [
+    "찐텐"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang"
+  },
+  {
+   "key": "ssapganeung",
+   "display": "쌉가능",
+   "forms": [
+    "쌉가능",
+    "쌉파서블"
+   ],
+   "baseline_per_100": 0.08,
+   "category": "slang"
+  },
+  {
+   "key": "kkuljaem",
+   "display": "꿀잼",
+   "forms": [
+    "꿀잼"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "slang"
+  },
+  {
+   "key": "nojaem",
+   "display": "노잼",
+   "forms": [
+    "노잼"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "slang"
+  },
+  {
+   "key": "yujaem",
+   "display": "유잼",
+   "forms": [
+    "유잼"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang"
+  },
+  {
+   "key": "kkultip",
+   "display": "꿀팁",
+   "forms": [
+    "꿀팁"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "slang"
+  },
+  {
+   "key": "gaekkul",
+   "display": "개꿀",
+   "forms": [
+    "개꿀"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "ideuk",
+   "display": "이득",
+   "forms": [
+    "이득",
+    "ㄱㅇㄷ"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "gukrul",
+   "display": "국룰",
+   "forms": [
+    "국룰"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "slang"
+  },
+  {
+   "key": "jjinida",
+   "display": "찐이다",
+   "forms": [
+    "찐이다",
+    "찐임",
+    "찐이네",
+    "찐으로"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "tmi",
+   "display": "TMI",
+   "forms": [
+    "tmi",
+    "TMI",
+    "티엠아이"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "slang"
+  },
+  {
+   "key": "noejeol",
+   "display": "뇌절",
+   "forms": [
+    "뇌절"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang"
+  },
+  {
+   "key": "seon_neomne",
+   "display": "선 넘네",
+   "forms": [
+    "선넘",
+    "선 넘"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "slang"
+  },
+  {
+   "key": "eba",
+   "display": "에바",
+   "forms": [
+    "에바",
+    "ㅇㅂ"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "oba",
+   "display": "오바",
+   "forms": [
+    "오바"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "eogeuro",
+   "display": "어그로",
+   "forms": [
+    "어그로"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang"
+  },
+  {
+   "key": "ttingjak",
+   "display": "띵작",
+   "forms": [
+    "띵작"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "slang"
+  },
+  {
+   "key": "ttinggok",
+   "display": "띵곡",
+   "forms": [
+    "띵곡"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "slang"
+  },
+  {
+   "key": "gapbunssa",
+   "display": "갑분싸",
+   "forms": [
+    "갑분싸"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang"
+  },
+  {
+   "key": "sohwakhaeng",
+   "display": "소확행",
+   "forms": [
+    "소확행"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "slang"
+  },
+  {
+   "key": "kebake",
+   "display": "케바케",
+   "forms": [
+    "케바케",
+    "사바사"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "slang"
+  },
+  {
+   "key": "kkulmat",
+   "display": "꿀맛",
+   "forms": [
+    "꿀맛"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "slang"
+  },
+  {
+   "key": "choeae",
+   "display": "최애",
+   "forms": [
+    "최애"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "ipdeok",
+   "display": "입덕",
+   "forms": [
+    "입덕"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "slang"
+  },
+  {
+   "key": "deokjil",
+   "display": "덕질",
+   "forms": [
+    "덕질"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "slang"
+  },
+  {
+   "key": "jeongjuhaeng",
+   "display": "정주행",
+   "forms": [
+    "정주행"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "slang"
+  },
+  {
+   "key": "jjal",
+   "display": "짤",
+   "forms": [
+    "짤",
+    "짤방"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "nodap",
+   "display": "노답",
+   "forms": [
+    "노답"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "slang"
+  },
+  {
+   "key": "nyamnyam",
+   "display": "냠냠",
+   "forms": [
+    "냠냠"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "slang"
+  },
+  {
+   "key": "on",
+   "display": "ㅇㄴ",
+   "forms": [
+    "ㅇㄴ"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "slang"
+  },
+  {
+   "key": "jota",
+   "display": "좋아",
+   "forms": [
+    "좋아",
+    "조아",
+    "좋앙",
+    "조앙"
+   ],
+   "baseline_per_100": 4.0,
+   "category": "emotion"
+  },
+  {
+   "key": "gwiyeowo",
+   "display": "귀여워",
+   "forms": [
+    "귀여워",
+    "귀엽",
+    "기여워",
+    "커여워",
+    "ㄱㅇㅇ"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "emotion"
+  },
+  {
+   "key": "yeppeuda",
+   "display": "예쁘다",
+   "forms": [
+    "예쁘",
+    "이쁘",
+    "이뿌"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "emotion"
+  },
+  {
+   "key": "sileo",
+   "display": "싫어",
+   "forms": [
+    "싫어",
+    "시러",
+    "싫다"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "emotion"
+  },
+  {
+   "key": "baegopa",
+   "display": "배고파",
+   "forms": [
+    "배고파",
+    "배고프",
+    "배곺"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "emotion"
+  },
+  {
+   "key": "jjajeung",
+   "display": "짜증",
+   "forms": [
+    "짜증",
+    "짱나"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "emotion"
+  },
+  {
+   "key": "gwichana",
+   "display": "귀찮아",
+   "forms": [
+    "귀찮",
+    "귀차나"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "emotion"
+  },
+  {
+   "key": "simsimhae",
+   "display": "심심해",
+   "forms": [
+    "심심"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "emotion"
+  },
+  {
+   "key": "bureopda",
+   "display": "부럽다",
+   "forms": [
+    "부럽",
+    "부러워"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "emotion"
+  },
+  {
+   "key": "sinna",
+   "display": "신나",
+   "forms": [
+    "신나",
+    "신난다",
+    "씬나"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "emotion"
+  },
+  {
+   "key": "haengbok",
+   "display": "행복",
+   "forms": [
+    "행복",
+    "햅삐"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "emotion"
+  },
+  {
+   "key": "seolrenda",
+   "display": "설렌다",
+   "forms": [
+    "설레",
+    "설렌"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "gidaedoenda",
+   "display": "기대된다",
+   "forms": [
+    "기대돼",
+    "기대된",
+    "기대됨",
+    "기대중"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "emotion"
+  },
+  {
+   "key": "gamdong",
+   "display": "감동",
+   "forms": [
+    "감동"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "ppudeut",
+   "display": "뿌듯",
+   "forms": [
+    "뿌듯"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "emotion"
+  },
+  {
+   "key": "dahaeng",
+   "display": "다행",
+   "forms": [
+    "다행"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "emotion"
+  },
+  {
+   "key": "aswipda",
+   "display": "아쉽다",
+   "forms": [
+    "아쉽",
+    "아쉬워",
+    "아숩"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "emotion"
+  },
+  {
+   "key": "museowo",
+   "display": "무서워",
+   "forms": [
+    "무서워",
+    "무섭",
+    "무셔"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "emotion"
+  },
+  {
+   "key": "nolratda",
+   "display": "놀랐다",
+   "forms": [
+    "놀랐",
+    "놀람"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "danghwang",
+   "display": "당황",
+   "forms": [
+    "당황"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "bukkeureopda",
+   "display": "부끄럽다",
+   "forms": [
+    "부끄"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "emotion"
+  },
+  {
+   "key": "matitda",
+   "display": "맛있다",
+   "forms": [
+    "맛있",
+    "맛나",
+    "마싯",
+    "마시써"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "emotion"
+  },
+  {
+   "key": "baebulreo",
+   "display": "배불러",
+   "forms": [
+    "배불러",
+    "배부르",
+    "배불렁"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "emotion"
+  },
+  {
+   "key": "chupda",
+   "display": "춥다",
+   "forms": [
+    "추워",
+    "춥다",
+    "추웡"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "emotion"
+  },
+  {
+   "key": "deopda",
+   "display": "덥다",
+   "forms": [
+    "더워",
+    "덥다"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "emotion"
+  },
+  {
+   "key": "jaemitda",
+   "display": "재밌다",
+   "forms": [
+    "재밌",
+    "잼있",
+    "재미있",
+    "잼따"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "emotion"
+  },
+  {
+   "key": "yeolbatne",
+   "display": "열받네",
+   "forms": [
+    "열받",
+    "열 받"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "emotion"
+  },
+  {
+   "key": "hwananda",
+   "display": "화난다",
+   "forms": [
+    "화나",
+    "화남"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "emotion"
+  },
+  {
+   "key": "deundeun",
+   "display": "든든",
+   "forms": [
+    "든든"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "emotion"
+  },
+  {
+   "key": "pyeonhada",
+   "display": "편하다",
+   "forms": [
+    "편해",
+    "편하"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "emotion"
+  },
+  {
+   "key": "siwon",
+   "display": "시원",
+   "forms": [
+    "시원"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "ttatteut",
+   "display": "따뜻",
+   "forms": [
+    "따뜻",
+    "따듯",
+    "뜨뜻"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "maewo",
+   "display": "매워",
+   "forms": [
+    "매워",
+    "맵다",
+    "매콤"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "jotgetda",
+   "display": "좋겠다",
+   "forms": [
+    "좋겠다",
+    "좋겠네",
+    "조켔"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "emotion"
+  },
+  {
+   "key": "gibun_jota",
+   "display": "기분 좋아",
+   "forms": [
+    "기분 좋",
+    "기분좋",
+    "기부니"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "emotion"
+  },
+  {
+   "key": "dugeundugeun",
+   "display": "두근두근",
+   "forms": [
+    "두근"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "emotion"
+  },
+  {
+   "key": "gamsahapnida",
+   "display": "감사합니다",
+   "forms": [
+    "감사",
+    "ㄱㅅ"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "polite"
+  },
+  {
+   "key": "gomawo",
+   "display": "고마워",
+   "forms": [
+    "고마워",
+    "고맙",
+    "땡큐",
+    "땡스",
+    "ㄳ"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "polite"
+  },
+  {
+   "key": "sugo",
+   "display": "수고",
+   "forms": [
+    "수고",
+    "ㅅㄱ",
+    "고생했",
+    "고생많",
+    "고생 많"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "polite"
+  },
+  {
+   "key": "annyeong",
+   "display": "안녕",
+   "forms": [
+    "안녕",
+    "안뇽"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "polite"
+  },
+  {
+   "key": "hai",
+   "display": "하이",
+   "forms": [
+    "하이",
+    "ㅎㅇ",
+    "하잉",
+    "헬로"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "polite"
+  },
+  {
+   "key": "ppai",
+   "display": "빠이",
+   "forms": [
+    "바이바이",
+    "빠이",
+    "ㅂㅂ",
+    "ㅂㅇ"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "polite"
+  },
+  {
+   "key": "gutmoning",
+   "display": "굿모닝",
+   "forms": [
+    "굿모닝",
+    "좋은 아침",
+    "좋은아침",
+    "굿몬"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "polite"
+  },
+  {
+   "key": "matjeom",
+   "display": "맛점",
+   "forms": [
+    "맛점",
+    "맛저"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "polite"
+  },
+  {
+   "key": "josimhi",
+   "display": "조심히",
+   "forms": [
+    "조심히",
+    "조심해"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "polite"
+  },
+  {
+   "key": "hwaiting",
+   "display": "화이팅",
+   "forms": [
+    "화이팅",
+    "파이팅",
+    "홧팅",
+    "ㅎㅇㅌ",
+    "빠이팅"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "polite"
+  },
+  {
+   "key": "chukhahae",
+   "display": "축하해",
+   "forms": [
+    "축하",
+    "ㅊㅋ",
+    "추카"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "polite"
+  },
+  {
+   "key": "butak",
+   "display": "부탁",
+   "forms": [
+    "부탁"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "polite"
+  },
+  {
+   "key": "cheonmane",
+   "display": "천만에",
+   "forms": [
+    "천만에"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "polite"
+  },
+  {
+   "key": "byeolmalsseum",
+   "display": "별말씀",
+   "forms": [
+    "별말씀",
+    "별 말씀"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "polite"
+  },
+  {
+   "key": "jal_meokeotseupnida",
+   "display": "잘 먹었습니다",
+   "forms": [
+    "잘 먹었",
+    "잘먹었",
+    "잘 먹겠",
+    "잘먹겠"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "polite"
+  },
+  {
+   "key": "danyeoolge",
+   "display": "다녀올게",
+   "forms": [
+    "다녀올게",
+    "다녀옴",
+    "다녀왔"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "polite"
+  },
+  {
+   "key": "jal_deuleoga",
+   "display": "잘 들어가",
+   "forms": [
+    "잘 들어가",
+    "잘들어가",
+    "들가"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "polite"
+  },
+  {
+   "key": "joteun_haru",
+   "display": "좋은 하루",
+   "forms": [
+    "좋은 하루",
+    "좋은하루",
+    "굿데이"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "polite"
+  },
+  {
+   "key": "merikeuriseumaseu",
+   "display": "메리크리스마스",
+   "forms": [
+    "메리크리",
+    "메리 크리스마스"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "polite"
+  },
+  {
+   "key": "saehae_bok",
+   "display": "새해 복",
+   "forms": [
+    "새해 복",
+    "새해복"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "polite"
+  },
+  {
+   "key": "eoseo_wa",
+   "display": "어서 와",
+   "forms": [
+    "어서와",
+    "어서 와",
+    "어서오세요"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "polite"
+  },
+  {
+   "key": "oraenman",
+   "display": "오랜만",
+   "forms": [
+    "오랜만",
+    "오랫만",
+    "올만"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "polite"
+  },
+  {
+   "key": "bangawo",
+   "display": "반가워",
+   "forms": [
+    "반가워",
+    "반갑",
+    "방가"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "polite"
+  },
+  {
+   "key": "jal_jinae",
+   "display": "잘 지내",
+   "forms": [
+    "잘 지내",
+    "잘지내"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "polite"
+  },
+  {
+   "key": "cheoncheonhi",
+   "display": "천천히",
+   "forms": [
+    "천천히"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "polite"
+  },
+  {
+   "key": "utgyeo",
+   "display": "웃겨",
+   "forms": [
+    "웃겨",
+    "웃기다",
+    "웃기네",
+    "웃김",
+    "우껴"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "laugh_word"
+  },
+  {
+   "key": "gaeutgine",
+   "display": "개웃기네",
+   "forms": [
+    "개웃"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "laugh_word"
+  },
+  {
+   "key": "ppang_teojim",
+   "display": "빵 터짐",
+   "forms": [
+    "빵터",
+    "빵 터"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "laugh_word"
+  },
+  {
+   "key": "hyeonut",
+   "display": "현웃",
+   "forms": [
+    "현웃"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "laugh_word"
+  },
+  {
+   "key": "ppumeotda",
+   "display": "뿜었다",
+   "forms": [
+    "뿜었",
+    "뿜음"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "laugh_word"
+  },
+  {
+   "key": "kkalkkal",
+   "display": "깔깔",
+   "forms": [
+    "깔깔"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "laugh_word"
+  },
+  {
+   "key": "kkilkkil",
+   "display": "낄낄",
+   "forms": [
+    "낄낄"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "laugh_word"
+  },
+  {
+   "key": "puhaha",
+   "display": "푸하하",
+   "forms": [
+    "푸하하",
+    "푸핫"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "laugh_word"
+  },
+  {
+   "key": "haha",
+   "display": "하하",
+   "forms": [
+    "하하"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "laugh_word"
+  },
+  {
+   "key": "hihi",
+   "display": "히히",
+   "forms": [
+    "히히",
+    "히힛"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "laugh_word"
+  },
+  {
+   "key": "hehe",
+   "display": "헤헤",
+   "forms": [
+    "헤헤",
+    "헤헷"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "laugh_word"
+  },
+  {
+   "key": "hoho",
+   "display": "호호",
+   "forms": [
+    "호호"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "laugh_word"
+  },
+  {
+   "key": "keukeu",
+   "display": "크크",
+   "forms": [
+    "크크",
+    "큭큭",
+    "킥킥"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "laugh_word"
+  },
+  {
+   "key": "heuheu",
+   "display": "흐흐",
+   "forms": [
+    "흐흐"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "laugh_word"
+  },
+  {
+   "key": "huhu",
+   "display": "후후",
+   "forms": [
+    "후후",
+    "후훗"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "laugh_word"
+  },
+  {
+   "key": "utcham",
+   "display": "웃참",
+   "forms": [
+    "웃참"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "laugh_word"
+  },
+  {
+   "key": "kkruppingppong",
+   "display": "ㅋㅋ루삥뽕",
+   "forms": [
+    "루삥뽕"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "laugh_word"
+  },
+  {
+   "key": "utpeuda",
+   "display": "웃프다",
+   "forms": [
+    "웃프",
+    "웃픔"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "laugh_word"
+  },
+  {
+   "key": "uteumbel",
+   "display": "웃음벨",
+   "forms": [
+    "웃음벨"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "laugh_word"
+  },
+  {
+   "key": "pup",
+   "display": "풉",
+   "forms": [
+    "풉",
+    "푸흡"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "laugh_word"
+  },
+  {
+   "key": "teojyeotda",
+   "display": "터졌다",
+   "forms": [
+    "터졌",
+    "터짐"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "laugh_word"
+  },
+  {
+   "key": "wae",
+   "display": "왜",
+   "forms": [
+    "왜",
+    "왜왜",
+    "왜애"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "question"
+  },
+  {
+   "key": "mwohae",
+   "display": "뭐해",
+   "forms": [
+    "뭐해",
+    "ㅁㅎ",
+    "뭐함",
+    "모해",
+    "머해",
+    "뭐하냐"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "question"
+  },
+  {
+   "key": "eodiya",
+   "display": "어디야",
+   "forms": [
+    "어디야",
+    "어디임",
+    "ㅇㄷ",
+    "어디냐",
+    "어딘데"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "question"
+  },
+  {
+   "key": "jinjja_q",
+   "display": "진짜?",
+   "forms": [
+    "진짜?",
+    "ㄹㅇ?",
+    "레알?"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "question"
+  },
+  {
+   "key": "eonje",
+   "display": "언제",
+   "forms": [
+    "언제"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "question"
+  },
+  {
+   "key": "eottae",
+   "display": "어때",
+   "forms": [
+    "어때",
+    "어떰",
+    "어떤데",
+    "어떠냐"
+   ],
+   "baseline_per_100": 1.2,
+   "category": "question"
+  },
+  {
+   "key": "mwo_meokji",
+   "display": "뭐 먹지",
+   "forms": [
+    "뭐먹",
+    "뭐 먹",
+    "머먹",
+    "모먹"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "question"
+  },
+  {
+   "key": "mwonde",
+   "display": "뭔데",
+   "forms": [
+    "뭔데",
+    "뭔뎅"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "question"
+  },
+  {
+   "key": "matji_q",
+   "display": "맞지?",
+   "forms": [
+    "맞지?",
+    "맞제",
+    "맞쥬"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "question"
+  },
+  {
+   "key": "alji_q",
+   "display": "알지?",
+   "forms": [
+    "알지?",
+    "알쥐",
+    "알제"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "question"
+  },
+  {
+   "key": "eojjeoji",
+   "display": "어쩌지",
+   "forms": [
+    "어쩌지",
+    "어카지",
+    "우짜지",
+    "어떡하지",
+    "어떡해",
+    "어뜩해"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "question"
+  },
+  {
+   "key": "wae_geurae",
+   "display": "왜 그래",
+   "forms": [
+    "왜그래",
+    "왜 그래"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "question"
+  },
+  {
+   "key": "museun_il",
+   "display": "무슨 일",
+   "forms": [
+    "무슨 일",
+    "무슨일",
+    "먼일",
+    "뭔일"
+   ],
+   "baseline_per_100": 0.3,
+   "category": "question"
+  },
+  {
+   "key": "myeot_si",
+   "display": "몇 시",
+   "forms": [
+    "몇시",
+    "몇 시"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "question"
+  },
+  {
+   "key": "galrae_q",
+   "display": "갈래?",
+   "forms": [
+    "갈래",
+    "갈랭"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "question"
+  },
+  {
+   "key": "eotteotge",
+   "display": "어떻게",
+   "forms": [
+    "어떻게"
+   ],
+   "baseline_per_100": 1.5,
+   "category": "question"
+  },
+  {
+   "key": "eoke",
+   "display": "어케",
+   "forms": [
+    "어케",
+    "우케",
+    "어캐"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "question"
+  },
+  {
+   "key": "waeji",
+   "display": "왜지",
+   "forms": [
+    "왜지"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "question"
+  },
+  {
+   "key": "mwodeora",
+   "display": "뭐더라",
+   "forms": [
+    "뭐더라",
+    "뭐였지",
+    "머더라"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "question"
+  },
+  {
+   "key": "geureonga",
+   "display": "그런가",
+   "forms": [
+    "그런가",
+    "그른가"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "question"
+  },
+  {
+   "key": "aninga",
+   "display": "아닌가",
+   "forms": [
+    "아닌가"
+   ],
+   "baseline_per_100": 0.5,
+   "category": "question"
+  },
+  {
+   "key": "matna",
+   "display": "맞나",
+   "forms": [
+    "맞나"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "question"
+  },
+  {
+   "key": "hoksi",
+   "display": "혹시",
+   "forms": [
+    "혹시"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "question"
+  },
+  {
+   "key": "gunggeum",
+   "display": "궁금",
+   "forms": [
+    "궁금"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "question"
+  },
+  {
+   "key": "eodiseo",
+   "display": "어디서",
+   "forms": [
+    "어디서"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "question"
+  },
+  {
+   "key": "eolmana",
+   "display": "얼마나",
+   "forms": [
+    "얼마나"
+   ],
+   "baseline_per_100": 0.4,
+   "category": "question"
+  },
+  {
+   "key": "halkka",
+   "display": "할까",
+   "forms": [
+    "할까",
+    "하까"
+   ],
+   "baseline_per_100": 1.0,
+   "category": "question"
+  },
+  {
+   "key": "doelkka",
+   "display": "될까",
+   "forms": [
+    "될까",
+    "되나"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "question"
+  },
+  {
+   "key": "iteo_q",
+   "display": "있어?",
+   "forms": [
+    "있어?",
+    "있음?",
+    "있나"
+   ],
+   "baseline_per_100": 0.8,
+   "category": "question"
+  },
+  {
+   "key": "haeteo_q",
+   "display": "했어?",
+   "forms": [
+    "했어?",
+    "했음?",
+    "했냐"
+   ],
+   "baseline_per_100": 0.6,
+   "category": "question"
+  },
+  {
+   "key": "meoseon129",
+   "display": "머선129",
+   "forms": [
+    "머선129",
+    "머선 129",
+    "머선일이고"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "ohiryeo_jota",
+   "display": "오히려 좋아",
+   "forms": [
+    "오히려 좋아",
+    "오히려좋아"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "meme"
+  },
+  {
+   "key": "gabojago",
+   "display": "가보자고",
+   "forms": [
+    "가보자고",
+    "가보자구",
+    "가즈아"
+   ],
+   "baseline_per_100": 0.2,
+   "category": "meme"
+  },
+  {
+   "key": "pom_michyeotda",
+   "display": "폼 미쳤다",
+   "forms": [
+    "폼 미쳤",
+    "폼미쳤"
+   ],
+   "baseline_per_100": 0.08,
+   "category": "meme"
+  },
+  {
+   "key": "jungkkeokma",
+   "display": "중꺾마",
+   "forms": [
+    "중꺾마"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "aljalttakkkalsen",
+   "display": "알잘딱깔센",
+   "forms": [
+    "알잘딱"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "seubuljae",
+   "display": "스불재",
+   "forms": [
+    "스불재"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "eojjeoltibi",
+   "display": "어쩔티비",
+   "forms": [
+    "어쩔티비",
+    "어쩔tv",
+    "저쩔"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "geu_japchae",
+   "display": "그 잡채",
+   "forms": [
+    "그잡채",
+    "그 잡채"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "ige_matna",
+   "display": "이게 맞나",
+   "forms": [
+    "이게 맞나",
+    "이게 맞아",
+    "이게맞나"
+   ],
+   "baseline_per_100": 0.15,
+   "category": "meme"
+  },
+  {
+   "key": "muyaho",
+   "display": "무야호",
+   "forms": [
+    "무야호"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "ajaseu",
+   "display": "아자스",
+   "forms": [
+    "아자스"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "wannaeseu",
+   "display": "완내스",
+   "forms": [
+    "완내스"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "bunjotka",
+   "display": "분좋카",
+   "forms": [
+    "분좋카"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "gunchim",
+   "display": "군침",
+   "forms": [
+    "군침"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "kaelbak",
+   "display": "캘박",
+   "forms": [
+    "캘박"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "jeommechu",
+   "display": "점메추",
+   "forms": [
+    "점메추",
+    "저메추"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "meme"
+  },
+  {
+   "key": "jaemyae",
+   "display": "잼얘",
+   "forms": [
+    "잼얘"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "jjomjjomttari",
+   "display": "쫌쫌따리",
+   "forms": [
+    "쫌쫌따리"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "holrimolri",
+   "display": "홀리몰리",
+   "forms": [
+    "홀리몰리"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "ounwan",
+   "display": "오운완",
+   "forms": [
+    "오운완"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "ojeochigo",
+   "display": "오저치고",
+   "forms": [
+    "오저치고"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "kingwangjjang",
+   "display": "킹왕짱",
+   "forms": [
+    "킹왕짱"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "gamdasal",
+   "display": "감다살",
+   "forms": [
+    "감다살"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "ssakssakgimchi",
+   "display": "싹싹김치",
+   "forms": [
+    "싹싹김치"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "iwaejin",
+   "display": "이왜진",
+   "forms": [
+    "이왜진"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "swipji_anne",
+   "display": "쉽지 않네",
+   "forms": [
+    "쉽지 않네",
+    "쉽지않네",
+    "쉽지 않음"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "meme"
+  },
+  {
+   "key": "mot_chamji",
+   "display": "못 참지",
+   "forms": [
+    "못 참지",
+    "못참지"
+   ],
+   "baseline_per_100": 0.08,
+   "category": "meme"
+  },
+  {
+   "key": "rago_hal_ppeon",
+   "display": "~라고 할 뻔",
+   "forms": [
+    "라고 할 뻔",
+    "라고할뻔"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "eoseoogo",
+   "display": "어서오고",
+   "forms": [
+    "어서오고"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "deugaja",
+   "display": "드가자",
+   "forms": [
+    "드가자"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "yareu",
+   "display": "야르",
+   "forms": [
+    "야르"
+   ],
+   "baseline_per_100": 0.02,
+   "category": "meme"
+  },
+  {
+   "key": "neujot",
+   "display": "느좋",
+   "forms": [
+    "느좋"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "chugumi",
+   "display": "추구미",
+   "forms": [
+    "추구미"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "dopamin",
+   "display": "도파민",
+   "forms": [
+    "도파민"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "meme"
+  },
+  {
+   "key": "rokk",
+   "display": "ㄹㅇㅋㅋ",
+   "forms": [
+    "ㄹㅇㅋㅋ"
+   ],
+   "baseline_per_100": 0.1,
+   "category": "meme"
+  },
+  {
+   "key": "gatbyeok",
+   "display": "갓벽",
+   "forms": [
+    "갓벽"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "kingjeong",
+   "display": "킹정",
+   "forms": [
+    "킹정"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "matdori",
+   "display": "맛도리",
+   "forms": [
+    "맛도리"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "jujeop",
+   "display": "주접",
+   "forms": [
+    "주접"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "mumul",
+   "display": "무물",
+   "forms": [
+    "무물"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "tikitaka",
+   "display": "티키타카",
+   "forms": [
+    "티키타카"
+   ],
+   "baseline_per_100": 0.05,
+   "category": "meme"
+  },
+  {
+   "key": "honkono",
+   "display": "혼코노",
+   "forms": [
+    "혼코노"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "byeoldajul",
+   "display": "별다줄",
+   "forms": [
+    "별다줄"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "mangwanbu",
+   "display": "많관부",
+   "forms": [
+    "많관부"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  },
+  {
+   "key": "gbjg",
+   "display": "ㄱㅂㅈㄱ",
+   "forms": [
+    "ㄱㅂㅈㄱ"
+   ],
+   "baseline_per_100": 0.03,
+   "category": "meme"
+  }
+ ]
+}
