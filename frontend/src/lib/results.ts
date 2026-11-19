@@ -28,8 +28,8 @@ export async function getMyResult(signal?: AbortSignal) {
   }
 }
 export interface ShareResponse { token: string; url: string; imageUrl: string }
-export async function createShare(includeQuote = false) {
-  return (await api.post<ShareResponse>(`/shares${includeQuote ? "?include_quote=true" : ""}`, {})).data;
+export async function createShare() {
+  return (await api.post<ShareResponse>("/shares", { include_quote: false })).data;
 }
 
 export function resultError(error: unknown) { return getApiErrorMessage(error); }

@@ -10,7 +10,8 @@ import { FlowFrame, InfoNote, NextLink } from "./frame";
 import { sourceName, usePreview, type Source } from "./preview-context";
 import { analysisError, analysisFailure, getAnalysis, getLatestAnalysis, isFinished, uploadAnalysis, watchAnalysis, type AnalysisStatus } from "@/lib/analyses";
 import { getParticipant } from "@/lib/participants";
-import { createShare, formatKoreanDate, formatScore, getMyResult, resultError } from "@/lib/results";
+import { formatKoreanDate, formatScore, getMyResult, resultError } from "@/lib/results";
+import { ResultShare } from "./result-share";
 import { getRankings, rankingError, type RankingRow } from "@/lib/rankings";
 
 export function StartScreen() {
@@ -162,10 +163,11 @@ function LiveAnalysisScreen() {
   const hasStatus = status !== null;
   useEffect(() => { if (!jobId || !hasStatus || finished) return; return watchAnalysis(jobId, next => { setStatus(next); setDisconnected(false); }, () => setDisconnected(true)); }, [jobId, hasStatus, finished, connectionAttempt]);
   const title = !status ? "심사 상태를 확인하는 중." : status.status === "SUCCEEDED" ? "심사가 끝났어요." : status.status === "FAILED" ? "심사가 멈췄어요." : status.status === "QUEUED" ? "산타 앞에 줄 서는 중." : status.status === "RANKING_PENDING" ? "순위를 정리하는 중." : "산타가 기록을 읽는 중.";
-  return <FlowFrame back="/review" step={2} title={<>판정 중에는<br />얌전히 계세요.</>} description="실제 심사 상태를 서버에서 확인하고 있어요.">
+  const succeeded = status?.status === "SUCCEEDED";
+  return <FlowFrame back="/review" step={2} title={succeeded ? "산타의 판정이 나왔어요." : <>판정 중에는<br />얌전히 계세요.</>} description={succeeded ? "내 결과에서 점수와 순위를 확인하세요." : "실제 심사 상태를 서버에서 확인하고 있어요."} action={succeeded ? <NextLink href="/result">내 결과 보기</NextLink> : undefined}>
     <div className={`flow-analysis ${status?.status === "FAILED" ? "is-failed" : ""}`}>
       <SantaDance active={hasStatus && !finished && !disconnected && !error} />
-      <span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2><p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : status?.status === "SUCCEEDED" ? "실제 결과 화면을 준비하고 있어요. 이 페이지를 닫지 않아도 돼요." : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p>
+      <span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2>{!succeeded && <p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p>}
     </div>
     {disconnected && !finished && <div role="alert"><p>실시간 연결이 끊겼어요. 다시 연결하면 최신 상태를 확인할 수 있어요.</p><button className="flow-secondary" onClick={() => { setDisconnected(false); setConnectionAttempt(value => value + 1); }}>실시간 상태 다시 연결</button></div>}{error && <p className="flow-error" role="alert">{error}</p>}{status?.status === "FAILED" && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}
   </FlowFrame>;
@@ -195,20 +197,15 @@ function LiveResultScreen() {
   const [result, setResult] = useState<Awaited<ReturnType<typeof getMyResult>>>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
-  const [shareUrl, setShareUrl] = useState("");
-  const [shareImageUrl, setShareImageUrl] = useState("");
-  const [sharing, setSharing] = useState(false);
   useEffect(() => { const controller = new AbortController(); getMyResult(controller.signal).then(setResult).catch(failure => { if (!controller.signal.aborted) setError(resultError(failure)); }).finally(() => { if (!controller.signal.aborted) setLoaded(true); }); return () => controller.abort(); }, []);
   if (error) return <FlowFrame back="/analysis" step={2} title={<>결과를<br />불러오지 못했어요.</>} description={error} action={<Link className="flow-primary" href="/analysis">심사 상태 다시 보기 ↗</Link>}><span /></FlowFrame>;
   if (!loaded) return <FlowFrame back="/analysis" step={2} title={<>결과를<br />확인하는 중.</>} description="점수와 순위를 안전하게 불러오고 있어요."><span /></FlowFrame>;
   if (!result) return <FlowFrame back="/analysis" step={2} title={<>아직 결과가<br />없어요.</>} description="분석이 끝나면 점수와 판정을 확인할 수 있어요." action={<Link className="flow-primary" href="/analysis">심사 상태 확인하기 ↗</Link>}><InfoNote>결과가 준비되기 전에는 새로운 파일을 자동으로 제출하지 않아요.</InfoNote></FlowFrame>;
   const rank = result.rank == null ? "계산 중" : `${result.tied ? "공동 " : ""}${result.rank}위`;
-  async function share() { setSharing(true); setError(""); try { const response = await createShare(); setShareUrl(response.url); setShareImageUrl(response.imageUrl); } catch (failure) { setError(resultError(failure)); } finally { setSharing(false); } }
   return <FlowFrame back="/analysis" title={<>산타의 판정이<br />도착했습니다.</>} description={`${data.nickname || "참가자"} 님, 마음의 준비 됐죠?`} action={<NextLink href="/ranking">전체 랭킹 보기</NextLink>}>
     <div className="flow-result-card"><span className="flow-status-pill">{result.stage === "FINAL" ? "시즌 확정" : "실제 결과"}</span><span className="flow-result-face" aria-hidden="true">◉‿◉</span><h2>{result.archetype?.name || "산타의 판정"}</h2><p className="flow-score">{formatScore(result.score_hundredths)}<span>점</span></p><p className="flow-verdict">“{result.comment || result.verdict}”</p><div className="flow-result-stats"><div><small>{result.ranking_pending ? "순위 반영" : "통합 순위"}</small><b>{rank}</b></div><div><small>선물 도착 예정</small><b className="flow-eta">{formatKoreanDate(result.eta)}</b></div></div>{result.ranking_pending && <p className="flow-fine-print">새 심사의 점수는 확정됐고 순위는 반영 중이에요.</p>}</div>
     {result.dimension_scores && result.dimension_scores.length > 0 && <details className="flow-breakdown"><summary>산타가 본 네 가지 항목 <span>＋</span></summary><dl>{result.dimension_scores.map(dimension => <div key={dimension.key}><dt>{dimension.label}{result.weakest_dimension?.key === dimension.key && <small> 근거가 적어요</small>}</dt><dd>{dimension.score.toFixed(2)}<span>점</span></dd></div>)}</dl>{result.top_percent != null && <p>전체 참가자 중 상위 {result.top_percent}%예요.</p>}</details>}
-    <button className="flow-secondary" onClick={share} disabled={sharing}>{sharing ? "공유 카드 만드는 중" : "공유 카드 링크 만들기"}<span aria-hidden="true">↗</span></button>
-    {shareUrl && <div className="flow-info" role="status"><span>✓</span><span>공유 링크가 준비됐어요. <a href={shareUrl} target="_blank" rel="noreferrer">새 창에서 열기</a>{shareImageUrl && <> · <a href={shareImageUrl} target="_blank" rel="noreferrer">이미지 보기</a></>}</span></div>}
+    <ResultShare ranked={result.rank != null} />
     <Link className="flow-text-link" href="/start">다른 기록으로 다시 시작 ↗</Link>
   </FlowFrame>;
 }
