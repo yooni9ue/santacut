@@ -14,7 +14,7 @@ class PhraseHits(private val values: List<PhraseHit>) {
     )
 
     /** 특이도 상위 [DISTINCT_LIMIT]개. 메시지 [messageCount]개 기준 최소 횟수(max(5, 메시지 수/200))를 넘은 말만. */
-    fun distinct(messageCount: Int): PhraseTallies {
+    fun distinctive(messageCount: Int): PhraseTallies {
         if (messageCount == 0) return PhraseTallies(emptyList())
         val minimum = maxOf(MIN_DISTINCT_COUNT, messageCount / DISTINCT_DIVISOR)
         return PhraseTallies(

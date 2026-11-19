@@ -23,7 +23,7 @@ class WordCounter(private val catalog: DossierCatalog) {
     /** 쌓은 낱말 집계. 특이도의 분모는 글 메시지 수 [textCount]다. */
     fun stats(textCount: Int): WordStats {
         val hits = catalog.phrases.hitsOf(phrases)
-        return WordStats(hits.frequent(), hits.distinct(textCount), catalog.kinds.countsOf(kinds), catalog.topics.countsOf(topics), bleep)
+        return WordStats(hits.frequent(), hits.distinctive(textCount), catalog.kinds.countsOf(kinds), catalog.topics.countsOf(topics), bleep)
     }
 
     /** 위기 표현 횟수로 정한 톤. 횟수는 남기지 않는다. */
