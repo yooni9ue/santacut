@@ -6,6 +6,7 @@ import com.santacut.application.ranking.command.MyResultCommand
 import com.santacut.application.ranking.command.RankingPageCommand
 import com.santacut.application.ranking.result.MyRankingResult
 import com.santacut.application.ranking.result.RankingBoardResult
+import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.service.RankingService
 import org.slf4j.LoggerFactory
@@ -17,6 +18,7 @@ import java.time.Clock
 @Facade
 class ResultFacade(
     private val rankingService: RankingService,
+    private val dossierService: DossierService,
     private val clock: Clock,
     private val transaction: TransactionRunner,
 ) {
@@ -26,7 +28,8 @@ class ResultFacade(
     fun getMyResult(command: MyResultCommand): MyRankingResult {
         val result = rankingService.findLatestResult(command.participantId)
         val profile = rankingService.findProfile(result.assessment, result.snapshot)
-        return MyRankingResult.from(result, profile, rankingService.stageAt(clock.instant()))
+        val dossierAvailable = dossierService.exists(result.assessment.id)
+        return MyRankingResult.from(result, profile, rankingService.stageAt(clock.instant()), dossierAvailable)
     }
 
     /**

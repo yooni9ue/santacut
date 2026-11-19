@@ -136,7 +136,8 @@ class QueryCountApiTest @Autowired constructor(
         private val SCORES = listOf(60, 60, 60, 60)
         private const val MANY_JOBS = 20
         private val EMPTY_SUBMISSION = AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList()))
-        private val EXPECTED_READ_COUNTS = mapOf("status" to 3L, "rankings" to 3L, "result" to 5L, "share page" to 1L)
+        /** 결과 조회는 조서가 있는지(dossier_available)를 한 번 더 읽는다. */
+        private val EXPECTED_READ_COUNTS = mapOf("status" to 3L, "rankings" to 3L, "result" to 6L, "share page" to 1L)
 
         /** 알릴 작업 id 목록, 작업들, 참가자별 순위 반영 시각을 한 번씩 읽는다. 작업 수와 상관없다(예전에는 작업 하나에 3번 더). */
         private const val EXPECTED_ANNOUNCE_ONE = 3L
