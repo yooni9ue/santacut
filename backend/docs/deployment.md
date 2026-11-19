@@ -207,7 +207,7 @@ age 암호화는 뺐다. 2026-11 전에 age로 만든 `sqlite/*.age` 백업만 P
 
 `schema.sql`은 없다. 테이블은 엔티티가 정하고 `ddl-auto: update`가 만든다([컨벤션 §12](backend-conventions.md#12-jpa-엔티티와-스키마)). 예전에 `schema.sql`로 만든 dev·운영 DB는 외래 키, CHECK, 유일 제약을 그대로 가지고 있다. `ddl-auto: update`는 이미 있는 제약을 지우거나 바꾸지 않고, `seed.sql`의 유일 인덱스도 `IF NOT EXISTS`라 같은 이름이 있으면 건너뛴다. 그래서 기존 DB는 손대지 않고 그대로 쓴다.
 
-앱은 뜰 때 참가자 삭제가 기대는 외래 키 10개(`ON DELETE CASCADE` 9개와 `analysis_jobs.assessment_id`의 `SET NULL`)가 있는지 `PRAGMA foreign_key_list`로 확인한다. 하나라도 없으면 `DB에 외래 키 삭제 규칙이 없어 앱을 띄우지 않는다`로 시작하는 로그에 없는 규칙을 적고 뜨지 않는다. 그대로 띄우면 참가자를 지워도 행이 남기 때문이다. 배포 뒤 직접 확인할 때는 다음을 돌린다.
+앱은 뜰 때 참가자 삭제가 기대는 외래 키 12개(`ON DELETE CASCADE` 11개와 `analysis_jobs.assessment_id`의 `SET NULL`)가 있는지 `PRAGMA foreign_key_list`로 확인한다. 하나라도 없으면 `DB에 외래 키 삭제 규칙이 없어 앱을 띄우지 않는다`로 시작하는 로그에 없는 규칙을 적고 뜨지 않는다. 그대로 띄우면 참가자를 지워도 행이 남기 때문이다. 배포 뒤 직접 확인할 때는 다음을 돌린다.
 
 ```bash
 DB=/var/lib/docker/volumes/santacut_santacut_data/_data/santacut.db

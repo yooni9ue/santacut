@@ -409,6 +409,7 @@ JPA 엔티티가 기준이다. Hibernate `ddl-auto: update`가 엔티티대로 �
 | result_snapshots | id PK, user_id FK CASCADE, assessment_id FK CASCADE, rank, delivery_sequence, eta, computed_at, tied |
 | result_populations | id PK(항상 1), playfulness_split, archetype_counts(`유형:인원` 쉼표 목록). 순위를 다시 계산할 때 덮어쓴다 |
 | prompts | id PK, name, version CHECK ≥ 1, content, created_at; UNIQUE(name, version) |
+| dossiers | id PK, assessment_id FK→assessments CASCADE, user_id FK CASCADE, stats_json, tone(NORMAL·MILD), stats_version, created_at; UNIQUE(assessment_id), user_id 색인 |
 | shares | token PK, user_id FK CASCADE, snapshot_id FK→result_snapshots CASCADE, nickname, score_hundredths, rank, eta, verdict, comment, computed_at, revoked_at NULL, tied, stage, created_at NULL; 활성 링크는 (user_id, snapshot_id)당 하나 |
 
 - 원본은 객체 저장소가 아니라 `analysis_uploads`에 둔다. 상태 폴링이 `analysis_jobs` 행을 자주 읽으므로 원본을 작업 행에 넣지 않는다.
@@ -417,6 +418,7 @@ JPA 엔티티가 기준이다. Hibernate `ddl-auto: update`가 엔티티대로 �
 - `analysis_jobs.digest_hash`는 같은 채점 입력의 재제출에 지난 결과를 다시 쓰기 위한 해시다(§4.4). 기존 DB에는 Hibernate가 컬럼을 더한다.
 - `ai_usage_days`는 날짜(한국)별 AI 토큰 사용량 합계다(§4.4). 본문은 담지 않는다.
 - `assessments.prompt_version`은 그 평가에 쓴 `score` 판 번호다. 기존 DB에는 Hibernate가 컬럼을 더하고, 그 전 평가는 NULL이다.
+- `dossiers`는 평가 하나의 「2026 산타 조서」 집계값이다(§14.17). 원문은 담지 않는다.
 - `shares`는 링크를 만든 순간의 닉네임·점수·순위·공동 순위·확정 상태·계산 시각을 복사해 둔다. 나중에 순위가 바뀌어도 링크 내용은 그대로다.
 
 닉네임은 NFKC 정규화·앞뒤 공백 제거·영문 대소문자 통일 후 nickname_key를 만든다. 기본안은 2~16자, 한글·영문·숫자·밑줄 허용이다. 정규화 후 검증하며 보이지 않는 문자와 중간 공백은 거부한다. 가용성 조회는 참고용이고 최종 등록은 UNIQUE 제약으로 동시 요청을 처리한다. 중복 충돌은 409를 반환한다.
@@ -445,7 +447,7 @@ JPA 엔티티가 기준이다. Hibernate `ddl-auto: update`가 엔티티대로 �
 | DELETE /v1/shares/{id} | 소유자의 공유 링크 비활성화 |
 | DELETE /v1/me | 계정·원본·공유 결과 삭제 요청 |
 
-### 9.2 현재 API (18개 + dev 전용 3개)
+### 9.2 현재 API (19개 + dev 전용 3개)
 
 OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-TOKEN` 헤더로 보낸다.
 
@@ -463,7 +465,8 @@ OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-T
 | GET | `/v1/analyses/{id}` | 분석 작업 진행 단계(소유자만) | 세션 |
 | GET | `/v1/analyses/{id}/events` | 분석 작업 진행 단계 스트림(SSE, 소유자만) | 세션 |
 | GET | `/v1/me/analysis` | 내 가장 최근 작업의 진행 단계 | 세션 |
-| GET | `/v1/me/result` | 내 점수·순위·공동 순위·ETA·확정 상태 | 세션 |
+| GET | `/v1/me/result` | 내 점수·순위·공동 순위·ETA·확정 상태, 조서 유무(`dossier_available`) | 세션 |
+| GET | `/v1/me/dossier` | 내 결과의 「2026 산타 조서」 장면 목록(§14.17) | 세션 |
 | GET | `/v1/rankings` | 순위표 50줄씩(cursor) | 공개 |
 | POST | `/v1/shares` | 공유 링크 생성·재사용 | 세션 · CSRF |
 | DELETE | `/v1/shares/{token}` | 공유 링크 취소 (`204`) | 세션 · CSRF |
@@ -561,6 +564,7 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 | `NOT_FOUND` | 404 | 분석 작업이 없거나 다른 참가자의 작업 |
 | `PARTICIPANT_NOT_FOUND` | 404 | 세션의 참가자가 더 이상 없음 |
 | `RESULT_NOT_FOUND` | 404 | 점수가 나온 결과가 없음 |
+| `DOSSIER_NOT_FOUND` | 404 | 결과는 있지만 이 기능 전 평가라 산타 조서가 없음. 재업로드 안내 |
 | `SHARE_NOT_FOUND` | 404 | 공유 링크가 없거나 취소됨 |
 | `PROMPT_NOT_FOUND` | 404 | 이 이름의 프롬프트 판이 없음(dev 전용 API, 작업자는 `ANALYSIS_FAILED`로 기록) |
 | `SEASON_FROZEN` | 409 | 시즌 마감 뒤 제출·지역 변경 |
@@ -847,3 +851,18 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 - 대가는 긴 대화 비용 약 37%(실측)와 9분으로 늘어난 작업 리스다. 그 대신 한 해 대화를 한 달도 빼지 않고 본다.
 - 코드 리뷰에서 첫 구현의 글자 수 단계가 본인과 상대를 가리지 않아, 상대가 긴 메시지를 많이 보내는 단체방이면 본인 메시지가 밀려나 `INSUFFICIENT_EVENTS`가 나는 것을 찾았다. 그래서 글자 수 단계와 대화문 단계 모두 본인을 먼저 고르게 고쳤다. 본인과 상대는 달마다 따로 최신 구간을 남기므로 두 구간의 시작이 조금 어긋날 수 있고, 한 달 안에서 다 못 쓴 자투리는 다른 달로 넘기지 않는다.
 - 시즌은 12월 25일에 마감(`SEASON_FROZEN`)하고 서비스는 12월 31일에 끝나므로, 해가 바뀌어 기간이 1월 1일부터 다시 시작되는 경우는 없다.
+
+### 14.17 「2026 산타 조서」 1차: 서버 통계만으로 조서를 만든다 (2026-11-20)
+
+점수표만 주던 결과를 "올해 내 엄지가 남긴 말버릇과 기록"을 한 장씩 넘겨 보는 조서로 바꾼다. 1차는 AI 호출을 더하지 않고 서버가 센 숫자와 템플릿만으로 만든다. 관찰·작가·판정 호출, 변호 요정 증언, 소유자 토큰은 2차 이후다.
+
+- **왜 집계만 저장하나.** 대화 원문은 작업이 끝나면 지운다는 규칙(§10.3)을 그대로 지킨다. 그래서 채점이 끝나는 트랜잭션(`HeldJobRunner.complete`)에서 채점 입력과 같은 정규화 메시지(`ScoringMessages`)로 집계를 세어 `dossiers.stats_json`에 함께 저장한다. 집계는 CPU만 쓰므로 쓰기 트랜잭션 밖에서 미리 센다. 집계가 실패해도 채점 결과 저장은 막지 않는다. 로그만 남기고 조서 없이 저장한다.
+- **무엇을 세나.** 본인 메시지만 센다. 상대 메시지는 두 가지에만 시각을 쓴다. 1:1 대화의 답장 간격(상대 말 뒤 10분 넘게 조용했다가 온 본인 첫 메시지, 표본 10개 이상)과 연속 메시지 묶음의 경계다. 세는 값은 메시지 수·글자 수·활동일·가장 바쁜 날(달만), ㅋ·ㅎ·ㅠ 글자 수와 밀도, 최장 ㅋ 연타(달·시만), 이모지 상위 3개(자소 묶음 단위), 시간대·달·요일 분포(하루 경계 05:00), 심야 비율, 답장 중앙값, 메시지 모양(평균 길이, 단타·물음표·느낌표 비율, 연속 묶음), 허용 어휘 입버릇 TOP 5와 특이도 TOP 3, 따뜻한 말 횟수, 주제별 막(1~4월, 5~8월, 9~12월) 횟수, 욕설 합산 횟수다.
+- **무엇을 저장하지 않나.** 원문, 이름, 링크, 전화번호, 분 단위 시각은 저장하지 않는다. 입버릇은 `phrases.json` 허용 어휘의 key·표기·분류만, 욕설은 합산 횟수만 남긴다. 위기 표현은 톤(`NORMAL`·`MILD`)을 정하는 데만 쓰고 횟수는 남기지 않는다.
+- **장면은 조회할 때 만든다.** `GET /v1/me/dossier`는 저장한 집계, 리소스 JSON(`resources/dossier`), 기존 결과(점수 판정, 항목 점수, 순위, 도착 시각, 지역)로 장면을 조립한다. 문구를 고치면 배포만으로 모든 조서에 반영된다. 템플릿은 평가 ID 시드로 고르므로 다시 열어도 같다. 숫자는 서버가 단위까지 포맷해 슬롯으로 넣고, 조사 슬롯 `{slot:을}`은 그 값의 끝소리에 맞는 조사만 쓴다.
+- **극값과 칭호.** `metrics.json`의 시드 기준 분포(p10·p50·p90)로 백분위를 내고, 50에서 가장 먼 지표를 계열마다 하나씩 고른다. 칭호는 극값 1위 지표 방향의 수식어와 2위 지표 방향의 직함을 잇는다. 방향 key는 높은 쪽이 지표 key, 낮은 쪽이 `<key>_low`다(죄목·주석·칭호). 놀리면 안 되는 지표(ㅠ 밀도)와 담백 톤에는 중립 문구를 쓴다. 느린 답장과 삐 처리는 `shareable: false`로 내려 공유 카드에 싣지 않는다.
+- **노출 구간.** 본인 메시지 100개 미만은 한마디·극값 2장·판결만, 100~299개는 장부 3줄·극값 2장, 그 이상은 장부 5줄·극값 3장을 포함한 전부다. 임계값은 잠정이다.
+- **재사용과 삭제.** 같은 채점 입력을 다시 내면(§4.4) 지난 평가의 집계를 새 평가로 복사한다. 지난 평가에 조서가 없거나 집계 규칙 판(`stats_version`)이 다르면 이번 제출로 다시 센다. `dossiers`는 참가자와 평가를 외래 키(`ON DELETE CASCADE`)로 가리키므로 회원 탈퇴 때 함께 지워진다.
+- **기능 전 결과.** 원문을 이미 지웠으므로 이 기능 전 평가로는 조서를 만들 수 없다. `404 DOSSIER_NOT_FOUND`와 결과 응답의 `dossier_available: false`로 알리고, 프론트가 재업로드를 안내한다.
+- **리소스 검사.** 앱이 뜰 때 리소스를 한 번 읽어 검사하고, 위반이 있으면 뜨지 않는다. 위반은 템플릿 안의 아라비아 숫자, 금지 슬롯(원문·이름·연락처·ㅠ 수치 등), `copy.json`의 `slots`에 없는 슬롯, 극값 high·low 문구가 없는 지표, 엔진이 계산하지 않는 지표나 단위, 채점 항목에 없는 따뜻한 말 dimension, 겹친 key다.
+- **기준 분포 조정.** 작가가 정한 `reply_median_minutes` 기준(1·6·50분)은 "조용하던 중 상대 메시지 뒤 첫 답장" 해석이었다. 엔진은 명세대로 "10분 넘게 조용했던 뒤"만 재므로 13·35·180분으로 바꿨다.

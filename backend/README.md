@@ -43,6 +43,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 - 서버가 원본을 파싱해 참여자 이름을 `나`·`상대`로 바꾼 두 화자 대화로 정규화하고, 대화 전체를 Gemini에 보낸다. 점수는 본인 말만 매긴다.
 - 상대 말이 담긴 대화 내용은 작업이 끝나면(성공·실패 모두) 지운다. 원본 파일은 검증이 끝나면 바로 지운다.
 - AI가 네 항목(공감 30%, 응원 25%, 존중 25%, 협력 20%)을 채점한다. 순위와 선물 도착 시각은 서버가 계산한다.
+- 결과는 「2026 산타 조서」로도 본다. 본인 메시지에서 센 숫자(입버릇, ㅋ 밀도, 시간대, 답장 간격 등)만 저장하고, 조회할 때 템플릿으로 장면(한마디, 입버릇 장부, 극값 3장, 3막, 칭호·죄목·공로, 판결)을 만든다(`GET /v1/me/dossier`, [설계 §14.17](docs/backend-design.md)).
 - 결과에는 크리스마스 유형 10종, 배지, 본인 한마디(`quote`), 항목 막대 4개, 가장 약한 항목, 상위 %, 같은 유형 비율이 함께 나온다.
 - 진행 상태 SSE와 단건 조회 API를 제공한다. 현재 프론트는 SSE 연결 종료 시 수동 재연결하며 폴링하지 않는다. 최근 작업 조회 API는 있지만 프론트 새로고침 복귀 동선은 보완이 필요하다.
 - 순위표는 공개다. 50줄씩 cursor로 넘기고, 동점은 `공동 N위`로 보인다. 남에게는 도착 날짜(`eta_date`)만 보이고, 정확한 도착 시각은 본인 결과에만 있다.
@@ -107,6 +108,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 - 지역은 `parent_code`로 시·도와 시·군·구를 잇는다.
 - `assessments.prompt_version`에는 채점에 쓴 프롬프트 판 번호가 남는다. 프롬프트를 DB로 옮기기 전 평가는 `NULL`이다.
 - `analysis_jobs.digest_hash`는 같은 채점 입력의 재제출을 알아보는 해시다. `ai_usage_days`는 날짜별 AI 토큰 합계다. `result_populations`는 순위를 계산할 때 다시 세는 유형별 인원이다.
+- `dossiers`는 평가 하나의 산타 조서 집계값(JSON)이다. 원문은 담지 않고, 참가자나 평가를 지우면 함께 지워진다.
 - `ai_usage_days.cached_input_tokens`는 암묵적 캐시에서 읽은 입력 토큰 수다. `ranking_refresh`는 순위 계산 요청 판과 마지막으로 계산한 판을 한 줄에 둔다. `region_changes`는 지역 변경 한도를 세는 기록이다.
 
 ## 분석 흐름
@@ -233,6 +235,7 @@ sequenceDiagram
 | GET | `/v1/analyses/{id}/events` | 분석 진행 상황 스트림(SSE) | 세션 |
 | GET | `/v1/me/analysis` | 내 최근 분석 상태 | 세션 |
 | GET | `/v1/me/result` | 내 점수·순위·도착 시각 | 세션 |
+| GET | `/v1/me/dossier` | 내 산타 조서 장면 목록 | 세션 |
 | GET | `/v1/rankings` | 랭킹 50명씩(cursor) | 공개 |
 | POST | `/v1/shares` | 공유 링크 생성·재사용 | 세션 · CSRF |
 | DELETE | `/v1/shares/{token}` | 공유 링크 폐기 (`204`) | 세션 · CSRF |
