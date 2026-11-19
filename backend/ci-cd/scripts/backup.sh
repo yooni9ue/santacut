@@ -29,7 +29,7 @@ cleanup() {
 }
 trap cleanup EXIT
 app_exec mkdir -p "$app_tmp_dir"
-app_exec sqlite3 /app/data/santacut.db ".backup '$app_copy'"
+app_exec sqlite3 -cmd '.timeout 30000' /app/data/santacut.db ".backup '$app_copy'"
 app_exec cat "$app_copy" > "${file}.partial"
 app_exec rm -rf "$app_tmp_dir"
 [[ "$(sqlite3 "${file}.partial" 'PRAGMA integrity_check;')" == ok ]] || { echo 'Backup integrity check failed'; exit 1; }
