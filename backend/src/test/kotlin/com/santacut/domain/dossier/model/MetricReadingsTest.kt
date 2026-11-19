@@ -7,6 +7,7 @@ import com.santacut.TestDossiers.selves
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -31,6 +32,17 @@ class MetricReadingsTest {
         assertNull(few.find("laugh_density"))
         assertTrue(few.find("message_count") != null)
         assertNull(TestDossiers.fixture.metrics.readings(TestDossiers.tally(selves(List(40) { "응" })).stats).find("reply_median_minutes"))
+    }
+
+    @Test
+    fun `값이 0인 지표는 극값 후보에서 빼고, 삐 처리가 적은 쪽은 카드에 실을 수 있다`() {
+        val readings = TestDossiers.fixture.metrics.readings(TestDossiers.tally(selves(List(40) { "응 그래" })).stats)
+
+        val bleep = assertNotNull(readings.find("bleep_density"))
+        assertTrue(bleep.isZero())
+        assertTrue(bleep.isShareable())
+        assertNull(readings.extremes(3).find("bleep_density"))
+        assertNull(readings.extremes(3).find("laugh_density"))
     }
 
     @Test

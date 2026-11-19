@@ -9,6 +9,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -106,17 +107,83 @@ class DossierStoryTest {
         assertNotNull(scene(write(messages), "dossier").headline)
     }
 
+    @Test
+    fun `결과 ID가 다르면 조서 번호가 다르다`() {
+        val messages = richMessages(400)
+
+        assertNotEquals(caseNumberOf(write(messages)), caseNumberOf(write(messages, assessmentId = OTHER_ASSESSMENT_ID)))
+    }
+
+    @Test
+    fun `담백 톤이면 한마디 메모, 장부 메모와 삐 처리 줄, 소환장, 하위 판정 줄까지 중립 문구로 바꾸거나 뺀다`() {
+        val view = write(richMessages(400) + selves(List(5) { "ㅅㅂ" }), tone = DossierTone.MILD, scoreHundredths = LOW_SCORE)
+
+        assertEquals("담백 한마디 메모", scene(view, "hook").memo)
+        val ledger = scene(view, "ledger")
+        assertNull(ledger.memo)
+        assertTrue(ledger.lines.toList().none { line -> line.text.contains("삐") })
+        assertTrue(scene(view, "summons").lines.toList().all { line -> line.text.startsWith("담백 소환") })
+        assertTrue(scene(view, "verdict").lines.toList().none { line -> line.text.contains("하위") })
+    }
+
+    @Test
+    fun `장부에 입버릇 줄 없이 삐 처리 줄만 있으면 장 전체를 공유하지 않는다`() {
+        val ledger = scene(write(selves(List(120) { index -> if (index % 2 == 0) "ㅅㅂ" else "ㅎㅎ" })), "ledger")
+
+        assertFalse(ledger.shareable)
+        assertTrue(ledger.lines.toList().isNotEmpty())
+    }
+
+    @Test
+    fun `저장 뒤 사전에서 빠진 입버릇은 장면에 나오지 않는다`() {
+        val tally = TestDossiers.tally(richMessages(400))
+        val removed = PhraseEntries(TestDossiers.fixture.phrases.toList().filterNot { entry -> entry.key == "jinjja" })
+        val catalog = DossierCatalog(
+            removed, TestDossiers.fixture.topics, TestDossiers.fixture.kinds, TestDossiers.fixture.bleep, TestDossiers.fixture.heavy,
+            TestDossiers.fixture.metrics, TestDossiers.fixture.copy,
+        )
+
+        val view = DossierStory(catalog, tally.stats, tally.tone, subject(ASSESSMENT_ID, HIGH_SCORE)).write()
+
+        assertTrue(view.scenes.toList().flatMap { scene -> scene.lines.toList() }.none { line -> line.text.contains("진짜") })
+    }
+
+    @Test
+    fun `배포할 실제 문구로 조립해도 채우지 못한 슬롯이 없고 제목이 비지 않는다`() {
+        val real = TestDossiers.readReal()
+        val messages = richMessages(400) + selves(List(5) { "ㅅㅂ ㄹㅇ" })
+        listOf(DossierTone.NORMAL, DossierTone.MILD).forEach { tone ->
+            listOf(HIGH_SCORE, LOW_SCORE).forEach { score ->
+                val view = DossierStory(real, TestDossiers.tally(messages, real).stats, tone, subject(ASSESSMENT_ID, score)).write()
+                assertFilled(view)
+            }
+        }
+    }
+
+    private fun assertFilled(view: DossierView) {
+        assertFalse(view.title.isBlank())
+        view.scenes.toList().forEach { scene ->
+            val texts = listOfNotNull(scene.headline, scene.bigValue, scene.memo) + scene.lines.toList().map(SceneLine::text)
+            assertTrue(texts.none { text -> text.contains('{') || text.contains('}') }, "${scene.id}: $texts")
+            if (scene.id !in UNTITLED_SCENES) assertNotNull(scene.headline, scene.id)
+        }
+    }
+
+    private fun caseNumberOf(view: DossierView): String? = scene(view, "dossier").headline
+
     private fun write(
         messages: List<ScoringMessage>,
         tone: DossierTone? = null,
         scoreHundredths: Int = HIGH_SCORE,
+        assessmentId: String = ASSESSMENT_ID,
     ): DossierView {
         val tally = TestDossiers.tally(messages)
-        val subject = DossierSubject(
-            ASSESSMENT_ID, if (scoreHundredths < MID_SCORE) "석탄 착불 배송" else "선물 배송 출발", scoreHundredths, CARE_FIRST, RANK, ETA, REGION, YEAR,
-        )
-        return DossierStory(TestDossiers.fixture, tally.stats, tone ?: tally.tone, subject).write()
+        return DossierStory(TestDossiers.fixture, tally.stats, tone ?: tally.tone, subject(assessmentId, scoreHundredths)).write()
     }
+
+    private fun subject(assessmentId: String, scoreHundredths: Int): DossierSubject = DossierSubject(
+        assessmentId, if (scoreHundredths < MID_SCORE) "석탄 착불 배송" else "선물 배송 출발", scoreHundredths, CARE_FIRST, RANK, ETA, REGION, YEAR,
+    )
 
     /** 입버릇 셋, 따뜻한 말, 주제, ㅋ가 섞인 본인 메시지 [count]개. 달마다 나뉘도록 하루씩 띄운다. */
     private fun richMessages(count: Int): List<ScoringMessage> =
@@ -128,6 +195,10 @@ class DossierStoryTest {
 
     companion object {
         private const val ASSESSMENT_ID = "assessment-1"
+        private const val OTHER_ASSESSMENT_ID = "assessment-2"
+
+        /** 제목(headline) 없이 내려가는 장면. 티저는 가린 숫자만, 소환장은 칭호만 크게 보여 준다. */
+        private val UNTITLED_SCENES = setOf("teaser", "summons")
         private const val HIGH_SCORE = 8000
         private const val MID_SCORE = 5000
         private const val LOW_SCORE = 3000

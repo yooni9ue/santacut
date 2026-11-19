@@ -18,6 +18,9 @@ class MetricReading(
     /** 백분위가 50에서 떨어진 정도. 클수록 그 사람에게서 튄다. */
     fun distance(): Double = abs(percentile - MIDDLE)
 
+    /** 값이 0인지. 0인 지표(욕설 0번, 느낌표 0개 등)는 극값 장에 올리지 않는다. */
+    fun isZero(): Boolean = value == 0.0
+
     /** 백분위가 50 이상(많은 쪽)인지. */
     fun isHigh(): Boolean = percentile >= MIDDLE
 

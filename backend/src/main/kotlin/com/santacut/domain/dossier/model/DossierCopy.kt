@@ -44,6 +44,7 @@ data class DossierCopy(
         "dossier.header" to dossier.header, "verdict.low_band_title" to verdict.lowBandTitle,
         "summons" to summons, "low_data" to lowData, "reupload" to reupload,
         "mild.extremes_memo" to mild.extremesMemo, "mild.summary" to mild.summary,
+        "mild.hook_memo" to mild.hookMemo, "mild.summons" to mild.summons,
         "titles.default_modifier" to titles.defaultModifier, "titles.default_role" to titles.defaultRole,
     )
 

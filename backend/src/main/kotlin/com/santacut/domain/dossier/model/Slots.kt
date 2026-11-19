@@ -5,8 +5,11 @@ package com.santacut.domain.dossier.model
  * 그래서 템플릿은 `'{phrase}'{phrase:을}`처럼 값 슬롯 바로 뒤에 조사 슬롯을 붙여 쓴다.
  */
 class Slots(private val values: Map<String, String>) {
-    /** [template]의 모든 슬롯에 값이 있는지. */
-    fun canFill(template: String): Boolean = namesIn(template).all { name -> name in values }
+    /**
+     * [template]의 모든 슬롯에 값이 있는지. 조사 슬롯은 그 값의 끝소리를 알 수 있어야 한다. 'ㄹㅇ'처럼 자모로 끝나는 값이면
+     * 조사를 붙인 템플릿은 고르지 않고 조사 없는 템플릿을 고르게 한다.
+     */
+    fun canFill(template: String): Boolean = SLOT.findAll(template).all { match -> canFill(match) }
 
     /** 슬롯을 값이나 조사로 바꾼 글. 값이 없는 슬롯이 있으면 [canFill]로 먼저 걸러야 한다. */
     fun fill(template: String): String = SLOT.replace(template) { match -> replacementOf(match) }
@@ -16,6 +19,11 @@ class Slots(private val values: Map<String, String>) {
 
     /** 두 슬롯 묶음을 합친다. 같은 이름이면 [other] 값이 이긴다. */
     operator fun plus(other: Slots): Slots = Slots(values + other.values)
+
+    private fun canFill(match: MatchResult): Boolean {
+        val value = values[match.groupValues[NAME_GROUP]] ?: return false
+        return match.groupValues[JOSA_GROUP].isEmpty() || FinalSound.of(value) != FinalSound.UNKNOWN
+    }
 
     private fun replacementOf(match: MatchResult): String {
         val value = values[match.groupValues[NAME_GROUP]].orEmpty()

@@ -17,6 +17,15 @@ class SlotsTest {
     }
 
     @Test
+    fun `자모로 끝나는 값에는 조사를 고를 수 없어 조사 슬롯을 쓴 템플릿은 채우지 않는다`() {
+        val slots = Slots.of("phrase" to "ㄹㅇ")
+
+        assertFalse(slots.canFill("'{phrase}'{phrase:을} 씀"))
+        assertTrue(slots.canFill("'{phrase}' 씀"))
+        assertEquals("'ㄹㅇ' 씀", Templates(listOf("'{phrase}'{phrase:을} 씀", "'{phrase}' 씀")).pick(TemplateSeed("seed"), slots))
+    }
+
+    @Test
     fun `값이 없는 슬롯이 있으면 채우지 않는다`() {
         assertFalse(slots.canFill("{phrase} {topic}"))
         assertNull(slots.fillOrNull("{topic}"))

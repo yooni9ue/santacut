@@ -6,9 +6,10 @@ package com.santacut.domain.dossier.model
 class MetricReadings(private val values: List<MetricReading>) {
     /**
      * 백분위가 50에서 가장 먼 순으로 [limit]개를 고른다. 같은 계열은 하나만, 거리가 같으면 metrics.json에서 앞선 지표다.
+     * 값이 0인 지표는 '없음'이라 튀는 기록으로 보지 않고 뺀다.
      */
     fun extremes(limit: Int): MetricReadings = MetricReadings(
-        values.sortedByDescending(MetricReading::distance).distinctBy(MetricReading::family).take(limit),
+        values.filterNot(MetricReading::isZero).sortedByDescending(MetricReading::distance).distinctBy(MetricReading::family).take(limit),
     )
 
     /** [index]번째(0부터) 지표. 없으면 null이다. */

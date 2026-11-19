@@ -17,6 +17,9 @@ class PhraseEntries @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
         values.flatMap(PhraseEntry::violations) +
             values.groupBy(PhraseEntry::key).filterValues { same -> same.size > 1 }.keys.map { key -> "phrases: key $key 중복" }
 
+    /** [key] 어휘. 사전에 없으면 null이다. */
+    fun find(key: String): PhraseEntry? = values.find { entry -> entry.key == key }
+
     /** 사전 순서대로 어휘마다 횟수를 쌓을 빈 칸. */
     fun emptyCounts(): EntryCounts = EntryCounts.ofSize(values.size)
 

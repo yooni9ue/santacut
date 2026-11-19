@@ -27,8 +27,9 @@ class VerdictScene(private val context: SceneContext, private val extremes: Metr
             .render(copy.note, context, NOTE, 1, emptySet(), true).firstDraft()
     }
 
+    /** 하위 판정 줄. 화면 전용이고 담백 톤이면 뺀다. */
     private fun lowBand(): LineDraft? {
-        if (!subject.band().isLow()) return null
+        if (!subject.band().isLow() || context.isMild()) return null
         return copy.lowBandTitle.pick(context.seed.of(LOW_BAND), context.slots)?.let { text -> LineDraft(text, false) }
     }
 

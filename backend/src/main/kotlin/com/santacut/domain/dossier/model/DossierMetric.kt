@@ -53,8 +53,8 @@ enum class DossierMetric(val key: String, val family: MetricFamily, val chart: C
         else -> Slots.EMPTY
     }
 
-    /** 공유 카드에 실어도 되는지. 느린 답장(높은 쪽)과 삐 처리는 화면 전용이다. */
-    fun isCardSafe(isHigh: Boolean): Boolean = this != BLEEP_DENSITY && !(this == REPLY_MEDIAN_MINUTES && isHigh)
+    /** 공유 카드에 실어도 되는지. 느린 답장과 잦은 삐 처리(높은 쪽)는 화면 전용이다. 삐 처리가 적은 쪽은 공유해도 된다. */
+    fun isCardSafe(isHigh: Boolean): Boolean = !(isHigh && (this == BLEEP_DENSITY || this == REPLY_MEDIAN_MINUTES))
 
     private fun valueOfCountsIn(stats: DossierStats): Double? = when (this) {
         MESSAGE_COUNT -> stats.volume.messageCount.toDouble()

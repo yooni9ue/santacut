@@ -50,6 +50,12 @@ class DossierCatalogTest {
     }
 
     @Test
+    fun `놀릴 수 없는 지표를 죄목에, 카드에 싣지 않는 지표 방향을 칭호에 쓰면 띄우지 않는다`() {
+        assertRejected("copy.json", "\"laugh_density_low\": [\n    \"죄목", "\"cry_density\": [\n    \"죄목", "놀릴 수 없는")
+        assertRejected("copy.json", "\"laugh_density_low\": [\n    \"웃음", "\"reply_median_minutes\": [\n    \"웃음", "공유 카드")
+    }
+
+    @Test
     fun `리소스 판이 1이 아니면 띄우지 않는다`() {
         assertRejected("bleep.json", "\"version\":1", "\"version\":2", "version")
     }

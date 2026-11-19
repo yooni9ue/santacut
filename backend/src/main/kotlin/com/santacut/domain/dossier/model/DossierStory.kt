@@ -2,6 +2,7 @@ package com.santacut.domain.dossier.model
 
 /**
  * 저장한 집계값과 사전, 기존 결과로 조회 시점에 조서 장면 목록을 조립한다. 문구 선택은 결과 ID 시드로 결정적이다.
+ * 입버릇은 지금 사전으로 다시 읽어 사전에서 빠진 말은 보여 주지 않는다.
  *
  * 장면 순서는 티저, 올해의 한마디, 입버릇 장부, 극값(최대 3), 3막, 산타 조서, 판결, 소환장이다.
  * 본인 메시지 수 구간([DossierExposure])에 따라 장부·3막·조서를 빼거나 줄인다.
@@ -9,10 +10,11 @@ package com.santacut.domain.dossier.model
  */
 class DossierStory(
     private val catalog: DossierCatalog,
-    private val stats: DossierStats,
+    stats: DossierStats,
     private val tone: DossierTone,
     private val subject: DossierSubject,
 ) {
+    private val stats = stats.refreshedBy(catalog.phrases)
     private val seed = TemplateSeed(subject.assessmentId)
     private val exposure = DossierExposure.of(stats.messageCount())
     private val readings = catalog.metrics.readings(stats)

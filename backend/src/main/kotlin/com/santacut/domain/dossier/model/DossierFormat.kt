@@ -20,10 +20,11 @@ object DossierFormat {
     private const val NOON = 12
     private const val DAWN_END = 5
     private const val EVENING_START = 18
+    private const val NIGHT_START = 21
     private val DIGIT = Regex("[0-9]")
     private const val MASK = "█"
     private const val TENTHS = 10L
-    private const val ONE_DECIMAL = "%.1f"
+    private const val ONE_DECIMAL = "%,.1f"
 
     /** 1,234번 */
     fun times(count: Int): String = grouped(count.toLong()) + TIMES_UNIT
@@ -37,7 +38,7 @@ object DossierFormat {
     /** 반올림한 정수에 천 단위 쉼표와 [unit]을 붙인다. 212개, 1,234자 */
     fun amount(value: Double, unit: String): String = grouped(value.roundToLong()) + unit
 
-    /** 소수 첫째 자리까지. 끝이 .0이면 떼어 낸다. 3.8개, 7배 */
+    /** 소수 첫째 자리까지, 천 단위 쉼표를 붙인다. 끝이 .0이면 떼어 낸다. 3.8개, 7배, 1,234.5자 */
     fun decimal(value: Double, unit: String): String {
         val tenths = (value * TENTHS).roundToLong()
         val text = if (tenths % TENTHS == 0L) grouped(tenths / TENTHS) else String.format(Locale.ROOT, ONE_DECIMAL, tenths / TENTHS.toDouble())
@@ -56,13 +57,14 @@ object DossierFormat {
         return if (band == 0) "${hours}대" else "$hours ${band}분대"
     }
 
-    /** 시(0~23)를 시간대 이름으로. 밤 12시대, 새벽 1시대, 오전 9시대, 낮 12시대, 오후 3시대, 밤 11시대 */
+    /** 시(0~23)를 시간대 이름으로. 밤 12시대, 새벽 1시대, 오전 9시대, 낮 12시대, 오후 3시대, 저녁 7시대, 밤 11시대 */
     fun hour(hour: Int): String = when {
         hour == 0 -> "밤 ${NOON}시대"
         hour <= DAWN_END -> "새벽 ${hour}시대"
         hour < NOON -> "오전 ${hour}시대"
         hour == NOON -> "낮 ${NOON}시대"
         hour < EVENING_START -> "오후 ${hour - NOON}시대"
+        hour < NIGHT_START -> "저녁 ${hour - NOON}시대"
         else -> "밤 ${hour - NOON}시대"
     }
 

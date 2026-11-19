@@ -26,18 +26,23 @@ class OpeningScenes(private val context: SceneContext) {
         return DossierScene(
             HOOK, SceneKind.HOOK, DossierScene.ELF, copy.hook.headline.pick(context.seed.of(HOOK_HEADLINE), slots), phrase.display,
             SceneLines.numbered(listOf(LineDraft(DossierFormat.times(phrase.count), true))),
-            copy.hook.memo.pick(context.seed.of(HOOK_MEMO), slots), null, true,
+            hookMemo(copy.hook.memo, slots), null, true,
         )
     }
 
-    /** 많이 쓴 말과 삐 처리 횟수. 삐 처리 줄은 화면 전용이다. 쓸 말도 욕설도 없거나 메시지가 적으면 장을 뺀다. */
+    /**
+     * 많이 쓴 말과 삐 처리 횟수. 삐 처리 줄은 화면 전용이라, 입버릇 줄 없이 삐 처리 줄만 있으면 장 전체를 공유하지 않는다.
+     * 담백 톤이면 삐 처리 줄과 요정 메모를 뺀다. 남는 줄이 없거나 메시지가 적으면 장을 뺀다.
+     */
     fun ledger(): DossierScene? {
         val size = context.exposure.ledgerSize
-        if (size == 0 || (words.phrasesFrequent.isEmpty() && words.bleepCount == 0)) return null
-        val bleep = copy.ledger.bleep.pick(context.seed.of(LEDGER_BLEEP), context.slots)?.let { text -> LineDraft(text, false) }
+        val phrases = words.phrasesFrequent.ledgerLines(size)
+        val bleep = if (context.isMild()) null else copy.ledger.bleep.pick(context.seed.of(LEDGER_BLEEP), context.slots)
+        val lines = phrases + listOfNotNull(bleep?.let { text -> LineDraft(text, false) })
+        if (size == 0 || lines.isEmpty()) return null
         return DossierScene(
             LEDGER, SceneKind.LEDGER, DossierScene.ELF, copy.ledger.headline.pick(context.seed.of(LEDGER_HEADLINE), context.slots), null,
-            SceneLines.numbered(words.phrasesFrequent.ledgerLines(size) + listOfNotNull(bleep)), ledgerMemo(), null, true,
+            SceneLines.numbered(lines), ledgerMemo(), null, phrases.isNotEmpty(),
         )
     }
 
@@ -48,15 +53,20 @@ class OpeningScenes(private val context: SceneContext) {
         val slots = context.slots + Slots.of(VALUE to value)
         return DossierScene(
             HOOK, SceneKind.HOOK, DossierScene.ELF, copy.hookFallback.headline.pick(context.seed.of(HOOK_HEADLINE), slots), value,
-            SceneLines.EMPTY, copy.hookFallback.memo.pick(context.seed.of(HOOK_MEMO), slots), null, true,
+            SceneLines.EMPTY, hookMemo(copy.hookFallback.memo, slots), null, true,
         )
     }
 
-    /** 1위 말의 분류에 맞는 요정 메모. */
+    /** 1위 말의 분류에 맞는 요정 메모. 담백 톤이면 뺀다. */
     private fun ledgerMemo(): String? {
+        if (context.isMild()) return null
         val top = words.phrasesFrequent.at(1) ?: return null
         return copy.ledger.memoByCategory.of(top.category)?.pick(context.seed.of(LEDGER_MEMO), context.slots + top.slots())
     }
+
+    /** 한마디 장 메모. 담백 톤이면 놀림 없는 중립 메모로 바꾼다. */
+    private fun hookMemo(templates: Templates, slots: Slots): String? =
+        (if (context.isMild()) copy.mild.hookMemo else templates).pick(context.seed.of(HOOK_MEMO), slots)
 
     companion object {
         /** 올해의 한마디가 되려면 필요한 최소 횟수(잠정). */

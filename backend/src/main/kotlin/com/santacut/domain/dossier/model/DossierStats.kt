@@ -16,6 +16,9 @@ data class DossierStats(
     val style: MessageStyle,
     val words: WordStats,
 ) {
+    /** 입버릇을 지금 사전 [entries]로 다시 읽은 집계. 조회할 때 쓴다. */
+    fun refreshedBy(entries: PhraseEntries): DossierStats = copy(words = words.refreshedBy(entries))
+
     /** 본인 메시지 수. */
     fun messageCount(): Int = volume.messageCount
 

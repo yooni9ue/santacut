@@ -18,5 +18,11 @@ class DossierCatalog(
     fun violations(): List<String> =
         phrases.violations() + topics.violations() + kinds.violations() +
             listOfNotNull("bleep: forms가 비었거나 빈 표면형이 있다".takeIf { bleep.isMalformed() }) +
-            heavy.violations() + metrics.violations(copy.extremes) + copy.violations()
+            heavy.violations() + metrics.violations(copy.extremes) + copy.violations() + metricCopyViolations()
+
+    private fun metricCopyViolations(): List<String> =
+        metrics.copyViolations("dossier.charges", copy.dossier.charges.keys(), false) +
+            metrics.copyViolations("verdict.note", copy.verdict.note.keys(), false) +
+            metrics.copyViolations("titles.modifier_by_metric", copy.titles.modifierByMetric.keys(), true) +
+            metrics.copyViolations("titles.role_by_metric", copy.titles.roleByMetric.keys(), true)
 }

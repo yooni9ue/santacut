@@ -14,6 +14,13 @@ class PhraseTallies @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
 
     fun isEmpty(): Boolean = values.isEmpty()
 
+    /**
+     * 지금 사전 [entries]로 다시 읽은 목록. 저장 뒤 사전에서 빠진 말은 빼고, 표기와 분류는 지금 사전 것을 쓴다.
+     * 문제가 된 어휘를 사전에서 지우면 배포만으로 모든 조서에서 사라지게 하려는 것이다.
+     */
+    fun refreshedBy(entries: PhraseEntries): PhraseTallies =
+        PhraseTallies(values.mapNotNull { tally -> entries.find(tally.key)?.tally(tally.count) })
+
     /** [rank]위(1부터) 말. 없으면 null이다. */
     fun at(rank: Int): PhraseTally? = values.getOrNull(rank - 1)
 

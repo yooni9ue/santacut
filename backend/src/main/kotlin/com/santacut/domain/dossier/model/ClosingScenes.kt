@@ -28,14 +28,15 @@ class ClosingScenes(private val context: SceneContext, private val extremes: Met
         )
     }
 
-    /** 공유 도발 문구. 특이도 1위 말(없으면 많이 쓴 말 1위)을 슬롯으로 쓴다. */
+    /** 공유 도발 문구. 특이도 1위 말(없으면 많이 쓴 말 1위)을 슬롯으로 쓴다. 담백 톤이면 죄목·놀림 없는 중립 문구를 쓴다. */
     fun summons(): DossierScene {
         val words = context.stats.words
         val phrase = words.phrasesDistinct.at(1) ?: words.phrasesFrequent.at(1)
         val slots = context.slots + (phrase?.slots() ?: Slots.EMPTY)
+        val templates = if (context.isMild()) copy.mild.summons else copy.summons
         return DossierScene(
             SUMMONS, SceneKind.SUMMONS, DossierScene.SANTA, null, context.title,
-            SceneLines.numbered(copy.summons.pickLines(context.seed.of(SUMMONS), slots, SUMMONS_LIMIT, true)), null, null, true,
+            SceneLines.numbered(templates.pickLines(context.seed.of(SUMMONS), slots, SUMMONS_LIMIT, true)), null, null, true,
         )
     }
 

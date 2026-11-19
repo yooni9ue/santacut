@@ -17,4 +17,8 @@ data class WordStats(
     @JsonProperty("kind_words") val kindWords: KindCounts,
     val topics: TopicActCounts,
     @JsonProperty("bleep_count") val bleepCount: Int,
-)
+) {
+    /** 입버릇 목록을 지금 사전 [entries]로 다시 읽은 집계. */
+    fun refreshedBy(entries: PhraseEntries): WordStats =
+        copy(phrasesFrequent = phrasesFrequent.refreshedBy(entries), phrasesDistinct = phrasesDistinct.refreshedBy(entries))
+}
