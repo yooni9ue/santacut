@@ -6,6 +6,7 @@
 
 백엔드 계약을 화면에 적용할 때의 요구사항이다. 아래 체크박스는 통합 검증 완료 표시가 아니다. 2026-11-18 현재 실제 연결·미반영 항목은 [화면별 구현 범위](../../frontend/docs/screens.md), [전체 점검 기록](../development/implementation-audit.md)에 구분한다.
 
+- [ ] **[긴급] 심사 완료 뒤 결과 화면 이동**: 지금 분석 화면(`LiveAnalysisScreen`, `frontend/src/components/flow/screens.tsx`)은 상태가 `SUCCEEDED`가 되어도 "심사가 끝났어요"만 보여 주고 `/result`로 가지 않는다. 링크나 버튼도 없어서 사용자는 결과를 볼 수 없다(2026-11-20 dev에서 확인, 서버 채점과 SSE는 정상). `SUCCEEDED`를 받으면 `/result`로 이동(`router.replace`)하고, 이동이 안 될 때를 위해 "결과 보기" 버튼도 둔다. `RANKING_PENDING` 동안은 대기 화면을 유지한다(6.0절).
 - [ ] **API 주소**: Vercel Preview·Development에 `https://api-dev.santacut.me`, Production은 운영 서버를 켠 뒤 `https://api.santacut.me`(0절).
 - [ ] **도메인 연결**: Vercel Settings → Domains에 `santacut.me`, `www.santacut.me`(main), `dev.santacut.me`(develop)를 추가한다. DNS는 백엔드가 Route 53에 걸어 두었다.
 - [ ] **쿠키·CSRF**: 모든 `fetch`에 `credentials: 'include'`, SSE는 `{ withCredentials: true }`. 쓰기 요청 전 `GET /v1/csrf` 본문의 토큰을 `X-XSRF-TOKEN` 헤더로 보낸다. 쿠키는 다른 출처라 읽을 수 없다(2·3절).
