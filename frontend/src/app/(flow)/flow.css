@@ -3,3 +3,41 @@
 @media(max-width:360px){.flow-content{padding-inline:21px}.flow-stepper{padding-inline:21px;font-size:10px}.flow-stepper i{margin-left:2px}.flow-content>h1{font-size:31px}.flow-source{gap:12px;padding:17px 13px}.flow-source b{font-size:16px}.flow-source small{font-size:10px}.flow-source-icon{width:36px;height:39px;font-size:21px}.flow-result-card{padding-inline:14px}.flow-score{font-size:61px}.flow-result-card>h2{font-size:25px}.flow-side-note>p{font-size:21px}.flow-summary>div{grid-template-columns:73px 1fr}}
 
 .flow-registration-fields{border:0;padding:0;margin:0;min-width:0}.flow-registration-fields:disabled{opacity:.7}
+
+.flow-share-panel {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid #e4e4df;
+  border-radius: 14px;
+  background: #fafaf8;
+}
+
+.flow-share-heading, .flow-share-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.flow-share-heading h2 { font-size: 16px; }
+.flow-share-heading a, .flow-share-note { font-size: 12px; color: #595953; }
+.flow-share-heading a { padding: 12px 0; text-decoration: underline; }
+.flow-share-actions { display: grid; gap: 8px; }
+
+.flow-share-actions button, .flow-share-actions a, .flow-share-copy button, .flow-share-copy input {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #deded8;
+  border-radius: 8px;
+  background: #fff;
+  color: #242424;
+  font-size: 13px;
+}
+
+.flow-share-actions button, .flow-share-actions a, .flow-share-copy button { font-weight: 700; cursor: pointer; }
+.flow-share-actions a { display: grid; place-items: center; }
+.flow-share-actions button:disabled { color: #66665f; cursor: default; }
+.flow-share-copy button { flex: none; }
+.flow-share-copy input { width: 100%; min-width: 0; }
