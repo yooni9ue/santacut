@@ -67,8 +67,8 @@ enum class DossierMetric(val key: String, val family: MetricFamily, val chart: C
         QUESTION_RATIO -> stats.style.questionRatio
         EXCLAIM_RATIO -> stats.style.exclaimRatio
         REPLY_MEDIAN_MINUTES -> stats.reply.medianMinutes?.toDouble()
-        KIND_WORDS_DENSITY -> densityOf(stats.words.kindWords.total(), stats.messageCount())
-        else -> densityOf(stats.words.bleepCount, stats.messageCount())
+        KIND_WORDS_DENSITY -> densityOf(stats.words.kindWords.total(), stats.textCount())
+        else -> densityOf(stats.words.bleepCount, stats.textCount())
     }
 
     private fun densityOf(count: Int, messageCount: Int): Double? =

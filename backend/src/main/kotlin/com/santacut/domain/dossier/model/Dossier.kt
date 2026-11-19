@@ -20,7 +20,7 @@ import java.util.UUID
  * 평가나 참가자를 지우면 외래 키 삭제 규칙으로 함께 지워진다. 평가 하나에 조서 하나다(seed.sql의 유일 인덱스).
  *
  * @property statsJson 집계값([DossierStats]) JSON. 원문, 이름, 링크, 전화번호는 담지 않는다.
- * @property tone 위기 표현 기준으로 정한 톤. 위기 표현 횟수는 저장하지 않는다.
+ * @property tone 문구 톤 플래그(기본·담백). 위기 표현이 기준보다 많으면 담백이다. 위기 표현 횟수나 낱말은 저장하지 않는다.
  * @property statsVersion 집계 규칙 판([DossierStats.VERSION])
  */
 @Entity
@@ -65,7 +65,7 @@ class Dossier(
     var createdAt: Instant = createdAt
         protected set
 
-    /** 지금 집계 규칙 판으로 센 조서인지. 같은 입력 재사용 때 판이 다르면 복사하지 않고 다시 센다. */
+    /** 지금 집계 규칙 판으로 센 조서인지. 판이 다르면 조회하지 않고(조서 없음), 같은 입력 재사용 때도 복사하지 않는다. */
     fun isCurrentVersion(): Boolean = statsVersion == DossierStats.VERSION
 
     /** 같은 채점 입력으로 다시 낸 새 평가 [assessment]에 이 집계를 옮겨 적는다. */
@@ -73,9 +73,9 @@ class Dossier(
         Dossier(UUID.randomUUID().toString(), assessment.id, assessment.userId, statsJson, tone, statsVersion, copiedAt)
 
     companion object {
-        /** [assessment]의 조서. [statsJson]은 [tally]의 집계값을 JSON으로 쓴 것이다. */
-        fun record(assessment: Assessment, tally: DossierTally, statsJson: String, recordedAt: Instant): Dossier = Dossier(
-            UUID.randomUUID().toString(), assessment.id, assessment.userId, statsJson, tally.tone, tally.stats.version, recordedAt,
+        /** [assessment]의 조서. 집계와 JSON은 [draft]에 미리 만들어 둔 것이다. */
+        fun record(assessment: Assessment, draft: DossierDraft, recordedAt: Instant): Dossier = Dossier(
+            UUID.randomUUID().toString(), assessment.id, assessment.userId, draft.statsJson, draft.tone, draft.statsVersion, recordedAt,
         )
     }
 }

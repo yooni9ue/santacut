@@ -19,7 +19,10 @@ data class DossierStats(
     /** 본인 메시지 수. */
     fun messageCount(): Int = volume.messageCount
 
+    /** 자리표시를 뺀 본인 글 메시지 수. 밀도의 분모다. */
+    fun textCount(): Int = volume.textCount
+
     companion object {
-        const val VERSION = 1
+        const val VERSION = 2
     }
 }

@@ -16,9 +16,19 @@ class TopicEntries @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
         values.flatMap(TopicEntry::violations) +
             values.groupBy(TopicEntry::key).filterValues { same -> same.size > 1 }.keys.map { key -> "topics: key $key 중복" }
 
-    /** 막마다 이은 본인 본문 [actTexts]에서 센 주제별 막별 횟수. 한 번도 안 나온 주제는 뺀다. */
-    fun countByAct(actTexts: List<String>): TopicActCounts = TopicActCounts(
-        values.associate { topic -> topic.key to topic.countIn(actTexts) }.filterValues { counts -> counts.sum() > 0 },
+    /** 주제마다 막별 횟수를 쌓을 빈 칸(주제 순서 × 막 순서). */
+    fun emptyCounts(): EntryCounts = EntryCounts.ofSize(values.size * ACTS)
+
+    /** [act] 막에 보낸 본인 메시지 본문 [text]에서 주제마다 센 횟수를 [counts]에 더한다. */
+    fun addCountsIn(text: String, act: DossierAct, counts: EntryCounts) {
+        values.forEachIndexed { index, topic -> counts.add(index * ACTS + act.ordinal, topic.keywords.countIn(text)) }
+    }
+
+    /** [counts]로 쌓은 주제별 막별 횟수. 한 번도 안 나온 주제는 뺀다. */
+    fun countsOf(counts: EntryCounts): TopicActCounts = TopicActCounts(
+        values.withIndex()
+            .associate { (index, topic) -> topic.key to List(ACTS) { act -> counts[index * ACTS + act] } }
+            .filterValues { actCounts -> actCounts.sum() > 0 },
     )
 
     /** [act] 막의 화제 1위. 횟수가 같으면 사전 순서가 앞선 주제다. 그 막에 나온 주제가 없으면 null이다. */
@@ -43,6 +53,7 @@ class TopicEntries @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
     }
 
     companion object {
+        private val ACTS = DossierAct.entries.size
         private const val ACT_LABEL = "act_label"
         private const val TOPIC = "topic"
         private const val COUNT = "count"

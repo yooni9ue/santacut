@@ -96,7 +96,7 @@ class DossierApiTest @Autowired constructor(
         val score = Score.shrunk(SCORES.map { BigDecimal(it) }, LowConfidenceDimensions.NONE, null)
         transactionTemplate.executeWithoutResult {
             val assessment = assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
-            if (withDossier) dossierService.record(assessment, TestDossiers.tally(TestDossiers.selves(DOSSIER_TEXTS)), now)
+            if (withDossier) dossierService.record(assessment, TestDossiers.draft(TestDossiers.selves(DOSSIER_TEXTS)), now)
             rankingService.rebuild(now)
         }
         return Cookie(SESSION_COOKIE, participant.sessionToken)

@@ -19,9 +19,18 @@ class KindWords @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
             ScoreDimension.entries.filter { dimension -> values.none { kind -> kind.belongsTo(dimension) } }
                 .map { dimension -> "kind_words: ${dimension.key} 항목의 말이 없다" }
 
-    /** [text](본인 본문)에서 센 말별 횟수. 한 번도 안 쓴 말은 뺀다. */
-    fun countIn(text: String): KindCounts =
-        KindCounts(values.associate { kind -> kind.key to kind.forms.countIn(text) }.filterValues { count -> count > 0 })
+    /** 사전 순서대로 말마다 횟수를 쌓을 빈 칸. */
+    fun emptyCounts(): EntryCounts = EntryCounts.ofSize(values.size)
+
+    /** 본인 메시지 본문 [text]에서 말마다 센 횟수를 [counts]에 더한다. */
+    fun addCountsIn(text: String, counts: EntryCounts) {
+        values.forEachIndexed { index, kind -> counts.add(index, kind.forms.countIn(text)) }
+    }
+
+    /** [counts]로 쌓은 말별 횟수. 한 번도 안 쓴 말은 뺀다. */
+    fun countsOf(counts: EntryCounts): KindCounts = KindCounts(
+        values.withIndex().associate { (index, kind) -> kind.key to counts[index] }.filterValues { count -> count > 0 },
+    )
 
     /** [dimension] 항목의 말 중 가장 많이 쓴 말. 같으면 사전 순서가 앞선 말이다. 하나도 안 썼으면 null이다. */
     fun strongestIn(dimension: ScoreDimension, counts: KindCounts): KindTally? = values

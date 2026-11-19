@@ -17,7 +17,15 @@ class PhraseEntries @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
         values.flatMap(PhraseEntry::violations) +
             values.groupBy(PhraseEntry::key).filterValues { same -> same.size > 1 }.keys.map { key -> "phrases: key $key 중복" }
 
-    /** [text](본인 메시지를 줄바꿈으로 이은 본문)에서 한 번 이상 나온 어휘. */
-    fun hitsIn(text: String): PhraseHits =
-        PhraseHits(values.map { entry -> PhraseHit(entry, entry.forms.countIn(text)) }.filter { hit -> hit.count > 0 })
+    /** 사전 순서대로 어휘마다 횟수를 쌓을 빈 칸. */
+    fun emptyCounts(): EntryCounts = EntryCounts.ofSize(values.size)
+
+    /** 본인 메시지 본문 [text]에서 어휘마다 센 횟수를 [counts]에 더한다. */
+    fun addCountsIn(text: String, counts: EntryCounts) {
+        values.forEachIndexed { index, entry -> counts.add(index, entry.forms.countIn(text)) }
+    }
+
+    /** [counts]로 쌓은 횟수 중 한 번 이상 나온 어휘. */
+    fun hitsOf(counts: EntryCounts): PhraseHits =
+        PhraseHits(values.mapIndexed { index, entry -> PhraseHit(entry, counts[index]) }.filter { hit -> hit.count > 0 })
 }

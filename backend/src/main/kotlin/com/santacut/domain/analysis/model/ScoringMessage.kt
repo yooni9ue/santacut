@@ -22,15 +22,17 @@ data class ScoringMessage(
      * ㅠ·ㅜ와 문장 부호, 잇단 이모지는 두 개까지만 남긴다. 그래도 본인은 [MAX_TEXT_LENGTH]자, 상대는 [MAX_PARTNER_TEXT_LENGTH]자를
      * 넘으면 앞부분만 두고 `(긴 글 생략)`을 붙인다.
      */
-    fun normalizedText(): String = shortened(
+    fun normalizedText(): String = shortened(normalizedFullText())
+
+    /** [normalizedText]와 같은 규칙으로 줄이되 길이는 자르지 않은 본문. 조서가 사전 낱말과 위기 표현을 셀 때 쓴다. */
+    fun normalizedFullText(): String =
         text
             .replace(URL, LINK)
             .replace(WHITESPACE, SPACE)
             .replace(REPEATED_LAUGH, LAUGH_KEPT)
             .replace(REPEATED_CRY_OR_MARK, CRY_OR_MARK_KEPT)
             .replace(EMOJI_RUN) { run -> LEADING_TWO_EMOJI.find(run.value)?.value ?: run.value }
-            .trim(),
-    )
+            .trim()
 
     /** 이모지 같은 서로게이트 쌍을 반으로 자르지 않게, 자른 끝이 앞쪽 반이면 그 글자를 뺀다. */
     private fun shortened(normalized: String): String {

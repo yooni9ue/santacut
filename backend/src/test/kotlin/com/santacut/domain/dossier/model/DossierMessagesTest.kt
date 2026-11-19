@@ -5,6 +5,7 @@ import com.santacut.TestDossiers.partner
 import com.santacut.TestDossiers.self
 import com.santacut.TestDossiers.selves
 import com.santacut.TestDossiers.tally
+import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ScoringMessage
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
@@ -16,7 +17,7 @@ import kotlin.test.assertTrue
 /** 조서 집계값을 항목마다 확인한다. 본인 메시지만 세고, 상대 메시지는 답장 간격과 묶음 경계에만 쓰는지도 본다. */
 class DossierMessagesTest {
     @Test
-    fun `메시지 수, 글자 수, 활동일, 가장 바쁜 날은 본인 메시지로 하루 경계 05시로 센다`() {
+    fun `메시지 수, 글 메시지 수, 글자 수, 활동일, 가장 바쁜 날은 본인 메시지로 하루 경계 05시로 센다`() {
         val messages = listOf(
             self(at(3, 2, 10), "안녕"), self(at(3, 3, 4), "새벽"), self(at(3, 3, 10), "ㅎ"),
             partner(at(3, 3, 11), "상대가 아주 길게 보낸 말"),
@@ -24,7 +25,7 @@ class DossierMessagesTest {
 
         val volume = tally(messages).stats.volume
 
-        assertEquals(VolumeStats(3, 5, 2, BusiestDay(2, 3)), volume)
+        assertEquals(VolumeStats(3, 3, 5, 2, BusiestDay(2, 3)), volume)
     }
 
     @Test
@@ -132,6 +133,93 @@ class DossierMessagesTest {
         assertEquals(json, TestDossiers.mapper.writeValueAsString(TestDossiers.mapper.readValue(json, DossierStats::class.java)))
     }
 
+    @Test
+    fun `사진 같은 자리표시는 메시지 수와 활동일에는 세고 글자 수와 밀도·비율의 분모에서는 뺀다`() {
+        val messages = selves(listOf("사진", "사진 3장", "ㅋㅋ", "😂ab"))
+
+        val stats = tally(messages).stats
+
+        assertEquals(4, stats.volume.messageCount)
+        assertEquals(2, stats.volume.textCount)
+        assertEquals(5, stats.volume.charCount)
+        assertEquals(100.0, stats.laugh.laughDensity)
+        assertEquals(1.0, stats.style.shortRatio)
+    }
+
+    @Test
+    fun `글자 수와 길이는 코드 포인트로 세어 이모지 하나를 한 글자로 본다`() {
+        val stats = tally(selves(listOf("😂😂😂"))).stats
+
+        assertEquals(3, stats.volume.charCount)
+        assertEquals(3, stats.style.longestMessageLength)
+    }
+
+    @Test
+    fun `1월 1일 새벽 메시지는 지난해 12월이 아니라 1월과 1막으로 센다`() {
+        val messages = listOf(self(LocalDateTime.of(2026, 1, 1, 3, 0), "밥 먹자"), self(LocalDateTime.of(2026, 1, 1, 4, 0), "밥"))
+
+        val stats = tally(messages).stats
+
+        assertEquals(2, stats.clock.monthly[0])
+        assertEquals(0, stats.clock.monthly[DECEMBER])
+        assertEquals(1, stats.clock.busiestMonth)
+        assertEquals(BusiestDay(2, 1), stats.volume.busiestDay)
+        assertEquals(mapOf("food" to listOf(2, 0, 0)), stats.words.topics.toMap())
+    }
+
+    @Test
+    fun `1월 2일 새벽 메시지는 하루 경계대로 1월 1일로 센다`() {
+        val stats = tally(listOf(self(LocalDateTime.of(2026, 1, 2, 3, 0), "새벽"), self(LocalDateTime.of(2026, 1, 1, 12, 0), "낮"))).stats
+
+        assertEquals(1, stats.volume.activeDays)
+    }
+
+    @Test
+    fun `인스타그램 DM은 1대1이어도 답장 간격을 재지 않는다`() {
+        val reply = tally(conversation(samples = 10), source = DataSource.INSTAGRAM).stats.reply
+
+        assertTrue(reply.oneOnOne)
+        assertNull(reply.medianMinutes)
+    }
+
+    @Test
+    fun `한 글자 입버릇은 뒤에 ㅋ·ㅎ·ㅠ·ㅜ가 붙어도 센다`() {
+        val words = tally(selves(List(5) { "헐ㅋㅋ" } + List(3) { "ㅋㅋ헐ㅠㅠ" } + listOf("헐랭"))).stats.words
+
+        assertEquals(listOf("heol" to 8), words.phrasesFrequent.toList().map { it.key to it.count })
+    }
+
+    @Test
+    fun `상대 메시지 본문은 입버릇, 주제, 따뜻한 말, 욕설, 위기 표현에 세지 않는다`() {
+        val partnerTexts = "진짜 헐 밥 여행 고마워 미안 ㅅㅂ 우울해"
+        val messages = List(30) { index -> partner(at(3, 2, 10).plusMinutes(index * 2L), partnerTexts) } + self(at(3, 3, 10), "응")
+
+        val tally = tally(messages)
+
+        assertTrue(tally.stats.words.phrasesFrequent.isEmpty())
+        assertEquals(emptyMap(), tally.stats.words.topics.toMap())
+        assertEquals(emptyMap(), tally.stats.words.kindWords.toMap())
+        assertEquals(0, tally.stats.words.bleepCount)
+        assertEquals(DossierTone.NORMAL, tally.tone)
+    }
+
+    @Test
+    fun `위기 표현은 300자 넘게 긴 메시지의 뒷부분에 있어도 센다`() {
+        val long = "가".repeat(LONG_PREFIX) + " 우울해"
+
+        assertEquals(DossierTone.MILD, tally(selves(listOf(long, "그래"))).tone)
+    }
+
+    @Test
+    fun `이모지는 결합(ZWJ) 묶음을 하나로 세고 결합 문자를 덧붙인 긴 묶음은 세지 않는다`() {
+        val family = "👨‍👩‍👧"
+        val noisy = "😂" + "‍".repeat(Graphemes.MAX_EMOJI_LENGTH)
+
+        val emoji = tally(selves(listOf(family + family, noisy))).stats.emoji
+
+        assertEquals(listOf(EmojiTally(family, 2)), emoji.top.toList())
+    }
+
     /** 상대 말 뒤 [SLOW_REPLY_MINUTES]분 만에 본인이 답한 표본 [samples]개와, 5분 만에 답해 표본이 아닌 대화 하나. */
     private fun conversation(samples: Int): List<ScoringMessage> =
         List(samples) { index ->
@@ -143,6 +231,8 @@ class DossierMessagesTest {
 
     companion object {
         private const val FRIDAY = 4
+        private const val DECEMBER = 11
+        private const val LONG_PREFIX = 400
         private const val SLOW_REPLY_MINUTES = 20L
     }
 }

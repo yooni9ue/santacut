@@ -18,10 +18,10 @@ data class HeavyWords(
         "heavy: threshold_per_1000은 0보다 커야 한다".takeIf { thresholdPer1000 <= 0 },
     )
 
-    /** 본인 메시지 [messageCount]개를 이은 [text]의 톤. */
-    fun toneOf(text: String, messageCount: Int): DossierTone {
+    /** 본인 글 메시지 [messageCount]개에서 위기 표현을 [count]번 썼을 때의 톤. */
+    fun toneOf(count: Int, messageCount: Int): DossierTone {
         if (messageCount == 0) return DossierTone.NORMAL
-        val perThousand = forms.countIn(text) * PER_THOUSAND / messageCount
+        val perThousand = count * PER_THOUSAND / messageCount
         return if (perThousand >= thresholdPer1000) DossierTone.MILD else DossierTone.NORMAL
     }
 

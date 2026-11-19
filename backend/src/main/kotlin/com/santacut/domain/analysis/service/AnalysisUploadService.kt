@@ -1,11 +1,14 @@
 package com.santacut.domain.analysis.service
 
+import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.AnalysisUpload
+import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.InstagramThread
 import com.santacut.domain.analysis.model.RawChatFile
 import com.santacut.domain.analysis.model.UploadConcurrencyLimit
+import com.santacut.domain.dossier.model.DossierTally
 import com.santacut.domain.global.config.UploadIntakeProperties
 import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
@@ -48,9 +51,15 @@ class AnalysisUploadService(
         analysisUploadRepository.deleteByCreatedAtBefore(AnalysisJob.queueExpiryCutoff(now))
     }
 
-    /** 원본을 화자 표시만 남긴 제출 내용으로 바꾼다. 출처별 파싱과 정규화 순서는 [AnalysisUpload.normalize]가 정한다. */
-    fun normalize(upload: AnalysisUpload, now: Instant): AnalysisSubmission =
-        upload.normalize(now, ::readInstagramThread)
+    /**
+     * 원본을 화자 표시만 남긴 제출 내용으로 바꾼다. 출처별 파싱과 정규화 순서는 [AnalysisUpload.normalize]가 정한다.
+     * 분석 기간 이벤트 전체로 조서 집계를 세는 일은 [tallyDossier]에 맡긴다.
+     */
+    fun normalize(
+        upload: AnalysisUpload,
+        now: Instant,
+        tallyDossier: (DataSource, AnalysisEvents) -> DossierTally?,
+    ): AnalysisSubmission = upload.normalize(now, ::readInstagramThread, tallyDossier)
 
     /** 올바른 JSON이 아니거나, 본문이 `null`이거나, 대화방 객체 모양이 아니면 [ErrorCode.UNSUPPORTED_FILE_FORMAT]이다. */
     private fun readInstagramThread(text: String): InstagramThread {

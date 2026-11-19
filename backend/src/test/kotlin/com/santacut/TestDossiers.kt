@@ -1,7 +1,9 @@
 package com.santacut
 
+import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.ScoringMessage
 import com.santacut.domain.dossier.model.DossierCatalog
+import com.santacut.domain.dossier.model.DossierDraft
 import com.santacut.domain.dossier.model.DossierMessages
 import com.santacut.domain.dossier.model.DossierTally
 import com.santacut.domain.global.config.DossierCatalogConfiguration
@@ -43,7 +45,12 @@ object TestDossiers {
     fun selves(texts: List<String>, minutesApart: Long = 60): List<ScoringMessage> =
         texts.mapIndexed { index, text -> self(START.plusMinutes(index * minutesApart), text) }
 
-    fun tally(messages: List<ScoringMessage>, catalog: DossierCatalog = fixture): DossierTally = DossierMessages(messages).tally(catalog)
+    /** 시각순 메시지 [messages]를 [source] 출처로 센다. */
+    fun tally(messages: List<ScoringMessage>, catalog: DossierCatalog = fixture, source: DataSource = DataSource.KAKAO): DossierTally =
+        DossierMessages(messages.asSequence()).tally(catalog, source)
+
+    /** [messages]로 센 저장 직전 조서. */
+    fun draft(messages: List<ScoringMessage>): DossierDraft = tally(messages).let { tally -> tally.toDraft(mapper.writeValueAsString(tally.stats)) }
 
     val START: LocalDateTime = LocalDateTime.of(2026, 3, 2, 10, 0)
 }

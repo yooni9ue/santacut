@@ -9,6 +9,7 @@ import com.santacut.domain.analysis.model.ScoringAttempt
 import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AssessmentService
+import com.santacut.domain.dossier.model.DossierDraft
 import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.ranking.service.RankingService
 import org.slf4j.LoggerFactory
@@ -54,18 +55,22 @@ class HeldJobRunner(
     }
 
     /**
-     * 같은 참가자가 같은 채점 입력으로 낸 지난 작업이 있으면 그 결과로 이 작업을 끝내고 참을 돌려준다.
-     * 리스를 잃었거나 시즌이 마감됐어도 더 할 일이 없으니 참이다.
+     * 저장할 조서를 트랜잭션 밖에서 미리 만든다. 집계와 JSON 직렬화는 CPU만 쓰므로 쓰기 잠금을 쥐기 전에 하고,
+     * 작업 성공이 제출 내용을 지우므로 그 전에 한다. 집계에 실패하면 null이고 조서 없이 결과를 저장한다.
      */
-    fun reuseIfSameDigest(attempt: ScoringAttempt): Boolean = transaction.call { reuseHeld(attempt) } == true
+    fun draftDossier(job: AnalysisJob): DossierDraft? = dossierService.draft(job)
 
     /**
-     * 평가와 조서 집계를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다. 계산은 순위 다시 계산 작업자가 모아서 한다.
-     * 조서 집계는 CPU만 쓰므로 쓰기 잠금을 쥐기 전에 트랜잭션 밖에서 센다. 작업 성공이 제출 원문을 지우므로 그 전에 센다.
+     * 같은 참가자가 같은 채점 입력으로 낸 지난 작업이 있으면 그 결과와 조서([dossier]는 지난 조서가 없을 때 쓴다)로
+     * 이 작업을 끝내고 참을 돌려준다. 리스를 잃었거나 시즌이 마감됐어도 더 할 일이 없으니 참이다.
+     */
+    fun reuseIfSameDigest(attempt: ScoringAttempt, dossier: DossierDraft?): Boolean = transaction.call { reuseHeld(attempt, dossier) } == true
+
+    /**
+     * 평가와 미리 만든 조서([dossier])를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다. 계산은 순위 다시 계산 작업자가 모아서 한다.
      * 시즌이 이미 마감됐으면 작업 쪽 규칙에 따라 실패로 끝내고 평가를 저장하지 않는다.
      */
-    fun complete(attempt: ScoringAttempt, scored: ScoredAssessment) {
-        val dossier = dossierService.tally(attempt.job)
+    fun complete(attempt: ScoringAttempt, scored: ScoredAssessment, dossier: DossierDraft?) {
         transaction.run {
             val job = analysisJobService.findHeld(attempt.job) ?: return@run
             val completedAt = clock.instant()
@@ -84,24 +89,24 @@ class HeldJobRunner(
     fun settle(job: AnalysisJob, failure: ScoringFailure, digestHash: String? = null, billed: Boolean = false) =
         transaction.run { analysisJobService.settleFailure(job, failure, digestHash, billed, clock.instant()) }
 
-    private fun reuseHeld(attempt: ScoringAttempt): Boolean {
+    private fun reuseHeld(attempt: ScoringAttempt, dossier: DossierDraft?): Boolean {
         val job = analysisJobService.findHeld(attempt.job) ?: return true
         val previous = analysisJobService.findSameDigest(job, attempt.digestHash) ?: return false
         logger.info("분석 작업 {} 채점 입력이 지난 작업 {}와 같아 AI를 부르지 않는다", job.id, previous.id)
         val now = clock.instant()
-        if (!analysisJobService.freezeIfSeasonClosed(job, now)) finishLike(job, previous, attempt.digestHash, now)
+        if (!analysisJobService.freezeIfSeasonClosed(job, now)) finishLike(job, previous, attempt.digestHash, dossier, now)
         return true
     }
 
     /** 지난 작업이 성공했으면 그 평가와 조서 집계를 옮겨 적고 순위 다시 계산을 요청한다. 실패했으면 같은 이유로 끝낸다. */
-    private fun finishLike(job: AnalysisJob, previous: AnalysisJob, digestHash: String, now: Instant) {
+    private fun finishLike(job: AnalysisJob, previous: AnalysisJob, digestHash: String, dossier: DossierDraft?, now: Instant) {
         val previousAssessmentId = previous.reusableAssessmentId()
         if (previousAssessmentId == null) {
             analysisJobService.fail(job, previous.reusableFailure() ?: AnalysisFailureCode.ANALYSIS_FAILED, now, digestHash)
             return
         }
         val assessment = assessmentService.reuse(job, previousAssessmentId, now)
-        dossierService.reuse(job, previousAssessmentId, assessment, now)
+        dossierService.reuse(previousAssessmentId, assessment, dossier, now)
         analysisJobService.succeed(job, assessment.id, now, digestHash)
         rankingService.requestRebuild()
     }

@@ -104,7 +104,7 @@ class PersonalDataDeletionApiTest @Autowired constructor(
         )
         transactionTemplate.executeWithoutResult {
             val assessment = assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
-            dossierService.record(assessment, TestDossiers.tally(TestDossiers.selves(listOf("고마워", "진짜"))), now)
+            dossierService.record(assessment, TestDossiers.draft(TestDossiers.selves(listOf("고마워", "진짜"))), now)
             rankingService.rebuild(now)
         }
     }
