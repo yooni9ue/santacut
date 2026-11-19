@@ -9,6 +9,7 @@ import com.santacut.domain.analysis.model.ScoringAttempt
 import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AssessmentService
+import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.ranking.service.RankingService
 import org.slf4j.LoggerFactory
 import java.time.Clock
@@ -29,6 +30,7 @@ import kotlin.concurrent.withLock
 class HeldJobRunner(
     private val analysisJobService: AnalysisJobService,
     private val assessmentService: AssessmentService,
+    private val dossierService: DossierService,
     private val rankingService: RankingService,
     private val transaction: TransactionRunner,
     private val clock: Clock,
@@ -58,16 +60,21 @@ class HeldJobRunner(
     fun reuseIfSameDigest(attempt: ScoringAttempt): Boolean = transaction.call { reuseHeld(attempt) } == true
 
     /**
-     * 평가를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다. 계산은 순위 다시 계산 작업자가 모아서 한다.
+     * 평가와 조서 집계를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다. 계산은 순위 다시 계산 작업자가 모아서 한다.
+     * 조서 집계는 CPU만 쓰므로 쓰기 잠금을 쥐기 전에 트랜잭션 밖에서 센다. 작업 성공이 제출 원문을 지우므로 그 전에 센다.
      * 시즌이 이미 마감됐으면 작업 쪽 규칙에 따라 실패로 끝내고 평가를 저장하지 않는다.
      */
-    fun complete(attempt: ScoringAttempt, scored: ScoredAssessment) = transaction.run {
-        val job = analysisJobService.findHeld(attempt.job) ?: return@run
-        val completedAt = clock.instant()
-        if (analysisJobService.freezeIfSeasonClosed(job, completedAt)) return@run
-        val assessment = assessmentService.record(job, scored, completedAt)
-        analysisJobService.succeed(job, assessment.id, completedAt, attempt.digestHash)
-        rankingService.requestRebuild()
+    fun complete(attempt: ScoringAttempt, scored: ScoredAssessment) {
+        val dossier = dossierService.tally(attempt.job)
+        transaction.run {
+            val job = analysisJobService.findHeld(attempt.job) ?: return@run
+            val completedAt = clock.instant()
+            if (analysisJobService.freezeIfSeasonClosed(job, completedAt)) return@run
+            val assessment = assessmentService.record(job, scored, completedAt)
+            dossierService.record(assessment, dossier, completedAt)
+            analysisJobService.succeed(job, assessment.id, completedAt, attempt.digestHash)
+            rankingService.requestRebuild()
+        }
     }
 
     /**
@@ -86,7 +93,7 @@ class HeldJobRunner(
         return true
     }
 
-    /** 지난 작업이 성공했으면 그 평가를 옮겨 적고 순위 다시 계산을 요청한다. 실패했으면 같은 이유로 끝낸다. */
+    /** 지난 작업이 성공했으면 그 평가와 조서 집계를 옮겨 적고 순위 다시 계산을 요청한다. 실패했으면 같은 이유로 끝낸다. */
     private fun finishLike(job: AnalysisJob, previous: AnalysisJob, digestHash: String, now: Instant) {
         val previousAssessmentId = previous.reusableAssessmentId()
         if (previousAssessmentId == null) {
@@ -94,6 +101,7 @@ class HeldJobRunner(
             return
         }
         val assessment = assessmentService.reuse(job, previousAssessmentId, now)
+        dossierService.reuse(job, previousAssessmentId, assessment, now)
         analysisJobService.succeed(job, assessment.id, now, digestHash)
         rankingService.requestRebuild()
     }

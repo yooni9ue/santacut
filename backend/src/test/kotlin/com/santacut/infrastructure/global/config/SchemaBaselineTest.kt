@@ -33,11 +33,17 @@ class SchemaBaselineTest @Autowired constructor(
     @Test
     fun `빈 DB에 만든 테이블의 외래 키, 인덱스, CHECK가 기준 스키마와 같다`() {
         val baseline = shapeOf(baselineDatabase()).mapValues { (_, shape) -> shape.map { BASELINE_DEVIATIONS[it] ?: it } }
-        val fresh = shapeOf(jdbcTemplate).mapValues { (table, shape) -> shape - ADDED_AFTER_BASELINE[table].orEmpty() }
+        val created = shapeOf(jdbcTemplate)
+        val fresh = (created - TABLES_ADDED_AFTER_BASELINE.keys).mapValues { (table, shape) -> shape - ADDED_AFTER_BASELINE[table].orEmpty() }
 
         assertEquals(baseline.keys, fresh.keys)
         baseline.keys.forEach { table -> assertEquals(baseline[table], fresh[table], "테이블 $table") }
+        TABLES_ADDED_AFTER_BASELINE.forEach { (table, shape) -> assertEquals((shape + createdAtDefault(created)).sorted(), created[table], "테이블 $table") }
     }
+
+    /** 생성 시각 기본값은 모든 테이블이 같은 정의(UtcDatabaseTime)를 쓴다. 평가 테이블의 것을 기준으로 삼는다. */
+    private fun createdAtDefault(created: Map<String, List<String>>): List<String> =
+        created.getValue(ASSESSMENTS).filter { constraint -> constraint.startsWith(CREATED_AT_DEFAULT) }
 
     private fun baselineDatabase(): JdbcTemplate {
         val dataSource = SingleConnectionDataSource(IN_MEMORY_URL, true)
@@ -126,6 +132,22 @@ class SchemaBaselineTest @Autowired constructor(
 
         /** schema.sql 밖에서 Hibernate가 나중에 더한 컬럼의 제약. 기준 스키마에는 그 컬럼이 없다. */
         private val ADDED_AFTER_BASELINE = mapOf("ai_usage_days" to setOf("DEFAULT cached_input_tokens = 0"))
+        private const val ASSESSMENTS = "assessments"
+        private const val CREATED_AT_DEFAULT = "DEFAULT created_at"
+
+        /**
+         * schema.sql을 지운 뒤 엔티티로 새로 만든 테이블과 그 제약(생성 시각 기본값 제외). 예전 DB에는 없으니 기준 스키마와 비교하지 않는다.
+         * 산타 조서는 참가자·평가를 지우면 함께 지워지고(외래 키), 평가 하나에 하나뿐이다(seed.sql 유일 인덱스).
+         */
+        private val TABLES_ADDED_AFTER_BASELINE = mapOf(
+            "dossiers" to listOf(
+                "FK assessment_id -> assessments.id ON DELETE CASCADE",
+                "FK user_id -> participants.id ON DELETE CASCADE",
+                "INDEX dossiers_user (user_id)",
+                "UNIQUE INDEX (assessment_id)",
+                "UNIQUE INDEX (id)",
+            ),
+        )
         private val CHECK_START = Regex("""(?i)\bcheck\s*\(""")
 
         @JvmStatic

@@ -31,6 +31,7 @@ import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AiUsageDayRepository
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AssessmentRepository
+import com.santacut.infrastructure.dossier.repository.DossierRepository
 import com.santacut.infrastructure.prompt.repository.PromptRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -94,6 +95,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private val assessmentRepository: AssessmentRepository,
     private val aiUsageDayRepository: AiUsageDayRepository,
     private val aiBudgetService: AiBudgetService,
+    private val dossierRepository: DossierRepository,
 ) {
     private val seasonClose: Instant = Season(SEASON_YEAR).deliveryStart().toInstant()
 
@@ -280,6 +282,36 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertNotEquals(rankedStatus(first).assessmentId, status.assessmentId)
         assertEquals(EXPECTED_SCORE_HUNDREDTHS, resultFacade.getMyResult(MyResultCommand(second.participantId)).scoreHundredths)
         verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
+    fun `채점을 마치면 같은 트랜잭션에서 그 평가의 조서 집계를 저장하고 제출 원문은 지운다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        val assessmentId = assertNotNull(rankedStatus(job).assessmentId)
+        val dossier = assertNotNull(dossierRepository.findByAssessmentId(assessmentId))
+        assertTrue(dossier.statsJson.contains("\"message_count\":$EVENT_COUNT"))
+        assertFalse(dossier.statsJson.contains(SAMPLE_TEXT))
+        assertNull(storedJob(job).payload)
+    }
+
+    @Test
+    fun `같은 채점 입력으로 다시 내면 지난 평가의 조서 집계를 새 평가에 복사한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val previous = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(first).assessmentId)))
+        val copied = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertNotEquals(previous.id, copied.id)
+        assertEquals(previous.statsJson, copied.statsJson)
+        assertEquals(previous.tone, copied.tone)
     }
 
     @Test
