@@ -5,6 +5,8 @@ test("파일 동의 전에는 업로드하지 않고, 동의 후 한 번만 제�
   await page.route("**/v1/me", route => route.fulfill({ json: { id: "p1", nickname: "테스터", regionCode: "KR-11-680" } }));
   await page.route("**/v1/regions**", route => route.fulfill({ json: [] }));
   await page.route("**/v1/analyses/files", async route => { uploads += 1; await route.fulfill({ status: 202, json: { id: "analysis-1", status: "VALIDATING" } }); });
+  await page.route("**/v1/analyses/analysis-1", route => route.fulfill({ json: { id: "analysis-1", status: "SUCCEEDED" } }));
+  await page.route("**/v1/me/result", route => route.fulfill({ status: 404 }));
   await page.route("**/v1/csrf", route => route.fulfill({ json: { headerName: "X-XSRF-TOKEN", token: "test-token" } }));
   await page.goto("/upload");
   await page.getByLabel("분석 파일 선택").setInputFiles({ name: "chat.txt", mimeType: "text/plain", buffer: Buffer.from("[나] [오전 10:00] 안녕\n[친구] [오전 10:01] 반가워") });
@@ -21,5 +23,7 @@ test("파일 동의 전에는 업로드하지 않고, 동의 후 한 번만 제�
   await page.getByRole("checkbox").nth(1).check();
   await page.getByRole("button", { name: "파일 전송하고 심사 시작" }).click();
   await expect(page).toHaveURL(/\/analysis$/);
+  await page.getByRole("link", { name: "내 결과 보기" }).click();
+  await expect(page).toHaveURL(/\/result$/);
   expect(uploads).toBe(1);
 });

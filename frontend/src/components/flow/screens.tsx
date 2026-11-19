@@ -163,10 +163,11 @@ function LiveAnalysisScreen() {
   const hasStatus = status !== null;
   useEffect(() => { if (!jobId || !hasStatus || finished) return; return watchAnalysis(jobId, next => { setStatus(next); setDisconnected(false); }, () => setDisconnected(true)); }, [jobId, hasStatus, finished, connectionAttempt]);
   const title = !status ? "심사 상태를 확인하는 중." : status.status === "SUCCEEDED" ? "심사가 끝났어요." : status.status === "FAILED" ? "심사가 멈췄어요." : status.status === "QUEUED" ? "산타 앞에 줄 서는 중." : status.status === "RANKING_PENDING" ? "순위를 정리하는 중." : "산타가 기록을 읽는 중.";
-  return <FlowFrame back="/review" step={2} title={<>판정 중에는<br />얌전히 계세요.</>} description="실제 심사 상태를 서버에서 확인하고 있어요.">
+  const succeeded = status?.status === "SUCCEEDED";
+  return <FlowFrame back="/review" step={2} title={succeeded ? "산타의 판정이 나왔어요." : <>판정 중에는<br />얌전히 계세요.</>} description={succeeded ? "내 결과에서 점수와 순위를 확인하세요." : "실제 심사 상태를 서버에서 확인하고 있어요."} action={succeeded ? <NextLink href="/result">내 결과 보기</NextLink> : undefined}>
     <div className={`flow-analysis ${status?.status === "FAILED" ? "is-failed" : ""}`}>
       <SantaDance active={hasStatus && !finished && !disconnected && !error} />
-      <span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2><p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : status?.status === "SUCCEEDED" ? "실제 결과 화면을 준비하고 있어요. 이 페이지를 닫지 않아도 돼요." : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p>
+      <span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2>{!succeeded && <p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p>}
     </div>
     {disconnected && !finished && <div role="alert"><p>실시간 연결이 끊겼어요. 다시 연결하면 최신 상태를 확인할 수 있어요.</p><button className="flow-secondary" onClick={() => { setDisconnected(false); setConnectionAttempt(value => value + 1); }}>실시간 상태 다시 연결</button></div>}{error && <p className="flow-error" role="alert">{error}</p>}{status?.status === "FAILED" && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}
   </FlowFrame>;
