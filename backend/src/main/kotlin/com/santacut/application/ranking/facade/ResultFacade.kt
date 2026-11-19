@@ -28,7 +28,7 @@ class ResultFacade(
     fun getMyResult(command: MyResultCommand): MyRankingResult {
         val result = rankingService.findLatestResult(command.participantId)
         val profile = rankingService.findProfile(result.assessment, result.snapshot)
-        val dossierAvailable = dossierService.exists(result.assessment.id)
+        val dossierAvailable = dossierService.exists(result.latest.id)
         return MyRankingResult.from(result, profile, rankingService.stageAt(clock.instant()), dossierAvailable)
     }
 

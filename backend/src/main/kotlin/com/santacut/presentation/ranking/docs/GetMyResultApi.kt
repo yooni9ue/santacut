@@ -23,7 +23,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
         "quote는 본인 말에서 고른 20자 이하 한마디(없으면 null), dimension_scores는 공감·응원·존중·협력 막대 4개, weakest_dimension은 가장 낮은 항목입니다. " +
         "low_confidence_dimensions에 든 항목은 근거가 부족해 사전값을 준 항목입니다. " +
         "top_percent는 순위 계산 참가자가 100명 이상일 때만, archetype_share_percent는 점수를 받은 참가자가 30명 이상일 때만 값이 있고 아니면 null입니다. " +
-        "dossier_available은 이 결과에 산타 조서(GET /v1/me/dossier)가 있는지 알려 줍니다. false면 조서 대신 재업로드 안내를 띄웁니다.",
+        "dossier_available은 최신 결과에 산타 조서(GET /v1/me/dossier)가 있는지 알려 줍니다(순위 반영 대기 중에도 최신 평가 기준). " +
+        "false면 조서 대신, 시즌 마감 전에는 재업로드 안내를, 마감 뒤에는 조서가 없다는 안내만 띄웁니다.",
     tags = ["Results"],
     security = [SecurityRequirement(name = ApiDocs.SESSION_SECURITY)],
     responses = [

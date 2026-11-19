@@ -20,7 +20,7 @@ import java.time.Instant
  * @property archetypeSharePercent 같은 유형 참가자 비율(%). 참가자가 30명보다 적으면 null이다.
  * @property badges 본인 말에서 받은 배지 라벨
  * @property quote 본인 근거 줄의 20자 이하 한마디. 없으면 null이다.
- * @property dossierAvailable 이 결과(평가)에 산타 조서가 있는지. 이 기능 전 평가면 거짓이다.
+ * @property dossierAvailable 최신 평가에 산타 조서가 있는지. 순위 반영 대기 중이어도 최신 평가 기준이다. 이 기능 전 평가면 거짓이다.
  */
 data class MyRankingResult(
     val rank: Int?,

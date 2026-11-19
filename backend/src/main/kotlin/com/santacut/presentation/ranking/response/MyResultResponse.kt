@@ -80,7 +80,8 @@ data class MyResultResponse(
     val quote: String?,
     @field:JsonProperty("dossier_available")
     @field:Schema(
-        description = "이 결과에 산타 조서(GET /v1/me/dossier)가 있으면 true입니다. 이 기능 전에 받은 결과면 false이고, 조서를 보려면 대화를 다시 올려야 합니다.",
+        description = "최신 결과에 산타 조서(GET /v1/me/dossier)가 있으면 true입니다. 순위 반영 대기 중(ranking_pending)이어도 최신 평가 기준입니다. " +
+            "이 기능 전에 받은 결과면 false이고, 시즌 마감 전이면 대화를 다시 올려 조서를 받을 수 있습니다.",
     )
     val dossierAvailable: Boolean,
 ) {

@@ -21,7 +21,7 @@ enum class ErrorCode(val status: Int, val message: String) {
     RESULT_NOT_FOUND(404, "아직 점수가 나온 결과가 없습니다."),
     SHARE_NOT_FOUND(404, "공유 링크가 없거나 취소되었습니다."),
     PROMPT_NOT_FOUND(404, "이 이름의 프롬프트가 없습니다."),
-    DOSSIER_NOT_FOUND(404, "이 결과에는 산타 조서가 없습니다. 대화를 다시 올리면 새 조서를 받을 수 있습니다."),
+    DOSSIER_NOT_FOUND(404, "이 결과에는 산타 조서가 없습니다."),
     SEASON_FROZEN(409, "시즌이 마감되어 이번 시즌 결과와 배송 계획이 확정되었습니다."),
     IDEMPOTENCY_CONFLICT(409, "같은 Idempotency-Key로 다른 요청 본문을 보냈습니다."),
     NICKNAME_TAKEN(409, "이미 사용 중인 닉네임입니다."),

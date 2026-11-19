@@ -8,7 +8,7 @@ data class DossierResponse(
     @field:Schema(description = "서버가 극값 지표로 조립한 칭호", example = "새벽반 웃음 공장장")
     val title: String,
     @field:Schema(
-        description = "문구 톤. normal은 기본, mild는 위기 표현이 많아 죄목과 놀림 문구를 끈 담백 톤입니다.",
+        description = "문구 톤. normal은 기본, mild는 죄목과 놀림 문구를 끈 담백 톤입니다. 화면 문구에만 쓰고 분석 이벤트나 로그에 싣지 않습니다.",
         allowableValues = ["normal", "mild"],
     )
     val tone: String,
