@@ -8,7 +8,7 @@
 
 **`com.santacut` 바로 아래에는 이 네 패키지와 `SantaCutApplication.kt`만 둔다.** `common`, `global`, `config`, `util`, `support` 같은 계층 밖 패키지를 만들지 않는다. 확인: `ls backend/src/main/kotlin/com/santacut` 결과가 `application domain infrastructure presentation SantaCutApplication.kt` 다섯 개뿐이어야 한다.
 
-**각 계층 아래는 도메인 이름 패키지로 나누고, 도메인 패키지 아래를 역할 패키지로 나눈다(계층 → 도메인 → 역할).** 도메인은 `participant`(참가자·지역), `session`(세션), `analysis`(분석 작업·점수), `ranking`(순위·결과·배송), `share`(공유), `prompt`(AI 시스템 프롬프트 판)다. 여러 도메인이 함께 쓰는 것(보안, 예외 처리, Swagger, ErrorCode, Clock 같은 설정, 커스텀 애노테이션)은 그 계층의 `global` 패키지에 둔다. `global`은 계층 안에서만 만들 수 있다.
+**각 계층 아래는 도메인 이름 패키지로 나누고, 도메인 패키지 아래를 역할 패키지로 나눈다(계층 → 도메인 → 역할).** 도메인은 `participant`(참가자·지역), `session`(세션), `analysis`(분석 작업·점수), `ranking`(순위·결과·배송), `share`(공유), `prompt`(AI 시스템 프롬프트 판), `dossier`(산타 조서 집계와 장면)다. 여러 도메인이 함께 쓰는 것(보안, 예외 처리, Swagger, ErrorCode, Clock 같은 설정, 커스텀 애노테이션)은 그 계층의 `global` 패키지에 둔다. `global`은 계층 안에서만 만들 수 있다.
 
 ```text
 com.santacut
@@ -197,6 +197,7 @@ Response ◀──from()──── Result ◀──from()── Model
 | 평가 | `assessments` | 참가자 |
 | 순위 스냅숏 | `result_snapshots` | 참가자, 평가 |
 | 공유 링크 | `shares` | 참가자, 순위 스냅숏 |
+| 산타 조서 | `dossiers` | 참가자, 평가 |
 | 독립 행 | `prompts`, `ranking_refresh`, `result_populations`, `ai_usage_days` | 없음 |
 
 - 분석 작업과 업로드 원본도 id로 잇는다. 둘을 `@OneToOne`으로 묶으면 역방향 1:1은 바이트코드 향상 없이 LAZY가 되지 않아 작업을 읽을 때마다 최대 20MB 원본까지 읽는다. `orphanRemoval`도 지우기 전에 원본을 읽는다.
@@ -218,7 +219,7 @@ Hibernate의 SQLite 방언(`org.hibernate.community.dialect.SQLiteDialect`)이 �
 | 컬럼 기본값 | `columnDefinition`으로만 생긴다 | 시드 SQL처럼 값을 주지 않고 넣는 컬럼에 적는다 |
 
 - `ddl-auto: update`는 이미 있는 테이블의 제약을 고치지 않는다. 외래 키·CHECK·기본값을 바꾸려면 테이블을 다시 만들어야 하므로 배포 운영서에 절차를 적고 따로 한다.
-- 앱은 뜰 때 삭제 규칙이 있는 외래 키 10개를 `PRAGMA foreign_key_list`로 확인하고, 하나라도 없으면 뜨지 않는다(`ForeignKeyCheckConfiguration`). 외래 키 컬럼을 더하거나 바꾸면 그 목록도 함께 고친다.
+- 앱은 뜰 때 삭제 규칙이 있는 외래 키 12개를 `PRAGMA foreign_key_list`로 확인하고, 하나라도 없으면 뜨지 않는다(`ForeignKeyCheckConfiguration`). 외래 키 컬럼을 더하거나 바꾸면 그 목록도 함께 고친다.
 - enum 컬럼에는 상수 목록 CHECK를 만들지 않는다(`EnumCheckFreeSQLiteDialect`). 기본 방언은 `CHECK (col IN (지금 상수들))`을 붙이는데, 기존 DB에서는 고쳐지지 않아 상수를 더하면 그 뒤 새로 만든 DB에서만 INSERT가 깨진다. `AttributeConverter`나 `columnDefinition`을 써도 붙는다. 값을 막아야 하면 `@Check`로 직접 적는다.
 - 스키마가 예전 `schema.sql`과 같은지는 `SchemaBaselineTest`가 빈 DB를 띄워 확인한다(외래 키, 인덱스, CHECK, 기본값). 일부러 다르게 만든 것은 그 테스트의 목록에 이유와 함께 적는다.
 

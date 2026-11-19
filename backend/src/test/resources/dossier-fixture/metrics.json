@@ -1,0 +1,10 @@
+{"version":1,"metrics":[
+  {"key":"laugh_density","label":"ㅋ 밀도","unit":"per100","p10":10,"p50":40,"p90":150,"min_messages":30,"mockable":true},
+  {"key":"laugh_max_run","label":"최장 ㅋ 연타","unit":"count","p10":3,"p50":10,"p90":40,"min_messages":30,"mockable":true},
+  {"key":"cry_density","label":"ㅠ 밀도","unit":"per100","p10":2,"p50":12,"p90":45,"min_messages":30,"mockable":false},
+  {"key":"night_ratio","label":"심야 비율","unit":"ratio","p10":0.01,"p50":0.06,"p90":0.2,"min_messages":30,"mockable":true},
+  {"key":"message_count","label":"말풍선 수","unit":"count","p10":50,"p50":300,"p90":2000,"min_messages":0,"mockable":true},
+  {"key":"avg_length","label":"평균 길이","unit":"chars","p10":5,"p50":12,"p90":25,"min_messages":30,"mockable":true},
+  {"key":"reply_median_minutes","label":"답장 중앙값","unit":"minutes","p10":13,"p50":35,"p90":180,"min_messages":30,"mockable":true},
+  {"key":"bleep_density","label":"삐 밀도","unit":"per100","p10":0,"p50":1.5,"p90":8,"min_messages":30,"mockable":true}
+]}

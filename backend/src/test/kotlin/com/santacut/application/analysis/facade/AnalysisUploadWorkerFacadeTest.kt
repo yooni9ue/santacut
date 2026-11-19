@@ -11,10 +11,14 @@ import com.santacut.application.analysis.command.AnalysisJobCommand
 import com.santacut.application.analysis.command.UploadAnalysisCommand
 import com.santacut.application.participant.command.RegisterParticipantCommand
 import com.santacut.application.participant.facade.ParticipantFacade
+import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.AnalysisUpload
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.service.AnalysisUploadService
+import com.santacut.domain.dossier.model.DossierStats
+import com.santacut.domain.dossier.model.DossierTally
 import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AnalysisUploadRepository
@@ -29,10 +33,13 @@ import org.springframework.context.annotation.Import
 import org.springframework.dao.DataAccessResourceFailureException
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+import java.time.Duration
 import java.time.Instant
+import tools.jackson.databind.ObjectMapper
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -61,6 +68,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     private val analysisJobRepository: AnalysisJobRepository,
     private val analysisUploadRepository: AnalysisUploadRepository,
     private val analysisUploadService: AnalysisUploadService,
+    private val objectMapper: ObjectMapper,
 ) {
     @BeforeEach
     fun setUp() {
@@ -85,6 +93,37 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `본인 메시지가 제출 상한보다 많아도 조서 집계는 고르기 전 분석 기간 전체로 세어 페이로드에 담고 요청 해시는 그대로다`() {
+        val job = upload(TestChatFiles.kakaoIos(OPEN_TIME, AnalysisEvents.MAX_EVENTS + EXTRA_OWN_COUNT))
+        val requestHash = storedJob(job).requestHash
+        clock.moveTo(OPEN_TIME.plus(ALL_SENT))
+
+        analysisUploadWorkerFacade.validateNextUpload()
+
+        val stored = storedJob(job)
+        val submission = objectMapper.readValue(stored.requirePayload(), AnalysisSubmission::class.java)
+        assertEquals(AnalysisEvents.MAX_EVENTS, submission.events.toList().count { event -> event.isSelf() })
+        val dossier = assertNotNull(submission.dossier)
+        assertEquals(AnalysisEvents.MAX_EVENTS + EXTRA_OWN_COUNT, dossier.stats.messageCount())
+        assertEquals(DossierStats.VERSION, dossier.stats.version)
+        assertEquals(requestHash, stored.requestHash)
+    }
+
+    @Test
+    fun `검증을 마친 원본을 같은 멱등 키와 같은 파일로 다시 보내면 페이로드에 조서 집계가 있어도 처음 작업을 돌려준다`() {
+        val content = TestChatFiles.kakaoIos(OPEN_TIME, EVENT_COUNT)
+        val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
+        val key = "key-" + UUID.randomUUID()
+        val first = analysisFacade.upload(UploadAnalysisCommand(participantId, key, DataSource.KAKAO.name, SELF_SPEAKER, null) { content })
+        analysisUploadWorkerFacade.validateNextUpload()
+
+        val replay = analysisFacade.upload(UploadAnalysisCommand(participantId, key, DataSource.KAKAO.name, SELF_SPEAKER, null) { content })
+
+        assertEquals(first.id, replay.id)
+        assertTrue(analysisJobRepository.findById(first.id).orElseThrow().requirePayload().contains("\"dossier\""))
+    }
+
+    @Test
     fun `인스타그램 JSON도 검증을 통과하면 상대 이름을 화자 표시로 바꿔 담아 대기열에 넣고 원본을 지운다`() {
         val job = upload(TestChatFiles.instagram(OPEN_TIME, EVENT_COUNT), source = DataSource.INSTAGRAM)
 
@@ -101,7 +140,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
 
     @Test
     fun `검증 중 예상하지 못한 예외가 나면 ANALYSIS_FAILED로 끝내고 원본을 지운다`() {
-        willThrow(IllegalStateException("예상하지 못한 오류")).given(analysisUploadService).normalize(anyUpload(), anyInstant())
+        willThrow(IllegalStateException("예상하지 못한 오류")).given(analysisUploadService).normalize(anyUpload(), anyInstant(), anyTally())
 
         assertRejected(upload(TestChatFiles.kakaoIos(OPEN_TIME, EVENT_COUNT)), "FAILED", "ANALYSIS_FAILED")
     }
@@ -186,9 +225,16 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
     private fun anyUpload(): AnalysisUpload =
         any(AnalysisUpload::class.java) ?: AnalysisUpload("", DataSource.KAKAO, SELF_SPEAKER, ByteArray(0), OPEN_TIME)
 
+    private fun storedJob(job: AnalysisJobCommand): AnalysisJob = analysisJobRepository.findById(job.jobId.toString()).orElseThrow()
+
     private fun anyJobId(): String = any(String::class.java) ?: ""
 
     private fun anyInstant(): Instant = any(Instant::class.java) ?: OPEN_TIME
+
+    /** 매처를 등록한 뒤 null 대신 아무것도 세지 않는 조서 집계 함수를 돌려준다. */
+    @Suppress("UNCHECKED_CAST")
+    private fun anyTally(): (DataSource, AnalysisEvents) -> DossierTally? =
+        any(Function2::class.java) as ((DataSource, AnalysisEvents) -> DossierTally?)? ?: { _, _ -> null }
 
     /** 검증 작업자를 한 번 돌린 뒤(이미 돌렸으면 남은 원본이 없어 아무 일도 없다) 상태와 원본 삭제를 확인한다. */
     private fun assertRejected(job: AnalysisJobCommand, status: String, errorCode: String) {
@@ -201,6 +247,12 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
 
     companion object {
         private const val EVENT_COUNT = 20
+
+        /** 본인 이벤트 상한을 넘겨 고르기에서 빠지는 메시지 수. */
+        private const val EXTRA_OWN_COUNT = 100
+
+        /** 테스트 파일은 하루 전부터 1분 간격이라, 상한을 넘는 메시지가 모두 과거가 되도록 검증 시각을 이만큼 늦춘다. */
+        private val ALL_SENT: Duration = Duration.ofHours(12)
         private val OPEN_TIME: Instant = Instant.parse("2099-11-01T00:00:00Z")
     }
 }

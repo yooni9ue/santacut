@@ -8,12 +8,17 @@ import com.santacut.domain.analysis.model.Assessment
  *
  * @property snapshot 최신 순위 스냅숏. 첫 순위 계산 전이면 null이고 [assessment]는 최신 평가다.
  * @property rankingPending 최신 평가가 아직 순위에 반영되지 않았는지
+ * @property latest 참가자의 최신 평가. 순위 반영 대기 중이면 [assessment](순위에 오른 지난 평가)와 다르다.
  */
 class RankedResult private constructor(
     val snapshot: ResultSnapshot?,
     val assessment: Assessment,
     val rankingPending: Boolean,
+    val latest: Assessment,
 ) {
+    /** [latest]의 순위 스냅숏. 최신 평가가 아직 순위에 오르지 않았으면 null이다. */
+    fun latestSnapshot(): ResultSnapshot? = snapshot?.takeIf { ranked -> ranked.assessmentId == latest.id }
+
     companion object {
         /**
          * 최신 평가 [latest]와 최신 순위 스냅숏 [snapshot]으로 보여 줄 점수와 순위를 정한다.
@@ -27,11 +32,11 @@ class RankedResult private constructor(
             findAssessment: (String) -> Assessment?,
         ): RankedResult {
             if (snapshot == null) return unranked(latest)
-            if (snapshot.assessmentId == latest.id) return RankedResult(snapshot, latest, false)
+            if (snapshot.assessmentId == latest.id) return RankedResult(snapshot, latest, false, latest)
             val ranked = findAssessment(snapshot.assessmentId) ?: return unranked(latest)
-            return RankedResult(snapshot, ranked, true)
+            return RankedResult(snapshot, ranked, true, latest)
         }
 
-        private fun unranked(latest: Assessment): RankedResult = RankedResult(null, latest, true)
+        private fun unranked(latest: Assessment): RankedResult = RankedResult(null, latest, true, latest)
     }
 }

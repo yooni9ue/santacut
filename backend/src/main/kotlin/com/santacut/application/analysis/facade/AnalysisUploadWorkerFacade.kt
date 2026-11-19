@@ -7,6 +7,7 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.AnalysisUpload
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AnalysisUploadService
+import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.global.exception.SantaCutException
 import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
@@ -14,6 +15,7 @@ import java.time.Clock
 
 /**
  * 원본 파일로 받은 작업을 하나씩 꺼내 검증·정규화하고 점수 산정 대기열에 넣는 백그라운드 작업자.
+ * 정규화할 때 조서 집계도 분석 기간 전체로 세어 작업 페이로드에 함께 담는다.
  *
  * 최대 20MB 파일을 읽고 파싱하는 동안 트랜잭션을 열어 두면 하나뿐인 DB 커넥션(Hikari 풀 1개)과
  * SQLite 쓰기 잠금을 쥐게 된다. 그래서 [TransactionRunner]로 원본 꺼내기와 결과 기록 트랜잭션을 나누고,
@@ -23,6 +25,7 @@ import java.time.Clock
 class AnalysisUploadWorkerFacade(
     private val analysisJobService: AnalysisJobService,
     private val analysisUploadService: AnalysisUploadService,
+    private val dossierService: DossierService,
     private val transaction: TransactionRunner,
     private val clock: Clock,
 ) {
@@ -51,10 +54,13 @@ class AnalysisUploadWorkerFacade(
         null
     }
 
-    /** 원본을 검증·정규화한다. 실패하면 그 이유로 작업을 끝내고 원본을 지운 뒤 null을 돌려준다. */
+    /**
+     * 원본을 검증·정규화한다. 고르기 전의 분석 기간 전체로 센 조서 집계도 함께 담는다(집계가 실패해도 검증은 통과한다).
+     * 실패하면 그 이유로 작업을 끝내고 원본을 지운 뒤 null을 돌려준다.
+     */
     private fun normalizeOrReject(upload: AnalysisUpload): AnalysisSubmission? =
         try {
-            analysisUploadService.normalize(upload, clock.instant())
+            analysisUploadService.normalize(upload, clock.instant()) { source, events -> dossierService.tally(upload.jobId, source, events) }
         } catch (exception: Exception) {
             val code = AnalysisFailureCode.fromValidationFailure(exception)
             logger.warn("원본 파일 검증 {} 실패: {}", upload.jobId, failureReason(exception))

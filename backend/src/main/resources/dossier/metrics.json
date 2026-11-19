@@ -1,0 +1,195 @@
+{
+ "version": 1,
+ "metrics": [
+  {
+   "key": "laugh_density",
+   "label": "ㅋ 밀도",
+   "unit": "per100",
+   "p10": 12,
+   "p50": 65,
+   "p90": 200,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "laugh_max_run",
+   "label": "최장 ㅋ 연타",
+   "unit": "count",
+   "p10": 8,
+   "p50": 22,
+   "p90": 60,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "cry_density",
+   "label": "ㅠ 밀도",
+   "unit": "per100",
+   "p10": 2,
+   "p50": 12,
+   "p90": 45,
+   "min_messages": 100,
+   "mockable": false
+  },
+  {
+   "key": "emoji_density",
+   "label": "이모지 밀도",
+   "unit": "per100",
+   "p10": 0.2,
+   "p50": 3,
+   "p90": 20,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "night_ratio",
+   "label": "심야 비율",
+   "unit": "ratio",
+   "p10": 0.01,
+   "p50": 0.06,
+   "p90": 0.2,
+   "min_messages": 200,
+   "mockable": true
+  },
+  {
+   "key": "peak_hour",
+   "label": "최다 시각",
+   "unit": "hour",
+   "p10": 10,
+   "p50": 20,
+   "p90": 23,
+   "min_messages": 200,
+   "mockable": true
+  },
+  {
+   "key": "month_ratio",
+   "label": "월별 기복",
+   "unit": "times",
+   "p10": 1.8,
+   "p50": 4,
+   "p90": 15,
+   "min_messages": 300,
+   "mockable": true
+  },
+  {
+   "key": "message_count",
+   "label": "말풍선 수",
+   "unit": "count",
+   "p10": 150,
+   "p50": 1500,
+   "p90": 12000,
+   "min_messages": 30,
+   "mockable": true
+  },
+  {
+   "key": "avg_length",
+   "label": "평균 길이",
+   "unit": "chars",
+   "p10": 7,
+   "p50": 12,
+   "p90": 22,
+   "min_messages": 50,
+   "mockable": true
+  },
+  {
+   "key": "short_ratio",
+   "label": "단타 비율",
+   "unit": "ratio",
+   "p10": 0.2,
+   "p50": 0.38,
+   "p90": 0.58,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "burst_avg",
+   "label": "연타 평균",
+   "unit": "count",
+   "p10": 1.3,
+   "p50": 1.9,
+   "p90": 3.0,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "burst_max",
+   "label": "연타 최고",
+   "unit": "count",
+   "p10": 5,
+   "p50": 12,
+   "p90": 30,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "question_ratio",
+   "label": "물음표 비율",
+   "unit": "ratio",
+   "p10": 0.05,
+   "p50": 0.12,
+   "p90": 0.22,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "exclaim_ratio",
+   "label": "느낌표 비율",
+   "unit": "ratio",
+   "p10": 0.01,
+   "p50": 0.05,
+   "p90": 0.18,
+   "min_messages": 100,
+   "mockable": true
+  },
+  {
+   "key": "reply_median_minutes",
+   "label": "답장 중앙값",
+   "unit": "minutes",
+   "p10": 13,
+   "p50": 35,
+   "p90": 180,
+   "min_messages": 200,
+   "mockable": true
+  },
+  {
+   "key": "longest_message_length",
+   "label": "최장 말풍선",
+   "unit": "chars",
+   "p10": 60,
+   "p50": 180,
+   "p90": 600,
+   "min_messages": 50,
+   "mockable": true
+  },
+  {
+   "key": "active_days",
+   "label": "운행 일수",
+   "unit": "days",
+   "p10": 20,
+   "p50": 120,
+   "p90": 300,
+   "min_messages": 30,
+   "mockable": true
+  },
+  {
+   "key": "kind_words_density",
+   "label": "따뜻한 말 밀도",
+   "unit": "per100",
+   "p10": 0.5,
+   "p50": 2.5,
+   "p90": 7,
+   "min_messages": 200,
+   "mockable": true
+  },
+  {
+   "key": "bleep_density",
+   "label": "삐 밀도",
+   "unit": "per100",
+   "p10": 0,
+   "p50": 1.5,
+   "p90": 8,
+   "min_messages": 200,
+   "mockable": true
+  }
+ ]
+}

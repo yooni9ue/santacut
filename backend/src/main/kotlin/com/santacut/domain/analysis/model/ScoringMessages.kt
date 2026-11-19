@@ -6,6 +6,9 @@ package com.santacut.domain.analysis.model
 class ScoringMessages(private val values: List<ScoringMessage>) {
     fun size(): Int = values.size
 
+    /** 메시지 목록의 방어 복사본. 조서 집계가 같은 메시지를 다시 센다. */
+    fun toList(): List<ScoringMessage> = values.toList()
+
     /** 대화문에 들어가는(자리표시도 빈 본문도 아닌) 본인 메시지 수. */
     fun selfCount(): Int = values.count { message -> message.isSelf() && !message.isPlaceholder() && message.normalizedText().isNotEmpty() }
 

@@ -18,7 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled
 /**
  * 대기 중인 분석 작업을 꺼내 AI 점수를 매기고 순위 다시 계산을 요청하는 백그라운드 작업자.
  *
- * 흐름은 `작업 잡기 → 같은 입력이면 지난 결과 재사용, 아니면 채점 → 결과 기록`, 실패하면 `정리`다.
+ * 흐름은 `작업 잡기 → 조서 준비 → 같은 입력이면 지난 결과 재사용, 아니면 채점 → 결과 기록`, 실패하면 `정리`다.
  * 채점 스레드와 자리는 [AnalysisWorkerRunner], 리스와 트랜잭션은 [HeldJobRunner], 비용 가드와 잠금은 [AiBudgetRunner]가 맡는다.
  *
  * AI를 부를 때마다 채점 프롬프트(`score`)의 최신 판을 DB에서 읽는다. 캐시하지 않으므로 관리자 API로 저장한 새 판이
@@ -70,11 +70,12 @@ class AnalysisWorkerFacade(
         }
     }
 
-    /** 채점 입력이 지난번과 같으면 지난 결과를 다시 쓰고, 아니면 AI 점수를 받아 결과를 기록한다. */
+    /** 조서를 미리 만들어 두고, 채점 입력이 지난번과 같으면 지난 결과를 다시 쓰고, 아니면 AI 점수를 받아 결과를 기록한다. */
     private fun reuseOrScore(job: AnalysisJob) {
         val attempt = scoring.prepare(job, promptService.latest(PromptName.SCORE))
-        if (heldJobs.reuseIfSameDigest(attempt)) return
-        heldJobs.complete(attempt, score(attempt))
+        val dossier = heldJobs.draftDossier(job)
+        if (heldJobs.reuseIfSameDigest(attempt, dossier)) return
+        heldJobs.complete(attempt, score(attempt), dossier)
         budget.recordSuccess()
     }
 

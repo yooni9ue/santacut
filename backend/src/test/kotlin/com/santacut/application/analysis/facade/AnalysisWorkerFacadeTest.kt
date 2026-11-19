@@ -1,6 +1,7 @@
 package com.santacut.application.analysis.facade
 
 import com.santacut.MutableClock
+import com.santacut.TestDossiers
 import com.santacut.TestParticipants.REGION_CODE
 import com.santacut.TestParticipants.uniqueNickname
 import com.santacut.application.analysis.command.AnalysisEventCommand
@@ -16,14 +17,19 @@ import com.santacut.application.ranking.facade.ResultFacade
 import com.santacut.domain.analysis.model.AnalysisEvents
 import com.santacut.domain.analysis.model.AnalysisFailureCode
 import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.AnalysisPayload
 import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.DataSource
+import com.santacut.domain.analysis.model.IdempotencyKey
 import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoreAnswer
 import com.santacut.domain.analysis.model.ScoringChunk
 import com.santacut.domain.analysis.model.ScoringDigest
 import com.santacut.domain.analysis.model.TranscriptTurns
 import com.santacut.domain.analysis.service.AiBudgetService
+import com.santacut.domain.dossier.model.DossierStats
+import com.santacut.domain.dossier.model.DossierTally
+import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.prompt.model.PromptName
 import com.santacut.domain.ranking.model.Season
@@ -31,6 +37,7 @@ import com.santacut.infrastructure.analysis.client.ScoreClient
 import com.santacut.infrastructure.analysis.repository.AiUsageDayRepository
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AssessmentRepository
+import com.santacut.infrastructure.dossier.repository.DossierRepository
 import com.santacut.infrastructure.prompt.repository.PromptRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -39,14 +46,18 @@ import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.BDDMockito.given
+import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+import tools.jackson.databind.ObjectMapper
 import java.math.BigDecimal
 import java.time.Duration
 import java.time.Instant
@@ -80,6 +91,7 @@ import kotlin.test.assertTrue
 )
 @Import(WorkerTestClockConfiguration::class)
 @MockitoBean(types = [ScoreClient::class])
+@MockitoSpyBean(types = [DossierService::class])
 class AnalysisWorkerFacadeTest @Autowired constructor(
     private val analysisWorkerFacade: AnalysisWorkerFacade,
     private val analysisFacade: AnalysisFacade,
@@ -94,6 +106,10 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private val assessmentRepository: AssessmentRepository,
     private val aiUsageDayRepository: AiUsageDayRepository,
     private val aiBudgetService: AiBudgetService,
+    private val dossierRepository: DossierRepository,
+    private val dossierService: DossierService,
+    private val jdbcTemplate: JdbcTemplate,
+    private val objectMapper: ObjectMapper,
 ) {
     private val seasonClose: Instant = Season(SEASON_YEAR).deliveryStart().toInstant()
 
@@ -283,6 +299,103 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `채점을 마치면 같은 트랜잭션에서 그 평가의 조서 집계를 저장하고 제출 원문은 지운다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        val assessmentId = assertNotNull(rankedStatus(job).assessmentId)
+        val dossier = assertNotNull(dossierRepository.findByAssessmentId(assessmentId))
+        assertTrue(dossier.statsJson.contains("\"message_count\":$EVENT_COUNT"))
+        assertFalse(dossier.statsJson.contains(SAMPLE_TEXT))
+        assertNull(storedJob(job).payload)
+    }
+
+    @Test
+    fun `같은 채점 입력으로 다시 내면 지난 평가의 조서 집계를 새 평가에 복사한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val previous = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(first).assessmentId)))
+        val copied = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertNotEquals(previous.id, copied.id)
+        assertEquals(previous.statsJson, copied.statsJson)
+        assertEquals(previous.tone, copied.tone)
+    }
+
+    @Test
+    fun `지난 평가에 조서가 없으면 같은 채점 입력을 다시 내도 이번 작업으로 미리 센 조서를 저장한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        dossierRepository.deleteAll()
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val recounted = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertTrue(recounted.statsJson.contains("\"message_count\":$EVENT_COUNT"))
+        verify(scoreClient, times(1)).requestAnswer(anyChunk(), anyString())
+    }
+
+    @Test
+    fun `지난 조서의 집계 규칙 판이 다르면 복사하지 않고 이번 작업으로 미리 센 조서를 저장한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        jdbcTemplate.update("UPDATE dossiers SET stats_version = ?, stats_json = '{}'", DossierStats.VERSION - 1)
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val recounted = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertEquals(DossierStats.VERSION, recounted.statsVersion)
+        assertTrue(recounted.statsJson.contains("\"message_count\":$EVENT_COUNT"))
+    }
+
+    @Test
+    fun `원본 파일 정규화 때 분석 기간 전체로 센 조서 집계가 페이로드에 있으면 채점 표본 대신 그 값을 저장한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val job = submitAnalysis()
+        attachDossier(job, fullPeriodTally(DossierStats.VERSION))
+
+        analysisWorkerFacade.processNextJob()
+
+        val dossier = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        assertTrue(dossier.statsJson.contains("\"message_count\":$FULL_PERIOD_COUNT"))
+    }
+
+    @Test
+    fun `페이로드의 전체 기간 집계가 예전 집계 규칙 판이면 버리고 제출 이벤트로 다시 센다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val job = submitAnalysis()
+        attachDossier(job, fullPeriodTally(DossierStats.VERSION - 1))
+
+        analysisWorkerFacade.processNextJob()
+
+        val dossier = assertNotNull(dossierRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        assertTrue(dossier.statsJson.contains("\"message_count\":$EVENT_COUNT"))
+    }
+
+    @Test
+    fun `조서 집계에 실패해도 조서 없이 평가를 저장하고 작업을 성공으로 끝낸다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        doReturn(null).`when`(dossierService).draft(anyJob())
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        val status = rankedStatus(job)
+        assertEquals("SUCCEEDED", status.status)
+        assertNull(dossierRepository.findByAssessmentId(assertNotNull(status.assessmentId)))
+    }
+
+    @Test
     fun `같은 채점 입력이 근거 부족으로 끝났으면 다시 내도 AI 없이 근거 부족으로 끝낸다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(ScoreAnswer.insufficient(USAGE))
         val first = submitAnalysis()
@@ -421,6 +534,21 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     private fun storedJob(job: AnalysisJobCommand): AnalysisJob = analysisJobRepository.findById(job.jobId.toString()).orElseThrow()
 
+    /** 원본 파일 검증 작업자가 담는 것처럼 작업 페이로드에 조서 집계 [tally]를 더한다. */
+    private fun attachDossier(job: AnalysisJobCommand, tally: DossierTally) {
+        val submission = objectMapper.readValue(storedJob(job).requirePayload(), AnalysisSubmission::class.java)
+        jdbcTemplate.update(
+            "UPDATE analysis_jobs SET payload = ? WHERE id = ?", objectMapper.writeValueAsString(submission.withDossier(tally)), job.jobId.toString(),
+        )
+    }
+
+    /** 본인 메시지가 [FULL_PERIOD_COUNT]개였던 원본 전체로 [version] 판 규칙으로 센 집계. */
+    private fun fullPeriodTally(version: Int): DossierTally {
+        val tally = TestDossiers.tally(TestDossiers.selves(listOf("고마워")))
+        val volume = tally.stats.volume.copy(messageCount = FULL_PERIOD_COUNT, textCount = FULL_PERIOD_COUNT)
+        return tally.copy(stats = tally.stats.copy(version = version, volume = volume))
+    }
+
     private fun registerParticipant(): UUID =
         participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
 
@@ -435,6 +563,12 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private fun anyDigest(): ScoringDigest =
         any(ScoringDigest::class.java) ?: AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())).toScoringDigest()
 
+    /** 매처를 등록한 뒤 null 대신 빈 제출의 작업을 돌려준다. */
+    private fun anyJob(): AnalysisJob = any(AnalysisJob::class.java) ?: AnalysisJob.enqueue(
+        UUID.randomUUID(), IdempotencyKey.from("key-any-analysis-job"), AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList())),
+        AnalysisPayload("{}"), OPEN_TIME,
+    )
+
     /** 매처를 등록한 뒤 null 대신 빈 제출 전체를 한 구간으로 돌려준다. */
     private fun anyChunk(): ScoringChunk = any(ScoringChunk::class.java) ?: ScoringChunk(TranscriptTurns(emptyList()), 1, 0, 0)
 
@@ -448,6 +582,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         const val SEASON_YEAR = 2099
         private const val CONSECUTIVE_JOB_COUNT = 6
         private const val EVENT_COUNT = 20
+
+        /** 채점 표본(이벤트 [EVENT_COUNT]개)보다 많은, 원본 파일 전체의 본인 메시지 수. */
+        private const val FULL_PERIOD_COUNT = 9999
 
         /** 대화문에서 한 줄로 이어지지 않게 이벤트 사이를 3시간보다 넓게 띄운다. */
         private const val EVENT_SPACING_HOURS = 4L

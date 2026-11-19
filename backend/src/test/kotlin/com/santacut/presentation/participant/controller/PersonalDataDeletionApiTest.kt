@@ -5,6 +5,7 @@ import com.santacut.IntegrationTest
 import com.santacut.TestChatFiles
 import com.santacut.TestChatFiles.SELF_SPEAKER
 import com.santacut.TestCsrf.withCsrf
+import com.santacut.TestDossiers
 import com.santacut.TestParticipants.REGION_CODE
 import com.santacut.TestParticipants.uniqueNickname
 import com.santacut.application.participant.command.RegisterParticipantCommand
@@ -22,6 +23,7 @@ import com.santacut.domain.analysis.model.LowConfidenceDimensions
 import com.santacut.domain.analysis.model.Score
 import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.service.AssessmentService
+import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.ranking.service.RankingService
 import jakarta.servlet.http.Cookie
 import org.junit.jupiter.api.Test
@@ -43,7 +45,7 @@ import kotlin.test.assertTrue
 
 /**
  * DELETE /v1/me가 참가자 행 하나만 지워도 DB의 외래 키 삭제 규칙(ON DELETE CASCADE)이 그 참가자의 모든 행을 함께 지우는지 확인한다.
- * 세션, 지역 변경 기록, 업로드 원본, 분석 작업, 평가, 순위 스냅숏, 공유 링크를 모두 만든 뒤 지우고 남은 행을 센다.
+ * 세션, 지역 변경 기록, 업로드 원본, 분석 작업, 평가, 순위 스냅숏, 공유 링크, 산타 조서를 모두 만든 뒤 지우고 남은 행을 센다.
  */
 @IntegrationTest
 class PersonalDataDeletionApiTest @Autowired constructor(
@@ -51,6 +53,7 @@ class PersonalDataDeletionApiTest @Autowired constructor(
     private val participantFacade: ParticipantFacade,
     private val shareFacade: ShareFacade,
     private val assessmentService: AssessmentService,
+    private val dossierService: DossierService,
     private val rankingService: RankingService,
     private val transactionTemplate: TransactionTemplate,
     private val jdbcTemplate: JdbcTemplate,
@@ -100,7 +103,8 @@ class PersonalDataDeletionApiTest @Autowired constructor(
             now,
         )
         transactionTemplate.executeWithoutResult {
-            assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
+            val assessment = assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
+            dossierService.record(assessment, TestDossiers.draft(TestDossiers.selves(listOf("고마워", "진짜"))), now)
             rankingService.rebuild(now)
         }
     }
@@ -116,7 +120,7 @@ class PersonalDataDeletionApiTest @Autowired constructor(
         private const val PARTICIPANTS = "participants"
         private const val UPLOADS = "analysis_uploads"
         private val USER_TABLES = listOf(
-            PARTICIPANTS, "sessions", "region_changes", "analysis_jobs", "assessments", "result_snapshots", "shares",
+            PARTICIPANTS, "sessions", "region_changes", "analysis_jobs", "assessments", "result_snapshots", "shares", "dossiers",
         )
         private const val ME_PATH = "/v1/me"
         private const val REGION_PATH = "/v1/me/region"

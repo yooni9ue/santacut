@@ -14,6 +14,7 @@
 - [ ] **동의 문구**: 상대 메시지를 포함한 올해 대화가 Google Gemini로 전송되고 채점 뒤 삭제된다는 고지를 업로드 동의 화면에 넣는다(6.1절, 법률 검토 필요).
 - [ ] **분석 범위 표기**: 업로드 화면과 동의 문구의 분석 범위를 "최근 90일"에서 "올해 1월 1일부터"로 바꾼다. 상한 표기도 "최대 2,000개"에서 "본인 메시지 2,000개(상대 포함 6,000개)"로 함께 고친다. 이벤트 JSON 제출은 그대로 2,000개까지다(6·6.1절).
 - [ ] **내 결과 화면** `GET /v1/me/result`: 새 필드 `archetype`, `dimension_scores`, `weakest_dimension`, `top_percent`(100명 미만이면 null), `archetype_share_percent`(30명 미만이면 null), `badges`, `quote`(null 가능), `low_confidence_dimensions`(근거 부족 항목에 "근거 적음" 표시). 정확한 도착 시각 `eta`는 본인 결과에만 있다(7절).
+- [ ] **산타 조서 화면** `GET /v1/me/dossier`(2026-11-20 추가): 결과 화면을 `scenes` 배열 순서대로 한 장씩 넘기는 세로 스냅 스크롤로 그린다. 장면마다 저장(공유 카드) 버튼을 두되 `shareable`이 true인 장면에만 둔다. 카드에는 `shareable`이 true인 줄만 싣는다(삐 처리·하위 판정·느린 답장 줄은 화면에만). `404 DOSSIER_NOT_FOUND`(또는 결과의 `dossier_available`이 false)면 조서 대신, 시즌 마감 전(`stage`가 마감 전)이면 "대화를 다시 올리면 새 조서를 받는다"는 재업로드 안내를, 마감 뒤에는 "이 결과에는 조서가 없다"는 안내만 띄운다(마감 뒤에는 재업로드할 수 없다). `tone` 값은 화면 문구에만 쓰고 분석 이벤트·로그·에러 리포트에 싣지 않는다. 기존 점수·유형 화면은 "자세히 보기"로 접어 남긴다(7절 산타 조서).
 - [ ] **랭킹 화면** `GET /v1/rankings`: 행의 도착 정보는 `eta_date`(서울 날짜)를 쓴다. `eta`는 항상 null이다. 페이지 사이에 순위가 다시 계산되면 `409 RANKING_SNAPSHOT_CHANGED`가 오니 목록을 비우고 첫 페이지부터 다시 읽는다. 예전 숫자 cursor는 `400`이다(7절).
 - [ ] **순위 반영 대기**: 분석이 끝난 뒤 순위는 최대 30초 안에 반영된다. SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 오고, 결과의 `ranking_pending`이 true인 동안은 "순위 계산 중"을 보여 준다(6.0절).
 - [ ] **지역 변경**: 24시간 2번, 시즌 5번까지. 넘으면 `429 REGION_CHANGE_LIMITED`(`retry_at` 있음) 또는 `REGION_CHANGE_SEASON_LIMIT`(없음)(5절).
@@ -91,6 +92,7 @@
 | GET | `/v1/analyses/{id}/events` | 필요 | - | 분석 작업 진행 상황 스트림(SSE, `text/event-stream`) |
 | GET | `/v1/me/analysis` | 필요 | - | 내 최근 분석 작업 상태 |
 | GET | `/v1/me/result` | 필요 | - | 내 최신 점수·순위·도착 시각·확정 상태 |
+| GET | `/v1/me/dossier` | 필요 | - | 내 결과의 「2026 산타 조서」 장면 목록 |
 | GET | `/v1/rankings` | - | - | 랭킹 50명씩(cursor 페이지네이션) |
 | POST | `/v1/shares` | 필요 | 필요 | 공유 링크 생성·재사용 |
 | DELETE | `/v1/shares/{token}` | 필요 | 필요 | 공유 링크 폐기 (`204`) |
@@ -262,6 +264,29 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
   - 유형은 위 두 항목 점수 차이로 고른다. 차이가 3점보다 작으면 균형형, 7점 이상이면 가장 높은 항목의 유형이고, 그 사이는 수축 전 평균의 차이(6점 미만이면 균형형)와 순서로 가른다. 같은 대화를 다시 채점할 때 생기는 작은 점수 흔들림으로 유형이 바뀌는 일을 줄이려는 규칙이다.
   - `badges`: 본인 말에서 낱말 횟수로 받은 배지 라벨 배열이다(예: `고마워 12회 · 감사 자판기`, `미안 0회 · 사과 품절`). 없으면 빈 배열이다. 앞 원소가 우선이다.
   - `quote`: 본인 근거 줄에서 고른 20자 이하 한마디다. 상대 말은 절대 들어가지 않는다. 없으면 `null`이다. 내 결과 화면에만 보여 주고, 공유 카드에는 사용자가 고를 때만 싣는다(아래 공유).
+- `dossier_available`(2026-11-20 추가): 최신 결과에 산타 조서가 있으면 `true`다. `ranking_pending`이 true(재업로드 직후 순위 계산 전)여도 최신 평가 기준이다. 이 기능 전에 받은 결과면 `false`이고, 조서 대신 시즌 마감 전에만 재업로드 안내를 띄운다.
+
+### 산타 조서 `GET /v1/me/dossier`
+
+- 최신 결과(평가)의 조서다. 평소에는 `GET /v1/me/result`와 같은 평가라 점수·순위·판정이 같다. 재업로드 직후 순위 다시 계산(최대 30초) 전(`ranking_pending`이 true)에는 결과 화면이 지난 평가를 보여 주는 동안에도 조서는 새 평가의 것을 주고, 그동안 판결 장의 순위(`big_value`)는 `null`이다. 순위가 반영되면 둘이 다시 같아진다. 결과가 없으면 `404 RESULT_NOT_FOUND`, 최신 결과에 조서가 없으면(이 기능 전 결과, 예전 집계 규칙으로 센 조서) `404 DOSSIER_NOT_FOUND`다.
+- 응답: `{ title, tone, scenes[] }`. `title`은 칭호, `tone`은 `normal`이나 `mild`(죄목과 놀림 문구를 끈 담백 톤)다. `tone`은 문구를 고르는 데만 쓰고 분석 이벤트·로그에 싣지 않는다.
+- 장면: `{ id, kind, speaker, headline, big_value, lines[], memo, chart, shareable }`. 줄은 `{ id, text, shareable }`, 그래프는 `{ type, values }`(`bar24`는 0~23시 24칸, `bar12`는 1~12월 12칸)다. `headline`, `big_value`, `memo`, `chart`는 `null`일 수 있다.
+- 장면 순서는 `teaser`(가린 숫자 티저, 공유 불가) → `hook`(올해의 한마디) → `ledger`(입버릇 장부) → `extreme_1`~`extreme_3`(가장 튀는 지표) → `acts`(올해의 너 3막) → `dossier`(칭호·죄목·공로·총평) → `verdict`(판결, 순위, 지역·도착 예정) → `summons`(공유 도발 문구)다. 받은 순서 그대로 그린다.
+- 본인 메시지가 100개 미만이면 `ledger`·`acts`·`dossier`가 빠지고 극값은 2장이며, 티저 첫 줄에 "더 시끄러운 방을 올리라"는 안내가 붙는다. 100~299개면 장부 3줄, 극값 2장이다.
+- `speaker`는 `elf`(계수 요정), `rudolph`(루돌프), `lawyer`(변호 요정), `santa`(산타) 중 하나다. 장면마다 화자 일러스트를 바꾼다.
+- 숫자는 모두 서버가 단위까지 붙여 준다(`1,234번`, `23%`, `2시간 40분대`, `새벽 1시대`). 화면에서 다시 포맷하지 않는다.
+- 문구는 결과 ID로 고정돼 다시 열어도 같다. 원문은 저장하지 않으므로 대화 내용 인용은 나오지 않는다.
+
+```json
+{
+  "title": "웃음 과다 야간 근무자",
+  "tone": "normal",
+  "scenes": [
+    {"id": "hook", "kind": "hook", "speaker": "elf", "headline": "네 엄지가 올해 제일 편애한 말", "big_value": "킹받네",
+     "lines": [{"id": "l1", "text": "312번", "shareable": true}], "memo": "산타 사전에 없는 말이라 요정이 검색해 봄.", "chart": null, "shareable": true}
+  ]
+}
+```
 
 ### 랭킹 `GET /v1/rankings`
 
@@ -332,6 +357,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | 시즌 동결 | `409` | `SEASON_FROZEN` | 분석 요청·지역 변경 모두. 결과 보기 |
 | 공유 비활성·존재하지 않음 | `404` | `SHARE_NOT_FOUND` | `Accept`에 `text/html`이 있는 `/s/{token}`·`/s/{token}/image.png` 요청은 JSON 대신 안내 HTML |
 | 결과 없음 | `404` | `RESULT_NOT_FOUND` | 점수가 나온 심사가 없음 |
+| 조서 없음 | `404` | `DOSSIER_NOT_FOUND` | `GET /v1/me/dossier`. 최신 결과에 조서가 없음. 시즌 마감 전이면 재업로드 안내, 마감 뒤에는 조서 없음 안내만 |
 | 공유할 순위 없음 | `409` | `NO_RANKED_RESULT` | `POST /v1/shares`. 첫 순위 계산 전이면 공유 버튼을 숨기거나 잠시 뒤 다시 |
 | 분석 작업 없음 | `404` | `NOT_FOUND` | `GET /v1/analyses/{id}`(없거나 남의 작업), `GET /v1/me/analysis`(낸 작업 없음) |
 | 세션의 참가자가 지워짐 | `404` | `PARTICIPANT_NOT_FOUND` | 새 참여 안내 |

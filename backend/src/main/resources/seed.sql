@@ -8,6 +8,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS prompts_name_version ON prompts(name,version);
 -- 같은 순위 스냅숏의 공유 링크는 참가자마다 하나뿐이다. 공유 취소는 행을 지우므로 엔티티에 revoked_at이 없다.
 -- 예전 DB에는 같은 이름의 인덱스가 `WHERE revoked_at IS NULL`(늘 NULL인 컬럼)로 이미 있어 이 문장은 아무것도 하지 않는다.
 CREATE UNIQUE INDEX IF NOT EXISTS shares_active_snapshot_unique ON shares(user_id,snapshot_id);
+-- 평가 하나에 산타 조서 하나다. 평가를 지우면 조서도 외래 키 삭제 규칙으로 지워진다.
+CREATE UNIQUE INDEX IF NOT EXISTS dossiers_assessment_unique ON dossiers(assessment_id);
 
 -- 호출 수로 세던 하루 AI 한도 테이블이다. 지금은 쓰지 않으므로 예전 DB에 남은 것을 지운다.
 DROP TABLE IF EXISTS ai_daily_budget;

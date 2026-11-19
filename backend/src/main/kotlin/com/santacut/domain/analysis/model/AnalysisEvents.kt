@@ -23,6 +23,16 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     fun toScoringMessages(zone: ZoneId): ScoringMessages =
         ScoringMessages(values.sortedBy { it.occurredAt }.map { it.toScoringMessage(zone) })
 
+    /**
+     * 시각순 채점용 메시지를 하나씩 만들어 내는 시퀀스. 조서 집계처럼 한 번만 훑는 쪽이 메시지 목록 전체를 따로 만들지 않게 한다.
+     * 같은 시각이면 받은 순서를 지킨다. 시각은 [zone] 기준이다.
+     */
+    fun toScoringSequence(zone: ZoneId): Sequence<ScoringMessage> =
+        values.sortedBy { it.occurredAt }.asSequence().map { it.toScoringMessage(zone) }
+
+    /** [now] 기준 분석 기간(올해 1월 1일부터 5분 뒤까지) 안의 이벤트만 시각순으로 남긴다. 같은 시각 이벤트는 원래 순서를 지킨다. */
+    fun inPeriodAt(now: Instant): AnalysisEvents = AnalysisEvents(values.filterNot { it.isOutsideWindow(now) }.sortedBy { it.occurredAt })
+
     /** 본인 이벤트 수, 전체 이벤트 수, 전체 텍스트 길이, 이벤트 시각 범위를 확인한다. */
     fun verifyAcceptableAt(now: Instant) {
         val selfCount = values.count { it.isSelf() }
@@ -41,7 +51,7 @@ class AnalysisEvents @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
      * 본인과 상대는 달마다 따로 최신 구간을 남기므로 두 구간의 시작이 조금 어긋날 수 있다. 같은 시각 이벤트는 원래 순서를 지킨다.
      */
     fun selectedAt(now: Instant): AnalysisEvents {
-        val inPeriod = values.filterNot { it.isOutsideWindow(now) }.sortedBy { it.occurredAt }
+        val inPeriod = inPeriodAt(now).values
         val selves = spread(inPeriod, MAX_EVENTS) { event -> if (event.isSelf()) 1 else 0 }
         val partners = spread(selves, MAX_TOTAL_EVENTS - selves.count { it.isSelf() }) { event -> if (event.isSelf()) 0 else 1 }
         val selfTexts = spread(partners, selfTextBudget(partners)) { event -> if (event.isSelf()) event.text.length else 0 }
