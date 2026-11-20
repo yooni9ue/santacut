@@ -20,6 +20,7 @@ class RoastPromptSeedTest {
         assertFalse(prompt.contains("(장소)"))
         assertFalse(prompt.contains("직장과 휴가"))
         assertTrue(prompt.contains("지명, 가게, 행사 이름은 말풍선에 나온 대로 써도 된다"))
+        assertFalse(prompt.contains("\"다들\""))
     }
 
     @Test
