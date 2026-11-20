@@ -538,6 +538,23 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `작가 호출 사용량은 채점 사용량과 따로 작가 단가 칸에 더한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        doReturn(null).`when`(dossierService).draft(anyJob())
+        submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        val day = aiUsageDayRepository.findAll().single()
+        assertEquals(ROAST_USAGE.inputTokens, day.roastInputTokens)
+        assertEquals(ROAST_USAGE.outputTokens, day.roastOutputTokens)
+        assertEquals(1, day.roastCalls)
+        assertEquals(USAGE.inputTokens, day.inputTokens)
+    }
+
+    @Test
     fun `검증에 떨어진 필드는 사유를 붙여 최대 두 번 다시 부르고 끝까지 떨어지면 대체 문장으로 채운다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()

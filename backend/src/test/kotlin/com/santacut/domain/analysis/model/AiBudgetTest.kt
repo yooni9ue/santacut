@@ -10,16 +10,52 @@ import kotlin.test.assertTrue
  * 토큰 수로 비용을 어림하고 하루·한 달 한도를 판단하는지 확인한다.
  */
 class AiBudgetTest {
-    private val budget = AiBudget(BigDecimal("0.5"), BigDecimal("9"), BigDecimal("1"), BigDecimal("0.1"), BigDecimal("5"))
+    private val budget = AiBudget(BigDecimal("0.5"), BigDecimal("9"), SCORE_PRICE, ROAST_PRICE)
 
     @Test
-    fun `비용은 입력 100만 토큰당 1달러, 출력 100만 토큰당 5달러로 어림한다`() {
-        assertEquals(0, BigDecimal("0.0055").compareTo(budget.costUsd(5_000, 0, 100)))
+    fun `채점 비용은 입력 100만 토큰당 1달러, 출력 100만 토큰당 5달러로 어림한다`() {
+        assertEquals(0, BigDecimal("0.0055").compareTo(budget.costUsd(AiCallKind.SCORE, ModelUsage(5_000, 100, ""))))
     }
 
     @Test
     fun `캐시에서 읽은 입력 토큰은 캐시 단가로 센다`() {
-        assertEquals(0, BigDecimal("0.0046").compareTo(budget.costUsd(5_000, 1_000, 100)))
+        assertEquals(0, BigDecimal("0.0046").compareTo(budget.costUsd(AiCallKind.SCORE, ModelUsage(5_000, 100, "", 0, 1_000))))
+    }
+
+    @Test
+    fun `작가 비용은 작가 모델의 입력, 캐시 읽기, 출력, 생각 단가로 따로 센다`() {
+        val usage = ModelUsage(5_000, 100, "STOP", 50, 1_000)
+
+        // (4,000 × 2 + 1,000 × 0.2 + 100 × 10 + 50 × 20) / 1,000,000
+        assertEquals(0, BigDecimal("0.0102").compareTo(budget.costUsd(AiCallKind.ROAST, usage)))
+        // (4,000 × 1 + 1,000 × 0.1 + 150 × 5) / 1,000,000
+        assertEquals(0, BigDecimal("0.00485").compareTo(budget.costUsd(AiCallKind.SCORE, usage)))
+    }
+
+    @Test
+    fun `하루 사용량은 작가 호출을 작가 칸에 따로 더하고 비용은 두 모델 단가로 센 합이다`() {
+        val day = AiUsageDay("2026-11-16")
+
+        day.add(ModelUsage(5_000, 100, "STOP"))
+        day.add(ModelUsage(5_000, 100, "STOP", 50, 1_000), AiCallKind.ROAST)
+
+        assertEquals(5_000, day.inputTokens)
+        assertEquals(1, day.calls)
+        assertEquals(5_000, day.roastInputTokens)
+        assertEquals(1_000, day.roastCachedInputTokens)
+        assertEquals(100, day.roastOutputTokens)
+        assertEquals(50, day.roastThoughtTokens)
+        assertEquals(1, day.roastCalls)
+        assertEquals(0, BigDecimal("0.0157").compareTo(day.costUsd(budget)))
+    }
+
+    @Test
+    fun `같은 어림 사용량이라도 작가 단가로 세면 더 빨리 한도를 넘는다`() {
+        val today = days(ModelUsage(400_000, 0, ""))
+        val estimate = ModelUsage(60_000, 0, "")
+
+        assertFalse(budget.wouldExceed(today, today, budget.costUsd(AiCallKind.SCORE, estimate)))
+        assertTrue(budget.wouldExceed(today, today, budget.costUsd(AiCallKind.ROAST, estimate)))
     }
 
     @Test
@@ -67,9 +103,9 @@ class AiBudgetTest {
         val heavyDay = days(ModelUsage(5_000_000, 0, ""))
 
         listOf(null, BigDecimal.ZERO).forEach { daily ->
-            val noDaily = AiBudget(daily, BigDecimal("9"), BigDecimal("1"), BigDecimal("0.1"), BigDecimal("5"))
+            val noDaily = AiBudget(daily, BigDecimal("9"), SCORE_PRICE, ROAST_PRICE)
             assertFalse(noDaily.isExhausted(heavyDay, heavyDay))
-            assertFalse(noDaily.wouldExceed(heavyDay, heavyDay, ModelUsage(1_000_000, 0, "")))
+            assertFalse(noDaily.wouldExceed(heavyDay, heavyDay, scoreCost(ModelUsage(1_000_000, 0, ""))))
         }
     }
 
@@ -78,9 +114,9 @@ class AiBudgetTest {
         val today = days(ModelUsage(400_000, 0, ""))
         val month = days(ModelUsage(8_900_000, 0, ""))
 
-        assertTrue(budget.wouldExceed(today, today, ModelUsage(100_001, 0, "")))
-        assertFalse(budget.wouldExceed(today, today, ModelUsage(100_000, 0, "")))
-        assertTrue(budget.wouldExceed(days(ModelUsage(0, 0, "")), month, ModelUsage(100_001, 0, "")))
+        assertTrue(budget.wouldExceed(today, today, scoreCost(ModelUsage(100_001, 0, ""))))
+        assertFalse(budget.wouldExceed(today, today, scoreCost(ModelUsage(100_000, 0, ""))))
+        assertTrue(budget.wouldExceed(days(ModelUsage(0, 0, "")), month, scoreCost(ModelUsage(100_001, 0, ""))))
     }
 
     @Test
@@ -100,4 +136,14 @@ class AiBudgetTest {
     }
 
     private fun days(usage: ModelUsage): AiUsageDays = AiUsageDays(listOf(AiUsageDay("2026-11-16").apply { add(usage) }))
+
+    private fun scoreCost(usage: ModelUsage): BigDecimal = budget.costUsd(AiCallKind.SCORE, usage)
+
+    companion object {
+        /** 채점: 입력 1달러, 캐시 읽기 0.1달러, 출력·생각 5달러(100만 토큰당). */
+        private val SCORE_PRICE = AiModelPrice(BigDecimal("1"), BigDecimal("0.1"), BigDecimal("5"), BigDecimal("5"))
+
+        /** 작가: 입력 2달러, 캐시 읽기 0.2달러, 출력 10달러, 생각 20달러(100만 토큰당). 생각 단가를 일부러 다르게 둬 따로 세는지 본다. */
+        private val ROAST_PRICE = AiModelPrice(BigDecimal("2"), BigDecimal("0.2"), BigDecimal("10"), BigDecimal("20"))
+    }
 }

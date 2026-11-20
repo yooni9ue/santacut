@@ -67,6 +67,7 @@ santacut:
   # 짧은 대화(한 구간)를 몇 번 따로 채점해 항목별 중앙값을 낼지. 1이면 예전처럼 한 번만 묻는다(backend-design.md).
   score.sampling:
     samples: 3
+  # 아래 단가는 채점 모델(3.5 Flash-Lite) 것이다. 작가 모델 단가는 santacut.ai.roast.*에 따로 있다.
   ai.budget:
     daily-usd: ${AI_BUDGET_DAILY_USD:0}
     monthly-usd: ${AI_BUDGET_MONTHLY_USD:9}
@@ -87,6 +88,12 @@ santacut:
     thinking-level: LOW
     call-timeout: 60s
     max-rewrites: 2
+    # 작가 호출 비용은 채점 단가(santacut.ai.budget.*)가 아니라 이 단가로 센다. Gemini 3.5 Flash 표준 등급 정가(2026-11-20 확인)다.
+    # 생각 토큰은 출력 단가로 청구된다. 호출 전 예약은 (입력 어림 + 출력 상한) × 최대 호출 수로 잡는다.
+    input-usd-per-million-tokens: 1.5
+    cached-input-usd-per-million-tokens: 0.15
+    output-usd-per-million-tokens: 9
+    thinking-usd-per-million-tokens: 9
   # 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 한 구간 대화는 3번 동시에, 긴 대화는 최대 8구간을 차례로 부른다(backend-design.md).
   ai.worker:
     concurrency: ${ANALYSIS_WORKER_CONCURRENCY:3}

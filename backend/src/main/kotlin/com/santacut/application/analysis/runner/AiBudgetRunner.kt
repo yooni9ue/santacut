@@ -2,6 +2,7 @@ package com.santacut.application.analysis.runner
 
 import com.santacut.application.global.Runner
 import com.santacut.application.global.TransactionRunner
+import com.santacut.domain.analysis.model.AiCallKind
 import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.analysis.service.AiBudgetService
@@ -25,17 +26,25 @@ class AiBudgetRunner(
     /** 비용 한도에 닿았거나 제공자 문제로 멈춘 동안이면 참. 작업은 대기열에 남고 오래 밀리면 만료가 정리한다. */
     fun isBlocked(): Boolean = transaction.call { aiBudgetService.isBlocked(clock.instant()) } ?: false
 
+    /** 채점 호출을 채점 모델 단가로 예약·기록하며 돌린다. 방법은 [spending]과 같다. */
+    fun <T> spendingOnScore(estimate: ModelUsage, calls: (record: (ModelUsage) -> Unit) -> T): T =
+        spending(AiCallKind.SCORE, estimate, calls)
+
+    /** 작가 호출을 작가 모델 단가로 예약·기록하며 돌린다. 방법은 [spending]과 같다. */
+    fun <T> spendingOnRoast(estimate: ModelUsage, calls: (record: (ModelUsage) -> Unit) -> T): T =
+        spending(AiCallKind.ROAST, estimate, calls)
+
     /**
-     * 어림 사용량([estimate])을 한도 안인지 확인·예약한 뒤 [calls]로 AI에 묻고, 끝나면(실패해도) 예약을 푼다.
+     * [kind] 호출의 어림 사용량([estimate])을 그 모델 단가로 한도 안인지 확인·예약한 뒤 [calls]로 AI에 묻고, 끝나면(실패해도) 예약을 푼다.
      * [calls]가 받는 기록 함수는 호출 한 번의 사용량을 바로 더한다. 뒤 호출이 실패해도 이미 과금된 호출이 비용 가드에 잡힌다.
      * 예약을 푸는 일은 잠금과 트랜잭션 밖에서 한다.
      */
-    fun <T> spending(estimate: ModelUsage, calls: (record: (ModelUsage) -> Unit) -> T): T {
-        underBudgetLock { aiBudgetService.reserve(estimate, clock.instant()) }
+    private fun <T> spending(kind: AiCallKind, estimate: ModelUsage, calls: (record: (ModelUsage) -> Unit) -> T): T {
+        underBudgetLock { aiBudgetService.reserve(kind, estimate, clock.instant()) }
         try {
-            return calls { usage -> underBudgetLock { aiBudgetService.record(usage, clock.instant()) } }
+            return calls { usage -> underBudgetLock { aiBudgetService.record(kind, usage, clock.instant()) } }
         } finally {
-            aiBudgetService.release(estimate)
+            aiBudgetService.release(kind, estimate)
         }
     }
 
