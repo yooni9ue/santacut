@@ -9,8 +9,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * 숫자열은 (숫자), 사람 이름은 호칭([honorificSuffixes] 등) 패턴과 호칭 없이 부른 이름([NameStems]) 규칙으로 (이름), 아파트·빌라 같은
  * 사는 곳 이름([residenceSuffixes])은 (집)으로 바꾼다. 지명·가게·행사 이름은 가리지 않는다(사람 이름만 가린다는 결정).
  * 접미사 패턴은 오탐이 잦은 낱말([suffixExceptions])을 건너뛴다.
- * 출력: 숫자 표현([numberPatterns], 허용 [allowedNumberPhrases]), 금지어([bannedWords]), 판정 방향([coalForbidden], [giftForbidden]),
- * 담백 판결의 석탄·탈락([mildForbidden]), "근데"로 여는 뒤집기([flipForbiddenStarts])를 막는다.
+ * 출력: 숫자·셈말 표현([numberPatterns], 허용 [allowedNumberPhrases]), 금지어([bannedWords]), 옛말투·유행어·이모지·느낌표·ㅋㅋ([tonePatterns]),
+ * 판정 방향([coalForbidden], [giftForbidden]), 담백 판결의 석탄·탈락([mildForbidden])을 막고, 뒤집기는 [flipStart]("근데 ")로 열게 한다.
  *
  * @property residenceSuffixes 줄기 한 글자 이상에 붙으면 사는 곳(주소에 가까운 단지) 이름으로 보는 접미사(아파트, 빌라 등)
  * @property honorificSuffixes 붙으면 사람 이름으로 보는 호칭(누나, 언니 등). 호칭만 있어도 가린다.
@@ -22,6 +22,10 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property unquotablePhrases quotable로 넘기지 않는 입버릇 key(비속어, 사람 부르는 말). 조서 통계에는 그대로 남는다.
  * @property quotableMaxLength quotable로 넘기는 입버릇 표기의 최대 글자 수
  * @property excludedTopics 화제 후보로 넘기지 않는 조서 주제 key. 직장 이야기도 보낸다는 결정에 따라 지금은 비어 있다.
+ * @property allowedNumberPhrases 숫자 검사 전에 빼는 관용 표현. 붙여 쓴 "한마디"(짧은 말이라는 한 낱말)는 허용하고, 띄어 쓴 "한 마디"는 셈말로 본다.
+ * @property tonePatterns 쓰면 안 되는 말투 정규식(옛말투 어미, 훈화 낱말, 유행어, 이모지, 느낌표, ㅋㅋ). 따옴표 인용 안은 보지 않는다.
+ * @property letterClosingEndings 쪽지 마지막 문장 끝에만 허용하는 산타 어미(~마, ~거라). 이 어미로 끝난 맨 끝은 말투 검사에서 뺀다.
+ * @property flipStart 뒤집기가 반드시 시작해야 하는 말("근데 "). 글자 수에 들어간다.
  */
 data class RoastRules(
     @JsonProperty("residence_suffixes") val residenceSuffixes: List<String>,
@@ -41,7 +45,9 @@ data class RoastRules(
     @JsonProperty("coal_forbidden") val coalForbidden: List<String>,
     @JsonProperty("gift_forbidden") val giftForbidden: List<String>,
     @JsonProperty("mild_forbidden") val mildForbidden: List<String>,
-    @JsonProperty("flip_forbidden_starts") val flipForbiddenStarts: List<String>,
+    @JsonProperty("tone_patterns") val tonePatterns: List<String>,
+    @JsonProperty("letter_closing_endings") val letterClosingEndings: List<String>,
+    @JsonProperty("flip_start") val flipStart: String,
 ) {
     private val particleGroup = alternation(particles)
     private val nameStems = NameStems(nameSurnames.toSet(), nameExceptions.toSet())
@@ -55,7 +61,8 @@ data class RoastRules(
     private val coalWrong = Regex(alternation(coalForbidden))
     private val giftWrong = Regex(alternation(giftForbidden))
     private val mildWrong = Regex(alternation(mildForbidden))
-    private val flipWrongStart = Regex("^\\s*(?:${alternation(flipForbiddenStarts)})")
+    private val tone = Regex(alternationOfPatterns(tonePatterns))
+    private val letterClosing = Regex("(?:${alternation(letterClosingEndings)})[.]?\\s*$")
 
     /**
      * 작가 입력용으로 가린 본문. 호칭·부르는 말에서 떼어 낸 이름 줄기('현규형'의 '현규')는
@@ -90,7 +97,7 @@ data class RoastRules(
         return masked
     }
 
-    /** 허용 표현("한 해", "한마디")을 뺀 뒤 처음 나온 숫자·수량 표현. 없으면 null이다. */
+    /** 허용 표현("한 해", "한마디")을 뺀 뒤 처음 나온 숫자·수량·셈말 표현("세 번", "한 포대", "하나", "첫째"). 없으면 null이다. */
     fun numberIn(text: String): String? = numbers.find(allowedNumbers.replace(text, ""))?.value
 
     /** 처음 나온 금지어(대화 상대를 사람으로 가리키는 말, 지어낸 추억, 재심). 없으면 null이다. */
@@ -102,7 +109,15 @@ data class RoastRules(
     /** 담백 판결에 들어가면 안 되는 말(석탄, 탈락). 없으면 null이다. */
     fun mildWrongIn(text: String): String? = mildWrong.find(text)?.value
 
-    fun startsFlipWrongly(text: String): Boolean = flipWrongStart.containsMatchIn(text)
+    /**
+     * 처음 나온 금지 말투(옛말투 어미, 훈화 낱말, 유행어, 이모지, 느낌표, ㅋㅋ). 없으면 null이다.
+     * [closingAllowed]면(쪽지) 맨 끝 산타 어미([letterClosingEndings])는 빼고 본다. 쪽지 마지막 문장만 "~거라"로 맺어도 된다.
+     */
+    fun toneIn(text: String, closingAllowed: Boolean): String? =
+        tone.find(if (closingAllowed) letterClosing.replace(text, "") else text)?.value
+
+    /** 뒤집기가 [flipStart]("근데 ")로 시작하는지. */
+    fun startsFlipRightly(text: String): Boolean = text.startsWith(flipStart)
 
     /** 영문 낱말이 있는지. */
     fun hasLatin(text: String): Boolean = LATIN.containsMatchIn(text)

@@ -3,6 +3,7 @@ package com.santacut.domain.roast.model
 import com.santacut.TestRoasts
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -119,6 +120,49 @@ class RoastRulesTest {
             "생각한 시간이 길다", "이번엔 참았다", "구분이 안 된다", "이 분은 늘 바쁘다", "그대로 두어라", "만일 그렇다면", "천천히 보낸다", "만나서 놀자",
             "점수 만회했다", "십분 이해한다", "벚꽃이 만개했다", "만년 막내다",
         ).forEach { text -> assertNull(rules.numberIn(text), text) }
+    }
+
+    @Test
+    fun `출력 숫자 검사는 셈말(한 포대, 세 줄, 하나, 첫째)과 띄어 쓴 한 마디도 찾는다`() {
+        listOf(
+            "석탄 한 포대 보낸다", "올해를 세 줄로 줄였다", "물음표 하나로 버텼다", "하나도 안 놓쳤다", "둘이서 다 정했다", "첫째로 묻는다",
+            "첫 번째 말풍선", "첫마디가 물음표다", "한 마디도 안 졌다", "두 잔 마셨다", "한판 붙자", "몇 바퀴 돌았다",
+        ).forEach { text -> assertNotNull(rules.numberIn(text), text) }
+    }
+
+    @Test
+    fun `붙여 쓴 한마디는 짧은 말이라는 한 낱말이라 셈말로 보지 않고, 셈말과 꼴만 같은 말도 숫자로 보지 않는다`() {
+        listOf(
+            "한마디만 하고 빠진다", "한마디도 안 졌다", "하나같이 물음표다", "첫눈 오는 날", "첫 장면부터 웃겼다", "네 판단이 맞았다", "둘러보고 왔다",
+            "셋업 끝났다", "한데 모아 보낸다", "하루 늦었다",
+        ).forEach { text -> assertNull(rules.numberIn(text), text) }
+    }
+
+    @Test
+    fun `말투 검사는 옛말투 어미, 훈화 낱말, 유행어, 이모지, 느낌표, ㅋㅋ를 찾는다`() {
+        listOf(
+            "먼저 하거라" to "하거라", "물어보아라" to "보아라", "다 읽었구나." to "구나", "잘 읽었습니다" to "습니다", "성미가 급하다" to "성미",
+            "근사한 버릇이다" to "근사한", "새날을 연다" to "새날", "추진력 갑" to "갑", "답장 갑이다" to "갑이다", "레전드다" to "레전드", "찐이다" to "찐",
+            "무지성 출발" to "무지성", "빠르다!" to "!", "ㅋㅋ 친다" to "ㅋㅋ", "선물이다\u2744" to "\u2744",
+        ).forEach { (text, found) -> assertEquals(found, rules.toneIn(text, false), text) }
+    }
+
+    @Test
+    fun `말투 검사는 꼴만 같은 흔한 말을 잡지 않고, 쪽지는 맨 끝 거라만 허용한다`() {
+        listOf("갑자기 조용해졌다", "지갑을 열었다", "반갑더라", "찐빵을 샀다", "도구나 장비", "더구나 물음표다", "ㅋ 하나는 친다").forEach { text ->
+            assertNull(rules.toneIn(text, false), text)
+        }
+        assertNull(rules.toneIn("내년에도 먼저 말을 꺼내거라.", true))
+        assertNull(rules.toneIn("썰매는 내가 몰마.", true))
+        assertEquals("하거라", rules.toneIn("먼저 하거라. 내년에 보자.", true))
+        assertEquals("하거라", rules.toneIn("내년에도 먼저 하거라.", false))
+    }
+
+    @Test
+    fun `뒤집기는 근데와 한 칸 띄움으로 시작해야 한다`() {
+        assertTrue(rules.startsFlipRightly("근데 그 물음표 없었으면 이 방은 진작 눈 덮였다."))
+        assertFalse(rules.startsFlipRightly("그 물음표 없었으면 이 방은 진작 눈 덮였다."))
+        assertFalse(rules.startsFlipRightly("근데그 물음표 없었으면 이 방은 진작 눈 덮였다."))
     }
 
     @Test

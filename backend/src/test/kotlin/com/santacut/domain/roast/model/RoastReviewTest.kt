@@ -93,16 +93,58 @@ class RoastReviewTest {
     }
 
     @Test
-    fun `석탄인데 선물을 받는다는 판결과 석탄을 쓴 담백 판결, 근데로 여는 뒤집기는 떨어진다`() {
+    fun `석탄인데 선물을 받는다는 판결과 석탄을 쓴 담백 판결, 근데로 열지 않은 뒤집기는 떨어진다`() {
         val json = validJson(
             verdict = "ㄱ? 하나로 버텼다. 그래도 올해 선물 받는 건 어렵지 않겠다.",
             verdictMild = "올해 말풍선 잘 읽었다. 석탄은 접어 두고 내년에 다시 보자.",
-            firstFlip = "근데 그 덕에 판이 늘 먼저 열렸다. 그건 고마운 일이다.",
+            firstFlip = "그 덕에 판이 늘 먼저 열렸다. 그건 고마운 일이다.",
         )
 
         val failed = review(coal, json).checks.failedFields()
 
         assertTrue(failed.containsAll(listOf("verdict", "verdict_mild", "pairs[0]")))
+    }
+
+    @Test
+    fun `옛말투 어미·유행어·느낌표·ㅋㅋ·이모지는 그 필드만 떨어진다`() {
+        val json = validJson(
+            title = "단톡방 레전드 자판기",
+            verdict = "말풍선을 끝까지 읽었구나. 선물 명단에 이름 적어 둔다.",
+            verdictMild = "올해 말풍선 잘 읽었습니다. 선물은 문 앞에 두고 간다.",
+            firstFlip = "근데 그 손 없었으면 이 방은 진작 얼었다$SNOWFLAKE.",
+            letter = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내더라! 내년에도 먼저 말 꺼내거라.",
+        )
+
+        val checks = review(gift, json).checks
+
+        assertEquals(listOf("title", "verdict", "verdict_mild", "letter", "pairs[0]"), checks.failedFields())
+        val reasons = checks.reasonsFor(listOf("title", "verdict", "verdict_mild", "letter", "pairs[0]"))
+        listOf("레전드", "구나", "습니다", "!", SNOWFLAKE).forEach { found ->
+            assertTrue(reasons.any { reason -> reason.contains("금지 말투($found)") }, found)
+        }
+    }
+
+    @Test
+    fun `쪽지 마지막 문장만 거라로 맺을 수 있고 따옴표 인용 안의 ㅋㅋ는 말투 검사에서 뺀다`() {
+        val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "아 진짜 ㅋㅋㅋ 그건 아니지"))
+        val closing = validJson(letter = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내더라. 솔직히 좀 부러웠다. 내년에도 먼저 말 꺼내거라.")
+        val middle = validJson(letter = "올해 네 말풍선을 끝까지 읽었다. 먼저 말을 하거라. 그 버릇이 이 방을 깨웠다. 솔직히 좀 부러웠다. 내년에도 그대로 두마.")
+        val quoted = validJson(verdict = "'ㅋㅋㅋ' 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
+        val bare = validJson(verdict = "ㅋㅋ 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
+
+        assertEquals(emptyList(), review(brief, closing).checks.failedFields())
+        assertEquals(emptyList(), review(brief, quoted).checks.failedFields())
+        assertTrue(review(brief, middle).checks.reasonsFor(listOf("letter")).any { reason -> reason.contains("금지 말투(하거라)") })
+        assertTrue(review(brief, bare).checks.reasonsFor(listOf("verdict")).any { reason -> reason.contains("금지 말투(ㅋㅋ)") })
+    }
+
+    @Test
+    fun `근데로 연 뒤집기는 놀림보다 세 자 긴 상한까지 통과한다`() {
+        val flip = "근데 " + "가".repeat(RoastTextKind.FLIP.maxLength - 4) + "."
+
+        assertEquals(RoastTextKind.ROAST.maxLength + 3, RoastTextKind.FLIP.maxLength)
+        assertEquals(emptyList(), review(gift, validJson(firstFlip = flip)).checks.failedFields())
+        assertTrue(review(gift, validJson(firstFlip = flip + "가")).checks.reasonsFor(listOf("pairs[0]")).any { reason -> reason.contains("글자 수") })
     }
 
     @Test
@@ -155,10 +197,10 @@ class RoastReviewTest {
 
     private fun validJson(
         title: String = "물음표 신호탄 요정",
-        verdict: String = "ㄱ? 하나로 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.",
+        verdict: String = "ㄱ? 치고 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.",
         verdictMild: String = "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
         letter: String = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 두어라.",
-        firstFlip: String = "망설이지 않고 먼저 판을 열었다. 그 손이 제일 빨랐다.",
+        firstFlip: String = "근데 망설이지 않고 먼저 판을 열었다. 그 손이 제일 빨랐다.",
         secondKey: String = factKeys[1],
         thirdKey: String = factKeys[2],
     ): String = TestRoasts.mapper.writeValueAsString(
@@ -166,18 +208,22 @@ class RoastReviewTest {
             "title" to title, "verdict" to verdict, "verdict_mild" to verdictMild, "letter" to letter,
             "pairs" to listOf(
                 pair(factKeys[0], "'ㄱ?' 없이는 말이 안 시작된다. 거의 출발 신호다.", firstFlip),
-                pair(secondKey, "웃음을 치기 시작하면 손을 뗄 줄 모른다. 키보드가 고생이다.", "웃길 때는 끝까지 크게 웃었다. 그게 다 남았다."),
-                pair(thirdKey, "물음표가 말끝에 자꾸 매달린다. 취조실이 따로 없다.", "궁금한 건 그냥 넘기지 않고 꼭 물어봤다."),
-                pair(factKeys[3], "대답을 짧게 끊어 던진다. 말풍선이 거의 신호등이다.", "망설이지 않고 바로바로 답을 던졌다. 빠른 손이었다."),
-                pair(factKeys[4], "말풍선을 쪼개서 연달아 보낸다. 알림이 줄줄이 울린다.", "생각나는 대로 바로바로 꺼내 놓았다. 숨김이 없었다."),
+                pair(secondKey, "웃음을 치기 시작하면 손을 뗄 줄 모른다. 키보드가 고생이다.", "근데 웃길 때는 끝까지 크게 웃었다. 그게 다 남았다."),
+                pair(thirdKey, "물음표가 말끝에 자꾸 매달린다. 취조실이 따로 없다.", "근데 궁금한 건 그냥 넘기지 않고 꼭 물어봤다."),
+                pair(factKeys[3], "대답을 짧게 끊어 던진다. 말풍선이 거의 신호등이다.", "근데 망설이지 않고 바로바로 답을 던졌다. 빠른 손이었다."),
+                pair(factKeys[4], "말풍선을 쪼개서 연달아 보낸다. 알림이 줄줄이 울린다.", "근데 생각나는 대로 바로바로 꺼내 놓았다. 숨김이 없었다."),
             ),
-            "story" to listOf(story(1, "새해 첫 막에는 판부터 깔자고 졸랐다."), story(2, "한여름에는 조용히 숨을 골랐다."), story(3, "연말에는 다시 먼저 말을 꺼냈다.")),
+            "story" to listOf(story(1, "새해 들어서는 판부터 깔자고 졸랐다."), story(2, "한여름에는 조용히 숨을 골랐다."), story(3, "연말에는 다시 먼저 말을 꺼냈다.")),
         ),
     )
 
     private fun pair(key: String, roast: String, flip: String) = mapOf("fact_key" to key, "roast" to roast, "flip" to flip)
 
     private fun story(act: Int, line: String) = mapOf("act" to act, "line" to line)
+
+    companion object {
+        private const val SNOWFLAKE = "\u2744"
+    }
 
     private fun messages() = TestDossiers.selves(
         List(150) { index -> listOf("내일 ㄱ?", "ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ", "언제 볼까?", "ㄱㄱ 바로 출발", "넹")[index % 5] },

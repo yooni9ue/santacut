@@ -29,7 +29,7 @@ class RoastSheetTest {
         assertTrue(fixed.isComplete())
         val content = fixed.toContent(brief, TestRoasts.catalog.fallback, 0)
         assertEquals(RoastText("물음표 신호탄 요정", RoastSource.AI), content.title)
-        assertEquals("ㄱ? 하나로 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.", content.verdictLine.text)
+        assertEquals("ㄱ? 치고 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.", content.verdictLine.text)
         assertEquals(0, content.fallbackCount())
     }
 
@@ -84,7 +84,7 @@ class RoastSheetTest {
         assertEquals(listOf(RoastPairs.FIELD), RoastSheet.EMPTY.absorb(answer).missingFields())
     }
 
-    private fun review(title: String, verdict: String = "ㄱ? 하나로 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다."): RoastReview {
+    private fun review(title: String, verdict: String = "ㄱ? 치고 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다."): RoastReview {
         val keys = brief.facts.keys()
         val json = TestRoasts.mapper.writeValueAsString(
             mapOf(
@@ -93,7 +93,7 @@ class RoastSheetTest {
                 "verdict_mild" to "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
                 "letter" to "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 두어라.",
                 "pairs" to keys.take(RoastSheet.MAX_PAIRS).map { key ->
-                    mapOf("fact_key" to key, "roast" to "말풍선 곳곳에 버릇이 묻어난다. 산타 눈에는 다 보인다.", "flip" to "그 버릇 덕에 말풍선마다 이 사람이 또렷하게 보였다.")
+                    mapOf("fact_key" to key, "roast" to "말풍선 곳곳에 버릇이 묻어난다. 산타 눈에는 다 보인다.", "flip" to "근데 그 버릇 덕에 말풍선마다 이 사람이 또렷하게 보였다.")
                 },
                 "story" to listOf(1, 2, 3).map { act -> mapOf("act" to act, "line" to "그 막에는 먼저 판을 깔자고 졸랐다.") },
             ),

@@ -21,7 +21,7 @@ data class RoastCardResponse(
     val chip: ChipResponse?,
     @field:Schema(description = "버릇 놀림(숫자 없음)")
     val roast: String,
-    @field:Schema(description = "같은 버릇 뒤집기. 화면이 앞에 '근데'를 붙입니다.")
+    @field:Schema(description = "같은 버릇 뒤집기. 문장이 '근데 '로 시작하니 화면은 '근데' 라벨을 따로 붙이지 않습니다. 이 기능 앞 결과에 저장된 문장은 '근데' 없이 시작할 수 있습니다.")
     val flip: String,
 ) : RecapCardResponse {
     companion object {
