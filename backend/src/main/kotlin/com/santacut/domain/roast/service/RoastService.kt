@@ -5,6 +5,8 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.GiftVerdict
 import com.santacut.domain.analysis.model.ModelUsage
+import com.santacut.domain.analysis.model.ProviderBackoff
+import com.santacut.domain.analysis.model.ScoringFailure
 import com.santacut.domain.dossier.model.DossierCatalog
 import com.santacut.domain.dossier.model.DossierDraft
 import com.santacut.domain.dossier.model.DossierStats
@@ -26,13 +28,16 @@ import com.santacut.infrastructure.roast.repository.RoastRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
+import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 
 /**
  * 「팩폭 산타」 작가 문장 쓰기와 저장. 입력 조립·검증·대체 규칙은 도메인 모델([RoastBrief], [RoastReview], [RoastSheet])이 정한다.
  *
  * 작가를 부르면 응답을 필드마다 검증하고, 떨어진 필드가 있으면 사유를 붙여 최대 설정한 횟수만큼 다시 불러 그 필드만 갈아 끼운다.
- * 그래도 빈 필드는 서버 대체 문장으로 채운다. 로그에는 호출 수, 토큰 수, 필드 이름과 수만 남기고 문장·원문·사유는 남기지 않는다.
+ * 그래도 빈 필드는 서버 대체 문장으로 채운다. 호출 자체가 실패하면(제공자 오류, 한도 초과, 시간 초과) 다시 쓰지 않고 바로 대체 문장으로 넘어가며,
+ * 연달아 [MAX_CONSECUTIVE_FAILURES]번 실패하면 [PAUSE] 동안 작가를 부르지 않는다. 로그에는 호출 수, 토큰 수, 필드 이름과 수만 남기고 문장·원문·사유는 남기지 않는다.
  */
 @Service
 class RoastService(
@@ -42,14 +47,18 @@ class RoastService(
     private val dossierCatalog: DossierCatalog,
     private val objectMapper: ObjectMapper,
     private val properties: RoastModelProperties,
+    private val clock: Clock,
 ) {
     private val logger = LoggerFactory.getLogger(RoastService::class.java)
 
     /** 동시에 부른 호출의 사용량을 하나씩 기록하게 하는 잠금. */
     private val usageLock = Any()
 
-    /** 작가 모델이 설정돼 있는지. 꺼져 있으면 작가를 부르지 않고 대체 문장만 쓴다. */
-    fun isEnabled(): Boolean = roastClient.isEnabled()
+    /** 작가 제공자 쪽 연속 실패로 작가 호출을 잠시 멈추는 상태. 채점 쪽 멈춤과 따로 센다. */
+    private val backoff = ProviderBackoff(PAUSE, MAX_CONSECUTIVE_FAILURES)
+
+    /** 작가 모델이 설정돼 있고 연속 실패로 멈춘 동안이 아닌지. 아니면 작가를 부르지 않고 대체 문장만 쓴다. */
+    fun isEnabled(): Boolean = roastClient.isEnabled() && !backoff.isPausedAt(clock.instant())
 
     /** 작업 페이로드의 메시지와 미리 만든 조서 [dossier], 총점 [hundredths]로 작가 입력을 조립한다. 작업 성공이 페이로드를 지우므로 그 전에 부른다. */
     fun brief(job: AnalysisJob, hundredths: Int, dossier: DossierDraft?): RoastBrief {
@@ -120,6 +129,12 @@ class RoastService(
     ): RoastSheet {
         val answer = roastClient.request(prompt.content, brief.inputText(objectMapper, rewrite))
         recordSafely(answer.usage, recordUsage)
+        if (answer.failed) {
+            backoff.record(ScoringFailure.ANALYSIS_ERROR, clock.instant())
+            logger.warn("팩폭 작가 {}번째 호출이 실패해 다시 쓰지 않고 대체 문장으로 넘어간다", call)
+            return sheet
+        }
+        backoff.recordSuccess()
         val review = RoastReview.of(answer.text, brief, catalog.rules, objectMapper)
         val next = sheet.absorb(review)
         logCall(call, answer.usage, review, next)
@@ -153,5 +168,13 @@ class RoastService(
             logger.warn("팩폭 입력용 조서 집계를 읽지 못해 사실 없이 쓴다: {}", exception.javaClass.simpleName)
             null
         }
+    }
+
+    companion object {
+        /** 작가 호출이 이만큼 연달아 실패하면 잠시 멈춘다. */
+        const val MAX_CONSECUTIVE_FAILURES = 3
+
+        /** 연속 실패 뒤 작가를 부르지 않는 시간. */
+        val PAUSE: Duration = Duration.ofMinutes(5)
     }
 }

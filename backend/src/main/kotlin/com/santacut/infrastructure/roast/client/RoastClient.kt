@@ -36,14 +36,14 @@ class RoastClient(
         ScoreClient.estimatedTokens(systemPrompt.length + userText.length), properties.maxOutputTokens.toLong(), ESTIMATED_FINISH_REASON,
     )
 
-    /** [systemPrompt]를 시스템 메시지로, [userText]를 사용자 메시지로 보낸다. 실패하면 본문 없는 답이다(사용량 0). */
+    /** [systemPrompt]를 시스템 메시지로, [userText]를 사용자 메시지로 보낸다. 실패하면 본문 없는 실패 답이다(사용량 0). */
     fun request(systemPrompt: String, userText: String): RoastAnswer =
         try {
             answerOf(chatClient.prompt().options(options()).system(systemPrompt).user(userText).call().chatResponse())
         } catch (exception: RuntimeException) {
             val causes = ExceptionCauses.of(exception)
             logger.warn("팩폭 작가 호출 실패(제공자 문제 {}): {}", causes.isProviderUnavailable(), exception.javaClass.simpleName)
-            RoastAnswer(null, ModelUsage(0, 0, FAILED_FINISH_REASON))
+            RoastAnswer(null, ModelUsage(0, 0, FAILED_FINISH_REASON), failed = true)
         }
 
     private fun options(): GoogleGenAiChatOptions.Builder {

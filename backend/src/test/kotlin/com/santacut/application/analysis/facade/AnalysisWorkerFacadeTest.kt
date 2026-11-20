@@ -573,6 +573,21 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `작가 호출 자체가 실패하면 다시 쓰지 않고 바로 대체 문장으로 채운다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(null, FAILED_ROAST_USAGE, failed = true))
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals(1, requestCount())
+        val roast = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        assertTrue(roast.contentJson.contains("\"source\":\"FALLBACK\""))
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
+    }
+
+    @Test
     fun `작가 호출이 예외를 던져도 채점 결과는 정상 저장되고 팩폭은 대체 문장으로 채운다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()
@@ -753,6 +768,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val ROAST_MODEL = "gemini-3.5-flash"
         private const val VALID_TITLE = "고맙다 연타 요정"
         private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
+        private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
         private const val DIMENSION_COUNT = 4
         private const val EXPECTED_SCORE_HUNDREDTHS = 9500
