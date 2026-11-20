@@ -42,7 +42,8 @@ class RoastRulesTest {
         val scrubbed = rules.scrub("동준아 민수야 지은이랑 성필이는 현규한테")
 
         assertEquals("(이름)아 (이름)야 (이름)이랑 (이름)이는 (이름)한테", scrubbed.text)
-        assertEquals(listOf("동준", "민수", "지은", "성필", "현규"), scrubbed.names)
+        assertEquals(listOf("동준", "민수"), scrubbed.names)
+        assertEquals(listOf("동준", "민수"), scrubbed.masked)
     }
 
     @Test
@@ -61,6 +62,16 @@ class RoastRulesTest {
 
         assertEquals(text, rules.scrub(text).text)
         assertTrue(rules.suspectsIn(text).isEmpty())
+    }
+
+    @Test
+    fun `서술격 조사와 흔한 말은 부르는 말이나 조사가 붙어도 이름으로 보지 않는다`() {
+        val text = "무슨 소리야 그게 말이야 문제야 얘기야 별로야 집이야 치킨이랑 가족이랑 엄마한테 회사한테 움직이는"
+
+        val scrubbed = rules.scrub(text)
+
+        assertEquals(text, scrubbed.text)
+        assertTrue(scrubbed.names.isEmpty())
     }
 
     @Test

@@ -123,8 +123,10 @@ data class RoastRules(
         }
         if (names == null) return token
         val (stem, suffix) = nameStems.split(token) ?: return token
-        masked += stem
-        names += stem
+        if (nameStems.spreads(suffix)) {
+            masked += stem
+            names += stem
+        }
         return NAME_LABEL + suffix
     }
 
