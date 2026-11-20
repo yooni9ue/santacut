@@ -49,7 +49,9 @@
    "p50": 0.06,
    "p90": 0.2,
    "min_messages": 200,
-   "mockable": true
+   "mockable": true,
+   "low_remarkable": false,
+   "note": "아래쪽은 놀리지 않는다(low_remarkable false). 0~5시 비율은 0에 붙은 분포라 p10(0.01)이 보통 사람 값과 거의 같아, 심야 1%인 평범한 사람이 '훨씬 적음'으로 튀었다. 위쪽 p50·p90은 그대로 둔다(손 추정)."
   },
   {
    "key": "peak_hour",
@@ -139,7 +141,9 @@
    "p50": 0.05,
    "p90": 0.18,
    "min_messages": 100,
-   "mockable": true
+   "mockable": true,
+   "low_remarkable": false,
+   "note": "아래쪽은 놀리지 않는다(low_remarkable false). 카톡에서 느낌표를 거의 안 쓰는 사람이 흔해 p10(0.01)이 보통 값에 붙어 있다. 위쪽 p50·p90은 그대로 둔다(손 추정)."
   },
   {
    "key": "reply_median_minutes",
