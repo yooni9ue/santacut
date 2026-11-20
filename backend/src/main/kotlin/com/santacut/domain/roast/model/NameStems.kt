@@ -8,7 +8,7 @@ package com.santacut.domain.roast.model
  * - 받침 없는 줄기: '야'(끝 글자가 '먹어야', '할거야'처럼 용언 어미면 뺀다)
  * - 받침과 상관없이: '한테'
  * - 세 글자 줄기는 첫 글자가 흔한 성([surnames])일 때만 본다. 흔한 말([exceptions])은 줄기로 보지 않는다.
- * 부르는 말('아', '야')로 찾은 줄기만 다른 줄과 출력 차단 목록으로 퍼뜨린다([spreads]). 조사('이랑', '이는', '한테')로 찾은 줄기는
+ * 부르는 말('아', '야')과 '한테'로 찾은 줄기는 다른 줄과 출력 차단 목록으로 퍼뜨린다([spreads]). '이랑', '이는'으로 찾은 줄기는
  * '치킨이랑', '움직이는'처럼 흔한 말일 때가 많아 그 자리에서만 가린다.
  */
 class NameStems(private val surnames: Set<Char>, private val exceptions: Set<String>) {
@@ -19,8 +19,8 @@ class NameStems(private val surnames: Set<Char>, private val exceptions: Set<Str
         return (stem to suffix).takeIf { accepts(stem) && fits(stem.last(), suffix) }
     }
 
-    /** [suffix]로 찾은 줄기를 모든 줄과 출력 차단 목록으로 퍼뜨릴지. 부르는 말('아', '야')일 때만 참이다. */
-    fun spreads(suffix: String): Boolean = suffix == VOCATIVE_AFTER_FINAL || suffix == VOCATIVE_AFTER_VOWEL
+    /** [suffix]로 찾은 줄기를 모든 줄과 출력 차단 목록으로 퍼뜨릴지. 부르는 말('아', '야')과 '한테'일 때 참이다. */
+    fun spreads(suffix: String): Boolean = suffix == VOCATIVE_AFTER_FINAL || suffix == VOCATIVE_AFTER_VOWEL || suffix == TO
 
     /** 호칭 패턴('현규형', '민지님')에서 떼어 낸 줄기 [stem]을 이름으로 다시 가려도 되는지. */
     fun accepts(stem: String): Boolean =

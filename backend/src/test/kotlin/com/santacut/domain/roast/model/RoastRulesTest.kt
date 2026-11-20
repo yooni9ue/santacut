@@ -42,8 +42,8 @@ class RoastRulesTest {
         val scrubbed = rules.scrub("동준아 민수야 지은이랑 성필이는 현규한테")
 
         assertEquals("(이름)아 (이름)야 (이름)이랑 (이름)이는 (이름)한테", scrubbed.text)
-        assertEquals(listOf("동준", "민수"), scrubbed.names)
-        assertEquals(listOf("동준", "민수"), scrubbed.masked)
+        assertEquals(listOf("동준", "민수", "현규"), scrubbed.names)
+        assertEquals(listOf("동준", "민수", "현규"), scrubbed.masked)
     }
 
     @Test

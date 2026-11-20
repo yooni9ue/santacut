@@ -61,6 +61,16 @@ class RoastBriefTest {
     }
 
     @Test
+    fun `한테로 찾은 줄기는 다른 줄에서도 가리고 차단 목록에 넣는다`() {
+        val brief = TestRoasts.brief(habitMessages() + listOf(TestDossiers.self(JULY, "지훈한테 물어봄"), TestDossiers.self(OCTOBER, "지훈 왔냐")))
+
+        val input = brief.inputText(TestRoasts.mapper)
+
+        assertFalse(input.contains("지훈"))
+        assertEquals("지훈", brief.blockedIn("올해 지훈 타령"))
+    }
+
+    @Test
     fun `조사로만 찾은 줄기는 그 자리에서만 가리고 다른 줄이나 차단 목록으로 퍼뜨리지 않는다`() {
         val brief = TestRoasts.brief(habitMessages() + listOf(TestDossiers.self(JULY, "보람이랑 감"), TestDossiers.self(OCTOBER, "보람 있었다")))
 
