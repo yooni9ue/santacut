@@ -17,7 +17,7 @@
 - [ ] **산타 조서 화면** `GET /v1/me/dossier`(2026-11-20 추가): 결과 화면을 `scenes` 배열 순서대로 한 장씩 넘기는 세로 스냅 스크롤로 그린다. 장면마다 저장(공유 카드) 버튼을 두되 `shareable`이 true인 장면에만 둔다. 카드에는 `shareable`이 true인 줄만 싣는다(삐 처리·하위 판정·느린 답장 줄은 화면에만). `404 DOSSIER_NOT_FOUND`(또는 결과의 `dossier_available`이 false)면 조서 대신, 시즌 마감 전(`stage`가 마감 전)이면 "대화를 다시 올리면 새 조서를 받는다"는 재업로드 안내를, 마감 뒤에는 "이 결과에는 조서가 없다"는 안내만 띄운다(마감 뒤에는 재업로드할 수 없다). `tone` 값은 화면 문구에만 쓰고 분석 이벤트·로그·에러 리포트에 싣지 않는다. 기존 점수·유형 화면은 "자세히 보기"로 접어 남긴다(7절 산타 조서).
 - [ ] **팩폭 산타 리캡 카드 덱** `GET /v1/me/recap`(2026-11-20 추가): 업로드 → 작업 완료(`SUCCEEDED`) → `GET /v1/me/result`의 `recap_available` 확인 → `GET /v1/me/recap` → 덱 → 공유 순서로 붙인다. `cards`를 받은 순서대로 9:16(1080×1920) 카드 한 장씩 그리고, 모든 카드 상단에 `score_text`를 크게 찍는다. 문구·칩·숫자는 말줄임이나 접기 없이 다 보이게 두고, 가리기 토글은 두지 않는다. 공유 문구는 `share_text`를 그대로 쓴다. 숫자가 든 문장은 화면에서 만들지 않는다. 석탄 농담을 끄면 `stamp_mild`·`verdict_mild`로 바꾼다. `404 RECAP_NOT_FOUND`(또는 `recap_available: false`)면 기존 결과 화면과 시즌 마감 전 재업로드 안내를 보여 준다. 필드 표와 실제 응답 예시는 [7절 리캡 카드 덱](#리캡-카드-덱-get-v1merecap)에 있다.
 - [ ] **랭킹 화면** `GET /v1/rankings`: 행의 도착 정보는 `eta_date`(서울 날짜)를 쓴다. `eta`는 항상 null이다. 페이지 사이에 순위가 다시 계산되면 `409 RANKING_SNAPSHOT_CHANGED`가 오니 목록을 비우고 첫 페이지부터 다시 읽는다. 예전 숫자 cursor는 `400`이다(7절).
-- [ ] **순위 반영 대기와 리캡 먼저 보여 주기**(2026-11-20 바뀜): 서버가 작업 성공 직후 순위를 다시 계산하므로 `RANKING_PENDING`은 보통 1~2초 만에 `SUCCEEDED`로 바뀐다(전에는 0~30초). SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 온다. `RANKING_PENDING`을 받으면 대기 화면에 머물지 말고 바로 `GET /v1/me/recap`으로 덱을 그리기 시작한다. 순위·도착 시각 자리는 "순위 계산 중" 라벨로 두고, 같은 SSE에서 `SUCCEEDED`가 오면 덱을 한 번 더 불러 채운다(6.0절, 7절 리캡 카드 덱의 전체 흐름). 진행 상황은 SSE로 받기를 권한다.
+- [ ] **순위 반영 대기와 리캡 먼저 보여 주기**(2026-11-20 바뀜): 서버가 작업 성공 직후 순위를 다시 계산하므로 `RANKING_PENDING`은 보통 1~2초, 작업이 몰리면 최대 약 6초 만에 `SUCCEEDED`로 바뀐다(전에는 0~30초). SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 온다. `RANKING_PENDING`을 받으면 대기 화면에 머물지 말고 바로 `GET /v1/me/recap`으로 덱을 그리기 시작한다. 순위·도착 시각 자리는 "순위 계산 중" 라벨로 두고, 같은 SSE에서 `SUCCEEDED`가 오면 덱을 한 번 더 불러 채운다(6.0절, 7절 리캡 카드 덱의 전체 흐름). 진행 상황은 SSE로 받기를 권한다.
 - [ ] **지역 변경**: 24시간 2번, 시즌 5번까지. 넘으면 `429 REGION_CHANGE_LIMITED`(`retry_at` 있음) 또는 `REGION_CHANGE_SEASON_LIMIT`(없음)(5절).
 - [ ] **공유**: `POST /v1/shares` 본문 `include_quote`(기본 false)로 본인 한마디를 카드에 넣을지 고른다. 이미 만든 링크가 있으면 같은 링크에 바뀐 값이 반영되니 켜기·끄기 토글로 만든다. 공유 카드에는 날짜만 보이고 상대 대화는 절대 나오지 않는다(7절 공유 카드 구성).
 - [ ] **참가 등록 한도**: 같은 IP에서 1시간에 10번 넘게 등록하면 `429 CLIENT_RATE_LIMITED`다. `retry_at`으로 다시 시도할 시각을 보여 준다(9절).
@@ -149,7 +149,7 @@
 | `VALIDATING` | 파일 형식을 확인하고 있어요 | 계속 조회. 원본 파일 제출에서만 나온다 |
 | `QUEUED` | 산타 심사를 기다리고 있어요 | 계속 조회 |
 | `ANALYZING` | 산타가 기록을 읽고 있어요 | 계속 조회 |
-| `RANKING_PENDING` | 심사가 끝났어요. 순위와 도착일을 계산하고 있어요 | SSE를 그대로 열어 두고 리캡 덱(`GET /v1/me/recap`)을 먼저 보여 준다. 서버가 작업 성공 직후 순위를 다시 계산하므로 보통 1~2초 안에 `SUCCEEDED`가 온다 |
+| `RANKING_PENDING` | 심사가 끝났어요. 순위와 도착일을 계산하고 있어요 | SSE를 그대로 열어 두고 리캡 덱(`GET /v1/me/recap`)을 먼저 보여 준다. 서버가 작업 성공 직후 순위를 다시 계산하므로 보통 1~2초(몰리면 최대 약 6초) 안에 `SUCCEEDED`가 온다 |
 | `SUCCEEDED` | - | 조회를 멈추고 `GET /v1/me/result`로 이동 |
 | `FAILED` | `error_code`로 구분 | 조회를 멈추고 실패 안내 |
 
@@ -317,7 +317,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 5. **덱 그리기**: `cards`를 받은 순서대로 한 장씩 넘긴다(아래 그리는 규칙).
 6. **공유**: 카드마다 이미지 저장·공유 버튼을 둔다. 지금 카드를 1080×1920 PNG로 그려 Web Share API(`navigator.share({ files, text })`)에 넘기고, 공유 문구 `text`는 응답의 `share_text`를 그대로 쓴다. 파일 공유를 못 하는 브라우저는 이미지 내려받기와 `share_text` 복사로 대신한다.
 
-`ranking_pending`이 `true`일 때(작업 성공 직후 순위 다시 계산 전, 보통 1~2초):
+`ranking_pending`이 `true`일 때(작업 성공 직후 순위 다시 계산 전, 보통 1~2초, 몰리면 최대 약 6초):
 
 - 덱은 새 평가 기준이라 그대로 그린다. 이때 판정 카드의 `rank`와 `delivery_eta`는 `null`이다.
 - 순위·도착 시각 자리에는 숫자 없는 고정 라벨("순위 계산 중")을 두고, SSE로 `SUCCEEDED`를 받으면 `GET /v1/me/recap`을 한 번 더 불러 채운다. SSE가 끊겼으면 몇 초 뒤 한 번 더 부른다. 결과 화면(`GET /v1/me/result`)은 그동안 지난 평가의 순위를 보여 줄 수 있으니 두 화면의 순위를 섞지 않는다.
