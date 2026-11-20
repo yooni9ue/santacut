@@ -236,6 +236,7 @@ sequenceDiagram
 | GET | `/v1/me/analysis` | 내 최근 분석 상태 | 세션 |
 | GET | `/v1/me/result` | 내 점수·순위·도착 시각 | 세션 |
 | GET | `/v1/me/dossier` | 내 산타 조서 장면 목록 | 세션 |
+| GET | `/v1/me/recap` | 내 팩폭 산타 리캡 카드 덱 | 세션 |
 | GET | `/v1/rankings` | 랭킹 50명씩(cursor) | 공개 |
 | POST | `/v1/shares` | 공유 링크 생성·재사용 | 세션 · CSRF |
 | DELETE | `/v1/shares/{token}` | 공유 링크 폐기 (`204`) | 세션 · CSRF |

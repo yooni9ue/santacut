@@ -467,6 +467,7 @@ OpenAPI 명세와 같다. 세션은 HttpOnly 쿠키로, CSRF 토큰은 `X-XSRF-T
 | GET | `/v1/me/analysis` | 내 가장 최근 작업의 진행 단계 | 세션 |
 | GET | `/v1/me/result` | 내 점수·순위·공동 순위·ETA·확정 상태, 조서 유무(`dossier_available`) | 세션 |
 | GET | `/v1/me/dossier` | 내 결과의 「2026 산타 조서」 장면 목록(§14.17) | 세션 |
+| GET | `/v1/me/recap` | 내 최신 결과의 「팩폭 산타」 리캡 카드 덱(9:16 카드, 선물 판정 컷 65점) | 세션 |
 | GET | `/v1/rankings` | 순위표 50줄씩(cursor) | 공개 |
 | POST | `/v1/shares` | 공유 링크 생성·재사용 | 세션 · CSRF |
 | DELETE | `/v1/shares/{token}` | 공유 링크 취소 (`204`) | 세션 · CSRF |
@@ -565,6 +566,7 @@ HTTP 오류 본문은 `{ timestamp, status, error, path, code, message, retry_at
 | `PARTICIPANT_NOT_FOUND` | 404 | 세션의 참가자가 더 이상 없음 |
 | `RESULT_NOT_FOUND` | 404 | 점수가 나온 결과가 없음 |
 | `DOSSIER_NOT_FOUND` | 404 | 최신 결과에 산타 조서가 없음(이 기능 전 평가, 집계 실패, 예전 집계 규칙 판). 시즌 마감 전이면 재업로드 안내 |
+| `RECAP_NOT_FOUND` | 404 | 최신 결과에 팩폭 카드 문장이 없음(이 기능 전 평가) |
 | `SHARE_NOT_FOUND` | 404 | 공유 링크가 없거나 취소됨 |
 | `PROMPT_NOT_FOUND` | 404 | 이 이름의 프롬프트 판이 없음(dev 전용 API, 작업자는 `ANALYSIS_FAILED`로 기록) |
 | `SEASON_FROZEN` | 409 | 시즌 마감 뒤 제출·지역 변경 |
