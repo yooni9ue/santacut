@@ -175,6 +175,30 @@ class RoastRulesTest {
     }
 
     @Test
+    fun `옛 명령형(거라, 오너라, 두어라, 보아라)과 ㅂ니다체 어미는 문장 끝에서 잡고 봐라·해라 같은 반말 명령은 둔다`() {
+        listOf("오거라.", "말해 보거라.", "그대로 두어라.", "다 주어라", "썰매에 오너라.", "두고 갑니다.", "문 앞에 둡니다", "이제 보아라.", "먼저 하여라.")
+            .forEach { text -> assertNotNull(rules.toneIn(text, false), text) }
+        listOf("그만 봐라.", "빨리 해라.", "많이 먹어라.", "좀 참아라.", "그대로 둬라.", "갈 거라 믿는다.", "몇 시에 갑니까 묻는다", "올해 선물 갑니다만 아니다")
+            .forEach { text -> assertNull(rules.toneIn(text, false), text) }
+        assertNull(rules.toneIn("내년에도 먼저 오거라.", true))
+        assertEquals("두어라", rules.toneIn("그대로 두어라. 내년에 보자.", true))
+    }
+
+    @Test
+    fun `구나는 문장 끝 어미만 잡고 누구나·축구나·야구나·아구나 같은 낱말은 두지 않는다`() {
+        listOf("누구나 아는 버릇이다", "축구나 보자고 졸랐다", "야구나 농구나", "아구나 먹자고").forEach { text -> assertNull(rules.toneIn(text, false), text) }
+        listOf("다 읽었구나.", "그랬구나", "빠르구나, 손이").forEach { text -> assertEquals("구나", rules.toneIn(text, false), text) }
+    }
+
+    @Test
+    fun `갑은 조사가 붙어도 잡되 담배 한 갑은 두고, 찐득·성미산은 두며 별·알람 이모지도 잡는다`() {
+        listOf("추진력 갑이라", "답장 갑인 사람", "속도는 갑은 갑", "갑을 넘는다").forEach { text -> assertNotNull(rules.toneIn(text, false), text) }
+        listOf("담배 한 갑 샀다", "찐득한 손", "찐덕찐덕하다", "성미산 산책").forEach { text -> assertNull(rules.toneIn(text, false), text) }
+        assertEquals("\u2B50", rules.toneIn("선물이다\u2B50", false))
+        assertEquals("\u23F0", rules.toneIn("알람\u23F0 맞췄다", false))
+    }
+
+    @Test
     fun `뒤집기는 근데와 한 칸 띄움으로 시작해야 한다`() {
         assertTrue(rules.startsFlipRightly("근데 그 물음표 없었으면 이 방은 진작 눈 덮였다."))
         assertFalse(rules.startsFlipRightly("그 물음표 없었으면 이 방은 진작 눈 덮였다."))

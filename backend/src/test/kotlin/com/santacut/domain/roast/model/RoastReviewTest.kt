@@ -72,7 +72,7 @@ class RoastReviewTest {
         val json = validJson(
             title = "“언제 볼까” 신호탄 요정",
             verdict = "「언제 볼까?」 하나로 판을 깔던 손을 봤다. 선물 명단에 올린다.",
-            letter = "올해 『언제 볼까』로 판을 열던 버릇이 좋았다. 할 말이 생기면 미루지 않고 먼저 꺼냈다. 내년에도 그대로 두어라.",
+            letter = "올해 『언제 볼까』로 판을 열던 버릇이 좋았다. 할 말이 생기면 미루지 않고 먼저 꺼냈다. 내년에도 그대로 둬라.",
         )
 
         val checks = review(gift, json).checks
@@ -199,7 +199,7 @@ class RoastReviewTest {
         title: String = "물음표 신호탄 요정",
         verdict: String = "ㄱ? 치고 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.",
         verdictMild: String = "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
-        letter: String = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 두어라.",
+        letter: String = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 둬라.",
         firstFlip: String = "근데 망설이지 않고 먼저 판을 열었다. 그 손이 제일 빨랐다.",
         secondKey: String = factKeys[1],
         thirdKey: String = factKeys[2],
