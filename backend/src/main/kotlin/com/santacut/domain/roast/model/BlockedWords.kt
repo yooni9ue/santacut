@@ -5,8 +5,12 @@ package com.santacut.domain.roast.model
  * 출력 검증에만 쓰고 저장하지 않는다.
  */
 class BlockedWords(private val values: List<String>) {
-    /** [text]에 처음 나온 차단 낱말. 없으면 null이다. 긴 낱말부터 맞춰 '현규형'이 '현규'보다 먼저 걸린다. */
-    fun foundIn(text: String): String? = values.distinct().sortedByDescending(String::length).find { word -> word in text }
+    /**
+     * [text]에서 낱말 앞 경계(앞에 한글이 붙지 않은 자리)에 처음 나온 차단 낱말. 없으면 null이다. 긴 낱말부터 맞춰 '현규형'이 '현규'보다 먼저 걸린다.
+     * 입력에서 가릴 때와 같은 경계라 이름이 '하나'여도 '두하나' 같은 낱말 속 글자는 막지 않는다.
+     */
+    fun foundIn(text: String): String? = values.distinct().sortedByDescending(String::length)
+        .find { word -> Regex(LEADING_BOUNDARY + Regex.escape(word)).containsMatchIn(text) }
 
     fun size(): Int = values.distinct().size
 
@@ -15,5 +19,6 @@ class BlockedWords(private val values: List<String>) {
 
     companion object {
         val EMPTY = BlockedWords(emptyList())
+        private const val LEADING_BOUNDARY = "(?<![가-힣])"
     }
 }
