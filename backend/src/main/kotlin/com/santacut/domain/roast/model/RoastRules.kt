@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property nameExceptions 이름 줄기로 보지 않는 흔한 말(친구, 얘들, 사람 등)
  * @property unquotablePhrases quotable로 넘기지 않는 입버릇 key(비속어, 사람 부르는 말). 조서 통계에는 그대로 남는다.
  * @property quotableMaxLength quotable로 넘기는 입버릇 표기의 최대 글자 수
- * @property excludedTopics 화제 후보로 넘기지 않는 조서 주제 key(직장과 엮인 출퇴근 등)
+ * @property excludedTopics 화제 후보로 넘기지 않는 조서 주제 key. 직장 이야기도 보낸다는 결정에 따라 지금은 비어 있다.
  */
 data class RoastRules(
     @JsonProperty("residence_suffixes") val residenceSuffixes: List<String>,

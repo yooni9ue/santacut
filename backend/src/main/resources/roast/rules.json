@@ -259,9 +259,7 @@
   "haengnimdeul"
  ],
  "quotable_max_length": 4,
- "excluded_topics": [
-  "commute"
- ],
+ "excluded_topics": [],
  "banned_words": [
   "상대",
   "친구",

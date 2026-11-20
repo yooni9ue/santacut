@@ -51,6 +51,16 @@ class RoastBriefTest {
     }
 
     @Test
+    fun `출퇴근 화제도 화제 후보로 넘긴다`() {
+        val commute = List(60) { index -> TestDossiers.self(MARCH.plusMonths((index % 3 * 4).toLong()).plusMinutes(index.toLong()), "지하철 타고 출근함") }
+        val messages = (habitMessages() + commute).sortedBy { message -> message.localTime }
+
+        val input = TestRoasts.brief(messages).inputText(TestRoasts.mapper)
+
+        assertTrue(input.contains("출퇴근·교통"))
+    }
+
+    @Test
     fun `조사로만 찾은 줄기는 그 자리에서만 가리고 다른 줄이나 차단 목록으로 퍼뜨리지 않는다`() {
         val brief = TestRoasts.brief(habitMessages() + listOf(TestDossiers.self(JULY, "보람이랑 감"), TestDossiers.self(OCTOBER, "보람 있었다")))
 
