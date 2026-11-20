@@ -42,6 +42,13 @@ class RoastReviewTest {
     }
 
     @Test
+    fun `돈·직장 낱말과 다들은 금지어가 아니라 통과한다`() {
+        val json = validJson(verdict = "연차 내고 정산까지 챙기던 손을 봤다. 다들 모인 판에 선물 얹는다.")
+
+        assertEquals(emptyList(), review(gift, json).checks.failedFields())
+    }
+
+    @Test
     fun `큰따옴표와 낫표로 감싼 목록 밖 인용도 떨어진다`() {
         val json = validJson(
             title = "“언제 볼까” 신호탄 요정",

@@ -87,7 +87,7 @@ data class RoastRules(
     /** 허용 표현("한 해", "한마디")을 뺀 뒤 처음 나온 숫자·수량 표현. 없으면 null이다. */
     fun numberIn(text: String): String? = numbers.find(allowedNumbers.replace(text, ""))?.value
 
-    /** 처음 나온 금지어(남 언급, 돈·직장, 지어낸 추억, 재심). 없으면 null이다. */
+    /** 처음 나온 금지어(대화 상대를 사람으로 가리키는 말, 지어낸 추억, 재심). 없으면 null이다. */
     fun bannedIn(text: String): String? = banned.find(text)?.value
 
     /** 판정과 어긋난 말. 석탄인데 선물을 받는다거나, 선물인데 석탄이라는 말이다. 없으면 null이다. */
