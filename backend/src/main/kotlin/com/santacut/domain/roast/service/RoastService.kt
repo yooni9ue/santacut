@@ -14,7 +14,6 @@ import com.santacut.domain.global.exception.ErrorCode
 import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.SeoulTime
 import com.santacut.domain.prompt.model.Prompt
-import com.santacut.domain.roast.model.ParticipantNames
 import com.santacut.domain.roast.model.Roast
 import com.santacut.domain.roast.model.RoastBrief
 import com.santacut.domain.roast.model.RoastCatalog
@@ -65,7 +64,7 @@ class RoastService(
     fun brief(job: AnalysisJob, hundredths: Int, dossier: DossierDraft?): RoastBrief {
         val submission = objectMapper.readValue(job.requirePayload(), AnalysisSubmission::class.java)
         val messages = submission.events.toScoringSequence(SeoulTime.ZONE).toList()
-        val participants = ParticipantNames.of(submission.speakerNames)
+        val participants = catalog.rules.participantNames(submission.speakerNames)
         return RoastBrief.compose(messages, statsOf(dossier), GiftVerdict(hundredths), catalog, dossierCatalog, participants)
     }
 

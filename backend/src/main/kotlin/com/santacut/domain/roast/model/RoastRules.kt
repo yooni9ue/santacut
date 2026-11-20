@@ -77,6 +77,10 @@ data class RoastRules(
         return MaskPattern(Regex("(?<![가-힣])(?:$words)"), NAME_LABEL)
     }
 
+    /** 참여자 표시 이름 [speakers]로 만든 가릴 이름. 흔한 성과 이름 예외 목록을 쓴다. */
+    fun participantNames(speakers: List<String>): ParticipantNames =
+        ParticipantNames.of(speakers, nameSurnames.toSet(), nameExceptions.toSet())
+
     /** 출력 문장에서 사람 이름이나 사는 곳 이름으로 의심되는 낱말(호칭, 단지 접미사). 없으면 빈 목록이다. */
     fun suspectsIn(text: String): List<String> {
         val masked = mutableListOf<String>()

@@ -53,7 +53,7 @@ class RoastBriefTest {
     @Test
     fun `원본 파일의 참여자 이름은 조사가 붙어도 모든 줄에서 가리고 차단 목록에 넣는다`() {
         val messages = habitMessages() + TestDossiers.self(JULY, "성필이 서산풀코스 가능?")
-        val participants = ParticipantNames.of(listOf("평친성필", "평친동준", "윤현식"))
+        val participants = TestRoasts.catalog.rules.participantNames(listOf("평친성필", "평친동준", "윤현식"))
 
         val brief = RoastBrief.compose(
             messages, TestDossiers.tally(messages, TestRoasts.dossier).stats, GiftVerdict(TestRoasts.GIFT_SCORE), TestRoasts.catalog, TestRoasts.dossier,
