@@ -44,6 +44,8 @@ class RoastRulesTest {
         assertEquals("(장소) 어때", assertNotNull(rules.scrub("화담숲 어때")).text)
         assertEquals("(장소)에 가자", assertNotNull(rules.scrub("제주도에 가자")).text)
         assertEquals("(장소) 앞", assertNotNull(rules.scrub("망원역 앞")).text)
+        assertEquals("(숫자) 까지 (장소) (숫자)동 앞", assertNotNull(rules.scrub("7 까지 은하마을한빛아파트 101동 앞")).text)
+        assertEquals("(장소)이나 (장소)?", assertNotNull(rules.scrub("수원이나 안양?")).text)
         assertEquals("오늘도 그래도 친구 역시 운동", assertNotNull(rules.scrub("오늘도 그래도 친구 역시 운동")).text)
     }
 
