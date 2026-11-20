@@ -63,6 +63,9 @@ class AnalysisJobService(
     }
 
     /** 완료 시점에 시즌이 마감됐으면 작업을 시즌 마감 실패로 저장하고 참을 돌려준다. */
+    /** [now]에 시즌이 마감됐는지. 작업을 바꾸지 않고 묻기만 한다. */
+    fun isSeasonClosedAt(now: Instant): Boolean = season().isClosedAt(now)
+
     fun freezeIfSeasonClosed(job: AnalysisJob, completedAt: Instant): Boolean {
         val frozen = job.freezeIfSeasonClosed(season(), completedAt)
         if (frozen) save(job)

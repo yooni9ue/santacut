@@ -72,9 +72,11 @@ class HeldJobRunner(
 
     /**
      * 같은 채점 입력으로 성공한 지난 작업이 있는데 그 팩폭 결과를 그대로 옮길 수 없으면([RoastService.isReusable]) 지난 평가의 총점.
-     * 그 밖에는 null이다. 호출하는 쪽은 이 총점으로 트랜잭션 밖에서 작가를 한 번 부르고 [reuseIfSameDigest]에 넘긴다.
+     * 그 밖에는 null이다. 시즌이 이미 마감됐으면 재사용이 SEASON_FROZEN으로 끝나므로 작가를 부르지 않게 null이다.
+     * 호출하는 쪽은 이 총점으로 트랜잭션 밖에서 작가를 한 번 부르고 [reuseIfSameDigest]에 넘긴다.
      */
     fun scoreNeedingRoast(attempt: ScoringAttempt): Int? = transaction.call {
+        if (analysisJobService.isSeasonClosedAt(clock.instant())) return@call null
         val job = analysisJobService.findHeld(attempt.job) ?: return@call null
         val previousAssessmentId = analysisJobService.findSameDigest(job, attempt.digestHash)?.reusableAssessmentId() ?: return@call null
         if (roastService.isReusable(previousAssessmentId)) null else assessmentService.get(previousAssessmentId).scoreHundredths
