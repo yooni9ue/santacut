@@ -49,6 +49,17 @@ class RoastReviewTest {
     }
 
     @Test
+    fun `웃음과 울음 자모만 되풀이한 인용은 목록에 없어도 통과하고 자모 비속어는 떨어진다`() {
+        val laugh = validJson(verdict = "'ㅋㅋㅋ' 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
+        val cry = validJson(verdict = "'ㅠㅠ' 달고도 끝까지 일정을 묻던 손을 봤다. 선물 명단에 올린다.")
+        val curse = validJson(verdict = "'ㅅㅂ' 대신 다른 말을 고르던 손을 봤다. 선물 명단에 올린다.")
+
+        assertEquals(emptyList(), review(gift, laugh).checks.failedFields())
+        assertEquals(emptyList(), review(gift, cry).checks.failedFields())
+        assertTrue(review(gift, curse).checks.reasonsFor(listOf("verdict")).any { reason -> reason.contains("목록 밖 인용(ㅅㅂ)") })
+    }
+
+    @Test
     fun `큰따옴표와 낫표로 감싼 목록 밖 인용도 떨어진다`() {
         val json = validJson(
             title = "“언제 볼까” 신호탄 요정",
