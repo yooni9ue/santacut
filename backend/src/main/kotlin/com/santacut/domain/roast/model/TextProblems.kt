@@ -27,6 +27,7 @@ class TextProblems(private val values: List<String>) {
             kind.lengthProblemOf(text),
             rules.numberIn(text)?.let { found -> "숫자 표현($found)" },
             rules.toneIn(QUOTE.replace(text, ""), kind == RoastTextKind.LETTER)?.let { found -> "금지 말투($found)" },
+            rules.titleBannedIn(text)?.takeIf { kind == RoastTextKind.TITLE }?.let { found -> "칭호 금지어($found)" },
             rules.wrongDirectionIn(text, brief.verdict.passed)?.let { found -> "판정과 어긋남($found)" },
             rules.mildWrongIn(text)?.takeIf { kind == RoastTextKind.VERDICT_MILD }?.let { found -> "담백 판결 금지어($found)" },
             "\"${rules.flipStart}\"로 시작하지 않음".takeIf { kind == RoastTextKind.FLIP && !rules.startsFlipRightly(text) },

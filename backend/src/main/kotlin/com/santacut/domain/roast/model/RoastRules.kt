@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property allowedNumberPhrases 숫자 검사 전에 빼는 관용 표현. 붙여 쓴 "한마디"(짧은 말이라는 한 낱말)는 허용하고, 띄어 쓴 "한 마디"는 셈말로 본다.
  * @property tonePatterns 쓰면 안 되는 말투 정규식(옛말투 어미, 훈화 낱말, 유행어, 이모지, 느낌표, ㅋㅋ). 따옴표 인용 안은 보지 않는다.
  * 옛 명령형은 줄여 쓰는 꼴이 있는 것(두어라→둬라, 보아라→봐라, 하여라→해라)과 ~거라·오너라만 막고, 봐라·해라·먹어라 같은 반말 명령은 둔다.
+ * @property titleBannedWords 칭호에만 막는 말(요정, 천사, 분위기 메이커). 누구에게나 붙는 칭호라 이 사람의 자리를 말하지 못한다.
  * @property letterClosingEndings 쪽지 마지막 문장 끝에만 허용하는 산타 어미(~거라). 이 어미로 끝난 맨 끝은 말투 검사에서 뺀다. ~마는 막지 않으므로 넣지 않는다.
  * @property flipStart 뒤집기가 반드시 시작해야 하는 말("근데 "). 글자 수에 들어간다.
  */
@@ -47,6 +48,7 @@ data class RoastRules(
     @JsonProperty("gift_forbidden") val giftForbidden: List<String>,
     @JsonProperty("mild_forbidden") val mildForbidden: List<String>,
     @JsonProperty("tone_patterns") val tonePatterns: List<String>,
+    @JsonProperty("title_banned_words") val titleBannedWords: List<String>,
     @JsonProperty("letter_closing_endings") val letterClosingEndings: List<String>,
     @JsonProperty("flip_start") val flipStart: String,
 ) {
@@ -63,6 +65,7 @@ data class RoastRules(
     private val giftWrong = Regex(alternation(giftForbidden))
     private val mildWrong = Regex(alternation(mildForbidden))
     private val tone = Regex(alternationOfPatterns(tonePatterns))
+    private val titleBanned = Regex(alternation(titleBannedWords))
     private val letterClosing = Regex("(?:${alternation(letterClosingEndings)})[.]?\\s*$")
 
     /**
@@ -116,6 +119,9 @@ data class RoastRules(
      */
     fun toneIn(text: String, closingAllowed: Boolean): String? =
         tone.find(if (closingAllowed) letterClosing.replace(text, "") else text)?.value
+
+    /** 칭호에 처음 나온 칭호 금지어([titleBannedWords]). 없으면 null이다. */
+    fun titleBannedIn(text: String): String? = titleBanned.find(text)?.value
 
     /** 뒤집기가 [flipStart]("근데 ")로 시작하는지. */
     fun startsFlipRightly(text: String): Boolean = text.startsWith(flipStart)

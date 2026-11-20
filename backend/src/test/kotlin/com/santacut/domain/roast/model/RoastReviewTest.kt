@@ -125,6 +125,16 @@ class RoastReviewTest {
     }
 
     @Test
+    fun `칭호에는 요정·천사·분위기 메이커를 쓸 수 없고 다른 필드에는 막지 않는다`() {
+        listOf("물음표 신호탄 요정", "단톡방 수호 천사", "단톡방 분위기 메이커").forEach { title ->
+            val reasons = review(gift, validJson(title = title)).checks.reasonsFor(listOf("title"))
+            assertTrue(reasons.any { reason -> reason.contains("칭호 금지어") }, title)
+        }
+        val verdict = validJson(verdict = "요정처럼 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.")
+        assertEquals(emptyList(), review(gift, verdict).checks.failedFields())
+    }
+
+    @Test
     fun `쪽지 마지막 문장만 거라로 맺을 수 있고 따옴표 인용 안의 ㅋㅋ는 말투 검사에서 뺀다`() {
         val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "아 진짜 ㅋㅋㅋ 그건 아니지"))
         val closing = validJson(letter = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내더라. 솔직히 좀 부러웠다. 내년에도 먼저 말 꺼내거라.")
@@ -196,7 +206,7 @@ class RoastReviewTest {
     private fun review(brief: RoastBrief, json: String): RoastReview = RoastReview.of(json, brief, TestRoasts.catalog.rules, TestRoasts.mapper)
 
     private fun validJson(
-        title: String = "물음표 신호탄 요정",
+        title: String = "단톡방 공식 물음표 자판기",
         verdict: String = "ㄱ? 치고 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.",
         verdictMild: String = "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
         letter: String = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 둬라.",
