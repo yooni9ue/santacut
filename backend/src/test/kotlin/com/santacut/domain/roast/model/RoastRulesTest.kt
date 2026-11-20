@@ -73,6 +73,14 @@ class RoastRulesTest {
     }
 
     @Test
+    fun `호칭 접미사로 끝나는 흔한 말은 이름으로 보지 않는다`() {
+        val text = "곰인형 아저씨 손글씨 주인님"
+
+        assertEquals(text, assertNotNull(rules.scrub(text)).text)
+        assertTrue(rules.suspectsIn(text).isEmpty())
+    }
+
+    @Test
     fun `호칭에서 떼어 낸 줄기도 이름 목록에 넣는다`() {
         assertEquals(listOf("현규"), assertNotNull(rules.scrub("현규형 모여")).names)
     }
