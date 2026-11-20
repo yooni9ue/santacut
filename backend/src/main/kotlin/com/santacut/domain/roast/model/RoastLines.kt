@@ -18,6 +18,9 @@ class RoastLines(private val values: List<RoastLine>) {
     /** 가린 원래 낱말과 이름 줄기 전체(차단 목록). */
     fun blockedWords(): BlockedWords = BlockedWords(values.flatMap { line -> line.masked + line.names })
 
+    /** 어느 줄 본문에 [text]가 글자 그대로 있는지. */
+    fun containsText(text: String): Boolean = values.any { line -> text in line.text }
+
     /** [text]에서 [length]자 이상 이어져 어느 줄 본문에 그대로 있는 첫 구간([length]자). 공백만 있는 구간은 보지 않는다. 없으면 null이다. */
     fun sharedRun(text: String, length: Int): String? {
         if (text.length < length) return null

@@ -64,7 +64,7 @@ class RoastPromptSeedTest {
     fun `2판은 수 세는 말, 목록 밖 인용, 문장부호, 사건 단정, 오타를 따로 지시한다`() {
         assertTrue(second.contains("\"한 번\", \"두 번\", \"한두 번\""))
         assertTrue(second.contains("\"한 번 던지고\"는 \"툭 던지고\""))
-        assertTrue(second.contains("목록에 그대로 있을 때만 따옴표로 쓰고"))
+        assertTrue(second.contains("말풍선에 글자 그대로 있으면 따옴표로 써도 된다"))
         assertTrue(second.contains("# 문장부호"))
         assertTrue(second.contains("놀림과 뒤집기 열 문장은 특히 끝을 똑같이 맞춘다"))
         assertTrue(second.contains("\"실패했다\""))

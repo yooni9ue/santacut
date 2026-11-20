@@ -49,13 +49,21 @@ class RoastReviewTest {
     }
 
     @Test
-    fun `웃음과 울음 자모만 되풀이한 인용은 목록에 없어도 통과하고 자모 비속어는 떨어진다`() {
+    fun `본인 말풍선에 있는 웃음과 울음 자모 인용은 목록에 없어도 통과한다`() {
+        val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "아 진짜 ㅋㅋㅋㅋ 그건 아니지 ㅠㅠ"))
         val laugh = validJson(verdict = "'ㅋㅋㅋ' 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
         val cry = validJson(verdict = "'ㅠㅠ' 달고도 끝까지 일정을 묻던 손을 봤다. 선물 명단에 올린다.")
+
+        assertEquals(emptyList(), review(brief, laugh).checks.failedFields())
+        assertEquals(emptyList(), review(brief, cry).checks.failedFields())
+    }
+
+    @Test
+    fun `말풍선에 없는 웃음 인용과 자모 비속어 인용은 떨어진다`() {
+        val laugh = validJson(verdict = "'ㅎㅎㅎ' 붙여 넘기던 손을 봤다. 선물 명단에 올린다.")
         val curse = validJson(verdict = "'ㅅㅂ' 대신 다른 말을 고르던 손을 봤다. 선물 명단에 올린다.")
 
-        assertEquals(emptyList(), review(gift, laugh).checks.failedFields())
-        assertEquals(emptyList(), review(gift, cry).checks.failedFields())
+        assertTrue(review(gift, laugh).checks.reasonsFor(listOf("verdict")).any { reason -> reason.contains("목록 밖 인용(ㅎㅎㅎ)") })
         assertTrue(review(gift, curse).checks.reasonsFor(listOf("verdict")).any { reason -> reason.contains("목록 밖 인용(ㅅㅂ)") })
     }
 
