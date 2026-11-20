@@ -20,6 +20,13 @@ class RoastModelPropertiesTest {
     }
 
     @Test
+    fun `어림 출력 토큰 수는 1부터 출력 상한까지만 받는다`() {
+        assertFailsWith<IllegalArgumentException> { RoastModelProperties(estimatedOutputTokens = 0) }
+        assertFailsWith<IllegalArgumentException> { RoastModelProperties(maxOutputTokens = 1000, estimatedOutputTokens = 1001) }
+        assertEquals(1500, RoastModelProperties().estimatedOutputTokens)
+    }
+
+    @Test
     fun `작가 단가 기본값은 Gemini 3_5 Flash 정가이고 생각 토큰은 출력 단가로 센다`() {
         val properties = RoastModelProperties()
 

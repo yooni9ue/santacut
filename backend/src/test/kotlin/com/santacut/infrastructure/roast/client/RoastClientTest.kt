@@ -62,7 +62,16 @@ class RoastClientTest {
         assertEquals(0, roastClient.request(SYSTEM_PROMPT, USER_TEXT).usage.thoughtTokens)
     }
 
+    @Test
+    fun `호출 전 어림 사용량의 출력은 출력 상한이 아니라 어림 출력 토큰 수다`() {
+        val estimate = roastClient.estimateUsage(SYSTEM_PROMPT, USER_TEXT)
+
+        assertEquals(RoastModelProperties().estimatedOutputTokens.toLong(), estimate.outputTokens)
+        assertEquals(ESTIMATED_OUTPUT_TOKENS, estimate.outputTokens)
+    }
+
     companion object {
+        private const val ESTIMATED_OUTPUT_TOKENS = 1_500L
         private const val REPLY = "{}"
         private const val SYSTEM_PROMPT = "작가 프롬프트"
         private const val USER_TEXT = "{}"

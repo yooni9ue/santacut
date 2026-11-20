@@ -31,9 +31,9 @@ class RoastClient(
 
     fun model(): String = properties.model
 
-    /** 호출 한 번의 어림 사용량. 입력은 글자 수로, 출력은 출력 토큰 상한으로 잡는다. */
+    /** 호출 한 번의 어림 사용량. 입력은 글자 수로, 출력은 어림 출력 토큰 수([RoastModelProperties.estimatedOutputTokens])로 잡는다. */
     fun estimateUsage(systemPrompt: String, userText: String): ModelUsage = ModelUsage(
-        ScoreClient.estimatedTokens(systemPrompt.length + userText.length), properties.maxOutputTokens.toLong(), ESTIMATED_FINISH_REASON,
+        ScoreClient.estimatedTokens(systemPrompt.length + userText.length), properties.estimatedOutputTokens.toLong(), ESTIMATED_FINISH_REASON,
     )
 
     /** [systemPrompt]를 시스템 메시지로, [userText]를 사용자 메시지로 보낸다. 실패하면 본문 없는 실패 답이다(사용량 0). */
