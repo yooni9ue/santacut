@@ -99,13 +99,15 @@ santacut:
   # 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 한 구간 대화는 3번 동시에, 긴 대화는 첫 구간 뒤 최대 4구간씩 동시에 부른다(backend-design.md).
   ai.worker:
     concurrency: ${ANALYSIS_WORKER_CONCURRENCY:3}
-  # 순위 계산(backend-design.md §7.5). 변경은 요청 표시만 남기고, 커밋되면 rebuild-debounce만큼 기다려 그 사이 요청을 모아 한 번 다시 계산한다.
+  # 순위 계산(backend-design.md §7.5). 변경은 요청 표시만 남기고, 커밋되면 rebuild-debounce(지난 계산 뒤 rebuild-min-interval이 안 됐으면 남은 시간)만큼 기다려 그 사이 요청을 모아 한 번 다시 계산한다.
   # rebuild-delay-ms마다 도는 예약 작업은 커밋 뒤 예약을 놓친 요청(앱 재시작, 계산 실패)을 처리하는 안전망이다.
   # 첫 페이지 순위표는 first-page-ttl 동안 메모리에 두고, 도착 예정 시각은 12월 25일부터 delivery-window-days일(하루 6시간) 안에 맞춘다.
   ranking:
     rebuild-delay-ms: ${RANKING_REBUILD_DELAY_MS:30000}
     rebuild-after-change: true
     rebuild-debounce: 1s
+    # 지난 계산이 끝난 뒤 이만큼은 다시 계산하지 않는다. 작업이 몰려도 계산(참가자 수만큼 행 쓰기)이 이보다 잦지 않다.
+    rebuild-min-interval: 5s
     first-page-ttl: 30s
     delivery-window-days: 7
   # 참가자별 지역 변경 한도. 넘으면 429(REGION_CHANGE_LIMITED는 retry_at 있음, REGION_CHANGE_SEASON_LIMIT은 없음).

@@ -81,6 +81,7 @@ import kotlin.test.assertTrue
         "santacut.scheduling.enabled=false",
         "santacut.ranking.rebuild-after-change=true",
         "santacut.ranking.rebuild-debounce=${RankingRebuildAfterCommitTest.DEBOUNCE_MS}ms",
+        "santacut.ranking.rebuild-min-interval=0ms",
     ],
 )
 @AutoConfigureMockMvc

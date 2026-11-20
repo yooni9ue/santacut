@@ -10,6 +10,7 @@ import java.time.Duration
  * @property deliveryWindowDays 모든 참가자의 도착 예정 시각이 들어와야 하는 배송 일수(12월 25일부터, 하루 6시간)
  * @property rebuildAfterChange 순위에 영향을 주는 변경이 커밋되면 예약 작업을 기다리지 않고 곧바로 다시 계산할지
  * @property rebuildDebounce 커밋 뒤 다시 계산하기 전 기다리는 시간. 이 사이에 들어온 변경은 한 번의 계산으로 모은다
+ * @property rebuildMinInterval 커밋 뒤 다시 계산할 때 지난 계산이 끝난 뒤 지킬 최소 간격. 작업이 몰려도 계산(참가자 수만큼 행 쓰기)이 이보다 잦지 않다
  */
 @ConfigurationProperties(prefix = "santacut.ranking")
 data class RankingProperties(
@@ -17,4 +18,10 @@ data class RankingProperties(
     val deliveryWindowDays: Int = 7,
     val rebuildAfterChange: Boolean = true,
     val rebuildDebounce: Duration = Duration.ofSeconds(1),
-)
+    val rebuildMinInterval: Duration = Duration.ofSeconds(5),
+) {
+    init {
+        require(!rebuildDebounce.isNegative) { "santacut.ranking.rebuild-debounce는 0 이상이어야 한다: $rebuildDebounce" }
+        require(!rebuildMinInterval.isNegative) { "santacut.ranking.rebuild-min-interval은 0 이상이어야 한다: $rebuildMinInterval" }
+    }
+}
