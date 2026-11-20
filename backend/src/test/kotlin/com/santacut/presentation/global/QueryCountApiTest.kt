@@ -20,6 +20,7 @@ import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.service.AnalysisJobService
 import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.dossier.service.DossierService
+import com.santacut.domain.roast.service.RoastService
 import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.service.RankingService
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
@@ -63,6 +64,7 @@ class QueryCountApiTest @Autowired constructor(
     private val shareFacade: ShareFacade,
     private val assessmentService: AssessmentService,
     private val dossierService: DossierService,
+    private val roastService: RoastService,
     private val analysisJobService: AnalysisJobService,
     private val analysisJobRepository: AnalysisJobRepository,
     private val rankingService: RankingService,
@@ -97,6 +99,7 @@ class QueryCountApiTest @Autowired constructor(
         "result" to countQueries { mockMvc.perform(get("/v1/me/result").cookie(session)).andExpect(status().isOk) },
         "share page" to countQueries { mockMvc.perform(get("/s/$token")).andExpect(status().isOk) },
         "dossier" to countQueries { mockMvc.perform(get("/v1/me/dossier").cookie(session)).andExpect(status().isOk) },
+        "recap" to countQueries { mockMvc.perform(get("/v1/me/recap").cookie(session)).andExpect(status().isOk) },
     )
 
     @Test
@@ -122,6 +125,7 @@ class QueryCountApiTest @Autowired constructor(
             job.startAttempt(LEASE, now, LEASE_DURATION)
             val assessment = assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
             dossierService.record(assessment, TestDossiers.draft(TestDossiers.selves(listOf("고마워", "진짜"))), now)
+            roastService.record(assessment, roastService.fallbackDraft(score.hundredths, null, 0), now)
             job.succeed(assessment.id, now)
             analysisJobRepository.save(job)
         }
@@ -144,8 +148,11 @@ class QueryCountApiTest @Autowired constructor(
         /**
          * 결과 조회는 조서가 있는지(dossier_available)를 한 번 더 읽는다.
          * 조서 조회는 세션, 최신 평가, 최신 순위 스냅숏, 조서, 지역 이름을 한 번씩 읽는다.
+         * 리캡 조회는 세션, 최신 평가, 최신 순위 스냅숏, 팩폭 결과, 순위 계산 참가자 수, 저장한 유형 분포를 한 번씩 읽는다.
          */
-        private val EXPECTED_READ_COUNTS = mapOf("status" to 3L, "rankings" to 3L, "result" to 6L, "share page" to 1L, "dossier" to 5L)
+        private val EXPECTED_READ_COUNTS = mapOf(
+            "status" to 3L, "rankings" to 3L, "result" to 6L, "share page" to 1L, "dossier" to 5L, "recap" to 6L,
+        )
 
         /** 알릴 작업 id 목록, 작업들, 참가자별 순위 반영 시각을 한 번씩 읽는다. 작업 수와 상관없다(예전에는 작업 하나에 3번 더). */
         private const val EXPECTED_ANNOUNCE_ONE = 3L
