@@ -335,7 +335,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
   "score": 70.55,
   "score_text": "70.55",
   "share_text": "산타가 내 단톡방 다 읽음. 70.55점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐?",
-  "share_text_mild": "산타가 내 단톡방 다 읽음. 70.55점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐?",
+  "share_text_mild": "산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐.",
   "cards": [
     {"index": 0, "kind": "VERDICT", "width": 1080, "height": 1920, "score_text": "70.55",
      "score": 70.55, "cut": 65, "cut_distance": "+5.55", "cut_distance_value": 5.55, "passed": true,
@@ -386,7 +386,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | `score` | number | 아님 | 총점(소수 둘째 자리). 계산용이다 |
 | `score_text` | string | 아님 | 총점 표시 문자열(`"72.18"`). 화면에는 이 값을 그대로 찍는다 |
 | `share_text` | string | 아님 | 서버가 고정한 공유 문구. 등급마다 다르고 서버가 `score_text`를 넣어 준다(아래 등급 표). 화면에서 고치지 않는다 |
-| `share_text_mild` | string | 아님 | 석탄 농담을 끈 화면의 공유 문구(2026-11-20 추가). 통과 등급이면 `share_text`와 같고, 탈락 세 등급이면 점수 없이 `"올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐."`다 |
+| `share_text_mild` | string | 아님 | 석탄 농담을 끈 화면의 공유 문구(2026-11-20 추가). 점수와 놀림이 없다. 통과 등급이면 `"산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐."`, 탈락 세 등급이면 `"올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐."`다 |
 | `cards` | array | 아님 | 카드 목록. 순서 고정(아래). 7장 또는 8장 |
 
 리캡의 선물·석탄은 결과 응답의 `verdict`(기존 점수 판정)가 아니라 컷 65점 선물 판정이다. 둘이 다를 수 있으니 리캡 화면에서는 `skin`·`passed`·`stamp`만 쓴다.
@@ -463,9 +463,9 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 `stamp`와 `stamp_mild`, `verdict`와 `verdict_mild`:
 
 - 석탄 문구는 기본이 농담이다. 화면은 `stamp`와 `verdict`를 기본으로 보여 준다.
-- 사용자가 석탄 농담을 끄면(기획의 "석탄 농담 끄기"·[담백하게 보기] 토글) `stamp` 대신 `stamp_mild`, `verdict` 대신 `verdict_mild`, 공유할 때 `share_text` 대신 `share_text_mild`를 쓴다. 다시 부를 필요 없이 같은 응답 안에서 바꾼다. 담백 화면에서 `grade_code`가 `COAL`이면 등급 이름("석탄 당첨")은 숨긴다(조서 판결 장과 같은 규칙).
+- 사용자가 석탄 농담을 끄면(기획의 "석탄 농담 끄기"·[담백하게 보기] 토글) `stamp` 대신 `stamp_mild`, `verdict` 대신 `verdict_mild`, 공유할 때 `share_text` 대신 `share_text_mild`를 쓴다. 다시 부를 필요 없이 같은 응답 안에서 바꾼다. 담백 화면에서 탈락 세 등급(`passed: false`)은 등급 이름을 숨기고 `stamp_mild`("내년 명단 예약")만 보인다(조서 판결 장과 같은 규칙).
 - 이 토글은 서버에 저장하지 않는다. 요청 파라미터도, 응답의 톤 필드도 없다. 켜고 끈 상태는 화면이 기억한다(필요하면 기기 로컬 저장소). 조서의 `tone`(서버가 정하는 담백 톤)과는 다른 장치다.
-- 선물이면 `stamp_mild`는 `stamp`와, `share_text_mild`는 `share_text`와 같고, `verdict_mild`는 놀림 없이 선물이 간다는 문장이다. 그래서 토글은 석탄 화면에만 두어도 된다. 선물 화면에 두더라도 같은 규칙으로 두 필드를 바꾸면 된다.
+- 선물이면 `stamp_mild`는 `stamp`와 같고, `share_text_mild`는 점수와 놀림을 뺀 `"산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐."`, `verdict_mild`는 놀림 없이 선물이 간다는 문장이다. 토글은 석탄 화면에만 두어도 된다. 선물 화면에 두더라도 같은 규칙으로 필드를 바꾸면 된다.
 - 바꾸는 것은 이 세 쌍뿐이다. 칭호, 놀림, 뒤집기, 숫자는 토글과 상관없이 그대로 보인다.
 
 `rank`:
@@ -498,6 +498,7 @@ new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "
 - `chip`이 `null`이면 칩 자리를 비우고 `roast`·`flip`만 그린다. 대체 숫자나 문구를 만들어 넣지 않는다.
 - 한 카드 안에서 칩 → 놀림 → 뒤집기 순서로 읽히게 둔다. "근데"는 `flip` 문장 안에 있으니 별도 라벨로 겹쳐 찍지 않는다. 문장 앞 "근데"만 작게 꾸미려면 `flip`이 `"근데 "`로 시작하는지 먼저 확인한다. 나머지는 받은 문장 그대로 둔다.
 - 문구 v3 전에 저장된 결과는 `flip`이 "근데" 없이 시작한다. 이때도 라벨을 덧붙이지 않고 받은 문장 그대로 보인다.
+- 도장·등급 이름은 조회할 때 서버가 정하고, `title`·`verdict` 같은 AI 문장은 분석할 때 저장한 것이다. 그래서 문구 v3 전에 저장된 결과는 판결 문장이 새 도장과 어긋날 수 있다(예: 도장 "겨우 실었다" 옆에 "넉넉하게 선물이다"). 화면에서 고치지 않고 그대로 보인다.
 
 #### `LETTER` 산타 쪽지 카드
 
