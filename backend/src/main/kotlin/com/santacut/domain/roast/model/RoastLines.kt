@@ -15,8 +15,8 @@ class RoastLines(private val values: List<RoastLine>) {
      */
     fun trimmed(charsPerAct: Int): RoastLines = RoastLines(DossierAct.entries.flatMap { act -> recentWithin(act, charsPerAct) })
 
-    /** 가린 원래 낱말 전체(차단 목록). */
-    fun blockedWords(): BlockedWords = BlockedWords(values.flatMap(RoastLine::masked))
+    /** 가린 원래 낱말과 이름 줄기 전체(차단 목록). */
+    fun blockedWords(): BlockedWords = BlockedWords(values.flatMap { line -> line.masked + line.names })
 
     /** 막마다 나눈 작가 입력. 줄이 없는 막도 빈 목록으로 넣는다. */
     fun toActs(): List<RoastTranscriptAct> = DossierAct.entries.mapIndexed { index, act ->
@@ -32,10 +32,15 @@ class RoastLines(private val values: List<RoastLine>) {
     companion object {
         val EMPTY = RoastLines(emptyList())
 
-        /** 메시지 [messages] 가운데 본인 글 메시지만 순번을 매겨 가린다. 통째로 뺄 줄은 순번만 쓰고 넣지 않는다. */
-        fun of(messages: List<ScoringMessage>, rules: RoastRules): RoastLines = RoastLines(
-            messages.filter { message -> message.isSelf() && !message.isPlaceholder() }
-                .mapIndexedNotNull { index, message -> RoastLine.of(index + 1, message, rules) },
-        )
+        /**
+         * 메시지 [messages] 가운데 본인 글 메시지만 순번을 매겨 가린다. 통째로 뺄 줄은 순번만 쓰고 넣지 않는다.
+         * 두 번 가린다. 처음에 호칭·부르는 말에서 이름 줄기를 모으고, 그 줄기가 다른 줄에 호칭 없이 나와도 가린다.
+         */
+        fun of(messages: List<ScoringMessage>, rules: RoastRules): RoastLines {
+            val first = messages.filter { message -> message.isSelf() && !message.isPlaceholder() }
+                .mapIndexedNotNull { index, message -> RoastLine.of(index + 1, message, rules) }
+            val pattern = rules.namePattern(first.flatMap(RoastLine::names)) ?: return RoastLines(first)
+            return RoastLines(first.map { line -> line.remaskedBy(pattern) })
+        }
     }
 }

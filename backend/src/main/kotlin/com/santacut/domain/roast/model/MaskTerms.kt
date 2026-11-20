@@ -16,6 +16,6 @@ class MaskTerms @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
     fun violations(): List<String> = values.filter { term -> term.words.isEmpty() || term.words.any(String::isBlank) }
         .map { term -> "rules.proper_nouns.${term.label}: 낱말이 비었다" }
 
-    /** 낱말 경계 정규식으로 미리 바꿔 둔 사전. [particles]는 낱말 뒤에 붙어도 되는 조사 정규식이다. */
-    fun compile(particles: String): MaskPatterns = MaskPatterns(values.map { term -> MaskPattern(term.regex(particles), term.label) })
+    /** 낱말 앞 경계 정규식으로 미리 바꿔 둔 사전. 사전 낱말로 시작하는 흔한 말 [exceptions]는 건너뛴다. */
+    fun compile(exceptions: List<String>): MaskPatterns = MaskPatterns(values.map { term -> MaskPattern(term.regex(), term.label, exceptions) })
 }

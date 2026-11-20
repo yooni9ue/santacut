@@ -36,6 +36,19 @@ class RoastBriefTest {
     }
 
     @Test
+    fun `호칭으로 찾은 이름은 호칭 없이 나온 다른 줄에서도 가리고 줄기를 차단 목록에 넣는다`() {
+        val brief = TestRoasts.brief(
+            habitMessages() + listOf(TestDossiers.self(JULY, "현규형 언제옴"), TestDossiers.self(OCTOBER, "현규 왔냐 현규잘하네")),
+        )
+
+        val input = brief.inputText(TestRoasts.mapper)
+
+        assertFalse(input.contains("현규"))
+        assertTrue(input.contains("(이름) 왔냐 (이름)잘하네"))
+        assertEquals("현규", brief.blockedIn("올해는 현규 타령이었다"))
+    }
+
+    @Test
     fun `사실에는 숫자 값 없이 뜻·수준·계열만 들어가고 인용 후보는 사전 원형 표기다`() {
         val brief = TestRoasts.brief(habitMessages())
         val input = TestRoasts.mapper.readTree(brief.inputText(TestRoasts.mapper))

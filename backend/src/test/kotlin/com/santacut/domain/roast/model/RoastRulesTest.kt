@@ -31,11 +31,41 @@ class RoastRulesTest {
     }
 
     @Test
-    fun `사전 고유명사는 낱말 경계에서만 바꾸고 뒤에 다른 글자가 이어진 낱말은 그대로 둔다`() {
+    fun `사전 고유명사는 낱말 앞 경계에서 바꾸고 사전 낱말로 시작하는 흔한 말은 그대로 둔다`() {
         val scrubbed = assertNotNull(rules.scrub("서울에서 펜타포트 가자 대만족"))
 
         assertEquals("(장소)에서 (행사) 가자 대만족", scrubbed.text)
         assertTrue(scrubbed.masked.containsAll(listOf("서울", "펜타포트")))
+        assertEquals("성수기라 부산하네", assertNotNull(rules.scrub("성수기라 부산하네")).text)
+    }
+
+    @Test
+    fun `사전 지명 뒤에 다른 말을 붙여 써도 가린다`() {
+        assertEquals("(장소) (장소)여행 (장소)쪽", assertNotNull(rules.scrub("홍대입구 제주여행 강남쪽")).text)
+        assertEquals("(장소)가자 (행사)갔다", assertNotNull(rules.scrub("서산가자 펜파포트갔다")).text)
+    }
+
+    @Test
+    fun `호칭 없이 부른 이름은 (이름)으로 바꾸고 줄기를 이름 목록에 넣는다`() {
+        val scrubbed = assertNotNull(rules.scrub("동준아 민수야 지은이랑 성필이는 현규한테"))
+
+        assertEquals("(이름)아 (이름)야 (이름)이랑 (이름)이는 (이름)한테", scrubbed.text)
+        assertEquals(listOf("동준", "민수", "지은", "성필", "현규"), scrubbed.names)
+    }
+
+    @Test
+    fun `부르는 말과 꼴이 같은 용언과 흔한 말은 이름으로 보지 않는다`() {
+        val text = "괜찮아 먹어야 할거야 얘들아 친구야 누구한테 진짜야 놀아"
+
+        val scrubbed = assertNotNull(rules.scrub(text))
+
+        assertEquals(text, scrubbed.text)
+        assertTrue(scrubbed.names.isEmpty())
+    }
+
+    @Test
+    fun `호칭에서 떼어 낸 줄기도 이름 목록에 넣는다`() {
+        assertEquals(listOf("현규"), assertNotNull(rules.scrub("현규형 모여")).names)
     }
 
     @Test
