@@ -64,7 +64,8 @@ class DossierCatalogTest {
     private fun assertRejected(file: String, target: String, replacement: String, expected: String) {
         val exception = assertFailsWith<IllegalStateException> {
             TestDossiers.readFixture { name ->
-                val text = TestDossiers.fixtureText(name)
+                // 윈도 체크아웃(core.autocrlf)에서도 줄바꿈이 든 대상 문자열을 찾도록 LF로 맞춘다.
+                val text = TestDossiers.fixtureText(name).replace("\r\n", "\n")
                 if (name == file) text.replaceFirst(target, replacement).also { changed -> check(changed != text) } else text
             }
         }
