@@ -175,7 +175,7 @@ class RoastReviewTest {
     }
 
     @Test
-    fun `대체 문장은 판정마다 모두 검증 규칙을 통과한다`() {
+    fun `대체 문장은 판정마다 모두 검증 규칙을 통과하고 짝은 선물·석탄과 네 글자 인용에서도 통과한다`() {
         val fallback = TestRoasts.catalog.fallback
         val texts = listOf(
             RoastTextKind.TITLE to fallback.titles, RoastTextKind.VERDICT to fallback.verdicts,
@@ -185,10 +185,18 @@ class RoastReviewTest {
             lines.gift.forEach { text -> assertEquals(emptyList(), TextProblems.of(text, kind, gift, TestRoasts.catalog.rules).toList(), text) }
             lines.coal.forEach { text -> assertEquals(emptyList(), TextProblems.of(text, kind, coal, TestRoasts.catalog.rules).toList(), text) }
         }
-        val pairs = fallback.pairs.values.map { pair -> pair.toPair("x", "ㄱ?") } + fallback.genericPairs.take(RoastSheet.MIN_PAIRS)
-        pairs.forEach { pair ->
-            assertEquals(emptyList(), TextProblems.of(pair.roast, RoastTextKind.ROAST, coal, TestRoasts.catalog.rules).toList(), pair.roast)
-            assertEquals(emptyList(), TextProblems.of(pair.flip, RoastTextKind.FLIP, coal, TestRoasts.catalog.rules).toList(), pair.flip)
+        val habit = List(HABIT_LINES) { day -> TestDossiers.self(TestDossiers.START.plusDays(day.toLong()), "$FOUR_CHAR_QUOTE 언제 봄") }
+        val giftWithQuote = TestRoasts.brief(messages() + habit)
+        val coalWithQuote = TestRoasts.brief(messages() + habit, TestRoasts.COAL_SCORE)
+        assertTrue(giftWithQuote.isQuotable(FOUR_CHAR_QUOTE), "네 글자 입버릇이 인용 후보에 있어야 한다")
+        val quotes = listOf("ㄱ?", FOUR_CHAR_QUOTE)
+        val pairs = quotes.flatMap { quote -> fallback.pairs.values.map { pair -> pair.toPair("x", quote) } } +
+            fallback.genericPairs.take(RoastSheet.MIN_PAIRS)
+        listOf(giftWithQuote, coalWithQuote).forEach { brief ->
+            pairs.forEach { pair ->
+                assertEquals(emptyList(), TextProblems.of(pair.roast, RoastTextKind.ROAST, brief, TestRoasts.catalog.rules).toList(), pair.roast)
+                assertEquals(emptyList(), TextProblems.of(pair.flip, RoastTextKind.FLIP, brief, TestRoasts.catalog.rules).toList(), pair.flip)
+            }
         }
         fallback.story.values.flatten().forEach { line ->
             assertEquals(emptyList(), TextProblems.of(line, RoastTextKind.STORY, gift, TestRoasts.catalog.rules).toList(), line)
@@ -233,6 +241,10 @@ class RoastReviewTest {
 
     companion object {
         private const val SNOWFLAKE = "\u2744"
+
+        /** 인용 후보 최대 길이(quotable_max_length)의 입버릇. 사전에 있는 말이라 자주 쓰면 인용 후보가 된다. */
+        private const val FOUR_CHAR_QUOTE = "아 근데"
+        private const val HABIT_LINES = 60
     }
 
     private fun messages() = TestDossiers.selves(
