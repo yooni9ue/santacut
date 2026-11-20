@@ -4,6 +4,7 @@ import com.santacut.application.analysis.runner.AiBudgetRunner
 import com.santacut.application.analysis.runner.AnalysisWorkerRunner
 import com.santacut.application.analysis.runner.HeldJobRunner
 import com.santacut.application.global.Facade
+import com.santacut.application.roast.runner.RoastRunner
 import com.santacut.domain.analysis.model.AnalysisJob
 import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.model.ScoringAttempt
@@ -18,8 +19,9 @@ import org.springframework.scheduling.annotation.Scheduled
 /**
  * 대기 중인 분석 작업을 꺼내 AI 점수를 매기고 순위 다시 계산을 요청하는 백그라운드 작업자.
  *
- * 흐름은 `작업 잡기 → 조서 준비 → 같은 입력이면 지난 결과 재사용, 아니면 채점 → 결과 기록`, 실패하면 `정리`다.
- * 채점 스레드와 자리는 [AnalysisWorkerRunner], 리스와 트랜잭션은 [HeldJobRunner], 비용 가드와 잠금은 [AiBudgetRunner]가 맡는다.
+ * 흐름은 `작업 잡기 → 조서 준비 → 같은 입력이면 지난 결과 재사용, 아니면 채점 → 팩폭 쓰기 → 결과 기록`, 실패하면 `정리`다.
+ * 채점 스레드와 자리는 [AnalysisWorkerRunner], 리스와 트랜잭션은 [HeldJobRunner], 비용 가드와 잠금은 [AiBudgetRunner],
+ * 채점과 독립된 팩폭 작가 호출(실패해도 대체 문장)은 [RoastRunner]가 맡는다.
  *
  * AI를 부를 때마다 채점 프롬프트(`score`)의 최신 판을 DB에서 읽는다. 캐시하지 않으므로 관리자 API로 저장한 새 판이
  * 다음 작업부터 바로 쓰인다. 프롬프트가 하나도 없으면 작업은 ANALYSIS_FAILED로 실패하고 로그에 PROMPT_NOT_FOUND가 남는다.
@@ -33,6 +35,7 @@ class AnalysisWorkerFacade(
     private val workers: AnalysisWorkerRunner,
     private val heldJobs: HeldJobRunner,
     private val budget: AiBudgetRunner,
+    private val roasts: RoastRunner,
 ) {
     private val logger = LoggerFactory.getLogger(AnalysisWorkerFacade::class.java)
 
@@ -70,12 +73,17 @@ class AnalysisWorkerFacade(
         }
     }
 
-    /** 조서를 미리 만들어 두고, 채점 입력이 지난번과 같으면 지난 결과를 다시 쓰고, 아니면 AI 점수를 받아 결과를 기록한다. */
+    /**
+     * 조서를 미리 만들어 두고, 채점 입력이 지난번과 같으면 지난 결과를 다시 쓰고, 아니면 AI 점수를 받아 팩폭 문장을 쓴 뒤 결과를 기록한다.
+     * 팩폭 쓰기는 실패해도 대체 문장으로 채우므로 채점 결과 기록을 막지 않는다.
+     */
     private fun reuseOrScore(job: AnalysisJob) {
         val attempt = scoring.prepare(job, promptService.latest(PromptName.SCORE))
         val dossier = heldJobs.draftDossier(job)
         if (heldJobs.reuseIfSameDigest(attempt, dossier)) return
-        heldJobs.complete(attempt, score(attempt), dossier)
+        val scored = score(attempt)
+        val roast = roasts.write(job, scored.score.hundredths, dossier, budget::spending)
+        heldJobs.complete(attempt, scored, dossier, roast)
         budget.recordSuccess()
     }
 

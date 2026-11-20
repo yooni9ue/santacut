@@ -359,6 +359,15 @@ class AnalysisJobTest {
         createdAt,
     )
 
+    @Test
+    fun `작업 리스는 채점 구간 호출에 더해 작가 호출 수만큼 늘어나 결과 기록 전에 끝나지 않는다`() {
+        val scoreOnly = AnalysisJob.leaseDurationFor(Duration.ofSeconds(60))
+        val withWriter = AnalysisJob.leaseDurationFor(Duration.ofSeconds(60), Duration.ofSeconds(60), 3)
+
+        assertEquals(Duration.ofSeconds(180), withWriter.minus(scoreOnly))
+        assertEquals(Duration.ofSeconds(60).multipliedBy(ScoringChunks.MAX_CHUNKS.toLong()).plusMinutes(1), scoreOnly)
+    }
+
     companion object {
         private const val LEASE = "lease-1"
         private const val FILE_HASH = "file-hash"

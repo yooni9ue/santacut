@@ -12,6 +12,8 @@ import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.dossier.model.DossierDraft
 import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.ranking.service.RankingService
+import com.santacut.domain.roast.model.RoastDraft
+import com.santacut.domain.roast.service.RoastService
 import org.slf4j.LoggerFactory
 import java.time.Clock
 import java.time.Instant
@@ -32,6 +34,7 @@ class HeldJobRunner(
     private val analysisJobService: AnalysisJobService,
     private val assessmentService: AssessmentService,
     private val dossierService: DossierService,
+    private val roastService: RoastService,
     private val rankingService: RankingService,
     private val transaction: TransactionRunner,
     private val clock: Clock,
@@ -67,16 +70,17 @@ class HeldJobRunner(
     fun reuseIfSameDigest(attempt: ScoringAttempt, dossier: DossierDraft?): Boolean = transaction.call { reuseHeld(attempt, dossier) } == true
 
     /**
-     * 평가와 미리 만든 조서([dossier])를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다. 계산은 순위 다시 계산 작업자가 모아서 한다.
-     * 시즌이 이미 마감됐으면 작업 쪽 규칙에 따라 실패로 끝내고 평가를 저장하지 않는다.
+     * 평가와 미리 만든 조서([dossier]), 팩폭 결과([roast])를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다.
+     * 계산은 순위 다시 계산 작업자가 모아서 한다. 시즌이 이미 마감됐으면 작업 쪽 규칙에 따라 실패로 끝내고 평가를 저장하지 않는다.
      */
-    fun complete(attempt: ScoringAttempt, scored: ScoredAssessment, dossier: DossierDraft?) {
+    fun complete(attempt: ScoringAttempt, scored: ScoredAssessment, dossier: DossierDraft?, roast: RoastDraft) {
         transaction.run {
             val job = analysisJobService.findHeld(attempt.job) ?: return@run
             val completedAt = clock.instant()
             if (analysisJobService.freezeIfSeasonClosed(job, completedAt)) return@run
             val assessment = assessmentService.record(job, scored, completedAt)
             dossierService.record(assessment, dossier, completedAt)
+            roastService.record(assessment, roast, completedAt)
             analysisJobService.succeed(job, assessment.id, completedAt, attempt.digestHash)
             rankingService.requestRebuild()
         }
@@ -98,7 +102,10 @@ class HeldJobRunner(
         return true
     }
 
-    /** 지난 작업이 성공했으면 그 평가와 조서 집계를 옮겨 적고 순위 다시 계산을 요청한다. 실패했으면 같은 이유로 끝낸다. */
+    /**
+     * 지난 작업이 성공했으면 그 평가와 조서 집계, 팩폭 결과를 옮겨 적고 순위 다시 계산을 요청한다. 실패했으면 같은 이유로 끝낸다.
+     * 지난 팩폭 결과가 없으면(기능 전 평가) 작가 없이 대체 문장으로 저장한다.
+     */
     private fun finishLike(job: AnalysisJob, previous: AnalysisJob, digestHash: String, dossier: DossierDraft?, now: Instant) {
         val previousAssessmentId = previous.reusableAssessmentId()
         if (previousAssessmentId == null) {
@@ -107,6 +114,7 @@ class HeldJobRunner(
         }
         val assessment = assessmentService.reuse(job, previousAssessmentId, now)
         dossierService.reuse(previousAssessmentId, assessment, dossier, now)
+        roastService.reuse(previousAssessmentId, assessment, dossier, now)
         analysisJobService.succeed(job, assessment.id, now, digestHash)
         rankingService.requestRebuild()
     }

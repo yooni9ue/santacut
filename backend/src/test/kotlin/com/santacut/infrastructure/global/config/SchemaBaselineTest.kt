@@ -137,13 +137,20 @@ class SchemaBaselineTest @Autowired constructor(
 
         /**
          * schema.sql을 지운 뒤 엔티티로 새로 만든 테이블과 그 제약(생성 시각 기본값 제외). 예전 DB에는 없으니 기준 스키마와 비교하지 않는다.
-         * 산타 조서는 참가자·평가를 지우면 함께 지워지고(외래 키), 평가 하나에 하나뿐이다(seed.sql 유일 인덱스).
+         * 산타 조서와 팩폭 결과는 참가자·평가를 지우면 함께 지워지고(외래 키), 평가 하나에 하나뿐이다(seed.sql 유일 인덱스).
          */
         private val TABLES_ADDED_AFTER_BASELINE = mapOf(
             "dossiers" to listOf(
                 "FK assessment_id -> assessments.id ON DELETE CASCADE",
                 "FK user_id -> participants.id ON DELETE CASCADE",
                 "INDEX dossiers_user (user_id)",
+                "UNIQUE INDEX (assessment_id)",
+                "UNIQUE INDEX (id)",
+            ),
+            "roasts" to listOf(
+                "FK assessment_id -> assessments.id ON DELETE CASCADE",
+                "FK user_id -> participants.id ON DELETE CASCADE",
+                "INDEX roasts_user (user_id)",
                 "UNIQUE INDEX (assessment_id)",
                 "UNIQUE INDEX (id)",
             ),

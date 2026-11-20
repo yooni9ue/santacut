@@ -20,6 +20,7 @@ import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.ClientRateLimit
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
+import com.santacut.infrastructure.global.config.RoastModelProperties
 import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -38,13 +39,19 @@ class AnalysisJobService(
     private val eventPublisher: ApplicationEventPublisher,
     analysisStreamProperties: AnalysisStreamProperties,
     scoreModelProperties: ScoreModelProperties,
+    roastModelProperties: RoastModelProperties,
     clientRateLimitProperties: ClientRateLimitProperties,
 ) {
     private val submissionLimit = ClientRateLimit(
         clientRateLimitProperties.submissionsPerClient, clientRateLimitProperties.submissionWindow,
     )
     private val streamLimit = AnalysisStreamLimit(analysisStreamProperties.maxOpenStreams, analysisStreamProperties.retryAfter)
-    private val leaseDuration = AnalysisJob.leaseDurationFor(scoreModelProperties.callTimeout)
+    /** 작가 호출의 실제 HTTP 상한은 채점과 같은 클라이언트 설정이라, 작가 설정과 채점 설정 중 긴 값으로 리스를 잡는다. */
+    private val leaseDuration = AnalysisJob.leaseDurationFor(
+        scoreModelProperties.callTimeout,
+        maxOf(roastModelProperties.callTimeout, scoreModelProperties.callTimeout),
+        roastModelProperties.maxCalls(),
+    )
 
     fun toPayload(submission: AnalysisSubmission): AnalysisPayload =
         AnalysisPayload(objectMapper.writeValueAsString(submission))
