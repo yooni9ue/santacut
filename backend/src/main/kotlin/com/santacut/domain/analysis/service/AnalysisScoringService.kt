@@ -75,7 +75,8 @@ class AnalysisScoringService(
     /**
      * 대화문을 구간으로 나눠([ScoringChunks]) 구간마다 [systemPrompt]와 함께 AI에 묻는다.
      * 한 구간이면 [samples]번 동시에(가상 스레드, [ScoreAnswerCalls]) 묻고 항목별 중앙값으로 합친다.
-     * 여러 구간이면 한 번에 [chunkConcurrency]개까지 동시에 묻는다. 비용 예약은 호출 전에 모든 구간 호출의 합으로 한 번에 했다.
+     * 여러 구간이면 첫 구간을 먼저 묻고(뒤 호출이 시스템 프롬프트 캐시를 타게), 나머지를 한 번에 [chunkConcurrency]개까지 동시에 묻는다.
+     * 비용 예약은 호출 전에 모든 구간 호출의 합으로 한 번에 했다.
      * 한 호출이 예외를 던지면 그 답만 버리고 남은 답의 과반으로 합친다.
      * 호출이 끝날 때마다 그 호출의 사용량을 [recordUsage]에 넘긴다. 다른 호출이 실패해도 이미 과금된 호출은 기록된다.
      * 기록이 실패하면 로그만 남기고 이미 과금된 답은 버리지 않는다.
@@ -91,7 +92,7 @@ class AnalysisScoringService(
         ask(attempt.digest, attempt.prompt.content, recordUsage)
 
     private fun askEachChunk(chunks: List<ScoringChunk>, asker: (ScoringChunk) -> ScoreAnswer): List<ScoreAnswer> =
-        ScoreAnswerCalls.each(chunks, chunkConcurrency, asker)
+        ScoreAnswerCalls.firstThenEach(chunks, chunkConcurrency, asker)
 
     /** 사용량 기록 실패(일시적인 DB 오류 등)가 받은 답을 버리게 하지 않는다. 로그에는 예외 클래스 이름만 남긴다. */
     private fun recordSafely(usage: ModelUsage, recordUsage: (ModelUsage) -> Unit) {

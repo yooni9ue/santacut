@@ -82,6 +82,39 @@ class ScoreAnswerCallsTest {
         assertThrows<IllegalStateException> { answers.first().verifyAnswered() }
     }
 
+    @Test
+    fun `첫 구간이 끝난 뒤에 나머지 구간을 부르고 답은 구간 순서대로 돌려준다`() {
+        val firstDone = AtomicInteger()
+        val startedEarly = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.firstThenEach(List(ITEMS) { index -> index }, LIMIT) { item ->
+            if (item == 0) {
+                Thread.sleep(SLOW_CALL_MILLIS)
+                firstDone.set(1)
+            } else if (firstDone.get() == 0) {
+                startedEarly.incrementAndGet()
+            }
+            ScoreAnswer.insufficient(ModelUsage(item.toLong(), 0, "STOP"))
+        }
+
+        assertEquals(0, startedEarly.get())
+        assertEquals(List(ITEMS) { index -> index.toLong() }, answers.map { answer -> answer.usage.inputTokens })
+    }
+
+    @Test
+    fun `첫 구간 호출이 예외를 던져도 버릴 답으로 바꾸고 나머지 구간을 부른다`() {
+        val calls = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.firstThenEach(List(ITEMS) { index -> index }, LIMIT) { item ->
+            calls.incrementAndGet()
+            if (item == 0) throw IllegalStateException("AI 장애")
+            ScoreAnswer.insufficient(USAGE)
+        }
+
+        assertEquals(ITEMS, calls.get())
+        assertThrows<IllegalStateException> { answers.first().verifyAnswered() }
+    }
+
     companion object {
         private const val ITEMS = 8
         private const val LIMIT = 4

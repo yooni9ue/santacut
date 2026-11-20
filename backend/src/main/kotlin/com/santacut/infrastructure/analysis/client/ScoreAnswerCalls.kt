@@ -37,6 +37,24 @@ class ScoreAnswerCalls private constructor(private val values: List<Future<Score
             }
         }
 
+        /**
+         * 첫 항목을 먼저 혼자 부르고, 끝나면 나머지를 [each]로 한 번에 많아야 [limit]개씩 동시에 부른다. 답은 [items] 순서대로 돌려준다.
+         * 모든 호출의 앞부분(시스템 프롬프트)이 같으므로 첫 호출이 끝난 뒤 보내면 Gemini 암묵적 캐시에서 읽혀 입력 단가가 낮아진다.
+         * 모두 동시에 보내면 아무 호출도 캐시를 못 탄다(backend-design.md, 캐시 토큰).
+         */
+        fun <T> firstThenEach(items: List<T>, limit: Int, asker: (T) -> ScoreAnswer): List<ScoreAnswer> {
+            if (items.isEmpty()) return emptyList()
+            return listOf(answerOf { asker(items.first()) }) + each(items.drop(1), limit, asker)
+        }
+
+        /** 이 스레드에서 [call]을 부른다. 실행 예외는 [concurrently]처럼 버릴 답으로 바꾼다. */
+        private fun answerOf(call: () -> ScoreAnswer): ScoreAnswer =
+            try {
+                call()
+            } catch (exception: RuntimeException) {
+                ScoreAnswer.threw(exception)
+            }
+
         /** 자리 하나를 잡은 동안만 [call]을 부른다. */
         private fun holding(slots: Semaphore, call: () -> ScoreAnswer): ScoreAnswer {
             slots.acquire()
