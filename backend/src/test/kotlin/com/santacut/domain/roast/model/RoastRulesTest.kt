@@ -67,6 +67,20 @@ class RoastRulesTest {
     }
 
     @Test
+    fun `출력 숫자 검사는 한자어 수, 어림수, 붙여 쓴 수, 여러 번 같은 횟수 말도 찾는다`() {
+        listOf(
+            "삼십 분", "오 분", "이십 번", "백 번", "한두 번", "두세", "서너", "너댓", "대여섯", "열두 번", "스물한 번", "여러 번", "수차례", "두어 번",
+        ).forEach { phrase -> assertNotNull(rules.numberIn("벌써 $phrase 넘게 보냈다"), phrase) }
+    }
+
+    @Test
+    fun `출력 숫자 검사는 수가 아닌 흔한 말을 숫자로 보지 않는다`() {
+        listOf(
+            "생각한 시간이 길다", "이번엔 참았다", "구분이 안 된다", "이 분은 늘 바쁘다", "그대로 두어라", "만일 그렇다면", "천천히 보낸다", "만나서 놀자",
+        ).forEach { text -> assertNull(rules.numberIn(text), text) }
+    }
+
+    @Test
     fun `비속어와 사람 부르는 입버릇, 긴 말은 인용 후보로 넘기지 않는다`() {
         assertTrue(rules.isQuotable("giyeok_q", "ㄱ?"))
         assertTrue(!rules.isQuotable("jojija", "조지자"))
