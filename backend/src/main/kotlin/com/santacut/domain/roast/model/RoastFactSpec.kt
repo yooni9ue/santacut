@@ -9,6 +9,7 @@ import com.santacut.domain.dossier.model.MetricReading
  *
  * @property levels 백분위 수준 말 네 개. 순서는 훨씬 낮음, 낮음, 높음, 훨씬 높음이다.
  * @property chipLabel 카드 칩 이름
+ * @property weight 편집 무게(기본 1). 메시지 양에 따라 늘 튀는 지표(말풍선 수, 운행 일수, 최대 연타 등)는 낮춰 덜 뽑히게 한다.
  */
 data class RoastFactSpec(
     val key: String,
@@ -16,16 +17,19 @@ data class RoastFactSpec(
     val group: String,
     @JsonProperty("chip_label") val chipLabel: String,
     val levels: List<String>,
+    val weight: Double = DEFAULT_WEIGHT,
 ) {
     fun violations(): List<String> = listOfNotNull(
         "facts.$key: 엔진이 계산하지 않는 지표다".takeIf { DossierMetric.ofKey(key) == null },
         "facts.$key: levels는 ${LEVEL_COUNT}개다".takeUnless { levels.size == LEVEL_COUNT },
         "facts.$key: meaning·group·chip_label이 비었다".takeIf { meaning.isBlank() || group.isBlank() || chipLabel.isBlank() },
+        "facts.$key: weight는 0보다 크고 ${MAX_WEIGHT} 이하다".takeUnless { weight > 0.0 && weight <= MAX_WEIGHT },
     )
 
-    /** [reading]을 사실로 바꾼다. 백분위가 가운데([BLAND_LOW]~[BLAND_HIGH])라 밋밋하면 null이다. */
+    /** [reading]을 사실로 바꾼다. 백분위가 가운데([BLAND_LOW]~[BLAND_HIGH])라 밋밋하면 null이다. 점수는 튀는 정도 × [weight]다. */
     fun factOf(reading: MetricReading): RoastFact? = levelOf(reading.percentileRank())?.let { level ->
-        RoastFact(key, meaning, level, group, RoastChip(chipLabel, reading.formattedValue()), reading.directionKey())
+        val chip = RoastChip(chipLabel, reading.formattedValue())
+        RoastFact(key, meaning, level, group, chip, reading.directionKey(), score = extremenessOf(reading.percentileRank()) * weight)
     }
 
     private fun levelOf(percentile: Double): String? = when {
@@ -37,6 +41,10 @@ data class RoastFactSpec(
     }
 
     companion object {
+        const val DEFAULT_WEIGHT = 1.0
+        private const val MAX_WEIGHT = 2.0
+        private const val MIDDLE = 50.0
+        private const val MAX_PERCENTILE = 100.0
         private const val LEVEL_COUNT = 4
         private const val VERY_LOW_INDEX = 0
         private const val LOW_INDEX = 1
@@ -48,5 +56,8 @@ data class RoastFactSpec(
         /** 백분위가 이 사이면 남들과 비슷해 놀릴 거리가 못 된다(ㅠ 밀도 0.5처럼 작은 값 포함). */
         private const val BLAND_LOW = 35.0
         private const val BLAND_HIGH = 65.0
+
+        /** 튀는 정도(0~1). 백분위가 50이면 0이고 양 끝(0, 100)으로 갈수록 1에 가깝다. */
+        fun extremenessOf(percentile: Double): Double = (MIDDLE - minOf(percentile, MAX_PERCENTILE - percentile)) / MIDDLE
     }
 }

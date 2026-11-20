@@ -51,8 +51,8 @@ class RoastReviewTest {
     @Test
     fun `본인 말풍선에 있는 웃음과 울음 자모 인용은 목록에 없어도 통과한다`() {
         val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "아 진짜 ㅋㅋㅋㅋ 그건 아니지 ㅠㅠ"))
-        val laugh = validJson(verdict = "'ㅋㅋㅋ' 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
-        val cry = validJson(verdict = "'ㅠㅠ' 달고도 끝까지 일정을 묻던 손을 봤다. 선물 명단에 올린다.")
+        val laugh = validJson(brief.facts.keys(), verdict = "'ㅋㅋㅋ' 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
+        val cry = validJson(brief.facts.keys(), verdict = "'ㅠㅠ' 달고도 끝까지 일정을 묻던 손을 봤다. 선물 명단에 올린다.")
 
         assertEquals(emptyList(), review(brief, laugh).checks.failedFields())
         assertEquals(emptyList(), review(brief, cry).checks.failedFields())
@@ -84,7 +84,7 @@ class RoastReviewTest {
     @Test
     fun `따옴표 없이 본인 말풍선을 여덟 글자 넘게 베끼면 떨어진다`() {
         val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "오늘은 무조건 보드게임 하자"))
-        val json = validJson(verdict = "무조건 보드게임 하자고 조르던 손을 봤다. 선물 명단에 올린다.")
+        val json = validJson(brief.facts.keys(), verdict = "무조건 보드게임 하자고 조르던 손을 봤다. 선물 명단에 올린다.")
 
         val checks = review(brief, json).checks
 
@@ -137,10 +137,10 @@ class RoastReviewTest {
     @Test
     fun `쪽지 마지막 문장만 거라로 맺을 수 있고 따옴표 인용 안의 ㅋㅋ는 말투 검사에서 뺀다`() {
         val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "아 진짜 ㅋㅋㅋ 그건 아니지"))
-        val closing = validJson(letter = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내더라. 솔직히 좀 부러웠다. 내년에도 먼저 말 꺼내거라.")
-        val middle = validJson(letter = "올해 네 말풍선을 끝까지 읽었다. 먼저 말을 하거라. 그 버릇이 이 방을 깨웠다. 솔직히 좀 부러웠다. 내년에도 그대로 두마.")
-        val quoted = validJson(verdict = "'ㅋㅋㅋ' 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
-        val bare = validJson(verdict = "ㅋㅋ 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
+        val closing = validJson(brief.facts.keys(), letter = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내더라. 솔직히 좀 부러웠다. 내년에도 먼저 말 꺼내거라.")
+        val middle = validJson(brief.facts.keys(), letter = "올해 네 말풍선을 끝까지 읽었다. 먼저 말을 하거라. 그 버릇이 이 방을 깨웠다. 솔직히 좀 부러웠다. 내년에도 그대로 두마.")
+        val quoted = validJson(brief.facts.keys(), verdict = "'ㅋㅋㅋ' 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
+        val bare = validJson(brief.facts.keys(), verdict = "ㅋㅋ 치고 바로 다음 말을 꺼내던 손을 봤다. 선물 명단에 올린다.")
 
         assertEquals(emptyList(), review(brief, closing).checks.failedFields())
         assertEquals(emptyList(), review(brief, quoted).checks.failedFields())
@@ -213,23 +213,25 @@ class RoastReviewTest {
 
     private fun review(brief: RoastBrief, json: String): RoastReview = RoastReview.of(json, brief, TestRoasts.catalog.rules, TestRoasts.mapper)
 
+    /** [keys]는 리뷰할 입력의 사실 key다. 사실은 집계로 섞은 시드로 고르므로 말풍선을 더한 입력은 순서가 다를 수 있다. */
     private fun validJson(
+        keys: List<String> = factKeys,
         title: String = "단톡방 공식 물음표 자판기",
         verdict: String = "ㄱ? 치고 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.",
         verdictMild: String = "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
         letter: String = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 둬라.",
         firstFlip: String = "근데 망설이지 않고 먼저 판을 열었다. 그 손이 제일 빨랐다.",
-        secondKey: String = factKeys[1],
-        thirdKey: String = factKeys[2],
+        secondKey: String = keys[1],
+        thirdKey: String = keys[2],
     ): String = TestRoasts.mapper.writeValueAsString(
         mapOf(
             "title" to title, "verdict" to verdict, "verdict_mild" to verdictMild, "letter" to letter,
             "pairs" to listOf(
-                pair(factKeys[0], "'ㄱ?' 없이는 말이 안 시작된다. 거의 출발 신호다.", firstFlip),
+                pair(keys[0], "'ㄱ?' 없이는 말이 안 시작된다. 거의 출발 신호다.", firstFlip),
                 pair(secondKey, "웃음을 치기 시작하면 손을 뗄 줄 모른다. 키보드가 고생이다.", "근데 웃길 때는 끝까지 크게 웃었다. 그게 다 남았다."),
                 pair(thirdKey, "물음표가 말끝에 자꾸 매달린다. 취조실이 따로 없다.", "근데 궁금한 건 그냥 넘기지 않고 꼭 물어봤다."),
-                pair(factKeys[3], "대답을 짧게 끊어 던진다. 말풍선이 거의 신호등이다.", "근데 망설이지 않고 바로바로 답을 던졌다. 빠른 손이었다."),
-                pair(factKeys[4], "말풍선을 쪼개서 연달아 보낸다. 알림이 줄줄이 울린다.", "근데 생각나는 대로 바로바로 꺼내 놓았다. 숨김이 없었다."),
+                pair(keys[3], "대답을 짧게 끊어 던진다. 말풍선이 거의 신호등이다.", "근데 망설이지 않고 바로바로 답을 던졌다. 빠른 손이었다."),
+                pair(keys[4], "말풍선을 쪼개서 연달아 보낸다. 알림이 줄줄이 울린다.", "근데 생각나는 대로 바로바로 꺼내 놓았다. 숨김이 없었다."),
             ),
             "story" to listOf(story(1, "새해 들어서는 판부터 깔자고 졸랐다."), story(2, "한여름에는 조용히 숨을 골랐다."), story(3, "연말에는 다시 먼저 말을 꺼냈다.")),
         ),

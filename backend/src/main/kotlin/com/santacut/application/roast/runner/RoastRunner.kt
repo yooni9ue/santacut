@@ -36,11 +36,11 @@ class RoastRunner(
         dossier: DossierDraft?,
         spending: (ModelUsage, ((ModelUsage) -> Unit) -> RoastSheet) -> RoastSheet,
     ): RoastDraft {
-        val seed = roastService.seedOf(job.id)
+        val seed = roastService.seedOf(job.userId, job.createdAt)
         if (!roastService.isEnabled()) return fallback(job, hundredths, dossier, seed)
         return try {
             val prompt = promptService.latest(PromptName.ROAST)
-            val brief = roastService.brief(job, hundredths, dossier)
+            val brief = roastService.brief(job, hundredths, dossier, seed)
             val sheet = spending(roastService.estimateUsage(brief, prompt)) { record -> roastService.ask(brief, prompt, record) }
             roastService.draft(brief, sheet, prompt, seed)
         } catch (exception: Exception) {

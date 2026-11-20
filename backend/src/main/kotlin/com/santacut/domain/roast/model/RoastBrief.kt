@@ -56,6 +56,7 @@ class RoastBrief(
          * 본인 줄만 쓰고, 사람 이름·사는 곳 이름·숫자·영문·링크는 가린다. 지명·가게·행사 이름은 그대로 둔다. [stats]가 없으면(조서 집계 실패) 사실·인용·화제 없이 보낸다.
          * 입버릇은 지금 사전으로 다시 읽은 집계를 쓴다. 테스트·실측 도구에서도 이 함수로 입력을 만든다.
          * 대화 참여자 이름 [participants](원본 파일 제출만 있음)는 모든 줄에서 가리고 차단 목록에 넣는다.
+         * [seed]는 사실 고르기 시드다([RoastFacts.of]). 같은 참가자·같은 해면 같은 값을 넘겨 재시도에도 같은 사실이 나오게 한다.
          */
         fun compose(
             messages: List<ScoringMessage>,
@@ -64,12 +65,13 @@ class RoastBrief(
             catalog: RoastCatalog,
             dossier: DossierCatalog,
             participants: ParticipantNames = ParticipantNames.EMPTY,
+            seed: Int = 0,
         ): RoastBrief {
             val all = RoastLines.of(messages, catalog.rules, participants)
             val refreshed = stats?.refreshedBy(dossier.phrases)
             return RoastBrief(
                 verdict,
-                refreshed?.let { counted -> RoastFacts.of(counted, dossier, catalog) } ?: RoastFacts.EMPTY,
+                refreshed?.let { counted -> RoastFacts.of(counted, dossier, catalog, seed) } ?: RoastFacts.EMPTY,
                 refreshed?.let { counted -> RoastQuotes.of(counted, catalog.rules) } ?: RoastQuotes.EMPTY,
                 refreshed?.let { counted -> RoastTopics.of(counted, dossier.topics, catalog.rules.excludedTopics) } ?: RoastTopics.EMPTY,
                 all.trimmed(CHARS_PER_ACT),

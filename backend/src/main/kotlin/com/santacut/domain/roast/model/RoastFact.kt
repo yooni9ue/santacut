@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
  * @property group 사실의 계열. 한 계열이 재료를 독차지하지 않게 고를 때 겹치지 않게 한다.
  * @property fallbackKey 대체 짝을 고르는 key. 지표는 방향 key(높으면 key, 낮으면 key_low), 입버릇은 phrase다.
  * @property quote 입버릇 사실이면 그 표기(대체 문장에 끼운다), 아니면 null이다.
+ * @property score 고르기 점수(튀는 정도 × 편집 무게, 0~). 클수록 앞자리에 뽑힐 가능성이 크다. 서버만 쓴다.
  */
 data class RoastFact(
     val key: String,
@@ -18,4 +19,5 @@ data class RoastFact(
     @get:JsonIgnore val chip: RoastChip,
     @get:JsonIgnore val fallbackKey: String,
     @get:JsonIgnore val quote: String? = null,
+    @get:JsonIgnore val score: Double = 0.0,
 )
