@@ -115,7 +115,7 @@ Lightsail의 열기는 기존 CIDR에 더하는 방식이고, 닫기는 지정�
 | `app.session-same-site` (`APP_SESSION_SAME_SITE`) | `Lax` | 세션·CSRF 쿠키의 SameSite(`Strict`, `Lax`, `None`). `None`은 `APP_SESSION_SECURE=true`일 때만 쓸 수 있고, 아니면 앱이 뜨지 않는다. dev만 `None`으로 둬 `http://localhost:3000`에서도 쿠키가 실리게 한다 |
 | `app.season-year` (`APP_SEASON_YEAR`) | `2026` | 시즌 연도. 그해 12월 25일 0시(KST)에 마감한다 |
 | `app.origin-lat`, `app.origin-lon` (`SANTA_ORIGIN_LAT`, `SANTA_ORIGIN_LON`) | 여의도 좌표 | 산타 출발 좌표. 응답에 내보내지 않는다 |
-| `santacut.ai.poll-delay-ms` | `3000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |
+| `santacut.ai.poll-delay-ms` | `1000` | 분석 작업자가 다음 작업을 찾기 전에 쉬는 시간 |
 | `santacut.upload.poll-delay-ms` | `1000` | 원본 파일 검증 작업자가 다음 원본을 찾기 전에 쉬는 시간 |
 | `santacut.ai.worker.concurrency` (`ANALYSIS_WORKER_CONCURRENCY`) | `3` | 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 보통 3번 동시에 부르므로 동시 호출은 이 값의 3~6배다 |
 | `spring.ai.google.genai.api-key` (`GEMINI_API_KEY`) | 없음 | Gemini Developer API 키. 없으면 앱이 뜨지 않는다 |
@@ -152,7 +152,7 @@ IP 한도는 앱 메모리에서 센다. 앱이 하나뿐이라 충분하지만 
 - 변경 후 시험에서는 오류가 없었고 Gemini 429와 작업자 멈춤도 없었다. 업로드 응답은 p95 0.8초 안이다. 앱 CPU는 평균 25%, 순간 최대 111%였다.
 - 작업 하나의 Gemini 호출은 1~2초다. 변경 전에는 작업이 끝날 때마다 3초를 쉬고, 같은 스레드에서 원본 검증도 번갈아 해 작업당 약 4.2초가 걸렸다(시간당 약 850건).
 - 지금은 채점 스레드 3개가 쉬지 않고 이어서 채점한다. 30명이 몰려도 33초 안에 끝나 시간당 약 3,200건을 처리한다. 이때 병목은 원본 파일 검증 작업자다(한 번에 하나, 1초 간격). 이벤트 제출(`POST /v1/analyses`)은 검증을 거치지 않는다.
-- 시간당 300건(12초에 1건)이면 대기열이 거의 쌓이지 않는다. 결과까지는 5~10초다. 검증 대기 1초, 작업자 폴링 3초, 채점 2초 안팎을 더한 값이다.
+- 시간당 300건(12초에 1건)이면 대기열이 거의 쌓이지 않는다. 결과까지는 5~10초다. 검증 대기 1초, 작업자 폴링 3초, 채점 2초 안팎을 더한 값이다(2026-11-20 전 기록, 지금 폴링은 1초다).
 - 동시 작업 수를 더 올리기 전에 Gemini 요청 한도(429)와 순위 재계산 시간을 본다. 순위 재계산은 작업마다 하나뿐인 DB 커넥션을 쥐고 줄을 선다. 참가자가 많아지면 이 부분이 먼저 느려진다.
 
 ### 업로드 크기 제한
