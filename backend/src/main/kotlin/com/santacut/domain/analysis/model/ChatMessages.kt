@@ -16,6 +16,9 @@ class ChatMessages(private val values: List<ChatMessage>) {
         return this
     }
 
+    /** 참여자 표시 이름(본인 포함, 처음 나온 순서, 공백 정리). 팩폭 작가 입력에서 이름을 가리는 데만 쓰고 로그·응답에 넣지 않는다. */
+    fun speakerNames(): List<String> = values.map { message -> message.speaker.trim() }.filter(String::isNotEmpty).distinct()
+
     /** 시각순으로 놓는다. 같은 시각 메시지는 원래 순서를 지킨다. */
     fun sortedByTime(): ChatMessages = ChatMessages(values.sortedBy { it.occurredAt })
 

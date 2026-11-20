@@ -42,12 +42,12 @@ class RoastLines(private val values: List<RoastLine>) {
 
         /**
          * 메시지 [messages] 가운데 본인 글 메시지만 순번을 매겨 가린다. 빈 본문은 순번만 쓰고 넣지 않는다.
-         * 두 번 가린다. 처음에 호칭·부르는 말에서 이름 줄기를 모으고, 그 줄기가 다른 줄에 호칭 없이 나와도 가린다.
+         * 두 번 가린다. 처음에 호칭·부르는 말에서 이름 줄기를 모으고, 그 줄기와 참여자 이름 [participants]가 어느 줄에 나와도 가린다.
          */
-        fun of(messages: List<ScoringMessage>, rules: RoastRules): RoastLines {
+        fun of(messages: List<ScoringMessage>, rules: RoastRules, participants: ParticipantNames = ParticipantNames.EMPTY): RoastLines {
             val first = messages.filter { message -> message.isSelf() && !message.isPlaceholder() }
                 .mapIndexedNotNull { index, message -> RoastLine.of(index + 1, message, rules) }
-            val pattern = rules.namePattern(first.flatMap(RoastLine::names)) ?: return RoastLines(first)
+            val pattern = rules.namePattern(first.flatMap(RoastLine::names) + participants.toList()) ?: return RoastLines(first)
             return RoastLines(first.map { line -> line.remaskedBy(pattern) })
         }
     }

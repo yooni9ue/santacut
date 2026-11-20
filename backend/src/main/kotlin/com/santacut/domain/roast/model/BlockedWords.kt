@@ -10,6 +10,9 @@ class BlockedWords(private val values: List<String>) {
 
     fun size(): Int = values.distinct().size
 
+    /** [words]를 더한 차단 목록. */
+    fun plus(words: List<String>): BlockedWords = BlockedWords(values + words)
+
     companion object {
         val EMPTY = BlockedWords(emptyList())
     }

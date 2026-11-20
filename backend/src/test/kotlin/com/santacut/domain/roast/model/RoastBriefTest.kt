@@ -2,6 +2,7 @@ package com.santacut.domain.roast.model
 
 import com.santacut.TestDossiers
 import com.santacut.TestRoasts
+import com.santacut.domain.analysis.model.GiftVerdict
 import org.junit.jupiter.api.Test
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
@@ -47,6 +48,22 @@ class RoastBriefTest {
         assertFalse(input.contains("현규"))
         assertTrue(input.contains("(이름) 왔냐 (이름)잘하네"))
         assertEquals("현규", brief.blockedIn("올해는 현규 타령이었다"))
+    }
+
+    @Test
+    fun `원본 파일의 참여자 이름은 조사가 붙어도 모든 줄에서 가리고 차단 목록에 넣는다`() {
+        val messages = habitMessages() + TestDossiers.self(JULY, "성필이 서산풀코스 가능?")
+        val participants = ParticipantNames.of(listOf("평친성필", "평친동준", "윤현식"))
+
+        val brief = RoastBrief.compose(
+            messages, TestDossiers.tally(messages, TestRoasts.dossier).stats, GiftVerdict(TestRoasts.GIFT_SCORE), TestRoasts.catalog, TestRoasts.dossier,
+            participants,
+        )
+
+        val input = brief.inputText(TestRoasts.mapper)
+        assertFalse(input.contains("성필"))
+        assertTrue(input.contains("(이름)이 서산풀코스 가능?"))
+        assertEquals("동준", brief.blockedIn("올해 동준 타령"))
     }
 
     @Test

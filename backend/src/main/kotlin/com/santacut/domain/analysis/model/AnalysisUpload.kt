@@ -57,15 +57,17 @@ class AnalysisUpload(
      * 인스타그램 JSON은 [readInstagramThread]로 읽는다. 본인 이벤트가 20개보다 적으면 INSUFFICIENT_EVENTS다.
      * 한도에 맞춰 고르기 전의 분석 기간 이벤트 전체로 [tallyDossier]가 조서 집계를 세어 함께 담는다. 채점 입력은 고른 표본이지만
      * 메시지 수·달별 분포 같은 조서 숫자는 올해 전체 기준이어야 하기 때문이다. 집계에 실패하면 null이고 검증은 그대로 통과한다.
+     * 참여자 표시 이름(본인 포함)도 담아 팩폭 작가 입력에서 이름을 가리게 한다.
      */
     fun normalize(
         now: Instant,
         readInstagramThread: (String) -> InstagramThread,
         tallyDossier: (DataSource, AnalysisEvents) -> DossierTally?,
     ): AnalysisSubmission {
-        val events = toRawFile().readMessages(readInstagramThread).eventsFor(selfSpeaker).inPeriodAt(now)
+        val messages = toRawFile().readMessages(readInstagramThread)
+        val events = messages.eventsFor(selfSpeaker).inPeriodAt(now)
         val submission = AnalysisSubmission(source, events.selectedAt(now)).also { it.verifyAcceptableAt(now) }
-        return submission.withDossier(tallyDossier(source, events))
+        return submission.withDossier(tallyDossier(source, events)).withSpeakerNames(messages.speakerNames())
     }
 
     private fun toRawFile(): RawChatFile = RawChatFile(source, content)

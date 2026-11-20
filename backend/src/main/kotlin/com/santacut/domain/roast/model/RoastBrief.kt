@@ -49,6 +49,7 @@ class RoastBrief(
          * 메시지 [messages](본인과 상대, 시각순, 한국 시각)와 조서 집계 [stats], 선물 판정 [verdict]로 입력을 조립한다.
          * 본인 줄만 쓰고, 사람 이름·사는 곳 이름·숫자·영문·링크는 가린다. 지명·가게·행사 이름은 그대로 둔다. [stats]가 없으면(조서 집계 실패) 사실·인용·화제 없이 보낸다.
          * 입버릇은 지금 사전으로 다시 읽은 집계를 쓴다. 테스트·실측 도구에서도 이 함수로 입력을 만든다.
+         * 대화 참여자 이름 [participants](원본 파일 제출만 있음)는 모든 줄에서 가리고 차단 목록에 넣는다.
          */
         fun compose(
             messages: List<ScoringMessage>,
@@ -56,8 +57,9 @@ class RoastBrief(
             verdict: GiftVerdict,
             catalog: RoastCatalog,
             dossier: DossierCatalog,
+            participants: ParticipantNames = ParticipantNames.EMPTY,
         ): RoastBrief {
-            val all = RoastLines.of(messages, catalog.rules)
+            val all = RoastLines.of(messages, catalog.rules, participants)
             val refreshed = stats?.refreshedBy(dossier.phrases)
             return RoastBrief(
                 verdict,
@@ -65,7 +67,7 @@ class RoastBrief(
                 refreshed?.let { counted -> RoastQuotes.of(counted, catalog.rules) } ?: RoastQuotes.EMPTY,
                 refreshed?.let { counted -> RoastTopics.of(counted, dossier.topics, catalog.rules.excludedTopics) } ?: RoastTopics.EMPTY,
                 all.trimmed(CHARS_PER_ACT),
-                all.blockedWords(),
+                all.blockedWords().plus(participants.toList()),
             )
         }
     }
