@@ -30,12 +30,18 @@ data class VerdictCardResponse(
     val cutDistanceValue: BigDecimal,
     @field:Schema(description = "선물을 받으면(65점 이상) true입니다. 재심은 없습니다.")
     val passed: Boolean,
-    @field:Schema(description = "도장 문구. 선물이면 '선물 배송 확정', 아니면 '석탄'입니다.", example = "선물 배송 확정")
+    @field:Schema(
+        description = "도장 문구. 등급마다 다릅니다(산타 최애, 선물 실었다, 겨우 실었다, 아깝다 진짜, 산타 읽씹, 반품 불가).",
+        example = "겨우 실었다",
+    )
     val stamp: String,
     @field:JsonProperty("stamp_mild")
-    @field:Schema(description = "농담을 끈 사람의 도장 문구. 석탄 대신 '선물은 내년에'입니다.", example = "선물 배송 확정")
+    @field:Schema(description = "농담을 끈 사람의 도장 문구. 통과 등급은 stamp와 같고, 탈락 세 등급은 '내년 명단 예약'입니다.", example = "겨우 실었다")
     val stampMild: String,
-    @field:Schema(description = "등급 이름(특급, 선물 배송 출발, 턱걸이 통과, 한 끗, 명단 밖, 석탄)", example = "턱걸이 통과")
+    @field:Schema(
+        description = "등급 이름(굴뚝 프리패스, 썰매 탑승 완료, 굴뚝에 걸쳐서 통과, 굴뚝 앞 유턴, 명단에 없음, 석탄 당첨)",
+        example = "굴뚝에 걸쳐서 통과",
+    )
     val grade: String,
     @field:JsonProperty("grade_code")
     @field:Schema(
@@ -51,7 +57,7 @@ data class VerdictCardResponse(
     @field:JsonProperty("delivery_eta")
     @field:Schema(description = "선물 도착 예정 시각(UTC). 석탄이거나 순위 계산 전이면 null입니다.", format = "date-time", nullable = true)
     val deliveryEta: String?,
-    @field:Schema(description = "칭호", example = "물음표 신호탄 요정")
+    @field:Schema(description = "칭호", example = "단톡방 공식 'ㄱ?' 자판기")
     val title: String,
     @field:Schema(description = "판결 한 줄(농담)")
     val verdict: String,

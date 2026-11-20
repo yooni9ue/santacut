@@ -29,7 +29,7 @@ class DossierSubject(
     /** 판결 장 제목과 문구 슬롯에 쓰는 「팩폭 산타」 선물 판정. 기존 결과 API의 점수 판정 제목은 쓰지 않는다. */
     val gift: GiftVerdict = GiftVerdict(scoreHundredths)
 
-    /** 판결 제목(도장과 등급). 예: "선물 배송 확정 · 턱걸이 통과". */
+    /** 판결 제목(도장과 등급). 예: "겨우 실었다 · 굴뚝에 걸쳐서 통과". */
     val verdictTitle: String = gift.headline()
 
     fun band(): VerdictBand = VerdictBand.of(ScoreVerdict.of(scoreHundredths))

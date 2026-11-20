@@ -714,7 +714,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
             "title" to title,
             "verdict" to "말풍선마다 고맙다는 말을 얹었다. 선물 명단에 이름 적어 둔다.",
             "verdict_mild" to "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
-            "letter" to "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 두어라.",
+            "letter" to "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 둬라.",
             "pairs" to emptyList<Any>(),
             "story" to listOf(1, 2, 3).map { act -> mapOf("act" to act, "line" to "그 막에는 고맙다는 말을 먼저 꺼냈다.") },
         ),
@@ -801,7 +801,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
         private const val ROAST_PROMPT = "작가 프롬프트 1판"
         private const val ROAST_MODEL = "gemini-3.5-flash"
-        private const val VALID_TITLE = "고맙다 연타 요정"
+        private const val VALID_TITLE = "고맙다 연타 담당자"
         private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
         private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"

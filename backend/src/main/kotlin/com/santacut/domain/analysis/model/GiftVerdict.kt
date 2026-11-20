@@ -24,19 +24,19 @@ data class GiftVerdict(val hundredths: Int) {
     /** 총점 표시. 소수 둘째 자리까지 쓴다("73.73"). */
     fun scoreText(): String = (if (hundredths < 0) MINUS else "") + pointsText(abs(hundredths))
 
-    /** 도장 문구. 선물이면 "선물 배송 확정", 아니면 "석탄"이다. */
-    fun stamp(): String = if (passed) GIFT_STAMP else COAL_STAMP
+    /** 도장 문구. 등급마다 다르다([GiftGrade.stamp]). 예: 굴뚝에 걸쳐서 통과면 "겨우 실었다". */
+    fun stamp(): String = grade().stamp
 
-    /** 농담을 끈 사람의 도장 문구. 석탄 대신 "선물은 내년에"다. */
-    fun stampMild(): String = if (passed) GIFT_STAMP else MILD_COAL_STAMP
+    /** 농담을 끈 사람의 도장 문구. 통과 등급은 도장과 같고, 탈락 세 등급은 "내년 명단 예약"이다. */
+    fun stampMild(): String = if (passed) stamp() else MILD_COAL_STAMP
 
-    /** 판결 제목. 도장과 등급을 잇고, 등급 이름이 도장과 같으면(석탄) 도장만 쓴다. 예: "선물 배송 확정 · 턱걸이 통과". */
-    fun headline(): String = joined(stamp(), grade().label)
+    /** 판결 제목. 도장과 등급을 잇는다. 예: "겨우 실었다 · 굴뚝에 걸쳐서 통과". */
+    fun headline(): String = stamp() + SEPARATOR + grade().label
 
-    /** 농담을 끈 판결 제목. 석탄 등급 이름은 쓰지 않는다. */
-    fun mildHeadline(): String = if (grade() == GiftGrade.COAL) stampMild() else joined(stampMild(), grade().label)
+    /** 농담을 끈 판결 제목. 통과 등급은 도장과 등급을 잇고, 탈락 세 등급은 등급 이름 없이 "내년 명단 예약"만 쓴다. */
+    fun mildHeadline(): String = if (passed) headline() else stampMild()
 
-    fun margin(): CutMargin = CutMargin.of(cutDistanceHundredths())
+    fun margin(): CutMargin = CutMargin.of(grade())
 
     /** 작가 입력과 저장에 쓰는 판정 key. 선물이면 gift, 아니면 coal이다. */
     fun key(): String = if (passed) GIFT_KEY else COAL_KEY
@@ -44,10 +44,11 @@ data class GiftVerdict(val hundredths: Int) {
     /** 리캡 카드 스킨. 선물이면 GIFT, 아니면 COAL이다. */
     fun skin(): String = key().uppercase()
 
-    /** 서버가 고정한 공유 문구. */
-    fun shareText(): String = if (passed) GIFT_SHARE_TEXT else COAL_SHARE_TEXT
+    /** 서버가 고정한 공유 문구. 등급마다 다르고 총점 표시를 넣는다([GiftGrade.shareTextWith]). */
+    fun shareText(): String = grade().shareTextWith(scoreText())
 
-    private fun joined(stamp: String, gradeLabel: String): String = if (stamp == gradeLabel) stamp else stamp + SEPARATOR + gradeLabel
+    /** 농담을 끈 사람의 공유 문구. 점수와 놀림 없이 통과면 선물 받은 문구, 탈락이면 내년으로 미룬 문구 하나다. */
+    fun shareTextMild(): String = if (passed) MILD_GIFT_SHARE_TEXT else MILD_COAL_SHARE_TEXT
 
     private fun pointsText(absoluteHundredths: Int): String =
         (absoluteHundredths / HUNDRED).toString() + DECIMAL_POINT + (absoluteHundredths % HUNDRED).toString().padStart(2, ZERO)
@@ -66,10 +67,8 @@ data class GiftVerdict(val hundredths: Int) {
         private const val MINUS = "-"
         private const val DECIMAL_POINT = "."
         private const val SEPARATOR = " · "
-        private const val GIFT_STAMP = "선물 배송 확정"
-        private const val COAL_STAMP = "석탄"
-        private const val MILD_COAL_STAMP = "선물은 내년에"
-        private const val GIFT_SHARE_TEXT = "산타 공식 인증. 올해 선물 받음. 너는?"
-        private const val COAL_SHARE_TEXT = "나 올해 석탄이래. 사유 봐라."
+        private const val MILD_COAL_STAMP = "내년 명단 예약"
+        private const val MILD_GIFT_SHARE_TEXT = "산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐."
+        private const val MILD_COAL_SHARE_TEXT = "올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐."
     }
 }

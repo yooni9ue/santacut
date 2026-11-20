@@ -12,7 +12,7 @@ class VerdictScene(private val context: SceneContext, private val extremes: Metr
         SceneLines.numbered(listOfNotNull(reason(), note(), lowBand())), delivery(), null, true,
     )
 
-    /** 선물 판정 제목. 담백 톤이면 석탄 대신 "선물은 내년에"를 쓴다. */
+    /** 선물 판정 제목. 담백 톤이면 탈락 세 등급은 등급 이름 없이 "내년 명단 예약"만 쓴다. */
     private fun headline(): String = if (context.isMild()) subject.gift.mildHeadline() else subject.verdictTitle
 
     /** 최고점 항목에서 가장 많이 쓴 따뜻한 말과 그 횟수. 그 항목의 말을 한 번도 안 썼으면 뺀다. */

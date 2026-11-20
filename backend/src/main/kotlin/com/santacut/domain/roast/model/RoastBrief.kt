@@ -20,7 +20,9 @@ class RoastBrief(
 ) {
     /** 작가 입력. 다시 쓰기면 [rewrite]를 싣는다. */
     fun input(rewrite: RoastRewrite? = null): RoastInput =
-        RoastInput(verdict.key(), verdict.margin().word, facts, quotes, topics, lines.toActs(), rewrite)
+        RoastInput(
+            verdict.key(), verdict.margin().word, verdict.grade().name, verdict.grade().temperature, facts, quotes, topics, lines.toActs(), rewrite,
+        )
 
     /** 작가 사용자 메시지 본문(JSON 한 줄). 테스트·실측 도구에서도 이 함수로 입력을 만든다. */
     fun inputText(objectMapper: ObjectMapper, rewrite: RoastRewrite? = null): String = objectMapper.writeValueAsString(input(rewrite))

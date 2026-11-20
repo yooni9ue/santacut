@@ -10,7 +10,9 @@ import java.time.Instant
  *
  * @property cutDistance 컷 거리 표시("+8.73", "-3.20")
  * @property cutDistanceValue 컷 거리 숫자(점, 소수 둘째 자리)
- * @property grade 등급 이름(특급, 선물 배송 출발, 턱걸이 통과, 한 끗, 명단 밖, 석탄)
+ * @property stamp 도장 문구(등급마다 다르다)
+ * @property stampMild 농담을 끈 도장 문구. 탈락 세 등급은 "내년 명단 예약"이다.
+ * @property grade 등급 이름(굴뚝 프리패스, 썰매 탑승 완료, 굴뚝에 걸쳐서 통과, 굴뚝 앞 유턴, 명단에 없음, 석탄 당첨)
  * @property gradeCode 등급 코드([com.santacut.domain.analysis.model.GiftGrade] 이름)
  * @property rank 전국 순위. 표본이 모자라거나 이 평가가 아직 순위에 오르지 않았으면 null이다.
  * @property deliveryEta 선물 도착 예정 시각. 석탄이거나 순위 계산 전이면 null이다.

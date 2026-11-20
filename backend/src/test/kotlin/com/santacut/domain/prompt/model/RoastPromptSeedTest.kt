@@ -1,5 +1,6 @@
 package com.santacut.domain.prompt.model
 
+import com.santacut.domain.roast.model.RoastTextKind
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
@@ -10,11 +11,13 @@ import kotlin.test.assertTrue
 /**
  * 팩폭 작가 프롬프트 시드. 1판은 사람 이름만 가리는 입력 규칙과 연말 장부·다양성 지시를 담는다.
  * 2판은 1판을 그대로 두고 첫 응답이 떨어지던 까닭(글자 수, 수 세는 말, 목록 밖 인용)과 문장부호·사건 단정·오타 지시를 더한다.
+ * 3판은 2판에 v3 말투 규칙(짧은 반말, "근데 "로 여는 뒤집기, 등급 온도)을 더하고, 서버 검증과 같은 글자 수 범위를 준다.
  */
 class RoastPromptSeedTest {
     private val sql: String by lazy { Files.readString(Path.of("src/main/resources/prompts.sql")) }
     private val prompt: String by lazy { contentOf(HEAD) }
     private val second: String by lazy { contentOf(SECOND_HEAD) }
+    private val third: String by lazy { contentOf(THIRD_HEAD) }
 
     private fun contentOf(head: String): String {
         val start = sql.indexOf(head).also { index -> check(index >= 0) { "시드 없음: $head" } } + head.length
@@ -72,8 +75,45 @@ class RoastPromptSeedTest {
         assertFalse(second.contains("두세 문장"))
     }
 
+    @Test
+    fun `3판은 말투 규칙과 2판의 입력·안전 규칙을 함께 지닌다`() {
+        assertTrue(third.contains("# 말투 규칙"))
+        assertTrue(third.contains("'~하거라', '~보아라', '~하였다', '~구나', '~습니다'"))
+        assertTrue(third.contains("letter의 마지막 문장에서만 '~마', '~거라'를 써도 된다"))
+        assertTrue(third.contains("(이름), (집), (숫자), (링크), (영문)"))
+        assertTrue(third.contains("실제 사람 이름과 별명을 쓰지 않는다"))
+        assertTrue(third.contains("욕설과 비속어는 인용하지도 쓰지도 않는다"))
+    }
+
+    @Test
+    fun `3판은 '말끝마다'를 level이 훨씬일 때만 허용해 말투 규칙과 반드시 지킬 것이 어긋나지 않는다`() {
+        assertTrue(third.contains("'말끝마다', '밤만 되면'처럼 늘 그렇다는 말은 그 사실의 level이 '훨씬'일 때만 쓰고"))
+        assertTrue(third.contains("\"말끝마다\", \"매번\", \"항상\", \"모든\"은 그 사실의 level이 \"훨씬\"일 때만 쓴다"))
+        assertFalse(third.contains("양은 '말끝마다', '밤만 되면', '듣기도 전에'로 말한다"))
+    }
+
+    @Test
+    fun `3판의 뒤집기는 근데로 시작하고 글자 수 범위가 서버 검증과 같다`() {
+        assertTrue(third.contains("반드시 \"근데 \"로 시작한다"))
+        assertTrue(third.contains("화면은 \"근데\"를 따로 붙이지 않으니"))
+        listOf(RoastTextKind.ROAST, RoastTextKind.FLIP, RoastTextKind.TITLE, RoastTextKind.VERDICT, RoastTextKind.LETTER, RoastTextKind.STORY)
+            .forEach { kind -> assertTrue(third.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        val ruler = Regex("""- (\d+)자: 「([^」]+)」""").findAll(third).toList()
+        ruler.forEach { match -> assertEquals(match.groupValues[1].toInt(), match.groupValues[2].length) }
+    }
+
+    @Test
+    fun `3판은 작가 입력의 등급 온도를 따르고 셈말과 붙여 쓴 한마디를 구분한다`() {
+        assertTrue(third.contains("- temperature: 등급 온도다."))
+        assertTrue(third.contains("\"아슬아슬 통과\"(SCRAPED_THROUGH)"))
+        assertTrue(third.contains("'아슬아슬 통과'에 '넉넉하다'고 쓰지 않는다"))
+        assertTrue(third.contains("\"한 포대\", \"세 줄\", \"하나\", \"첫째\""))
+        assertTrue(third.contains("띄어 쓴 \"한 마디\"는 수를 세는 말이다"))
+    }
+
     companion object {
         private const val HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0001','roast',1,'"
         private const val SECOND_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0002','roast',2,'"
+        private const val THIRD_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0003','roast',3,'"
     }
 }
