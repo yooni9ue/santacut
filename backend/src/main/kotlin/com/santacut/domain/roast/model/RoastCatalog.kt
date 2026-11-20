@@ -14,5 +14,5 @@ class RoastCatalog(
     val fallback: RoastFallback,
 ) {
     /** 모든 리소스의 규칙 위반 설명. 비어 있어야 앱을 띄운다. */
-    fun violations(): List<String> = rules.properNouns.violations() + facts.violations() + phrase.violations() + fallback.violations()
+    fun violations(): List<String> = facts.violations() + phrase.violations() + fallback.violations()
 }

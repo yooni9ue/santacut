@@ -7,7 +7,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** 작가 입력 안전장치(실제 rules.json). 고유명사·숫자·영문·링크는 일반명사로 가리고, 민감한 줄은 통째로 뺀다. */
+/** 작가 입력 안전장치(실제 rules.json). 사람 이름·사는 곳 이름·숫자·영문·링크는 일반명사로 가리고, 민감한 줄은 통째로 뺀다. 지명은 그대로 둔다. */
 class RoastRulesTest {
     private val rules = TestRoasts.catalog.rules
 
@@ -44,18 +44,14 @@ class RoastRulesTest {
     }
 
     @Test
-    fun `사전 고유명사는 낱말 앞 경계에서 바꾸고 사전 낱말로 시작하는 흔한 말은 그대로 둔다`() {
-        val scrubbed = assertNotNull(rules.scrub("서울에서 펜타포트 가자 대만족"))
+    fun `지명·가게·행사 이름은 가리지 않고 차단 목록에도 넣지 않는다`() {
+        val text = "서울역에서 펜타포트 가자 홍대입구 제주도에 스벅 배낚시하자 편의점 부동산 비상구"
 
-        assertEquals("(장소)에서 (행사) 가자 대만족", scrubbed.text)
-        assertTrue(scrubbed.masked.containsAll(listOf("서울", "펜타포트")))
-        assertEquals("성수기라 부산하네", assertNotNull(rules.scrub("성수기라 부산하네")).text)
-    }
+        val scrubbed = assertNotNull(rules.scrub(text))
 
-    @Test
-    fun `사전 지명 뒤에 다른 말을 붙여 써도 가린다`() {
-        assertEquals("(장소) (장소)여행 (장소)쪽", assertNotNull(rules.scrub("홍대입구 제주여행 강남쪽")).text)
-        assertEquals("(장소)가자 (행사)갔다", assertNotNull(rules.scrub("서산가자 펜파포트갔다")).text)
+        assertEquals(text, scrubbed.text)
+        assertTrue(scrubbed.masked.isEmpty())
+        assertTrue(rules.suspectsIn(text).isEmpty())
     }
 
     @Test
@@ -82,13 +78,12 @@ class RoastRulesTest {
     }
 
     @Test
-    fun `장소 접미사 패턴은 두 글자 이상 줄기에만 붙이고 조사 도와 흔한 낱말은 건너뛴다`() {
-        assertEquals("(장소)에서 보자", assertNotNull(rules.scrub("내포항에서 보자")).text)
-        assertEquals("(장소) 어때", assertNotNull(rules.scrub("화담숲 어때")).text)
-        assertEquals("(장소)에 가자", assertNotNull(rules.scrub("제주도에 가자")).text)
-        assertEquals("(장소) 앞", assertNotNull(rules.scrub("망원역 앞")).text)
-        assertEquals("(숫자) 까지 (장소) (숫자)동 앞", assertNotNull(rules.scrub("7 까지 은하마을한빛아파트 101동 앞")).text)
-        assertEquals("(장소)이나 (장소)?", assertNotNull(rules.scrub("수원이나 안양?")).text)
+    fun `아파트·빌라 같은 사는 곳 이름은 주소에 가까워 (집)으로 가린다`() {
+        val scrubbed = assertNotNull(rules.scrub("7 까지 은하마을한빛아파트 101동 앞"))
+
+        assertEquals("(숫자) 까지 (집) (숫자)동 앞", scrubbed.text)
+        assertEquals(listOf("은하마을한빛아파트"), scrubbed.masked)
+        assertEquals("(집)에서 보자", assertNotNull(rules.scrub("해피빌라에서 보자")).text)
         assertEquals("오늘도 그래도 친구 역시 운동", assertNotNull(rules.scrub("오늘도 그래도 친구 역시 운동")).text)
     }
 

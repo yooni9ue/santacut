@@ -7,19 +7,16 @@ import com.santacut.domain.dossier.model.TextForms
  * 팩폭 작가의 입력 안전장치와 출력 검증 규칙(roast/rules.json). 목록은 앱이 뜰 때 정규식으로 한 번 바꿔 둔다.
  *
  * 입력: 돈·직장·건강·연애·가족·정치·종교 낱말이 든 줄은 통째로 빼고([sensitiveForms], [sensitivePatterns]), 영문 낱말은 (영문),
- * 숫자열은 (숫자), 고유명사는 사전([properNouns])과 장소 접미사([placeSuffixes] 등)·호칭([honorificSuffixes] 등) 패턴으로 (장소)·(이름) 같은
- * 일반명사로 바꾼다. 접미사 패턴은 오탐이 잦은 낱말([suffixExceptions])을 건너뛴다. 사전 낱말은 뒤에 글자가 붙어도 가리되
- * 사전 낱말로 시작하는 흔한 말([properNounExceptions])은 둔다. 호칭 없이 부른 이름('동준아', '지은이랑')은 [NameStems] 규칙으로 가린다.
+ * 숫자열은 (숫자), 사람 이름은 호칭([honorificSuffixes] 등) 패턴과 호칭 없이 부른 이름([NameStems]) 규칙으로 (이름), 아파트·빌라 같은
+ * 사는 곳 이름([residenceSuffixes])은 (집)으로 바꾼다. 지명·가게·행사 이름은 가리지 않는다(사람 이름만 가린다는 결정).
+ * 접미사 패턴은 오탐이 잦은 낱말([suffixExceptions])을 건너뛴다.
  * 출력: 숫자 표현([numberPatterns], 허용 [allowedNumberPhrases]), 금지어([bannedWords]), 판정 방향([coalForbidden], [giftForbidden]),
  * 담백 판결의 석탄·탈락([mildForbidden]), "근데"로 여는 뒤집기([flipForbiddenStarts])를 막는다.
  *
- * @property placeSuffixes 줄기 한 글자 이상에 붙으면 장소로 보는 접미사(카페, 호텔 등)
- * @property placeShortSuffixes 줄기 두 글자 이상에 붙으면 장소로 보는 한 글자 접미사(역, 항, 점 등)
- * @property placeParticleSuffixes 줄기 두 글자 이상에 붙고 뒤에 조사가 있을 때만 장소로 보는 접미사(도). 조사 '도'와 헷갈리지 않게 한다.
+ * @property residenceSuffixes 줄기 한 글자 이상에 붙으면 사는 곳(주소에 가까운 단지) 이름으로 보는 접미사(아파트, 빌라 등)
  * @property honorificSuffixes 붙으면 사람 이름으로 보는 호칭(누나, 언니 등). 호칭만 있어도 가린다.
  * @property honorificShortSuffixes 줄기 두 글자 이상에 붙으면 사람 이름으로 보는 한 글자 호칭(형, 님, 씨)
  * @property particles 낱말 뒤에 붙어도 같은 낱말로 보는 조사
- * @property properNounExceptions 사전 낱말로 시작하지만 고유명사가 아닌 말(대만족, 성수기, 부산하다 등)
  * @property nameSurnames 세 글자 이름 줄기로 볼 첫 글자(흔한 성)
  * @property nameExceptions 이름 줄기로 보지 않는 흔한 말(친구, 얘들, 사람 등)
  * @property unquotablePhrases quotable로 넘기지 않는 입버릇 key(비속어, 사람 부르는 말). 조서 통계에는 그대로 남는다.
@@ -29,15 +26,11 @@ import com.santacut.domain.dossier.model.TextForms
 data class RoastRules(
     @JsonProperty("sensitive_forms") val sensitiveForms: TextForms,
     @JsonProperty("sensitive_patterns") val sensitivePatterns: List<String>,
-    @JsonProperty("proper_nouns") val properNouns: MaskTerms,
-    @JsonProperty("place_suffixes") val placeSuffixes: List<String>,
-    @JsonProperty("place_short_suffixes") val placeShortSuffixes: List<String>,
-    @JsonProperty("place_particle_suffixes") val placeParticleSuffixes: List<String>,
+    @JsonProperty("residence_suffixes") val residenceSuffixes: List<String>,
     @JsonProperty("honorific_suffixes") val honorificSuffixes: List<String>,
     @JsonProperty("honorific_short_suffixes") val honorificShortSuffixes: List<String>,
     val particles: List<String>,
     @JsonProperty("suffix_exceptions") val suffixExceptions: List<String>,
-    @JsonProperty("proper_noun_exceptions") val properNounExceptions: List<String>,
     @JsonProperty("name_surnames") val nameSurnames: String,
     @JsonProperty("name_exceptions") val nameExceptions: List<String>,
     @JsonProperty("unquotable_phrases") val unquotablePhrases: List<String>,
@@ -53,14 +46,11 @@ data class RoastRules(
 ) {
     private val particleGroup = alternation(particles)
     private val sensitive = Regex(alternationOfPatterns(sensitivePatterns))
-    private val dictionary = properNouns.compile(properNounExceptions)
     private val nameStems = NameStems(nameSurnames.toSet(), nameExceptions.toSet())
     private val exceptions = Regex("[가-힣]*(?:${alternation(suffixExceptions)})(?:$particleGroup)?")
-    private val places = tokenRegex(STEM_ONE_OR_MORE, placeSuffixes, false)
-    private val shortPlaces = tokenRegex(STEM_TWO_OR_MORE, placeShortSuffixes, false)
-    private val particlePlaces = tokenRegex(STEM_TWO_OR_MORE, placeParticleSuffixes, true)
-    private val honorifics = tokenRegex(STEM_ANY, honorificSuffixes, false)
-    private val shortHonorifics = tokenRegex(STEM_TWO_OR_MORE, honorificShortSuffixes, false)
+    private val residences = tokenRegex(STEM_ONE_OR_MORE, residenceSuffixes)
+    private val honorifics = tokenRegex(STEM_ANY, honorificSuffixes)
+    private val shortHonorifics = tokenRegex(STEM_TWO_OR_MORE, honorificShortSuffixes)
     private val numbers = Regex(alternationOfPatterns(numberPatterns))
     private val allowedNumbers = Regex(alternation(allowedNumberPhrases))
     private val banned = Regex(alternation(bannedWords))
@@ -84,20 +74,22 @@ data class RoastRules(
             masked += word.value
             LATIN_LABEL
         }
-        val tokens = HANGUL_TOKEN.replace(DIGITS.replace(latinMasked, DIGITS_LABEL)) { token -> maskToken(token.value, masked, names) }
-        val named = dictionary.maskIn(tokens)
-        return ScrubbedText(named.text, masked + named.masked, names)
+        val scrubbed = HANGUL_TOKEN.replace(DIGITS.replace(latinMasked, DIGITS_LABEL)) { token -> maskToken(token.value, masked, names) }
+        return ScrubbedText(scrubbed, masked, names)
     }
 
     /** 이름 줄기 [names]가 낱말 앞 경계에 나오면 뒤에 무엇이 붙든 (이름)으로 바꾸는 패턴. 줄기가 없으면 null이다. */
-    fun namePattern(names: Collection<String>): MaskPattern? =
-        if (names.isEmpty()) null else MaskTerm(NAME_LABEL, names.distinct()).regex().let { regex -> MaskPattern(regex, NAME_LABEL) }
+    fun namePattern(names: Collection<String>): MaskPattern? {
+        if (names.isEmpty()) return null
+        val words = names.distinct().sortedByDescending(String::length).joinToString(ALTERNATION) { name -> Regex.escape(name) }
+        return MaskPattern(Regex("(?<![가-힣])(?:$words)"), NAME_LABEL)
+    }
 
-    /** 출력 문장에서 고유명사로 의심되는 낱말(사전, 장소 접미사, 호칭). 없으면 빈 목록이다. */
+    /** 출력 문장에서 사람 이름이나 사는 곳 이름으로 의심되는 낱말(호칭, 단지 접미사). 없으면 빈 목록이다. */
     fun suspectsIn(text: String): List<String> {
         val masked = mutableListOf<String>()
-        val tokens = HANGUL_TOKEN.replace(text) { token -> maskToken(token.value, masked, null) }
-        return masked + dictionary.maskIn(tokens).masked
+        HANGUL_TOKEN.replace(text) { token -> maskToken(token.value, masked, null) }
+        return masked
     }
 
     /** 허용 표현("한 해", "한마디")을 뺀 뒤 처음 나온 숫자·수량 표현. 없으면 null이다. */
@@ -125,13 +117,13 @@ data class RoastRules(
     /** 낱말 하나를 가린다. 이름 줄기를 모을 [names]가 없으면(출력 검사) 호칭 없이 부른 이름은 보지 않는다. */
     private fun maskToken(token: String, masked: MutableList<String>, names: MutableList<String>?): String {
         if (exceptions.matches(token)) return token
-        val place = places.matchEntire(token) ?: shortPlaces.matchEntire(token) ?: particlePlaces.matchEntire(token)
-        val honorific = if (place == null) honorifics.matchEntire(token) ?: shortHonorifics.matchEntire(token) else null
-        val match = place ?: honorific
+        val residence = residences.matchEntire(token)
+        val honorific = if (residence == null) honorifics.matchEntire(token) ?: shortHonorifics.matchEntire(token) else null
+        val match = residence ?: honorific
         if (match != null) {
             masked += match.groupValues[CORE]
             honorific?.groupValues?.get(STEM)?.takeIf(nameStems::accepts)?.let { stem -> names?.add(stem) }
-            return (if (place != null) PLACE_LABEL else NAME_LABEL) + match.groupValues[PARTICLE]
+            return (if (residence != null) RESIDENCE_LABEL else NAME_LABEL) + match.groupValues[PARTICLE]
         }
         if (names == null) return token
         val (stem, suffix) = nameStems.split(token) ?: return token
@@ -140,12 +132,11 @@ data class RoastRules(
         return NAME_LABEL + suffix
     }
 
-    private fun tokenRegex(stem: String, suffixes: List<String>, particleRequired: Boolean): Regex =
-        Regex("(($stem)(?:${alternation(suffixes)}))((?:$particleGroup)${if (particleRequired) "" else OPTIONAL})")
+    private fun tokenRegex(stem: String, suffixes: List<String>): Regex =
+        Regex("(($stem)(?:${alternation(suffixes)}))((?:$particleGroup)?)")
 
     companion object {
         private const val ALTERNATION = "|"
-        private const val OPTIONAL = "?"
         private const val NOTHING = "(?!)"
         private const val CORE = 1
         private const val STEM = 2
@@ -153,7 +144,7 @@ data class RoastRules(
         private const val STEM_ANY = "[가-힣]*"
         private const val STEM_ONE_OR_MORE = "[가-힣]+"
         private const val STEM_TWO_OR_MORE = "[가-힣]{2,}"
-        private const val PLACE_LABEL = "(장소)"
+        private const val RESIDENCE_LABEL = "(집)"
         private const val NAME_LABEL = "(이름)"
         private const val LATIN_LABEL = "(영문)"
         private const val DIGITS_LABEL = "(숫자)"

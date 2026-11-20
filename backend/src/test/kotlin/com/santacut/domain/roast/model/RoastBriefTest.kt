@@ -7,6 +7,7 @@ import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** 작가 입력 조립. 본인 줄만 가려서 막별로 넣고, 사실은 숫자 없이 수준 말만 넣는다. */
@@ -22,17 +23,17 @@ class RoastBriefTest {
         val input = TestRoasts.brief(messages).inputText(TestRoasts.mapper)
 
         assertFalse(input.contains("상대만 아는 비밀"))
-        assertFalse(input.contains("서울역"))
         assertFalse(input.contains("회식"))
-        assertTrue(input.contains("|07-14 20시|(장소)에서 (숫자)시 ㄱ?"))
+        assertTrue(input.contains("|07-14 20시|서울역에서 (숫자)시 ㄱ?"))
         assertTrue(input.contains("\"act\":2,\"months\":\"5~8월\""))
     }
 
     @Test
-    fun `가린 고유명사는 그 요청의 차단 목록이 되어 출력에서 걸린다`() {
-        val brief = TestRoasts.brief(habitMessages() + TestDossiers.self(JULY, "화담숲 가자"))
+    fun `가린 사는 곳 이름은 그 요청의 차단 목록이 되고 지명은 차단하지 않는다`() {
+        val brief = TestRoasts.brief(habitMessages() + TestDossiers.self(JULY, "한빛아파트 앞 화담숲 가자"))
 
-        assertEquals("화담숲", brief.blockedIn("올해는 화담숲 타령이었다"))
+        assertEquals("한빛아파트", brief.blockedIn("올해는 한빛아파트 타령이었다"))
+        assertNull(brief.blockedIn("올해는 화담숲 타령이었다"))
     }
 
     @Test

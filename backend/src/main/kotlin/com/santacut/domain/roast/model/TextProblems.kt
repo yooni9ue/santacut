@@ -16,7 +16,7 @@ class TextProblems(private val values: List<String>) {
         private const val PARENTHESES = "()"
 
         /**
-         * [kind] 문장 [text]를 검사한다. 글자 수, 숫자·수량 표현, 금지어, 가린 고유명사, 알파벳, 괄호 표기, 고유명사 의심,
+         * [kind] 문장 [text]를 검사한다. 글자 수, 숫자·수량 표현, 금지어, 가린 낱말(이름 등), 알파벳, 괄호 표기, 이름·사는 곳 의심,
          * 목록 밖 인용, 본인 말풍선을 길게 베낀 말, 판정 방향, 담백 판결의 석탄·탈락, "근데"로 여는 뒤집기를 본다.
          */
         fun of(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): TextProblems =
@@ -32,10 +32,10 @@ class TextProblems(private val values: List<String>) {
 
         private fun safetyProblems(text: String, brief: RoastBrief, rules: RoastRules): List<String> = listOfNotNull(
             rules.bannedIn(text)?.let { found -> "금지어($found)" },
-            brief.blockedIn(text)?.let { found -> "가린 고유명사($found)" },
+            brief.blockedIn(text)?.let { found -> "가린 낱말($found)" },
             "알파벳 낱말".takeIf { rules.hasLatin(text) },
             "괄호 표기".takeIf { text.any { character -> character in PARENTHESES } },
-            rules.suspectsIn(text).firstOrNull()?.let { found -> "고유명사 의심($found)" },
+            rules.suspectsIn(text).firstOrNull()?.let { found -> "이름 의심($found)" },
         )
 
         private fun quoteProblems(text: String, brief: RoastBrief): List<String> = QUOTE.findAll(text)
