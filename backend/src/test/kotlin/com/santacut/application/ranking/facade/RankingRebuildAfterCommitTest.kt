@@ -48,6 +48,9 @@ import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.BDDMockito.given
 import org.mockito.Mockito
+import org.mockito.Mockito.after
+import org.mockito.Mockito.timeout
+import org.mockito.Mockito.verify
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -144,13 +147,26 @@ class RankingRebuildAfterCommitTest @Autowired constructor(
 
     @Test
     fun `몰려 들어온 요청은 한 번의 계산으로 모이고 계산이 겹치지 않는다`() {
-        val participants = List(BURST) { assessAndRequestRebuild() }
+        val participants = List(BURST) { assess() }
 
-        awaitUntil { !isRebuildRequested() }
-        Thread.sleep(DEBOUNCE_MS * 2)
+        repeat(BURST) { transactionTemplate.executeWithoutResult { rankingService.requestRebuild() } }
 
-        assertEquals(1, rebuildCount())
+        verify(rankingService, timeout(AWAIT_MS).times(1)).rebuild(anyInstant())
+        verify(rankingService, after(DEBOUNCE_MS * 3).times(1)).rebuild(anyInstant())
         participants.forEach { participantId -> assertFalse(resultFacade.getMyResult(MyResultCommand(participantId)).rankingPending) }
+    }
+
+    @Test
+    fun `롤백된 트랜잭션의 요청은 다시 계산을 예약하지 않는다`() {
+        assess()
+
+        transactionTemplate.executeWithoutResult { status ->
+            rankingService.requestRebuild()
+            status.setRollbackOnly()
+        }
+
+        verify(rankingService, after(DEBOUNCE_MS * 3).never()).rebuildIfRequested(anyInstant())
+        assertFalse(isRebuildRequested())
     }
 
     @Test
@@ -160,7 +176,7 @@ class RankingRebuildAfterCommitTest @Autowired constructor(
         val jobId = submit(participant.id)
 
         analysisWorkerFacade.processNextJob()
-        Thread.sleep(DEBOUNCE_MS * 3)
+        verify(rankingService, timeout(AWAIT_MS)).latestComputedAt()
 
         assertEquals(AnalysisJobStatus.SUCCEEDED, analysisJobRepository.findById(jobId).orElseThrow().status)
         assertTrue(isRebuildRequested())
@@ -172,20 +188,25 @@ class RankingRebuildAfterCommitTest @Autowired constructor(
 
     /** 작업 성공 기록과 같이, 평가를 저장하고 같은 트랜잭션에서 순위 다시 계산을 요청한다. */
     private fun assessAndRequestRebuild(): UUID {
+        val participantId = assess()
+        transactionTemplate.executeWithoutResult { rankingService.requestRebuild() }
+        return participantId
+    }
+
+    /** 참가자를 등록하고 평가만 저장한다. 순위 다시 계산은 요청하지 않는다. */
+    private fun assess(): UUID {
         val participantId = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE)).id
         val score = Score.shrunk(SCORES.map { BigDecimal(it) }, LowConfidenceDimensions.NONE, null)
         transactionTemplate.executeWithoutResult {
             assessmentService.record(emptyJob(participantId), ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), clock.instant())
-            rankingService.requestRebuild()
         }
         return participantId
     }
 
+    private fun anyInstant(): Instant = any(Instant::class.java) ?: OPEN_TIME
+
     private fun isRebuildRequested(): Boolean =
         rankingRefreshRepository.findById(RankingRefresh.ID).map(RankingRefresh::isDirty).orElse(false)
-
-    private fun rebuildCount(): Int =
-        Mockito.mockingDetails(rankingService).invocations.count { invocation -> invocation.method.name == REBUILD_METHOD }
 
     /** [condition]이 참이 될 때까지 기다린다. 시간 안에 참이 되지 않으면 실패다. */
     private fun awaitUntil(condition: () -> Boolean) {
@@ -237,7 +258,6 @@ class RankingRebuildAfterCommitTest @Autowired constructor(
         private const val AWAIT_MS = 10_000L
         private const val POLL_MS = 20L
         private const val ASYNC_WAIT_MS = 2_000L
-        private const val REBUILD_METHOD = "rebuild"
         private const val SESSION_COOKIE = "sc_session"
         private const val SOURCE = "KAKAO"
         private const val EVENT_COUNT = 20
