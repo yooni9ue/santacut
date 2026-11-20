@@ -1,5 +1,6 @@
 package com.santacut.infrastructure.global.config
 
+import org.springframework.ai.google.genai.common.GoogleGenAiThinkingLevel
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
@@ -22,6 +23,13 @@ data class RoastModelProperties(
     val callTimeout: Duration = DEFAULT_CALL_TIMEOUT,
     val maxRewrites: Int = DEFAULT_MAX_REWRITES,
 ) {
+    init {
+        require(maxRewrites >= 0) { "santacut.ai.roast.max-rewrites는 0 이상이어야 한다: $maxRewrites" }
+        require(thinkingLevel.isBlank() || thinkingLevel in THINKING_LEVELS) {
+            "santacut.ai.roast.thinking-level은 비우거나 $THINKING_LEVELS 중 하나여야 한다: $thinkingLevel"
+        }
+    }
+
     /** 작업 하나가 작가를 부르는 최대 횟수. */
     fun maxCalls(): Int = 1 + maxRewrites
 
@@ -32,5 +40,8 @@ data class RoastModelProperties(
         private const val DEFAULT_THINKING_LEVEL = "LOW"
         private const val DEFAULT_MAX_REWRITES = 2
         private val DEFAULT_CALL_TIMEOUT: Duration = Duration.ofSeconds(60)
+
+        /** 클라이언트가 받는 생각 수준 이름. 앱이 뜰 때 틀린 값을 막아 호출마다 예외로 대체 문장이 되지 않게 한다. */
+        private val THINKING_LEVELS: Set<String> = GoogleGenAiThinkingLevel.entries.map(GoogleGenAiThinkingLevel::name).toSet()
     }
 }
