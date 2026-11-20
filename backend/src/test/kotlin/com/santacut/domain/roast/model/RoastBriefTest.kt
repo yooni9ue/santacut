@@ -111,7 +111,9 @@ class RoastBriefTest {
         assertFalse(quotable.contains("조지자"))
         assertFalse(quotable.contains("행님들"))
         assertEquals("gift", input.path("verdict").asString())
-        assertEquals("넉넉", input.path("margin").asString())
+        assertEquals("아슬아슬", input.path("margin").asString())
+        assertEquals("SCRAPED_THROUGH", input.path("grade_code").asString())
+        assertEquals("아슬아슬 통과", input.path("temperature").asString())
     }
 
     @Test

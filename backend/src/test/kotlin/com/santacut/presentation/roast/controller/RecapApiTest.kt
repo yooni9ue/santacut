@@ -20,7 +20,9 @@ import com.santacut.domain.analysis.service.AssessmentService
 import com.santacut.domain.ranking.service.RankingService
 import com.santacut.domain.roast.service.RoastService
 import jakarta.servlet.http.Cookie
+import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.contains
+import org.hamcrest.Matchers.endsWith
 import org.hamcrest.Matchers.everyItem
 import org.hamcrest.Matchers.`is`
 import org.hamcrest.Matchers.nullValue
@@ -54,14 +56,16 @@ class RecapApiTest @Autowired constructor(
         mockMvc.perform(get(RECAP_PATH).cookie(session))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.skin").value("GIFT"))
-            .andExpect(jsonPath("$.share_text").value("산타 공식 인증. 올해 선물 받음. 너는?"))
+            .andExpect(jsonPath("$.share_text").value(allOf(startsWith("산타가 내 단톡방 다 읽고도 "), endsWith("점 줌. 이게 인성이다. 너도 까봐."))))
+            .andExpect(jsonPath("$.share_text_mild").value(startsWith("산타가 내 단톡방 다 읽고도 ")))
             .andExpect(jsonPath("$.cards[*].kind", contains("VERDICT", "ROAST", "ROAST", "ROAST", "LETTER", "STORY", "ARCHETYPE", "DIMENSIONS")))
             .andExpect(jsonPath("$.cards[*].index", contains(0, 1, 2, 3, 4, 5, 6, 7)))
             .andExpect(jsonPath("$.cards[*].width", everyItem(`is`(1080))))
             .andExpect(jsonPath("$.cards[*].height", everyItem(`is`(1920))))
             .andExpect(jsonPath("$.cards[0].cut").value(65))
             .andExpect(jsonPath("$.cards[0].passed").value(true))
-            .andExpect(jsonPath("$.cards[0].stamp").value("선물 배송 확정"))
+            .andExpect(jsonPath("$.cards[0].stamp").value("산타 최애"))
+            .andExpect(jsonPath("$.cards[0].grade").value("굴뚝 프리패스"))
             .andExpect(jsonPath("$.cards[0].grade_code").value("PREMIUM"))
             .andExpect(jsonPath("$.cards[0].cut_distance").value(startsWith("+")))
             .andExpect(jsonPath("$.cards[0].title").isString)
@@ -83,16 +87,18 @@ class RecapApiTest @Autowired constructor(
     }
 
     @Test
-    fun `석탄 결과는 COAL 스킨이고 도착 시각이 없으며 농담을 끈 도장은 선물은 내년에다`() {
+    fun `석탄 결과는 COAL 스킨이고 도착 시각이 없으며 농담을 끈 도장은 내년 명단 예약이다`() {
         val session = participantWithResult(COAL_SCORES, withRoast = true)
 
         mockMvc.perform(get(RECAP_PATH).cookie(session))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.skin").value("COAL"))
-            .andExpect(jsonPath("$.share_text").value("나 올해 석탄이래. 사유 봐라."))
+            .andExpect(jsonPath("$.share_text").value("산타가 내 단톡방 읽고 석탄 보냄. 반품도 안 된대. 혼자 받긴 억울하다. 너도 까봐."))
+            .andExpect(jsonPath("$.share_text_mild").value("올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐."))
             .andExpect(jsonPath("$.cards[0].passed").value(false))
-            .andExpect(jsonPath("$.cards[0].stamp").value("석탄"))
-            .andExpect(jsonPath("$.cards[0].stamp_mild").value("선물은 내년에"))
+            .andExpect(jsonPath("$.cards[0].stamp").value("반품 불가"))
+            .andExpect(jsonPath("$.cards[0].grade").value("석탄 당첨"))
+            .andExpect(jsonPath("$.cards[0].stamp_mild").value("내년 명단 예약"))
             .andExpect(jsonPath("$.cards[0].delivery_eta").value(nullValue()))
     }
 

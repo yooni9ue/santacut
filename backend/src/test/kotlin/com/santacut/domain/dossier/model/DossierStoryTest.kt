@@ -84,7 +84,7 @@ class DossierStoryTest {
 
         val verdict = scene(view, "verdict")
         val lines = verdict.lines.toList()
-        assertEquals("석탄", verdict.headline)
+        assertEquals("반품 불가 · 석탄 당첨", verdict.headline)
         assertEquals("사유 공감 '괜찮아?' 200번이", lines[0].text)
         assertEquals(LineDraft("하위 판정 줄", false), LineDraft(lines.last().text, lines.last().shareable))
         assertEquals("전국 12위", verdict.bigValue)

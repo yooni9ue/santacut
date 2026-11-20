@@ -19,7 +19,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
         "cards는 순서가 고정입니다: VERDICT(점수·컷 거리·도장·등급·순위·도착 시각·칭호·판결), ROAST 세 장(서버 숫자 칩·놀림·뒤집기), " +
         "LETTER(산타 쪽지), STORY(세 막 줄거리, 있을 때만), ARCHETYPE(산타 유형), DIMENSIONS(4항목 막대). " +
         "문장은 분석 때 AI 작가가 쓰고 서버가 검증해 저장한 것이며, 검증을 통과하지 못한 필드는 서버 대체 문장입니다. 문장 안에는 숫자가 없고 숫자는 칩과 점수 필드로만 나갑니다. " +
-        "농담을 끈 화면은 verdict 대신 verdict_mild, stamp 대신 stamp_mild를 씁니다. " +
+        "농담을 끈 화면은 verdict 대신 verdict_mild, stamp 대신 stamp_mild, share_text 대신 share_text_mild를 씁니다. " +
         "재업로드 직후 순위 다시 계산 전(ranking_pending true)이나 순위 계산 참가자가 표본 기준(100명)보다 적으면 rank는 null입니다. " +
         "결과가 아직 없으면 RESULT_NOT_FOUND, 이 기능 전에 받은 결과라 카드 문장이 없으면 RECAP_NOT_FOUND입니다.",
     tags = ["Results"],

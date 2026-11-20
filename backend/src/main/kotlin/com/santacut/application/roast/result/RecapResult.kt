@@ -14,7 +14,8 @@ import java.math.BigDecimal
  * @property skin 카드 스킨(GIFT, COAL)
  * @property score 총점(점, 소수 둘째 자리)
  * @property scoreText 총점 표시("73.73")
- * @property shareText 서버가 고정한 공유 문구
+ * @property shareText 서버가 고정한 공유 문구. 등급마다 다르고 총점 표시가 들어간다.
+ * @property shareTextMild 농담을 끈 사람의 공유 문구. 통과면 [shareText]와 같고 탈락이면 점수 없는 문구다.
  * @property archetypeCode 산타 유형 코드
  * @property archetypeName 산타 유형 이름
  */
@@ -24,6 +25,7 @@ data class RecapResult(
     val score: BigDecimal,
     val scoreText: String,
     val shareText: String,
+    val shareTextMild: String,
     val verdict: RecapVerdictResult,
     val pairs: RecapPairResults,
     val letter: String,
@@ -43,7 +45,7 @@ data class RecapResult(
             val gift = GiftVerdict(latest.scoreHundredths)
             val rank = snapshot?.rank?.takeIf { profile.topPercent != null }
             return RecapResult(
-                latest.id, gift.skin(), BigDecimal.valueOf(latest.scoreHundredths.toLong(), HUNDREDTHS_SCALE), gift.scoreText(), gift.shareText(),
+                latest.id, gift.skin(), BigDecimal.valueOf(latest.scoreHundredths.toLong(), HUNDREDTHS_SCALE), gift.scoreText(), gift.shareText(), gift.shareTextMild(),
                 RecapVerdictResult.of(gift, rank, snapshot == null, snapshot?.eta, content),
                 RecapPairResults.from(content.pairs), content.letter.text, RecapStoryResults.from(content.story),
                 profile.archetype.name, profile.archetype.koreanName, DimensionBarResults.from(profile.dimensionScores),
