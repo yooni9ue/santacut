@@ -14,7 +14,7 @@ class ScoringChunksTest {
     @Test
     fun `짧은 대화는 한 구간이다`() {
         var calls = 0
-        ScoringChunks.of(digestOf(turns(10, 100))).ask { calls++; ScoreAnswer.insufficient() }
+        ScoringChunks.of(digestOf(turns(10, 100))).ask(EACH_IN_TURN) { calls++; ScoreAnswer.insufficient() }
 
         assertEquals(1, calls)
     }
@@ -22,7 +22,7 @@ class ScoringChunksTest {
     @Test
     fun `본문이 길면 최대 8구간으로 나누고 앞 구간 끝 줄을 겹쳐 싣되 겹친 줄은 근거 범위에서 뺀다`() {
         val asked = mutableListOf<ScoringChunk>()
-        ScoringChunks.of(digestOf(turns(1000, 50))).ask { chunk -> asked += chunk; ScoreAnswer.insufficient() }
+        ScoringChunks.of(digestOf(turns(1000, 50))).ask(EACH_IN_TURN) { chunk -> asked += chunk; ScoreAnswer.insufficient() }
 
         assertEquals(ScoringChunks.MAX_CHUNKS, asked.size)
         assertEquals(1..125, asked[0].lineRange())
@@ -44,6 +44,17 @@ class ScoringChunksTest {
         assertEquals(ScoringChunks.MAX_CHUNKS, calls.get())
         assertEquals(ScoringChunks.MAX_CHUNKS, answers.size())
         assertEquals(700, answers.usage().inputTokens)
+        val exception = assertThrows<SantaCutException> { answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)) }
+        assertEquals(ErrorCode.AI_PROVIDER_UNAVAILABLE, exception.errorCode)
+    }
+
+    @Test
+    fun `분배기가 앞 구간 실패로 뒤 구간을 부르지 않고 답을 덜 돌려주면 돌려준 답까지만 싣고 그 실패로 끝난다`() {
+        val firstOnly: (List<ScoringChunk>, (ScoringChunk) -> ScoreAnswer) -> List<ScoreAnswer> = { chunks, ask -> listOf(ask(chunks.first())) }
+
+        val answers = ScoringChunks.of(digestOf(turns(1000, 50))).ask(firstOnly) { ScoreAnswer.providerUnavailable() }
+
+        assertEquals(1, answers.size())
         val exception = assertThrows<SantaCutException> { answers.toScore(ScoreShrinkage(BigDecimal.ZERO, 1, personalPrior = false)) }
         assertEquals(ErrorCode.AI_PROVIDER_UNAVAILABLE, exception.errorCode)
     }

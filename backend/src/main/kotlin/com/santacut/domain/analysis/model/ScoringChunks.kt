@@ -35,15 +35,12 @@ class ScoringChunks(private val values: List<ScoringChunk>) {
     private fun callsPerChunk(samples: Int): Int = if (values.size == 1) samples.coerceAtLeast(1) else 1
 
     /**
-     * 모든 구간을 [spreader]로 묻고 답을 구간 순서대로 싣는다. 한 구간이라도 쓸 수 없는 답(제공자 차단, 읽기 실패)이면
+     * 구간을 [spreader]로 묻고 답을 구간 순서대로 싣는다. 한 구간이라도 쓸 수 없는 답(제공자 차단, 읽기 실패)이면
      * 합칠 때([ScoringChunkAnswers.toScore]) 구간 순서로 처음 나온 그 답 때문에 작업 전체가 실패하거나 대기열로 돌아간다(원자적).
-     * 구간을 동시에 물으므로 앞 구간이 실패해도 나머지 구간은 이미 불렸다. 그 호출의 사용량도 모두 싣는다.
+     * [spreader]는 앞 답이 쓸 수 없으면 뒤 구간을 부르지 않고 답을 덜 돌려줄 수 있다. 그때는 돌려준 답까지만 싣는다.
      */
     fun ask(spreader: (List<ScoringChunk>, (ScoringChunk) -> ScoreAnswer) -> List<ScoreAnswer>, asker: (ScoringChunk) -> ScoreAnswer): ScoringChunkAnswers =
         ScoringChunkAnswers(values.zip(spreader(values, asker)) { chunk, answer -> ScoringChunkAnswer(chunk, answer) })
-
-    /** 모든 구간을 차례로 묻는다. */
-    fun ask(asker: (ScoringChunk) -> ScoreAnswer): ScoringChunkAnswers = ask({ chunks, ask -> chunks.map(ask) }, asker)
 
     companion object {
         /** 구간 하나의 본문 글자 수 목표. 한국어 대화문은 약 1.4자가 토큰 하나라 줄 표시와 시스템 프롬프트를 더해도 약 7천 토큰이다(§14.13). */

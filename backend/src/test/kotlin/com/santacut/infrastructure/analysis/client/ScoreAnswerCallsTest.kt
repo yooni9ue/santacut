@@ -70,16 +70,16 @@ class ScoreAnswerCallsTest {
     }
 
     @Test
-    fun `구간 호출 하나가 예외를 던지면 그 구간만 버릴 답이 되고 나머지 구간은 끝까지 불린다`() {
-        val finished = AtomicInteger()
+    fun `구간 호출 하나가 예외를 던지면 그 구간은 버릴 답이 되고 뒤에 자리를 잡는 구간은 같은 예외를 싣는다`() {
+        val calls = AtomicInteger()
 
-        val answers = ScoreAnswerCalls.each(List(ITEMS) { index -> index }, LIMIT) { item ->
-            if (item == 0) throw IllegalStateException("AI 장애")
-            ScoreAnswer.insufficient(USAGE).also { finished.incrementAndGet() }
+        val answers = ScoreAnswerCalls.each(List(ITEMS) { index -> index }, 1) {
+            calls.incrementAndGet()
+            throw IllegalStateException("AI 장애")
         }
 
-        assertEquals(ITEMS - 1, finished.get())
-        assertThrows<IllegalStateException> { answers.first().verifyAnswered() }
+        assertEquals(1, calls.get())
+        answers.forEach { answer -> assertEquals("AI 장애", assertThrows<IllegalStateException> { answer.verifyAnswered() }.message) }
     }
 
     @Test
@@ -102,7 +102,7 @@ class ScoreAnswerCallsTest {
     }
 
     @Test
-    fun `첫 구간 호출이 예외를 던져도 버릴 답으로 바꾸고 나머지 구간을 부른다`() {
+    fun `첫 구간 호출이 예외를 던지면 버릴 답 하나만 돌려주고 나머지 구간은 부르지 않는다`() {
         val calls = AtomicInteger()
 
         val answers = ScoreAnswerCalls.firstThenEach(List(ITEMS) { index -> index }, LIMIT) { item ->
@@ -111,8 +111,37 @@ class ScoreAnswerCallsTest {
             ScoreAnswer.insufficient(USAGE)
         }
 
-        assertEquals(ITEMS, calls.get())
-        assertThrows<IllegalStateException> { answers.first().verifyAnswered() }
+        assertEquals(1, calls.get())
+        assertEquals(1, answers.size)
+        assertThrows<IllegalStateException> { answers.single().verifyAnswered() }
+    }
+
+    @Test
+    fun `첫 구간 답을 쓸 수 없으면 그 답 하나만 돌려주고 나머지 구간은 부르지 않는다`() {
+        val calls = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.firstThenEach(List(ITEMS) { index -> index }, LIMIT) {
+            calls.incrementAndGet()
+            ScoreAnswer.providerUnavailable()
+        }
+
+        assertEquals(1, calls.get())
+        assertTrue(answers.single().isProviderUnavailable())
+    }
+
+    @Test
+    fun `동시에 부르던 구간 하나가 쓸 수 없는 답이면 아직 자리를 못 잡은 구간은 부르지 않고 그 답을 사용량 없이 대신 싣는다`() {
+        val calls = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.each(List(ITEMS) { index -> index }, 1) {
+            calls.incrementAndGet()
+            ScoreAnswer.unreadable(USAGE)
+        }
+
+        assertEquals(1, calls.get())
+        assertEquals(ITEMS, answers.size)
+        assertTrue(answers.none { answer -> answer.isUsable() })
+        assertEquals(USAGE.inputTokens, answers.sumOf { answer -> answer.usage.inputTokens })
     }
 
     companion object {
