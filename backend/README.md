@@ -29,7 +29,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 
 ## 문서 기준
 
-현재 API 계약은 DTO·OpenAPI, 런타임 기본값은 `application.yml`, 배포는 워크플로·Compose를 기준으로 확인한다. 아래 그림의 시험 수·성능·비용·시즌 카운트다운은 작성 시점 기록이며 실시간 지표가 아니다. 그림에 남은 폴링 대안도 과거 설명으로, 현재 프론트는 SSE와 수동 재연결을 사용한다. 문서와 코드의 미완료 연결은 [전체 점검 기록](../docs/development/implementation-audit.md)을 참고한다.
+현재 API 계약은 DTO·OpenAPI, 런타임 기본값은 `application.yml`, 배포는 워크플로·Compose를 기준으로 확인한다. 아래 그림의 시험 수·성능·비용·시즌 카운트다운은 작성 시점 기록이며 실시간 지표가 아니다. 그림에 남은 폴링 대안도 과거 설명으로, 현재 프론트는 SSE와 수동 재연결을 사용한다. 문서와 코드의 미완료 연결은 [전체 점검 기록](../docs/development/implementation-audit.md)을 참고한다. 그림(`stats.svg`, `api.svg`, `erd.svg` 등)은 2026-11-17 기록이라 그 뒤에 더한 `GET /v1/me/dossier`·`GET /v1/me/recap`(지금 엔드포인트 20개, dev 전용 3개 별도), `dossiers`·`roasts` 테이블(지금 15개), 「팩폭 산타」 작가 호출(`gemini-3.5-flash`)이 빠져 있다. 지금 기준은 아래 글과 표다.
 
 ## 한눈에 보기
 
@@ -44,6 +44,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 - 상대 말이 담긴 대화 내용은 작업이 끝나면(성공·실패 모두) 지운다. 원본 파일은 검증이 끝나면 바로 지운다.
 - AI가 네 항목(공감 30%, 응원 25%, 존중 25%, 협력 20%)을 채점한다. 순위와 선물 도착 시각은 서버가 계산한다.
 - 결과는 「2026 산타 조서」로도 본다. 본인 메시지에서 센 숫자(입버릇, ㅋ 밀도, 시간대, 답장 간격 등)만 저장하고, 조회할 때 템플릿으로 장면(한마디, 입버릇 장부, 극값 3장, 3막, 칭호·죄목·공로, 판결)을 만든다(`GET /v1/me/dossier`, [설계 §14.17](docs/backend-design.md)).
+- 결과는 「팩폭 산타」 리캡 카드 덱으로도 본다. 채점이 끝나면 AI 작가(기본 `gemini-3.5-flash`)가 칭호, 판결, 말버릇 놀림과 뒤집기, 산타 쪽지, 세 막 줄거리를 쓰고 서버가 검증해 `roasts`에 저장한다. 숫자는 모두 서버가 정하고 문장에는 숫자를 넣지 않는다. 선물 판정은 총점 65점 컷이고 재심은 없다(`GET /v1/me/recap`, [팩폭 산타 작가](#팩폭-산타-작가)).
 - 결과에는 크리스마스 유형 10종, 배지, 본인 한마디(`quote`), 항목 막대 4개, 가장 약한 항목, 상위 %, 같은 유형 비율이 함께 나온다.
 - 진행 상태 SSE와 단건 조회 API를 제공한다. 현재 프론트는 SSE 연결 종료 시 수동 재연결하며 폴링하지 않는다. 최근 작업 조회 API는 있지만 프론트 새로고침 복귀 동선은 보완이 필요하다.
 - 순위표는 공개다. 50줄씩 cursor로 넘기고, 동점은 `공동 N위`로 보인다. 남에게는 도착 날짜(`eta_date`)만 보이고, 정확한 도착 시각은 본인 결과에만 있다.
@@ -69,8 +70,8 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 
 - 분석은 큐에 넣는다. 화면은 SSE(`/v1/analyses/{id}/events`)로 상태를 받는다. GET은 초기 확인·복구용이며 주기적인 브라우저 폴링은 하지 않는다.
 - 작업자는 셋이다. 원본 검증은 1초, AI 채점은 3초 간격으로 돌고, 채점은 작업 3개를 동시에 한다(`ANALYSIS_WORKER_CONCURRENCY`). 순위는 30초마다 모아서 계산한다.
-- AI 채점은 Spring AI와 Google Gemini 3.5 Flash-Lite(Gemini Developer API)다.
-- 채점 프롬프트는 DB(`prompts`)에 판으로 쌓인다. AI를 부를 때마다 최신 판을 읽는다.
+- AI 채점은 Spring AI와 Google Gemini 3.5 Flash-Lite(Gemini Developer API)다. 채점 뒤 「팩폭 산타」 작가는 따로 설정한 모델(기본 `gemini-3.5-flash`)을 부른다.
+- 채점 프롬프트(`score`)와 작가 프롬프트(`roast`)는 DB(`prompts`)에 판으로 쌓인다. AI를 부를 때마다 최신 판을 읽는다.
 - 같은 입력을 다시 내면 AI를 부르지 않고 지난 결과를 쓴다.
 - 입구에서 먼저 거른다. 원본 접수는 서버 전체에서 동시에 2개까지다(넘으면 `503 UPLOAD_BUSY`). 같은 IP는 참가 등록 1시간 10회, 분석 제출 24시간 20회까지다(넘으면 `429 CLIENT_RATE_LIMITED`). 파일이 아닌 요청 본문은 2MB까지 받는다.
 - 운영 프로필은 `SESSION_SECURE=true`가 아니면 뜨지 않고 Swagger를 끈다. HTTPS에서는 CSRF 쿠키 이름이 `__Host-XSRF-TOKEN`이다.
@@ -89,6 +90,48 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 | 꾸밈 | 유형 10종, 배지, 20자 이하 한마디를 고른다. 순위에는 영향이 없다 |
 
 - 점수 규칙은 `Score.RULE_VERSION` 7판이고, 채점 프롬프트는 DB `prompts`의 `score` 7판이다. 규칙 판과 반복 횟수는 재사용 해시에 들어가서 판이 바뀌면 다시 채점한다.
+
+### 팩폭 산타 작가
+
+채점이 끝난 작업마다 AI 작가를 한 번 불러 리캡 카드(`GET /v1/me/recap`)의 문장을 쓴다. 문장은 분석할 때 한 번만 쓰고, 조회할 때는 저장한 문장을 읽기만 한다.
+
+| 단계 | 하는 일 |
+| --- | --- |
+| 입력 | 분석 기간(올해 1월 1일 0시, 한국 시각부터)의 본인 말풍선만 막(1~4월, 5~8월, 9~12월)마다 2,000자까지 보낸다. 상대 말은 보내지 않는다. 아래 가림 규칙을 먼저 적용한다. 조서 집계에서 고른 사실(서버가 센 숫자 칩), 입버릇, 화제, 선물 판정도 함께 보낸다 |
+| 쓰기 | `prompts`의 `roast` 최신 판과 응답 스키마로 칭호, 판결(`verdict`·`verdict_mild`), 놀림·뒤집기 짝(최대 5개, 화면에는 앞 3개), 산타 쪽지, 세 막 줄거리를 받는다 |
+| 검증 | 숫자 표현, 금지어, 판정과 어긋난 말(선물인데 석탄 등), 담백 판결의 석탄·탈락 낱말, "근데"로 여는 뒤집기, 가린 이름·낱말, 본인 말 8자 이상 베끼기를 막는다. 떨어진 필드만 최대 `max-rewrites`번 다시 쓰게 한다 |
+| 채우기 | 그래도 빈 필드는 서버 대체 문장(`resources/roast/fallback.json`)으로 채운다. 대체 문장은 작업 ID 시드로 골라 늘 같다 |
+| 저장 | 채점 결과와 같은 트랜잭션에서 `roasts`에 저장한다 |
+
+- 작가는 채점과 따로 돈다. 작가가 꺼져 있거나 실패해도(프롬프트 없음, 비용 한도, 제공자 오류, 예외) 채점 결과 저장과 작업 성공을 막지 않고 대체 문장만으로 저장한다. 로그에는 작업 ID와 실패 종류만 남긴다.
+- 비용은 채점과 같은 비용 가드가 맡는다. 호출 전에 최대 호출 수(1 + `max-rewrites`)만큼 어림해 예약하고, 호출마다 토큰을 기록한다. 단가는 `santacut.ai.budget.*`의 같은 값으로 어림한다. 비용 가드나 제공자 차단으로 AI가 쉬는 동안에는 작가를 부르지 않고 대체 문장을 쓴다.
+- 작업 임대 시간은 작가 호출 수만큼 늘어난다.
+
+설정(`application.yml`의 `santacut.ai.roast.*`):
+
+| 키 | 환경 변수 | 기본값 | 뜻 |
+| --- | --- | --- | --- |
+| `santacut.ai.roast.model` | `ROAST_MODEL` | `gemini-3.5-flash` | 작가 모델 ID. **비우면 작가를 부르지 않고 서버 대체 문장만 쓴다** |
+| `santacut.ai.roast.temperature` | - | `1.0` | 같은 사람에게도 매번 다른 문장이 나오게 높게 둔다 |
+| `santacut.ai.roast.max-output-tokens` | - | `8192` | 호출 한 번의 출력 상한. 생각 토큰도 이 한도를 함께 써서 넉넉히 둔다 |
+| `santacut.ai.roast.thinking-level` | - | `LOW` | `MINIMAL`, `LOW`, `MEDIUM`, `HIGH` 중 하나. 비우면 모델 기본값 |
+| `santacut.ai.roast.call-timeout` | - | `60s` | 호출 하나의 시간 상한 |
+| `santacut.ai.roast.max-rewrites` | - | `2` | 떨어진 필드를 다시 쓰게 하는 최대 횟수 |
+
+#### 개인정보 가림
+
+작가 입력 가림 범위는 2026-11-20 오너 결정을 따른다. 규칙과 낱말 목록은 [`resources/roast/rules.json`](src/main/resources/roast/rules.json)에 있다.
+
+| 가린다 | 가리지 않는다 |
+| --- | --- |
+| 사람 이름(호칭이 붙은 이름, 호칭 없이 부른 이름, 대화 참여자 표시 이름) → `(이름)` | 지명, 가게, 행사 이름 |
+| 아파트·빌라 같은 사는 곳 이름 → `(집)` | 돈, 직장, 건강, 가족 이야기(민감 줄을 따로 빼지 않는다) |
+| 링크(채점 정규화 단계에서 가린다) | |
+| 숫자열 → `(숫자)`(전화번호 포함), 영문 낱말 → `(영문)` | |
+
+- 가린 원래 낱말과 이름 줄기는 그 요청의 출력 검증 차단 목록으로만 쓰고 저장하지 않는다. 출력에 나오면 그 필드는 떨어진다.
+- 원본 파일 제출은 검증 작업자가 참여자 표시 이름을 작업 페이로드의 `speakerNames`에 담는다. 이름을 가리는 데만 쓰고 AI에는 보내지 않는다. 로그·응답·예외에는 넣지 않고, 작업이 끝나면 페이로드와 함께 지운다. 이벤트 JSON 제출에는 이 값이 없다.
+- `roasts.content_json`에는 검증을 통과한 문장과 대체 문장, 필드별 출처만 담는다. 말풍선 원문은 담지 않는다.
 
 ## 계층 구조
 
@@ -109,6 +152,7 @@ Swagger는 [`api-dev.santacut.me/swagger-ui.html`](https://api-dev.santacut.me/s
 - `assessments.prompt_version`에는 채점에 쓴 프롬프트 판 번호가 남는다. 프롬프트를 DB로 옮기기 전 평가는 `NULL`이다.
 - `analysis_jobs.digest_hash`는 같은 채점 입력의 재제출을 알아보는 해시다. `ai_usage_days`는 날짜별 AI 토큰 합계다. `result_populations`는 순위를 계산할 때 다시 세는 유형별 인원이다.
 - `dossiers`는 평가 하나의 산타 조서 집계값(JSON)이다. 원문은 담지 않고, 참가자나 평가를 지우면 함께 지워진다.
+- `roasts`는 평가 하나의 「팩폭 산타」 작가 문장이다(평가당 하나). `content_json`은 검증을 통과한 문장·대체 문장·필드별 출처 JSON이고 말풍선 원문은 없다. `prompt_version`은 작가 프롬프트 판(작가를 부르지 않았으면 `NULL`), `model`은 작가 모델 ID(부르지 않았으면 빈 문자열)다. 참가자나 평가를 지우면 함께 지워진다. 이 기능 전 평가에는 행이 없어 `GET /v1/me/recap`이 `404 RECAP_NOT_FOUND`다.
 - `ai_usage_days.cached_input_tokens`는 암묵적 캐시에서 읽은 입력 토큰 수다. `ranking_refresh`는 순위 계산 요청 판과 마지막으로 계산한 판을 한 줄에 둔다. `region_changes`는 지역 변경 한도를 세는 기록이다.
 
 ## 분석 흐름
@@ -295,7 +339,7 @@ dev 전용이다. `PROMPT_ADMIN_ENABLED=true`이고 `PROMPT_ADMIN_TOKEN`이 있�
 
 ## 실행
 
-JDK 25가 필요하다. 환경 변수 `GEMINI_API_KEY`에 Gemini API 키를 넣는다. 키가 틀리면 Gemini가 호출을 막아 분석 작업이 `QUEUED`에 머물고(15분 쉬고 다시 시도, 24시간 뒤 만료), 나머지 API는 그대로 돈다.
+JDK 25가 필요하다. 환경 변수 `GEMINI_API_KEY`에 Gemini API 키를 넣는다. 「팩폭 산타」 작가 모델은 `ROAST_MODEL`(기본 `gemini-3.5-flash`)이고, 비우면 작가 없이 대체 문장만 쓴다. 키가 틀리면 Gemini가 호출을 막아 분석 작업이 `QUEUED`에 머물고(15분 쉬고 다시 시도, 24시간 뒤 만료), 나머지 API는 그대로 돈다.
 
 ```powershell
 cd backend
