@@ -15,4 +15,7 @@ enum class MetricFamily {
     VOLUME,
     KIND,
     BLEEP,
+    WEEK,
+    SPIKE,
+    MEDIA,
 }

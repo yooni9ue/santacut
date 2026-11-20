@@ -23,4 +23,25 @@ data class ClockStats(
     @JsonProperty("busiest_month") val busiestMonth: Int?,
     @JsonProperty("quietest_month") val quietestMonth: Int?,
     @JsonProperty("month_ratio") val monthRatio: Double?,
-)
+) {
+    /** [hours] 시간대(0~23시 칸)에 보낸 비율(0~1). 메시지가 없거나 칸이 모자라면(옛 집계) null이다. */
+    fun hourShare(hours: IntRange): Double? = shareIn(hourly, hours)
+
+    /** 토·일요일(하루 경계 05:00)에 보낸 비율(0~1). 메시지가 없거나 칸이 모자라면 null이다. */
+    fun weekendRatio(): Double? = shareIn(weekday, WEEKEND)
+
+    /** 가장 많이 보낸 한 시간대에 몰린 비율(0~1). 메시지가 없으면 null이다. */
+    fun peakHourShare(): Double? = peakHour?.let { hour -> shareIn(hourly, hour..hour) }
+
+    private fun shareIn(counts: List<Int>, range: IntRange): Double? {
+        val cells = Counts(counts.toIntArray())
+        val total = cells.total()
+        if (total == 0 || range.last >= counts.size) return null
+        return DossierRatios.ratio(cells.totalIn(range), total)
+    }
+
+    companion object {
+        /** 월요일이 0인 요일 칸에서 토·일요일. */
+        private val WEEKEND = 5..6
+    }
+}

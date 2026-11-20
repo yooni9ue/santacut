@@ -10,6 +10,9 @@ class Counts(private val values: IntArray) {
 
     fun toList(): List<Int> = values.toList()
 
+    /** 모든 칸의 개수 합. */
+    fun total(): Int = values.sum()
+
     /** [range] 칸의 개수 합. */
     fun totalIn(range: IntRange): Int = values.slice(range).sum()
 
