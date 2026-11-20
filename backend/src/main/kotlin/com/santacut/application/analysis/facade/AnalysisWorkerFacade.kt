@@ -75,12 +75,14 @@ class AnalysisWorkerFacade(
 
     /**
      * 조서를 미리 만들어 두고, 채점 입력이 지난번과 같으면 지난 결과를 다시 쓰고, 아니면 AI 점수를 받아 팩폭 문장을 쓴 뒤 결과를 기록한다.
+     * 지난 결과를 다시 쓸 때 지난 팩폭 결과를 그대로 옮길 수 없으면(없음, 모두 대체 문장) 트랜잭션 밖에서 작가를 한 번 부른다.
      * 팩폭 쓰기는 실패해도 대체 문장으로 채우므로 채점 결과 기록을 막지 않는다.
      */
     private fun reuseOrScore(job: AnalysisJob) {
         val attempt = scoring.prepare(job, promptService.latest(PromptName.SCORE))
         val dossier = heldJobs.draftDossier(job)
-        if (heldJobs.reuseIfSameDigest(attempt, dossier)) return
+        val freshRoast = heldJobs.scoreNeedingRoast(attempt)?.let { hundredths -> roasts.write(job, hundredths, dossier, budget::spending) }
+        if (heldJobs.reuseIfSameDigest(attempt, dossier, freshRoast)) return
         val scored = score(attempt)
         val roast = roasts.write(job, scored.score.hundredths, dossier, budget::spending)
         heldJobs.complete(attempt, scored, dossier, roast)

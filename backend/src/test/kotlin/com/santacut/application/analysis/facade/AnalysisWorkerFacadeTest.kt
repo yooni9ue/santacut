@@ -663,6 +663,24 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertTrue(saved.contentJson.contains("\"verdict\":\"gift\""))
     }
 
+    @Test
+    fun `지난 팩폭 결과가 대체 문장뿐이면 같은 입력 재사용 때 복사하지 않고 작가를 한 번 새로 부른다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val saved = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertEquals(1, saved.promptVersion)
+        assertTrue(saved.contentJson.contains("\"text\":\"$VALID_TITLE\",\"source\":\"AI\""))
+        assertTrue(requestCount() > 0)
+        assertEquals("SUCCEEDED", rankedStatus(second).status)
+    }
+
     /** 작가를 켜고 작가 프롬프트 1판을 넣는다([withPrompt]가 거짓이면 넣지 않는다). */
     private fun enableRoast(withPrompt: Boolean = true) {
         given(roastClient.isEnabled()).willReturn(true)

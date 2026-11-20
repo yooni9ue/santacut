@@ -21,8 +21,16 @@ data class RoastContent(
     val letter: RoastText,
     val story: RoastStoryLines,
 ) {
+    /** 작가가 쓴 문장이 하나라도 있는지. 모두 대체 문장이면 거짓이다. */
+    fun hasAiText(): Boolean = fallbackCount() < SINGLE_TEXTS + pairs.size() + story.size()
+
     /** 대체 문장으로 채운 문장 수. 로그에는 이 수와 필드 이름만 남긴다. */
     fun fallbackCount(): Int =
         title.fallbackCount() + verdictLine.fallbackCount() + verdictMild.fallbackCount() + letter.fallbackCount() +
             pairs.fallbackCount() + story.fallbackCount()
+
+    companion object {
+        /** 짝·줄거리 말고 문장 하나짜리 필드 수(칭호, 판결, 담백 판결, 쪽지). */
+        private const val SINGLE_TEXTS = 4
+    }
 }

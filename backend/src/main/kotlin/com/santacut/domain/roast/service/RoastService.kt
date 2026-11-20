@@ -98,6 +98,20 @@ class RoastService(
     }
 
     /**
+     * [assessmentId] 평가의 팩폭 결과를 같은 입력 재사용 때 그대로 옮겨도 되는지. 결과가 없거나, 작가를 부르지 않았거나(프롬프트 판 없음),
+     * 모두 대체 문장이면 거짓이다. 이때는 작가를 한 번 새로 부른다. 대체 문장을 재사용마다 영원히 복사하지 않으려는 것이다.
+     */
+    fun isReusable(assessmentId: String): Boolean {
+        val roast = roastRepository.findByAssessmentId(assessmentId) ?: return false
+        if (roast.promptVersion == null) return false
+        return try {
+            objectMapper.readValue(roast.contentJson, RoastContent::class.java).hasAiText()
+        } catch (exception: RuntimeException) {
+            false
+        }
+    }
+
+    /**
      * 같은 채점 입력으로 다시 낸 작업이 지난 평가([previousAssessmentId])를 옮겨 적었을 때 지난 팩폭 결과를 새 평가에 복사한다.
      * 지난 결과가 없으면(이 기능 전 평가) 작가 없이 대체 문장으로 저장한다.
      */
