@@ -5,12 +5,16 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
+import java.util.concurrent.Semaphore
 
-/** 같은 채점 호출을 가상 스레드로 동시에 부른 결과 목록. */
+/** 채점 호출을 가상 스레드로 동시에 부른 결과 목록. */
 class ScoreAnswerCalls private constructor(private val values: List<Future<ScoreAnswer>>) {
     private fun answers(): List<ScoreAnswer> = values.map { future -> resultOf(future) }
 
     companion object {
+        /** 먼저 온 구간부터 자리를 받게 해, 동시에 부를 수 있는 수보다 구간이 많을 때 앞 구간이 늦게 불리지 않게 한다. */
+        private const val FAIR_SLOTS = true
+
         /**
          * [asker]를 [count]번 동시에 불러 답을 모은다. 실행기를 닫을 때 모든 호출이 끝나기를 기다리므로, 한 호출이 예외를 던져도
          * 나머지 호출의 사용량 기록은 끝나 있다. 실행 예외([RuntimeException])를 던진 호출은 작업을 바로 끝내지 않고
@@ -21,6 +25,27 @@ class ScoreAnswerCalls private constructor(private val values: List<Future<Score
             Executors.newVirtualThreadPerTaskExecutor().use { executor ->
                 ScoreAnswerCalls(List(count) { executor.submit(Callable { asker() }) }).answers()
             }
+
+        /**
+         * [items]마다 [asker]를 가상 스레드로 부르되, 한 번에 많아야 [limit]개만 동시에 부른다. 답은 [items] 순서대로 돌려준다.
+         * 예외 처리와 기다림은 [concurrently]와 같다. 모든 호출이 끝난 뒤 돌아오므로 호출마다 사용량 기록도 끝나 있다.
+         */
+        fun <T> each(items: List<T>, limit: Int, asker: (T) -> ScoreAnswer): List<ScoreAnswer> {
+            val slots = Semaphore(limit.coerceAtLeast(1), FAIR_SLOTS)
+            return Executors.newVirtualThreadPerTaskExecutor().use { executor ->
+                ScoreAnswerCalls(items.map { item -> executor.submit(Callable { holding(slots) { asker(item) } }) }).answers()
+            }
+        }
+
+        /** 자리 하나를 잡은 동안만 [call]을 부른다. */
+        private fun holding(slots: Semaphore, call: () -> ScoreAnswer): ScoreAnswer {
+            slots.acquire()
+            try {
+                return call()
+            } finally {
+                slots.release()
+            }
+        }
 
         private fun resultOf(future: Future<ScoreAnswer>): ScoreAnswer =
             try {

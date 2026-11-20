@@ -52,7 +52,39 @@ class ScoreAnswerCallsTest {
         }
     }
 
+    @Test
+    fun `구간마다 부르되 한 번에 정한 수까지만 동시에 부르고 답은 구간 순서대로 돌려준다`() {
+        val running = AtomicInteger()
+        val peak = AtomicInteger()
+        val items = List(ITEMS) { index -> index }
+
+        val answers = ScoreAnswerCalls.each(items, LIMIT) { item ->
+            peak.accumulateAndGet(running.incrementAndGet(), ::maxOf)
+            Thread.sleep(SLOW_CALL_MILLIS)
+            running.decrementAndGet()
+            ScoreAnswer.insufficient(ModelUsage(item.toLong(), 0, "STOP"))
+        }
+
+        assertEquals(LIMIT, peak.get())
+        assertEquals(items.map(Int::toLong), answers.map { answer -> answer.usage.inputTokens })
+    }
+
+    @Test
+    fun `구간 호출 하나가 예외를 던지면 그 구간만 버릴 답이 되고 나머지 구간은 끝까지 불린다`() {
+        val finished = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.each(List(ITEMS) { index -> index }, LIMIT) { item ->
+            if (item == 0) throw IllegalStateException("AI 장애")
+            ScoreAnswer.insufficient(USAGE).also { finished.incrementAndGet() }
+        }
+
+        assertEquals(ITEMS - 1, finished.get())
+        assertThrows<IllegalStateException> { answers.first().verifyAnswered() }
+    }
+
     companion object {
+        private const val ITEMS = 8
+        private const val LIMIT = 4
         private const val COUNT = 3
         private const val TIMEOUT_SECONDS = 5L
         private const val SLOW_CALL_MILLIS = 100L
