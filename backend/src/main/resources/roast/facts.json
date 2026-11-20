@@ -1,0 +1,218 @@
+{
+ "version": 1,
+ "facts": [
+  {
+   "key": "laugh_density",
+   "meaning": "말풍선에 섞어 쓴 ㅋ·ㅎ의 양",
+   "group": "laugh",
+   "chip_label": "ㅋ 밀도",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "laugh_max_run",
+   "meaning": "ㅋ를 한 번에 가장 길게 이어 친 길이",
+   "group": "laugh",
+   "chip_label": "ㅋ 한 번에 최대",
+   "levels": [
+    "남들보다 훨씬 짧음",
+    "남들보다 짧음",
+    "남들보다 김",
+    "남들보다 훨씬 김"
+   ]
+  },
+  {
+   "key": "emoji_density",
+   "meaning": "말풍선에 붙인 이모지의 양",
+   "group": "emoji",
+   "chip_label": "이모지 밀도",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "night_ratio",
+   "meaning": "자정부터 새벽 다섯 시 전까지 보낸 말풍선의 비율",
+   "group": "time",
+   "chip_label": "심야 말풍선",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "peak_hour",
+   "meaning": "말풍선이 가장 많이 몰린 시간대",
+   "group": "time",
+   "chip_label": "가장 바쁜 시간",
+   "levels": [
+    "남들보다 훨씬 이른 시간",
+    "남들보다 이른 시간",
+    "남들보다 늦은 시간",
+    "남들보다 훨씬 늦은 시간"
+   ]
+  },
+  {
+   "key": "month_ratio",
+   "meaning": "말풍선이 가장 많은 달과 가장 적은 달의 차이",
+   "group": "volume",
+   "chip_label": "달별 기복",
+   "levels": [
+    "남들보다 훨씬 고름",
+    "남들보다 고름",
+    "남들보다 큼",
+    "남들보다 훨씬 큼"
+   ]
+  },
+  {
+   "key": "message_count",
+   "meaning": "올해 보낸 말풍선의 양",
+   "group": "volume",
+   "chip_label": "올해 말풍선",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "active_days",
+   "meaning": "말풍선을 하나라도 보낸 날의 수",
+   "group": "volume",
+   "chip_label": "말풍선 남긴 날",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "avg_length",
+   "meaning": "말풍선 하나의 평균 길이",
+   "group": "shape",
+   "chip_label": "평균 길이",
+   "levels": [
+    "남들보다 훨씬 짧음",
+    "남들보다 짧음",
+    "남들보다 김",
+    "남들보다 훨씬 김"
+   ]
+  },
+  {
+   "key": "short_ratio",
+   "meaning": "다섯 글자 이하로 끝난 말풍선의 비율",
+   "group": "shape",
+   "chip_label": "짧은 말풍선",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "longest_message_length",
+   "meaning": "가장 긴 말풍선의 길이",
+   "group": "shape",
+   "chip_label": "가장 긴 말풍선",
+   "levels": [
+    "남들보다 훨씬 짧음",
+    "남들보다 짧음",
+    "남들보다 김",
+    "남들보다 훨씬 김"
+   ]
+  },
+  {
+   "key": "burst_avg",
+   "meaning": "끊지 않고 연달아 보낸 말풍선 묶음의 평균 크기",
+   "group": "burst",
+   "chip_label": "연달아 보내기",
+   "levels": [
+    "남들보다 훨씬 작음",
+    "남들보다 작음",
+    "남들보다 큼",
+    "남들보다 훨씬 큼"
+   ]
+  },
+  {
+   "key": "burst_max",
+   "meaning": "끊지 않고 연달아 보낸 말풍선의 최대 개수",
+   "group": "burst",
+   "chip_label": "최대 연타",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "question_ratio",
+   "meaning": "물음표가 든 말풍선의 비율",
+   "group": "mark",
+   "chip_label": "물음표 말풍선",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "exclaim_ratio",
+   "meaning": "느낌표가 든 말풍선의 비율",
+   "group": "mark",
+   "chip_label": "느낌표 말풍선",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  },
+  {
+   "key": "reply_median_minutes",
+   "meaning": "조용하다가 다시 말을 꺼내기까지 걸린 시간",
+   "group": "reply",
+   "chip_label": "답장 간격",
+   "levels": [
+    "남들보다 훨씬 빠름",
+    "남들보다 빠름",
+    "남들보다 느림",
+    "남들보다 훨씬 느림"
+   ]
+  },
+  {
+   "key": "kind_words_density",
+   "meaning": "고맙다·수고했다 같은 따뜻한 말의 양",
+   "group": "kind",
+   "chip_label": "따뜻한 말",
+   "levels": [
+    "남들보다 훨씬 적음",
+    "남들보다 적음",
+    "남들보다 많음",
+    "남들보다 훨씬 많음"
+   ]
+  }
+ ],
+ "phrase": {
+  "group": "habit",
+  "meaning": "'{quote}'라고 보낸 횟수",
+  "chip_label": "'{quote}' 보낸 횟수",
+  "levels": [
+   "남들보다 많음",
+   "남들보다 훨씬 많음"
+  ]
+ }
+}

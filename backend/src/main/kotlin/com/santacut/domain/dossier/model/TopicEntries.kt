@@ -38,6 +38,17 @@ class TopicEntries @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
         .maxByOrNull { topic -> topic.count }
 
     /**
+     * [act] 막의 화제 상위 [limit]개 이름. 횟수가 같으면 사전 순서가 앞선 주제다. [excludedKeys] 주제와 그 막에 안 나온 주제는 뺀다.
+     */
+    fun leadersOf(act: DossierAct, counts: TopicActCounts, limit: Int, excludedKeys: List<String>): List<String> = values
+        .filterNot { topic -> topic.key in excludedKeys }
+        .map { topic -> ActTopic(topic.label, counts.countOf(topic.key, act)) }
+        .filter { topic -> topic.count > 0 }
+        .sortedByDescending { topic -> topic.count }
+        .take(limit)
+        .map(ActTopic::label)
+
+    /**
      * 막마다 화제 1위 줄. 화제가 없는 막은 노출 구간이 허락할 때만 빈 막 줄을 쓴다([DossierExposure.showsEmptyActs]).
      */
     fun actLines(context: SceneContext): List<LineDraft> =

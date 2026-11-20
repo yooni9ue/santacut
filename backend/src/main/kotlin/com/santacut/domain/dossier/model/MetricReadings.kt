@@ -15,6 +15,8 @@ class MetricReadings(private val values: List<MetricReading>) {
     /** [index]번째(0부터) 지표. 없으면 null이다. */
     fun at(index: Int): MetricReading? = values.getOrNull(index)
 
+    fun toList(): List<MetricReading> = values.toList()
+
     fun find(key: String): MetricReading? = values.find { reading -> reading.key == key }
 
     /** 놀림 문구를 쓸 수 있는 지표의 방향 key(높으면 key, 낮으면 key_low). 죄목 후보로 쓴다. */

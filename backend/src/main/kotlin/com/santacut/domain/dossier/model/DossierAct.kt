@@ -9,7 +9,12 @@ enum class DossierAct(val months: IntRange, val label: String) {
     THIRD(9..12, "3막(9~12월)"),
     ;
 
+    /** 막의 달 범위 표기. 예: "1~4월". */
+    fun monthsText(): String = "${months.first}~${months.last}$MONTH_UNIT"
+
     companion object {
+        private const val MONTH_UNIT = "월"
+
         /** [month](1~12)가 든 막. */
         fun of(month: Int): DossierAct = entries[(month - 1) / MONTHS_PER_ACT]
 
