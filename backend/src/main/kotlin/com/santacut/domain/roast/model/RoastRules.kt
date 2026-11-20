@@ -1,12 +1,11 @@
 package com.santacut.domain.roast.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.santacut.domain.dossier.model.TextForms
 
 /**
  * 팩폭 작가의 입력 안전장치와 출력 검증 규칙(roast/rules.json). 목록은 앱이 뜰 때 정규식으로 한 번 바꿔 둔다.
  *
- * 입력: 돈(금액, 빚, 계좌 등)·정치·종교 낱말이 든 줄은 통째로 빼고([sensitiveForms], [sensitivePatterns]), 영문 낱말은 (영문),
+ * 입력: 줄을 통째로 빼지는 않는다(사람 이름만 가린다는 결정). 영문 낱말은 (영문),
  * 숫자열은 (숫자), 사람 이름은 호칭([honorificSuffixes] 등) 패턴과 호칭 없이 부른 이름([NameStems]) 규칙으로 (이름), 아파트·빌라 같은
  * 사는 곳 이름([residenceSuffixes])은 (집)으로 바꾼다. 지명·가게·행사 이름은 가리지 않는다(사람 이름만 가린다는 결정).
  * 접미사 패턴은 오탐이 잦은 낱말([suffixExceptions])을 건너뛴다.
@@ -24,8 +23,6 @@ import com.santacut.domain.dossier.model.TextForms
  * @property excludedTopics 화제 후보로 넘기지 않는 조서 주제 key(직장과 엮인 출퇴근 등)
  */
 data class RoastRules(
-    @JsonProperty("sensitive_forms") val sensitiveForms: TextForms,
-    @JsonProperty("sensitive_patterns") val sensitivePatterns: List<String>,
     @JsonProperty("residence_suffixes") val residenceSuffixes: List<String>,
     @JsonProperty("honorific_suffixes") val honorificSuffixes: List<String>,
     @JsonProperty("honorific_short_suffixes") val honorificShortSuffixes: List<String>,
@@ -45,7 +42,6 @@ data class RoastRules(
     @JsonProperty("flip_forbidden_starts") val flipForbiddenStarts: List<String>,
 ) {
     private val particleGroup = alternation(particles)
-    private val sensitive = Regex(alternationOfPatterns(sensitivePatterns))
     private val nameStems = NameStems(nameSurnames.toSet(), nameExceptions.toSet())
     private val exceptions = Regex("[가-힣]*(?:${alternation(suffixExceptions)})(?:$particleGroup)?")
     private val residences = tokenRegex(STEM_ONE_OR_MORE, residenceSuffixes)
@@ -59,15 +55,11 @@ data class RoastRules(
     private val mildWrong = Regex(alternation(mildForbidden))
     private val flipWrongStart = Regex("^\\s*(?:${alternation(flipForbiddenStarts)})")
 
-    /** 통째로 뺄 줄인지(돈·정치·종교 낱말, 금액). 직장·건강·연애·가족 줄은 보낸다는 결정에 따라 빼지 않는다. */
-    fun isSensitive(text: String): Boolean = sensitiveForms.appearsIn(text) || sensitive.containsMatchIn(text)
-
     /**
-     * 작가 입력용으로 가린 본문. 통째로 뺄 줄이면 null이다. 호칭·부르는 말에서 떼어 낸 이름 줄기('현규형'의 '현규')는
+     * 작가 입력용으로 가린 본문. 호칭·부르는 말에서 떼어 낸 이름 줄기('현규형'의 '현규')는
      * [ScrubbedText.names]로 따로 내보내, 모든 줄을 다시 가리고([namePattern]) 차단 목록에 넣게 한다.
      */
-    fun scrub(text: String): ScrubbedText? {
-        if (isSensitive(text)) return null
+    fun scrub(text: String): ScrubbedText {
         val masked = mutableListOf<String>()
         val names = mutableListOf<String>()
         val latinMasked = LATIN.replace(text) { word ->

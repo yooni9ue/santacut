@@ -38,11 +38,11 @@ class RoastLine(
         private const val HOUR_UNIT = "시"
         private val MONTH_DAY = DateTimeFormatter.ofPattern("MM-dd")
 
-        /** 본인 메시지 [message]를 [number]번 줄로 만든다. 빈 본문이거나 통째로 뺄 줄([RoastRules.scrub])이면 null이다. */
+        /** 본인 메시지 [message]를 [number]번 줄로 만든다. 빈 본문이면 null이다. */
         fun of(number: Int, message: ScoringMessage, rules: RoastRules): RoastLine? {
             val text = message.normalizedText()
             if (text.isEmpty()) return null
-            val scrubbed = rules.scrub(text) ?: return null
+            val scrubbed = rules.scrub(text)
             return RoastLine(number, message.localTime, scrubbed.text, scrubbed.masked, scrubbed.names)
         }
     }

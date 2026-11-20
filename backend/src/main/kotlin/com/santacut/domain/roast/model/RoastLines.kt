@@ -41,7 +41,7 @@ class RoastLines(private val values: List<RoastLine>) {
         private const val LINE_BREAK = "\n"
 
         /**
-         * 메시지 [messages] 가운데 본인 글 메시지만 순번을 매겨 가린다. 통째로 뺄 줄은 순번만 쓰고 넣지 않는다.
+         * 메시지 [messages] 가운데 본인 글 메시지만 순번을 매겨 가린다. 빈 본문은 순번만 쓰고 넣지 않는다.
          * 두 번 가린다. 처음에 호칭·부르는 말에서 이름 줄기를 모으고, 그 줄기가 다른 줄에 호칭 없이 나와도 가린다.
          */
         fun of(messages: List<ScoringMessage>, rules: RoastRules): RoastLines {

@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 /** 작가 입력 조립. 본인 줄만 가려서 막별로 넣고, 사실은 숫자 없이 수준 말만 넣는다. */
 class RoastBriefTest {
     @Test
-    fun `입력에는 본인 줄만 가린 채 막별로 들어가고 상대 말과 민감한 줄은 빠진다`() {
+    fun `입력에는 본인 줄만 가린 채 막별로 들어가고 상대 말은 빠진다`() {
         val messages = habitMessages() + listOf(
             TestDossiers.partner(MARCH.plusMinutes(1), "상대만 아는 비밀"),
             TestDossiers.self(JULY, "서울역에서 7시 ㄱ?"),
@@ -23,7 +23,7 @@ class RoastBriefTest {
         val input = TestRoasts.brief(messages).inputText(TestRoasts.mapper)
 
         assertFalse(input.contains("상대만 아는 비밀"))
-        assertFalse(input.contains("정산"))
+        assertTrue(input.contains("정산 끝나고 연락함"))
         assertTrue(input.contains("|07-14 20시|서울역에서 (숫자)시 ㄱ?"))
         assertTrue(input.contains("\"act\":2,\"months\":\"5~8월\""))
     }

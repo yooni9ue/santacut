@@ -7,37 +7,20 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** 작가 입력 안전장치(실제 rules.json). 사람 이름·사는 곳 이름·숫자·영문·링크는 일반명사로 가리고, 민감한 줄은 통째로 뺀다. 지명은 그대로 둔다. */
+/** 작가 입력 안전장치(실제 rules.json). 사람 이름·사는 곳 이름·숫자·영문·링크는 일반명사로 가리고, 지명과 줄 내용은 그대로 둔다. */
 class RoastRulesTest {
     private val rules = TestRoasts.catalog.rules
 
     @Test
-    fun `돈 낱말이나 금액이 든 줄은 통째로 뺀다`() {
-        assertNull(rules.scrub("정산 완료했어"))
-        assertNull(rules.scrub("만원씩 보내"))
-        assertNull(rules.scrub("12,000원 나왔다"))
-        assertNotNull(rules.scrub("내일 보드게임 ㄱ?"))
-    }
-
-    @Test
-    fun `직장·건강·연애·가족 낱말이 든 줄은 빼지 않고 보낸다`() {
-        listOf("내일 회식 ㄱ?", "엄마가 부름", "병원 다녀옴", "남편이 늦음", "와이프 허락", "응급실 감", "퇴근하고 봄", "노조 분위기 어떰")
-            .forEach { text -> assertNotNull(rules.scrub(text), text) }
-    }
-
-    @Test
-    fun `원 없는 금액, 줄 끝 돈과 빚이 든 줄도 통째로 뺀다`() {
-        listOf("빚 갚아야 함", "3만 보내", "2천 남음", "돈좀", "그거 다 돈", "1억 모음").forEach { text -> assertNull(rules.scrub(text), text) }
-    }
-
-    @Test
-    fun `민감 낱말과 꼴만 비슷한 말은 빼지 않는다`() {
-        listOf("만두 빚어 먹자", "3시에 만나", "돈까스 먹자").forEach { text -> assertNotNull(rules.scrub(text), text) }
+    fun `돈·직장·건강·가족 이야기도 줄째 빼지 않고 숫자만 가려 보낸다`() {
+        assertEquals("정산 완료했어", rules.scrub("정산 완료했어").text)
+        assertEquals("엄마가 부름 병원 다녀옴 회식 ㄱ?", rules.scrub("엄마가 부름 병원 다녀옴 회식 ㄱ?").text)
+        assertEquals("(숫자)원 나왔다 (숫자)만 보내", rules.scrub("12,000원 나왔다 3만 보내").text)
     }
 
     @Test
     fun `숫자열은 (숫자), 영문 낱말은 (영문)으로 바꾸고 영문 원래 낱말은 차단 목록에 넣는다`() {
-        val scrubbed = assertNotNull(rules.scrub("7시에 starbucks 앞에서 보자"))
+        val scrubbed = rules.scrub("7시에 starbucks 앞에서 보자")
 
         assertEquals("(숫자)시에 (영문) 앞에서 보자", scrubbed.text)
         assertEquals(listOf("starbucks"), scrubbed.masked)
@@ -47,7 +30,7 @@ class RoastRulesTest {
     fun `지명·가게·행사 이름은 가리지 않고 차단 목록에도 넣지 않는다`() {
         val text = "서울역에서 펜타포트 가자 홍대입구 제주도에 스벅 배낚시하자 편의점 부동산 비상구"
 
-        val scrubbed = assertNotNull(rules.scrub(text))
+        val scrubbed = rules.scrub(text)
 
         assertEquals(text, scrubbed.text)
         assertTrue(scrubbed.masked.isEmpty())
@@ -56,7 +39,7 @@ class RoastRulesTest {
 
     @Test
     fun `호칭 없이 부른 이름은 (이름)으로 바꾸고 줄기를 이름 목록에 넣는다`() {
-        val scrubbed = assertNotNull(rules.scrub("동준아 민수야 지은이랑 성필이는 현규한테"))
+        val scrubbed = rules.scrub("동준아 민수야 지은이랑 성필이는 현규한테")
 
         assertEquals("(이름)아 (이름)야 (이름)이랑 (이름)이는 (이름)한테", scrubbed.text)
         assertEquals(listOf("동준", "민수", "지은", "성필", "현규"), scrubbed.names)
@@ -66,7 +49,7 @@ class RoastRulesTest {
     fun `부르는 말과 꼴이 같은 용언과 흔한 말은 이름으로 보지 않는다`() {
         val text = "괜찮아 먹어야 할거야 얘들아 친구야 누구한테 진짜야 놀아"
 
-        val scrubbed = assertNotNull(rules.scrub(text))
+        val scrubbed = rules.scrub(text)
 
         assertEquals(text, scrubbed.text)
         assertTrue(scrubbed.names.isEmpty())
@@ -76,28 +59,28 @@ class RoastRulesTest {
     fun `호칭 접미사로 끝나는 흔한 말은 이름으로 보지 않는다`() {
         val text = "곰인형 아저씨 손글씨 주인님"
 
-        assertEquals(text, assertNotNull(rules.scrub(text)).text)
+        assertEquals(text, rules.scrub(text).text)
         assertTrue(rules.suspectsIn(text).isEmpty())
     }
 
     @Test
     fun `호칭에서 떼어 낸 줄기도 이름 목록에 넣는다`() {
-        assertEquals(listOf("현규"), assertNotNull(rules.scrub("현규형 모여")).names)
+        assertEquals(listOf("현규"), rules.scrub("현규형 모여").names)
     }
 
     @Test
     fun `아파트·빌라 같은 사는 곳 이름은 주소에 가까워 (집)으로 가린다`() {
-        val scrubbed = assertNotNull(rules.scrub("7 까지 은하마을한빛아파트 101동 앞"))
+        val scrubbed = rules.scrub("7 까지 은하마을한빛아파트 101동 앞")
 
         assertEquals("(숫자) 까지 (집) (숫자)동 앞", scrubbed.text)
         assertEquals(listOf("은하마을한빛아파트"), scrubbed.masked)
-        assertEquals("(집)에서 보자", assertNotNull(rules.scrub("해피빌라에서 보자")).text)
-        assertEquals("오늘도 그래도 친구 역시 운동", assertNotNull(rules.scrub("오늘도 그래도 친구 역시 운동")).text)
+        assertEquals("(집)에서 보자", rules.scrub("해피빌라에서 보자").text)
+        assertEquals("오늘도 그래도 친구 역시 운동", rules.scrub("오늘도 그래도 친구 역시 운동").text)
     }
 
     @Test
     fun `호칭 패턴은 사람 부르는 말을 (이름)으로 바꾸고 원래 낱말을 차단 목록에 넣는다`() {
-        val scrubbed = assertNotNull(rules.scrub("현규형 행님들 모여"))
+        val scrubbed = rules.scrub("현규형 행님들 모여")
 
         assertEquals("(이름) (이름)들 모여", scrubbed.text)
         assertEquals(listOf("현규형", "행님"), scrubbed.masked)
