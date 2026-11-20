@@ -37,7 +37,7 @@ class RoastRunner(
         spending: (ModelUsage, ((ModelUsage) -> Unit) -> RoastSheet) -> RoastSheet,
     ): RoastDraft {
         val seed = roastService.seedOf(job.id)
-        if (!roastService.isEnabled()) return roastService.fallbackDraft(hundredths, dossier, seed)
+        if (!roastService.isEnabled()) return fallback(job, hundredths, dossier, seed)
         return try {
             val prompt = promptService.latest(PromptName.ROAST)
             val brief = roastService.brief(job, hundredths, dossier)
@@ -46,7 +46,16 @@ class RoastRunner(
         } catch (exception: Exception) {
             val reason = (exception as? SantaCutException)?.logReason() ?: exception.javaClass.simpleName
             logger.warn("분석 작업 {} 팩폭 작가 실패, 대체 문장으로 채운다: {}", job.id, reason)
-            roastService.fallbackDraft(hundredths, dossier, seed)
+            fallback(job, hundredths, dossier, seed)
         }
     }
+
+    /** 대체 문장만으로 만든 결과. 조서 집계로 만들다 실패하면 집계 없이 다시 만들어, 채점 결과 저장을 막지 않는다. */
+    private fun fallback(job: AnalysisJob, hundredths: Int, dossier: DossierDraft?, seed: Int): RoastDraft =
+        try {
+            roastService.fallbackDraft(hundredths, dossier, seed)
+        } catch (exception: RuntimeException) {
+            logger.warn("분석 작업 {} 조서 집계로 대체 문장을 만들지 못해 집계 없이 만든다: {}", job.id, exception.javaClass.simpleName)
+            roastService.fallbackDraft(hundredths, null, seed)
+        }
 }
