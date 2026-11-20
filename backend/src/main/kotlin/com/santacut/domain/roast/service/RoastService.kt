@@ -67,7 +67,7 @@ class RoastService(
 
     /** [prompt] 판으로 작가를 부르고, 떨어진 필드는 다시 쓰게 해 통과한 문장을 모은다. 호출마다 사용량을 [recordUsage]에 넘긴다. */
     fun ask(brief: RoastBrief, prompt: Prompt, recordUsage: (ModelUsage) -> Unit): RoastSheet =
-        refine(brief, prompt, recordUsage, RoastSheet.EMPTY, null, 1)
+        refine(brief, prompt, recordUsage, RoastSheet.startFor(brief), null, 1)
 
     /** 모은 문장 [sheet]의 빈칸을 대체 문장으로 채워 저장할 결과를 만든다. 작가를 부르지 않았으면 [prompt]가 null이다. */
     fun draft(brief: RoastBrief, sheet: RoastSheet, prompt: Prompt?, seed: Int): RoastDraft {

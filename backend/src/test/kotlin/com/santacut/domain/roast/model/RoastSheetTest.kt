@@ -65,6 +65,25 @@ class RoastSheetTest {
         assertTrue(pairs.all { pair -> pair.factKey == RoastFallback.GENERIC_KEY && pair.chip == null })
     }
 
+    @Test
+    fun `사실이 없으면 짝 없이도 나머지 필드가 차면 다시 쓰지 않는다`() {
+        val empty = RoastBrief.compose(emptyList(), null, brief.verdict, TestRoasts.catalog, TestRoasts.dossier)
+        val noPairs = TestRoasts.mapper.writeValueAsString(
+            mapOf(
+                "title" to "물음표 신호탄 요정",
+                "verdict" to "먼저 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.",
+                "verdict_mild" to "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
+                "letter" to "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 두어라.",
+                "pairs" to emptyList<Any>(),
+                "story" to listOf(1, 2, 3).map { act -> mapOf("act" to act, "line" to "그 막에는 먼저 판을 깔자고 졸랐다.") },
+            ),
+        )
+        val answer = RoastReview.of(noPairs, empty, TestRoasts.catalog.rules, TestRoasts.mapper)
+
+        assertTrue(RoastSheet.startFor(empty).absorb(answer).isComplete())
+        assertEquals(listOf(RoastPairs.FIELD), RoastSheet.EMPTY.absorb(answer).missingFields())
+    }
+
     private fun review(title: String, verdict: String = "ㄱ? 하나로 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다."): RoastReview {
         val keys = brief.facts.keys()
         val json = TestRoasts.mapper.writeValueAsString(

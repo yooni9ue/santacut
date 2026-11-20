@@ -559,6 +559,20 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
+    fun `조서 집계가 없어 사실이 없으면 짝을 기다리지 않아 작가를 한 번만 부른다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        doReturn(null).`when`(dossierService).draft(anyJob())
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals(1, requestCount())
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
+    }
+
+    @Test
     fun `작가 호출이 예외를 던져도 채점 결과는 정상 저장되고 팩폭은 대체 문장으로 채운다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()

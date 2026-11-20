@@ -2,7 +2,9 @@ package com.santacut.domain.roast.model
 
 /**
  * 작가 호출을 거듭하며 모은, 검증을 통과한 문장. 처음 통과한 문장을 지키고 빠진 필드만 다음 응답에서 채운다.
- * 짝은 사실 key가 겹치지 않게 [MAX_PAIRS]개까지 모으고 [MIN_PAIRS]개 이상이면 다시 쓰지 않는다. 줄거리는 막마다 한 줄이다.
+ * 짝은 사실 key가 겹치지 않게 [MAX_PAIRS]개까지 모으고 [pairTarget]개 이상이면 다시 쓰지 않는다. 줄거리는 막마다 한 줄이다.
+ *
+ * @property pairTarget 다시 쓰지 않아도 되는 짝 수. 짝은 사실마다 하나라 사실이 [MIN_PAIRS]개보다 적으면 사실 수이고, 사실이 없으면 0이다.
  */
 class RoastSheet(
     private val title: String?,
@@ -11,6 +13,7 @@ class RoastSheet(
     private val pairs: RoastPairs,
     private val letter: String?,
     private val story: RoastStoryLines,
+    private val pairTarget: Int = MIN_PAIRS,
 ) {
     /** 응답 [review]에서 통과한 필드로 빈칸을 채운다. 읽을 수 없는 응답이면 그대로다. */
     fun absorb(review: RoastReview): RoastSheet {
@@ -23,6 +26,7 @@ class RoastSheet(
             pairs.plus(output.pairs.passing(checks)),
             letter ?: output.letter.takeIf { checks.passed(LETTER) },
             story.plus(output.story.passing(checks)),
+            pairTarget,
         )
     }
 
@@ -31,7 +35,7 @@ class RoastSheet(
         TITLE.takeIf { title == null },
         VERDICT.takeIf { verdict == null },
         VERDICT_MILD.takeIf { verdictMild == null },
-        RoastPairs.FIELD.takeIf { pairs.size() < MIN_PAIRS },
+        RoastPairs.FIELD.takeIf { pairs.size() < pairTarget },
         LETTER.takeIf { letter == null },
         RoastStoryLines.FIELD.takeIf { story.size() < ACTS },
     )
@@ -73,5 +77,9 @@ class RoastSheet(
 
         /** 아무것도 통과하지 못한 처음 상태. 작가를 부르지 않으면 이대로 대체 문장만 쓴다. */
         val EMPTY = RoastSheet(null, null, null, RoastPairs.EMPTY, null, RoastStoryLines.EMPTY)
+
+        /** [brief]로 작가를 부르기 전 빈 상태. 사실이 모자라면 그 수만큼만 짝을 기다린다. */
+        fun startFor(brief: RoastBrief): RoastSheet =
+            RoastSheet(null, null, null, RoastPairs.EMPTY, null, RoastStoryLines.EMPTY, minOf(MIN_PAIRS, brief.facts.size()))
     }
 }
