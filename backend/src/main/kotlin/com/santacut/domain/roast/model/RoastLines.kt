@@ -18,6 +18,13 @@ class RoastLines(private val values: List<RoastLine>) {
     /** 가린 원래 낱말과 이름 줄기 전체(차단 목록). */
     fun blockedWords(): BlockedWords = BlockedWords(values.flatMap { line -> line.masked + line.names })
 
+    /** [text]에서 [length]자 이상 이어져 어느 줄 본문에 그대로 있는 첫 구간([length]자). 공백만 있는 구간은 보지 않는다. 없으면 null이다. */
+    fun sharedRun(text: String, length: Int): String? {
+        if (text.length < length) return null
+        val joined = values.joinToString(LINE_BREAK, transform = RoastLine::text)
+        return text.windowed(length).firstOrNull { window -> window.isNotBlank() && window in joined }
+    }
+
     /** 막마다 나눈 작가 입력. 줄이 없는 막도 빈 목록으로 넣는다. */
     fun toActs(): List<RoastTranscriptAct> = DossierAct.entries.mapIndexed { index, act ->
         RoastTranscriptAct(index + 1, act.monthsText(), values.filter { line -> line.act() == act }.map(RoastLine::toInputLine))
@@ -31,6 +38,7 @@ class RoastLines(private val values: List<RoastLine>) {
 
     companion object {
         val EMPTY = RoastLines(emptyList())
+        private const val LINE_BREAK = "\n"
 
         /**
          * 메시지 [messages] 가운데 본인 글 메시지만 순번을 매겨 가린다. 통째로 뺄 줄은 순번만 쓰고 넣지 않는다.

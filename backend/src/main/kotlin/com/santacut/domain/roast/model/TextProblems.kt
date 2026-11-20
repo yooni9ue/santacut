@@ -11,13 +11,13 @@ class TextProblems(private val values: List<String>) {
     fun labeled(label: String): List<String> = values.map { reason -> "$label: $reason" }
 
     companion object {
-        /** 작은따옴표 인용(곧은 따옴표와 둥근 따옴표). */
-        private val QUOTE = Regex("'([^'\\n]*)'|‘([^’\\n]*)’")
+        /** 따옴표·낫표 인용. 곧은·둥근 작은따옴표와 큰따옴표, 홑·겹낫표를 본다. */
+        private val QUOTE = Regex("'([^'\\n]*)'|‘([^’\\n]*)’|\"([^\"\\n]*)\"|“([^”\\n]*)”|「([^」\\n]*)」|『([^』\\n]*)』")
         private const val PARENTHESES = "()"
 
         /**
          * [kind] 문장 [text]를 검사한다. 글자 수, 숫자·수량 표현, 금지어, 가린 고유명사, 알파벳, 괄호 표기, 고유명사 의심,
-         * 목록 밖 인용, 판정 방향, 담백 판결의 석탄·탈락, "근데"로 여는 뒤집기를 본다.
+         * 목록 밖 인용, 본인 말풍선을 길게 베낀 말, 판정 방향, 담백 판결의 석탄·탈락, "근데"로 여는 뒤집기를 본다.
          */
         fun of(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): TextProblems =
             TextProblems(wordingProblems(text, kind, brief, rules) + safetyProblems(text, brief, rules) + quoteProblems(text, brief))
@@ -39,9 +39,9 @@ class TextProblems(private val values: List<String>) {
         )
 
         private fun quoteProblems(text: String, brief: RoastBrief): List<String> = QUOTE.findAll(text)
-            .map { match -> match.groupValues[1].ifEmpty { match.groupValues[2] } }
+            .map { match -> match.groupValues.drop(1).firstOrNull(String::isNotEmpty).orEmpty() }
             .filterNot { quote -> brief.isQuotable(quote) }
             .map { quote -> "목록 밖 인용($quote)" }
-            .toList()
+            .toList() + listOfNotNull(brief.copiedIn(text)?.let { copied -> "말풍선 베낌($copied)" })
     }
 }

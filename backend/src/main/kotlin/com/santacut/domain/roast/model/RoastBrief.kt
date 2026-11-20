@@ -29,6 +29,9 @@ class RoastBrief(
 
     fun isQuotable(quote: String): Boolean = quote in quotes
 
+    /** [text]가 본인 말풍선(가린 뒤)에서 [COPIED_LENGTH]자 이상 그대로 베낀 첫 구간. 따옴표 없이 옮겨 쓴 인용을 막는다. 없으면 null이다. */
+    fun copiedIn(text: String): String? = lines.sharedRun(text, COPIED_LENGTH)
+
     /** [text]에 나온 차단 낱말(입력에서 가린 고유명사). 없으면 null이다. */
     fun blockedIn(text: String): String? = blocked.foundIn(text)
 
@@ -38,6 +41,9 @@ class RoastBrief(
     companion object {
         /** 막 하나에 보내는 본인 말풍선 글자 수 상한. 세 막 합이 약 6천 자(입력 약 4~5천 토큰)다. */
         const val CHARS_PER_ACT = 2_000
+
+        /** 이만큼 이어진 글자가 본인 말풍선과 같으면 베낀 것으로 본다. */
+        const val COPIED_LENGTH = 8
 
         /**
          * 메시지 [messages](본인과 상대, 시각순, 한국 시각)와 조서 집계 [stats], 선물 판정 [verdict]로 입력을 조립한다.

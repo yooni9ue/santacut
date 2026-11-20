@@ -42,6 +42,31 @@ class RoastReviewTest {
     }
 
     @Test
+    fun `큰따옴표와 낫표로 감싼 목록 밖 인용도 떨어진다`() {
+        val json = validJson(
+            title = "“언제 볼까” 신호탄 요정",
+            verdict = "「언제 볼까?」 하나로 판을 깔던 손을 봤다. 선물 명단에 올린다.",
+            letter = "올해 『언제 볼까』로 판을 열던 버릇이 좋았다. 할 말이 생기면 미루지 않고 먼저 꺼냈다. 내년에도 그대로 두어라.",
+        )
+
+        val checks = review(gift, json).checks
+
+        assertEquals(listOf("title", "verdict", "letter"), checks.failedFields())
+        assertEquals(3, checks.reasonsFor(listOf("title", "verdict", "letter")).count { reason -> reason.contains("목록 밖 인용(언제 볼까") })
+    }
+
+    @Test
+    fun `따옴표 없이 본인 말풍선을 여덟 글자 넘게 베끼면 떨어진다`() {
+        val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "오늘은 무조건 보드게임 하자"))
+        val json = validJson(verdict = "무조건 보드게임 하자고 조르던 손을 봤다. 선물 명단에 올린다.")
+
+        val checks = review(brief, json).checks
+
+        assertEquals(listOf("verdict"), checks.failedFields())
+        assertTrue(checks.reasonsFor(listOf("verdict")).any { reason -> reason.contains("말풍선 베낌") })
+    }
+
+    @Test
     fun `석탄인데 선물을 받는다는 판결과 석탄을 쓴 담백 판결, 근데로 여는 뒤집기는 떨어진다`() {
         val json = validJson(
             verdict = "ㄱ? 하나로 버텼다. 그래도 올해 선물 받는 건 어렵지 않겠다.",
