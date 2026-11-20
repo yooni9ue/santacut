@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.santacut.presentation.ranking.response.ArchetypeResponse
 import io.swagger.v3.oas.annotations.media.Schema
 
-@Schema(description = "산타 유형 카드(ARCHETYPE). 결과 화면과 같은 유형 코드와 이름입니다.")
+@Schema(description = "산타 유형 카드(ARCHETYPE). 최신 평가의 유형 코드와 이름입니다.")
 data class ArchetypeCardResponse(
     @field:Schema(description = "카드 순서(0부터)", example = "6")
     override val index: Int,

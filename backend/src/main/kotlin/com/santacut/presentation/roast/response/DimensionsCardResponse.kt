@@ -6,7 +6,7 @@ import com.santacut.presentation.ranking.response.DimensionBarResponses
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 
-@Schema(description = "항목 막대 카드(DIMENSIONS). 결과 화면과 같은 4항목 막대입니다.")
+@Schema(description = "항목 막대 카드(DIMENSIONS). 최신 평가의 4항목 막대입니다.")
 data class DimensionsCardResponse(
     @field:Schema(description = "카드 순서(0부터)", example = "7")
     override val index: Int,

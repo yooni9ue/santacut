@@ -84,6 +84,12 @@ data class MyResultResponse(
             "이 기능 전에 받은 결과면 false이고, 시즌 마감 전이면 대화를 다시 올려 조서를 받을 수 있습니다.",
     )
     val dossierAvailable: Boolean,
+    @field:JsonProperty("recap_available")
+    @field:Schema(
+        description = "최신 결과에 「팩폭 산타」 리캡 카드 덱(GET /v1/me/recap)이 있으면 true입니다. 순위 반영 대기 중(ranking_pending)이어도 최신 평가 기준입니다. " +
+            "이 기능 전에 받은 결과면 false이고, 이때는 리캡 대신 이 결과 화면을 보여 줍니다.",
+    )
+    val recapAvailable: Boolean,
 ) {
     companion object {
         fun from(result: MyRankingResult): MyResultResponse = MyResultResponse(
@@ -92,6 +98,7 @@ data class MyResultResponse(
             result.lowConfidenceDimensions, ArchetypeResponse(result.archetypeCode, result.archetypeName),
             DimensionBarResponses.from(result.dimensionBars), DimensionBarResponse.from(result.weakestDimension),
             result.topPercent, result.archetypeSharePercent, result.badges, result.quote, result.dossierAvailable,
+            result.recapAvailable,
         )
     }
 }

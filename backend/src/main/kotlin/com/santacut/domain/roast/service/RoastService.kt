@@ -124,6 +124,9 @@ class RoastService(
         record(assessment, fallbackDraft(assessment.scoreHundredths, dossier, seedOf(assessment.id)), recordedAt)
     }
 
+    /** [assessmentId] 평가에 팩폭 결과(리캡 카드 문장)가 있는지. */
+    fun exists(assessmentId: String): Boolean = roastRepository.existsByAssessmentId(assessmentId)
+
     /** [assessmentId] 평가의 팩폭 결과. 이 기능 전 평가라 없으면 [ErrorCode.RECAP_NOT_FOUND]다. */
     fun get(assessmentId: String): RoastContent {
         val roast = roastRepository.findByAssessmentId(assessmentId) ?: throw SantaCutException(ErrorCode.RECAP_NOT_FOUND)

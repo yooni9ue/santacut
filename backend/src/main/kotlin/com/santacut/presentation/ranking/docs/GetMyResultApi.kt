@@ -24,7 +24,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
         "low_confidence_dimensions에 든 항목은 근거가 부족해 사전값을 준 항목입니다. " +
         "top_percent는 순위 계산 참가자가 100명 이상일 때만, archetype_share_percent는 점수를 받은 참가자가 30명 이상일 때만 값이 있고 아니면 null입니다. " +
         "dossier_available은 최신 결과에 산타 조서(GET /v1/me/dossier)가 있는지 알려 줍니다(순위 반영 대기 중에도 최신 평가 기준). " +
-        "false면 조서 대신, 시즌 마감 전에는 재업로드 안내를, 마감 뒤에는 조서가 없다는 안내만 띄웁니다.",
+        "false면 조서 대신, 시즌 마감 전에는 재업로드 안내를, 마감 뒤에는 조서가 없다는 안내만 띄웁니다. " +
+        "recap_available은 최신 결과에 리캡 카드 덱(GET /v1/me/recap)이 있는지 알려 줍니다. 리캡은 이 응답의 verdict와 달리 선물 판정(컷 65점)을 씁니다.",
     tags = ["Results"],
     security = [SecurityRequirement(name = ApiDocs.SESSION_SECURITY)],
     responses = [

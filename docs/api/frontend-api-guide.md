@@ -15,7 +15,7 @@
 - [ ] **분석 범위 표기**: 업로드 화면과 동의 문구의 분석 범위를 "최근 90일"에서 "올해 1월 1일부터"로 바꾼다. 상한 표기도 "최대 2,000개"에서 "본인 메시지 2,000개(상대 포함 6,000개)"로 함께 고친다. 이벤트 JSON 제출은 그대로 2,000개까지다(6·6.1절).
 - [ ] **내 결과 화면** `GET /v1/me/result`: 새 필드 `archetype`, `dimension_scores`, `weakest_dimension`, `top_percent`(100명 미만이면 null), `archetype_share_percent`(30명 미만이면 null), `badges`, `quote`(null 가능), `low_confidence_dimensions`(근거 부족 항목에 "근거 적음" 표시). 정확한 도착 시각 `eta`는 본인 결과에만 있다(7절).
 - [ ] **산타 조서 화면** `GET /v1/me/dossier`(2026-11-20 추가): 결과 화면을 `scenes` 배열 순서대로 한 장씩 넘기는 세로 스냅 스크롤로 그린다. 장면마다 저장(공유 카드) 버튼을 두되 `shareable`이 true인 장면에만 둔다. 카드에는 `shareable`이 true인 줄만 싣는다(삐 처리·하위 판정·느린 답장 줄은 화면에만). `404 DOSSIER_NOT_FOUND`(또는 결과의 `dossier_available`이 false)면 조서 대신, 시즌 마감 전(`stage`가 마감 전)이면 "대화를 다시 올리면 새 조서를 받는다"는 재업로드 안내를, 마감 뒤에는 "이 결과에는 조서가 없다"는 안내만 띄운다(마감 뒤에는 재업로드할 수 없다). `tone` 값은 화면 문구에만 쓰고 분석 이벤트·로그·에러 리포트에 싣지 않는다. 기존 점수·유형 화면은 "자세히 보기"로 접어 남긴다(7절 산타 조서).
-- [ ] **팩폭 산타 리캡 카드 덱** `GET /v1/me/recap`(2026-11-20 추가): `cards` 배열을 받은 순서대로 9:16(1080×1920) 카드 한 장씩 넘기는 덱으로 그린다. 카드마다 문구·칩·점수를 잘리거나 접히지 않게 모두 보이게 둔다(말줄임·"더 보기" 금지). 모든 카드 상단에 `score_text`를 크게 찍고, `skin`(`GIFT`/`COAL`)으로 배경을 고른다. 카드별 이미지 저장과 공유 버튼을 두고, 공유 문구는 서버가 준 `share_text`를 그대로 쓴다. 농담을 끈 화면은 `verdict_mild`·`stamp_mild`를 쓴다. `404 RECAP_NOT_FOUND`면 덱 대신 기존 결과 화면을 보여 준다(7절 리캡 카드 덱).
+- [ ] **팩폭 산타 리캡 카드 덱** `GET /v1/me/recap`(2026-11-20 추가): `cards` 배열을 받은 순서대로 9:16(1080×1920) 카드 한 장씩 넘기는 덱으로 그린다. 카드마다 문구·칩·점수를 잘리거나 접히지 않게 모두 보이게 둔다(말줄임·"더 보기" 금지). 모든 카드 상단에 `score_text`를 크게 찍고, `skin`(`GIFT`/`COAL`)으로 배경을 고른다. 카드별 이미지 저장과 공유 버튼을 두고, 공유 문구는 서버가 준 `share_text`를 그대로 쓴다. 농담을 끈 화면은 `verdict_mild`·`stamp_mild`를 쓴다. `404 RECAP_NOT_FOUND`(또는 결과의 `recap_available`이 false)면 덱 대신 기존 결과 화면을 보여 준다. 리캡의 선물·석탄은 결과 화면 `verdict`가 아니라 컷 65점 선물 판정이다(7절 리캡 카드 덱).
 - [ ] **랭킹 화면** `GET /v1/rankings`: 행의 도착 정보는 `eta_date`(서울 날짜)를 쓴다. `eta`는 항상 null이다. 페이지 사이에 순위가 다시 계산되면 `409 RANKING_SNAPSHOT_CHANGED`가 오니 목록을 비우고 첫 페이지부터 다시 읽는다. 예전 숫자 cursor는 `400`이다(7절).
 - [ ] **순위 반영 대기**: 분석이 끝난 뒤 순위는 최대 30초 안에 반영된다. SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 오고, 결과의 `ranking_pending`이 true인 동안은 "순위 계산 중"을 보여 준다(6.0절).
 - [ ] **지역 변경**: 24시간 2번, 시즌 5번까지. 넘으면 `429 REGION_CHANGE_LIMITED`(`retry_at` 있음) 또는 `REGION_CHANGE_SEASON_LIMIT`(없음)(5절).
@@ -266,6 +266,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
   - 유형은 위 두 항목 점수 차이로 고른다. 차이가 3점보다 작으면 균형형, 7점 이상이면 가장 높은 항목의 유형이고, 그 사이는 수축 전 평균의 차이(6점 미만이면 균형형)와 순서로 가른다. 같은 대화를 다시 채점할 때 생기는 작은 점수 흔들림으로 유형이 바뀌는 일을 줄이려는 규칙이다.
   - `badges`: 본인 말에서 낱말 횟수로 받은 배지 라벨 배열이다(예: `고마워 12회 · 감사 자판기`, `미안 0회 · 사과 품절`). 없으면 빈 배열이다. 앞 원소가 우선이다.
   - `quote`: 본인 근거 줄에서 고른 20자 이하 한마디다. 상대 말은 절대 들어가지 않는다. 없으면 `null`이다. 내 결과 화면에만 보여 주고, 공유 카드에는 사용자가 고를 때만 싣는다(아래 공유).
+- `recap_available`(2026-11-20 추가): 최신 결과에 리캡 카드 덱(`GET /v1/me/recap`)이 있으면 `true`다. `ranking_pending`이 true여도 최신 평가 기준이다. 이 기능 전에 받은 결과면 `false`이고, 이때는 리캡 대신 이 결과 화면을 보여 준다.
 - `dossier_available`(2026-11-20 추가): 최신 결과에 산타 조서가 있으면 `true`다. `ranking_pending`이 true(재업로드 직후 순위 계산 전)여도 최신 평가 기준이다. 이 기능 전에 받은 결과면 `false`이고, 조서 대신 시즌 마감 전에만 재업로드 안내를 띄운다.
 
 ### 산타 조서 `GET /v1/me/dossier`
@@ -292,7 +293,8 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 
 ### 리캡 카드 덱 `GET /v1/me/recap`
 
-- 최신 결과(평가)로 만든 「팩폭 산타」 카드 덱이다. 문장은 분석 때 AI 작가가 쓰고 서버가 검증해 저장한 것이다. 검증을 통과하지 못한 필드는 서버 대체 문장이 들어간다. 다시 열어도 같다.
+- 최신 결과(평가)로 만든 「팩폭 산타」 카드 덱이다. 재업로드 직후 순위 다시 계산 전에도 새 평가의 카드를 준다.
+- 판정은 「팩폭 산타」 선물 판정이다. 총점 65점 이상이면 선물, 아래면 석탄이다. 결과 응답의 `verdict` 문구(기존 점수 판정)와 다를 수 있으니, 리캡 화면에서는 `skin`·`passed`·`stamp`만 쓴다. 문장은 분석 때 AI 작가가 쓰고 서버가 검증해 저장한 것이다. 검증을 통과하지 못한 필드는 서버 대체 문장이 들어간다. 다시 열어도 같다.
 - 결과가 없으면 `404 RESULT_NOT_FOUND`, 최신 결과에 카드 문장이 없으면(이 기능 전에 받은 결과) `404 RECAP_NOT_FOUND`다. 이때는 덱 대신 기존 결과 화면을 보여 준다.
 - 응답: `{ assessment_id, skin, score, score_text, share_text, cards[] }`.
   - `skin`: 총점 65점 이상이면 `GIFT`, 아래면 `COAL`이다. 재심은 없다.
@@ -307,7 +309,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | `ROAST` | 3 | `chip`(`{ label, value }`, 대체 문장이면 null), `roast`(놀림), `flip`(뒤집기. 화면이 앞에 "근데"를 붙인다) |
 | `LETTER` | 1 | `letter`(산타 쪽지, 놀림 없음) |
 | `STORY` | 0~1 | `acts[]`(`{ act, months, line }`, 1막 1~4월·2막 5~8월·3막 9~12월). 저장한 줄거리가 없으면 카드째 빠진다 |
-| `ARCHETYPE` | 1 | `archetype`(`{ code, name }`, 결과 화면과 같은 유형) |
+| `ARCHETYPE` | 1 | `archetype`(`{ code, name }`, 최신 평가의 유형) |
 | `DIMENSIONS` | 1 | `bars[]`(`{ key, label, score }`, 공감·응원·존중·협력 순서) |
 
 - 문장 필드(`title`, `verdict`, `roast`, `flip`, `letter`, `line`)에는 숫자가 없다. 숫자는 `score_text`, `cut_distance`, `chip.value`, `rank`, `delivery_eta`로만 나간다.

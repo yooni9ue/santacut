@@ -21,6 +21,7 @@ import java.time.Instant
  * @property badges 본인 말에서 받은 배지 라벨
  * @property quote 본인 근거 줄의 20자 이하 한마디. 없으면 null이다.
  * @property dossierAvailable 최신 평가에 산타 조서가 있는지. 순위 반영 대기 중이어도 최신 평가 기준이다. 이 기능 전 평가면 거짓이다.
+ * @property recapAvailable 최신 평가에 리캡 카드 문장(팩폭 결과)이 있는지. 순위 반영 대기 중이어도 최신 평가 기준이다. 이 기능 전 평가면 거짓이다.
  */
 data class MyRankingResult(
     val rank: Int?,
@@ -43,16 +44,23 @@ data class MyRankingResult(
     val badges: List<String>,
     val quote: String?,
     val dossierAvailable: Boolean,
+    val recapAvailable: Boolean,
 ) {
     companion object {
-        fun from(result: RankedResult, profile: ResultProfile, stage: RankingStage, dossierAvailable: Boolean): MyRankingResult = MyRankingResult(
+        fun from(
+            result: RankedResult,
+            profile: ResultProfile,
+            stage: RankingStage,
+            dossierAvailable: Boolean,
+            recapAvailable: Boolean,
+        ): MyRankingResult = MyRankingResult(
             result.snapshot?.rank, result.snapshot?.tied ?: false, result.snapshot?.deliverySequence,
             result.snapshot?.eta, result.snapshot?.computedAt,
             result.assessment.scoreHundredths, result.assessment.verdict, result.assessment.comment,
             stage.name, result.rankingPending, result.assessment.lowConfidenceKeys(),
             profile.archetype.name, profile.archetype.koreanName, DimensionBarResults.from(profile.dimensionScores),
             DimensionBarResult.of(profile.weakestDimension(), profile.dimensionScores), profile.topPercent,
-            profile.archetypeSharePercent, profile.badges, profile.quote, dossierAvailable,
+            profile.archetypeSharePercent, profile.badges, profile.quote, dossierAvailable, recapAvailable,
         )
     }
 }

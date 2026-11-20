@@ -106,6 +106,15 @@ class RecapApiTest @Autowired constructor(
     }
 
     @Test
+    fun `결과 응답의 recap_available은 최신 결과에 팩폭 문장이 있을 때만 true다`() {
+        val withRoast = participantWithResult(GIFT_SCORES, withRoast = true)
+        val withoutRoast = participantWithResult(GIFT_SCORES, withRoast = false)
+
+        mockMvc.perform(get(RESULT_PATH).cookie(withRoast)).andExpect(status().isOk).andExpect(jsonPath("$.recap_available").value(true))
+        mockMvc.perform(get(RESULT_PATH).cookie(withoutRoast)).andExpect(status().isOk).andExpect(jsonPath("$.recap_available").value(false))
+    }
+
+    @Test
     fun `점수가 나온 결과가 아직 없으면 404 RESULT_NOT_FOUND다`() {
         val participant = participantFacade.register(RegisterParticipantCommand(uniqueNickname(), REGION_CODE))
 
@@ -136,6 +145,7 @@ class RecapApiTest @Autowired constructor(
 
     companion object {
         private const val RECAP_PATH = "/v1/me/recap"
+        private const val RESULT_PATH = "/v1/me/result"
         private const val SESSION_COOKIE = "sc_session"
         private val GIFT_SCORES = listOf(99, 99, 99, 99)
         private val COAL_SCORES = listOf(5, 5, 5, 5)

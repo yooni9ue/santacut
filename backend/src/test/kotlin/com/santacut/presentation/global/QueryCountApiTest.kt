@@ -146,12 +146,12 @@ class QueryCountApiTest @Autowired constructor(
         private const val MANY_JOBS = 20
         private val EMPTY_SUBMISSION = AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList()))
         /**
-         * 결과 조회는 조서가 있는지(dossier_available)를 한 번 더 읽는다.
+         * 결과 조회는 조서가 있는지(dossier_available)와 리캡 카드가 있는지(recap_available)를 한 번씩 더 읽는다.
          * 조서 조회는 세션, 최신 평가, 최신 순위 스냅숏, 조서, 지역 이름을 한 번씩 읽는다.
          * 리캡 조회는 세션, 최신 평가, 최신 순위 스냅숏, 팩폭 결과, 순위 계산 참가자 수, 저장한 유형 분포를 한 번씩 읽는다.
          */
         private val EXPECTED_READ_COUNTS = mapOf(
-            "status" to 3L, "rankings" to 3L, "result" to 6L, "share page" to 1L, "dossier" to 5L, "recap" to 6L,
+            "status" to 3L, "rankings" to 3L, "result" to 7L, "share page" to 1L, "dossier" to 5L, "recap" to 6L,
         )
 
         /** 알릴 작업 id 목록, 작업들, 참가자별 순위 반영 시각을 한 번씩 읽는다. 작업 수와 상관없다(예전에는 작업 하나에 3번 더). */

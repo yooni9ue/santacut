@@ -5,4 +5,6 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface RoastRepository : JpaRepository<Roast, String> {
     fun findByAssessmentId(assessmentId: String): Roast?
+
+    fun existsByAssessmentId(assessmentId: String): Boolean
 }
