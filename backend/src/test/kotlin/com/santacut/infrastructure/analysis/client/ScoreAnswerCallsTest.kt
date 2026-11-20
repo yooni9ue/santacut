@@ -52,7 +52,101 @@ class ScoreAnswerCallsTest {
         }
     }
 
+    @Test
+    fun `구간마다 부르되 한 번에 정한 수까지만 동시에 부르고 답은 구간 순서대로 돌려준다`() {
+        val running = AtomicInteger()
+        val peak = AtomicInteger()
+        val items = List(ITEMS) { index -> index }
+
+        val answers = ScoreAnswerCalls.each(items, LIMIT) { item ->
+            peak.accumulateAndGet(running.incrementAndGet(), ::maxOf)
+            Thread.sleep(SLOW_CALL_MILLIS)
+            running.decrementAndGet()
+            ScoreAnswer.insufficient(ModelUsage(item.toLong(), 0, "STOP"))
+        }
+
+        assertEquals(LIMIT, peak.get())
+        assertEquals(items.map(Int::toLong), answers.map { answer -> answer.usage.inputTokens })
+    }
+
+    @Test
+    fun `구간 호출 하나가 예외를 던지면 그 구간은 버릴 답이 되고 뒤에 자리를 잡는 구간은 같은 예외를 싣는다`() {
+        val calls = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.each(List(ITEMS) { index -> index }, 1) {
+            calls.incrementAndGet()
+            throw IllegalStateException("AI 장애")
+        }
+
+        assertEquals(1, calls.get())
+        answers.forEach { answer -> assertEquals("AI 장애", assertThrows<IllegalStateException> { answer.verifyAnswered() }.message) }
+    }
+
+    @Test
+    fun `첫 구간이 끝난 뒤에 나머지 구간을 부르고 답은 구간 순서대로 돌려준다`() {
+        val firstDone = AtomicInteger()
+        val startedEarly = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.firstThenEach(List(ITEMS) { index -> index }, LIMIT) { item ->
+            if (item == 0) {
+                Thread.sleep(SLOW_CALL_MILLIS)
+                firstDone.set(1)
+            } else if (firstDone.get() == 0) {
+                startedEarly.incrementAndGet()
+            }
+            ScoreAnswer.insufficient(ModelUsage(item.toLong(), 0, "STOP"))
+        }
+
+        assertEquals(0, startedEarly.get())
+        assertEquals(List(ITEMS) { index -> index.toLong() }, answers.map { answer -> answer.usage.inputTokens })
+    }
+
+    @Test
+    fun `첫 구간 호출이 예외를 던지면 버릴 답 하나만 돌려주고 나머지 구간은 부르지 않는다`() {
+        val calls = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.firstThenEach(List(ITEMS) { index -> index }, LIMIT) { item ->
+            calls.incrementAndGet()
+            if (item == 0) throw IllegalStateException("AI 장애")
+            ScoreAnswer.insufficient(USAGE)
+        }
+
+        assertEquals(1, calls.get())
+        assertEquals(1, answers.size)
+        assertThrows<IllegalStateException> { answers.single().verifyAnswered() }
+    }
+
+    @Test
+    fun `첫 구간 답을 쓸 수 없으면 그 답 하나만 돌려주고 나머지 구간은 부르지 않는다`() {
+        val calls = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.firstThenEach(List(ITEMS) { index -> index }, LIMIT) {
+            calls.incrementAndGet()
+            ScoreAnswer.providerUnavailable()
+        }
+
+        assertEquals(1, calls.get())
+        assertTrue(answers.single().isProviderUnavailable())
+    }
+
+    @Test
+    fun `동시에 부르던 구간 하나가 쓸 수 없는 답이면 아직 자리를 못 잡은 구간은 부르지 않고 그 답을 사용량 없이 대신 싣는다`() {
+        val calls = AtomicInteger()
+
+        val answers = ScoreAnswerCalls.each(List(ITEMS) { index -> index }, 1) {
+            calls.incrementAndGet()
+            ScoreAnswer.unreadable(USAGE)
+        }
+
+        assertEquals(1, calls.get())
+        assertEquals(ITEMS, answers.size)
+        assertTrue(answers.none { answer -> answer.isUsable() })
+        assertEquals(USAGE.inputTokens, answers.sumOf { answer -> answer.usage.inputTokens })
+    }
+
     companion object {
+        private const val ITEMS = 8
+        private const val LIMIT = 4
         private const val COUNT = 3
         private const val TIMEOUT_SECONDS = 5L
         private const val SLOW_CALL_MILLIS = 100L

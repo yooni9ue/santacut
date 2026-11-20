@@ -17,14 +17,15 @@ class ScoringChunks(private val values: List<ScoringChunk>) {
     /**
      * 한 구간이면 같은 구간을 [samples]번 동시에 따로 묻고 항목별 중앙값([ScoreAnswers.median])으로 합친다.
      * 여러 구간이면 구간마다 한 번씩 묻는다([ask]). 구간 호출이 이미 잡음을 평균하기 때문이다. [samples]가 1이면 예전과 같다.
-     * 반복 호출을 어떻게 돌릴지(차례로, 동시에)는 [sampler]가 정한다.
+     * 반복 호출을 어떻게 돌릴지는 [sampler]가, 여러 구간을 어떻게 돌릴지(차례로, 동시에)는 [spreader]가 정한다.
      */
     fun ask(
         samples: Int,
         sampler: (Int, () -> ScoreAnswer) -> List<ScoreAnswer>,
+        spreader: (List<ScoringChunk>, (ScoringChunk) -> ScoreAnswer) -> List<ScoreAnswer>,
         asker: (ScoringChunk) -> ScoreAnswer,
     ): ScoringChunkAnswers {
-        if (callsPerChunk(samples) == 1) return ask(asker)
+        if (callsPerChunk(samples) == 1) return ask(spreader, asker)
         val chunk = values.single()
         val answer = ScoreAnswers(sampler(samples) { asker(chunk) }).median()
         return ScoringChunkAnswers(listOf(ScoringChunkAnswer(chunk, answer)))
@@ -34,18 +35,12 @@ class ScoringChunks(private val values: List<ScoringChunk>) {
     private fun callsPerChunk(samples: Int): Int = if (values.size == 1) samples.coerceAtLeast(1) else 1
 
     /**
-     * 구간을 차례로 묻는다. 한 구간이라도 쓸 수 없는 답(제공자 차단, 읽기 실패)이면 남은 구간은 묻지 않는다.
-     * 작업은 원자적이라 그 답 하나로 작업 전체가 실패하거나 대기열로 돌아간다.
+     * 구간을 [spreader]로 묻고 답을 구간 순서대로 싣는다. 한 구간이라도 쓸 수 없는 답(제공자 차단, 읽기 실패)이면
+     * 합칠 때([ScoringChunkAnswers.toScore]) 구간 순서로 처음 나온 그 답 때문에 작업 전체가 실패하거나 대기열로 돌아간다(원자적).
+     * [spreader]는 앞 답이 쓸 수 없으면 뒤 구간을 부르지 않고 답을 덜 돌려줄 수 있다. 그때는 돌려준 답까지만 싣는다.
      */
-    fun ask(asker: (ScoringChunk) -> ScoreAnswer): ScoringChunkAnswers {
-        val answers = mutableListOf<ScoringChunkAnswer>()
-        for (chunk in values) {
-            val answer = asker(chunk)
-            answers += ScoringChunkAnswer(chunk, answer)
-            if (!answer.isUsable()) break
-        }
-        return ScoringChunkAnswers(answers)
-    }
+    fun ask(spreader: (List<ScoringChunk>, (ScoringChunk) -> ScoreAnswer) -> List<ScoreAnswer>, asker: (ScoringChunk) -> ScoreAnswer): ScoringChunkAnswers =
+        ScoringChunkAnswers(values.zip(spreader(values, asker)) { chunk, answer -> ScoringChunkAnswer(chunk, answer) })
 
     companion object {
         /** 구간 하나의 본문 글자 수 목표. 한국어 대화문은 약 1.4자가 토큰 하나라 줄 표시와 시스템 프롬프트를 더해도 약 7천 토큰이다(§14.13). */

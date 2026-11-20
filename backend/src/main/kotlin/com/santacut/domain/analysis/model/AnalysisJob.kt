@@ -289,6 +289,7 @@ class AnalysisJob(
          * 채점 호출 하나의 시간 상한이 [callTimeout]이고, 채점 뒤 팩폭 작가를 최대 [writerCalls]번 각 [writerCallTimeout]까지 부를 때의 작업 리스 길이.
          * 구간 수 상한([ScoringChunks.MAX_CHUNKS])만큼의 채점 호출과 작가 호출이 모두 상한까지 걸려도 리스가 남아 있어야
          * 다른 작업자가 같은 작업을 다시 잡지 않고, 결과 기록이 리스를 잃지 않는다.
+         * 구간은 몇 개씩 동시에 묻지만 리스는 모두 차례로 걸렸을 때로 잡는다. 동시에 묻는 수를 1로 낮춰도 맞고, 동시에 물을 때는 그만큼 넉넉하다.
          */
         fun leaseDurationFor(callTimeout: Duration, writerCallTimeout: Duration = Duration.ZERO, writerCalls: Int = 0): Duration =
             callTimeout.multipliedBy(ScoringChunks.MAX_CHUNKS.toLong())

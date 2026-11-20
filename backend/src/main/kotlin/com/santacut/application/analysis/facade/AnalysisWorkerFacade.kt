@@ -81,10 +81,10 @@ class AnalysisWorkerFacade(
     private fun reuseOrScore(job: AnalysisJob) {
         val attempt = scoring.prepare(job, promptService.latest(PromptName.SCORE))
         val dossier = heldJobs.draftDossier(job)
-        val freshRoast = heldJobs.scoreNeedingRoast(attempt)?.let { hundredths -> roasts.write(job, hundredths, dossier, budget::spending) }
+        val freshRoast = heldJobs.scoreNeedingRoast(attempt)?.let { hundredths -> roasts.write(job, hundredths, dossier, budget::spendingOnRoast) }
         if (heldJobs.reuseIfSameDigest(attempt, dossier, freshRoast)) return
         val scored = score(attempt)
-        val roast = roasts.write(job, scored.score.hundredths, dossier, budget::spending)
+        val roast = roasts.write(job, scored.score.hundredths, dossier, budget::spendingOnRoast)
         heldJobs.complete(attempt, scored, dossier, roast)
         budget.recordSuccess()
     }
@@ -94,7 +94,7 @@ class AnalysisWorkerFacade(
      * 과금 여부를 아는 이 자리에서 작업을 먼저 정리한 뒤 예외를 다시 던진다.
      */
     private fun score(attempt: ScoringAttempt): ScoredAssessment {
-        val answers = budget.spending(scoring.estimateUsage(attempt)) { record -> scoring.ask(attempt, record) }
+        val answers = budget.spendingOnScore(scoring.estimateUsage(attempt)) { record -> scoring.ask(attempt, record) }
         try {
             return scoring.assess(attempt, answers)
         } catch (exception: SantaCutException) {
@@ -111,7 +111,7 @@ class AnalysisWorkerFacade(
     }
 
     companion object {
-        /** `santacut.ai.poll-delay-ms`가 없을 때 작업자가 다음 작업을 찾기 전 쉬는 시간(밀리초). */
-        private const val DEFAULT_POLL_DELAY_MS = 3000L
+        /** `santacut.ai.poll-delay-ms`가 없을 때 작업자가 다음 작업을 찾기 전 쉬는 시간(밀리초). 제출 뒤 채점 시작까지 평균 0.5초를 기다린다. 빈 폴링은 만료 정리(조회 두 번)와 다음 작업 찾기(조회 한 번)를 짧은 트랜잭션으로 한다. */
+        private const val DEFAULT_POLL_DELAY_MS = 1000L
     }
 }

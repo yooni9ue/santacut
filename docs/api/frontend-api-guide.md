@@ -17,7 +17,7 @@
 - [ ] **산타 조서 화면** `GET /v1/me/dossier`(2026-11-20 추가): 결과 화면을 `scenes` 배열 순서대로 한 장씩 넘기는 세로 스냅 스크롤로 그린다. 장면마다 저장(공유 카드) 버튼을 두되 `shareable`이 true인 장면에만 둔다. 카드에는 `shareable`이 true인 줄만 싣는다(삐 처리·하위 판정·느린 답장 줄은 화면에만). `404 DOSSIER_NOT_FOUND`(또는 결과의 `dossier_available`이 false)면 조서 대신, 시즌 마감 전(`stage`가 마감 전)이면 "대화를 다시 올리면 새 조서를 받는다"는 재업로드 안내를, 마감 뒤에는 "이 결과에는 조서가 없다"는 안내만 띄운다(마감 뒤에는 재업로드할 수 없다). `tone` 값은 화면 문구에만 쓰고 분석 이벤트·로그·에러 리포트에 싣지 않는다. 기존 점수·유형 화면은 "자세히 보기"로 접어 남긴다(7절 산타 조서).
 - [ ] **팩폭 산타 리캡 카드 덱** `GET /v1/me/recap`(2026-11-20 추가): 업로드 → 작업 완료(`SUCCEEDED`) → `GET /v1/me/result`의 `recap_available` 확인 → `GET /v1/me/recap` → 덱 → 공유 순서로 붙인다. `cards`를 받은 순서대로 9:16(1080×1920) 카드 한 장씩 그리고, 모든 카드 상단에 `score_text`를 크게 찍는다. 문구·칩·숫자는 말줄임이나 접기 없이 다 보이게 두고, 가리기 토글은 두지 않는다. 공유 문구는 `share_text`를 그대로 쓴다. 숫자가 든 문장은 화면에서 만들지 않는다. 석탄 농담을 끄면 `stamp_mild`·`verdict_mild`로 바꾼다. `404 RECAP_NOT_FOUND`(또는 `recap_available: false`)면 기존 결과 화면과 시즌 마감 전 재업로드 안내를 보여 준다. 필드 표와 실제 응답 예시는 [7절 리캡 카드 덱](#리캡-카드-덱-get-v1merecap)에 있다.
 - [ ] **랭킹 화면** `GET /v1/rankings`: 행의 도착 정보는 `eta_date`(서울 날짜)를 쓴다. `eta`는 항상 null이다. 페이지 사이에 순위가 다시 계산되면 `409 RANKING_SNAPSHOT_CHANGED`가 오니 목록을 비우고 첫 페이지부터 다시 읽는다. 예전 숫자 cursor는 `400`이다(7절).
-- [ ] **순위 반영 대기**: 분석이 끝난 뒤 순위는 최대 30초 안에 반영된다. SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 오고, 결과의 `ranking_pending`이 true인 동안은 "순위 계산 중"을 보여 준다(6.0절).
+- [ ] **순위 반영 대기와 리캡 먼저 보여 주기**(2026-11-20 바뀜): 서버가 작업 성공 직후 순위를 다시 계산하므로 `RANKING_PENDING`은 보통 1~2초, 작업이 몰리면 최대 약 6초 만에 `SUCCEEDED`로 바뀐다(전에는 0~30초). SSE는 `RANKING_PENDING` 다음 `SUCCEEDED` 순서로 온다. `RANKING_PENDING`을 받으면 대기 화면에 머물지 말고 바로 `GET /v1/me/recap`으로 덱을 그리기 시작한다. 순위·도착 시각 자리는 "순위 계산 중" 라벨로 두고, 같은 SSE에서 `SUCCEEDED`가 오면 덱을 한 번 더 불러 채운다(6.0절, 7절 리캡 카드 덱의 전체 흐름). 진행 상황은 SSE로 받기를 권한다.
 - [ ] **지역 변경**: 24시간 2번, 시즌 5번까지. 넘으면 `429 REGION_CHANGE_LIMITED`(`retry_at` 있음) 또는 `REGION_CHANGE_SEASON_LIMIT`(없음)(5절).
 - [ ] **공유**: `POST /v1/shares` 본문 `include_quote`(기본 false)로 본인 한마디를 카드에 넣을지 고른다. 이미 만든 링크가 있으면 같은 링크에 바뀐 값이 반영되니 켜기·끄기 토글로 만든다. 공유 카드에는 날짜만 보이고 상대 대화는 절대 나오지 않는다(7절 공유 카드 구성).
 - [ ] **참가 등록 한도**: 같은 IP에서 1시간에 10번 넘게 등록하면 `429 CLIENT_RATE_LIMITED`다. `retry_at`으로 다시 시도할 시각을 보여 준다(9절).
@@ -117,7 +117,7 @@
 ### 지역 변경 `PATCH /v1/me/region`
 
 - 본문은 `{ regionCode }`이다. 규칙은 등록과 같다(`selectable`인 코드만).
-- 성공하면 `200`과 `GET /v1/me`와 같은 참가 정보를 준다. 순위와 도착 예정 시각은 서버가 30초쯤 안에 모아서 다시 계산한다. 그동안 내 결과의 `eta`는 이전 지역 기준이다.
+- 성공하면 `200`과 `GET /v1/me`와 같은 참가 정보를 준다. 순위와 도착 예정 시각은 서버가 몇 초 안에 다시 계산한다. 그동안 내 결과의 `eta`는 이전 지역 기준이다.
 - 지금과 같은 지역을 보내면 아무것도 바꾸지 않고 `200`을 주며, 변경 횟수도 세지 않는다.
 - 지역은 24시간에 2번, 한 시즌에 5번까지 바꿀 수 있다(서버 설정). 24시간 한도를 넘으면 `429`(`REGION_CHANGE_LIMITED`)이고 본문 `retry_at`과 `Retry-After` 헤더가 다시 바꿀 수 있는 시점이다. 시즌 한도를 넘으면 `429`(`REGION_CHANGE_SEASON_LIMIT`)이고 `retry_at`이 없다. 도착 예정 시각 차이로 다른 사람의 지역을 좁혀 가지 못하게 하려는 한도다.
 - 시즌 마감(12월 25일 0시, 한국 시간) 뒤에는 `409`(`SEASON_FROZEN`)다. 마감 뒤에는 변경 버튼 대신 안내를 보여준다.
@@ -149,7 +149,7 @@
 | `VALIDATING` | 파일 형식을 확인하고 있어요 | 계속 조회. 원본 파일 제출에서만 나온다 |
 | `QUEUED` | 산타 심사를 기다리고 있어요 | 계속 조회 |
 | `ANALYZING` | 산타가 기록을 읽고 있어요 | 계속 조회 |
-| `RANKING_PENDING` | 심사가 끝났어요. 순위와 도착일을 계산하고 있어요 | 계속 조회. 서버가 순위를 30초쯤마다 모아서 계산하므로 보통 1분 안에 `SUCCEEDED`가 된다 |
+| `RANKING_PENDING` | 심사가 끝났어요. 순위와 도착일을 계산하고 있어요 | SSE를 그대로 열어 두고 리캡 덱(`GET /v1/me/recap`)을 먼저 보여 준다. 서버가 작업 성공 직후 순위를 다시 계산하므로 보통 1~2초(몰리면 최대 약 6초) 안에 `SUCCEEDED`가 온다 |
 | `SUCCEEDED` | - | 조회를 멈추고 `GET /v1/me/result`로 이동 |
 | `FAILED` | `error_code`로 구분 | 조회를 멈추고 실패 안내 |
 
@@ -166,6 +166,7 @@
 
 현재 프론트 정책은 SSE 단독 구독이다. GET 상태 API가 남아 있는 것은 초기 확인·복구를 위한 것으로 폴링 fallback을 뜻하지 않는다. 구현 기준은 `frontend/src/lib/analyses.ts`의 `watchAnalysis`와 `screens.tsx`의 `LiveAnalysisScreen`이다.
 
+- 진행 상황은 SSE로 받기를 권한다. 상태가 바뀌는 순간 서버가 보내므로, 순위 반영(`RANKING_PENDING` → `SUCCEEDED`)처럼 1~2초 만에 끝나는 단계도 놓치지 않는다.
 - 연결하자마자 현재 단계를 한 번 받고, 단계가 바뀔 때마다 하나씩 받는다.
 - 이벤트 이름은 `status`, `data`는 `GET /v1/analyses/{id}`와 같은 JSON이다.
 - `id`는 진행 단계 순번이다(`VALIDATING` 0, `QUEUED` 1, `ANALYZING` 2, `RANKING_PENDING` 3, `SUCCEEDED` 4, `FAILED` 5). AI 제공자가 잠시 막아 대기열로 돌아가면 작아질 수 있다.
@@ -271,7 +272,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 
 ### 산타 조서 `GET /v1/me/dossier`
 
-- 최신 결과(평가)의 조서다. 평소에는 `GET /v1/me/result`와 같은 평가라 점수·순위·판정이 같다. 재업로드 직후 순위 다시 계산(최대 30초) 전(`ranking_pending`이 true)에는 결과 화면이 지난 평가를 보여 주는 동안에도 조서는 새 평가의 것을 주고, 그동안 판결 장의 순위(`big_value`)는 `null`이다. 순위가 반영되면 둘이 다시 같아진다. 결과가 없으면 `404 RESULT_NOT_FOUND`, 최신 결과에 조서가 없으면(이 기능 전 결과, 예전 집계 규칙으로 센 조서) `404 DOSSIER_NOT_FOUND`다.
+- 최신 결과(평가)의 조서다. 평소에는 `GET /v1/me/result`와 같은 평가라 점수·순위·판정이 같다. 재업로드 직후 순위 다시 계산(보통 1~2초) 전(`ranking_pending`이 true)에는 결과 화면이 지난 평가를 보여 주는 동안에도 조서는 새 평가의 것을 주고, 그동안 판결 장의 순위(`big_value`)는 `null`이다. 순위가 반영되면 둘이 다시 같아진다. 결과가 없으면 `404 RESULT_NOT_FOUND`, 최신 결과에 조서가 없으면(이 기능 전 결과, 예전 집계 규칙으로 센 조서) `404 DOSSIER_NOT_FOUND`다.
 - 응답: `{ title, tone, scenes[] }`. `title`은 칭호, `tone`은 `normal`이나 `mild`(죄목과 놀림 문구를 끈 담백 톤)다. `tone`은 문구를 고르는 데만 쓰고 분석 이벤트·로그에 싣지 않는다.
 - 장면: `{ id, kind, speaker, headline, big_value, lines[], memo, chart, shareable }`. 줄은 `{ id, text, shareable }`, 그래프는 `{ type, values }`(`bar24`는 0~23시 24칸, `bar12`는 1~12월 12칸)다. `headline`, `big_value`, `memo`, `chart`는 `null`일 수 있다.
 - 장면 순서는 `teaser`(가린 숫자 티저, 공유 불가) → `hook`(올해의 한마디) → `ledger`(입버릇 장부) → `extreme_1`~`extreme_3`(가장 튀는 지표) → `acts`(올해의 너 3막) → `dossier`(칭호·죄목·공로·총평) → `verdict`(판결, 순위, 지역·도착 예정) → `summons`(공유 도발 문구)다. 받은 순서 그대로 그린다.
@@ -304,7 +305,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 #### 전체 흐름
 
 1. **업로드**: `POST /v1/analyses/files`(6.1절)로 원본 파일을 올린다. 응답 `202 { id, status: "VALIDATING" }`의 `id`를 잡아 둔다.
-2. **작업 따라가기**: 처음 한 번 `GET /v1/analyses/{id}`로 상태를 읽고, 그다음은 SSE `GET /v1/analyses/{id}/events`(6.0절)로 바뀌는 상태를 받는다. 주기적으로 GET을 다시 부르는 폴링은 하지 않는다. 끊기면 같은 작업의 SSE에 다시 붙는다. `RANKING_PENDING` 동안은 대기 화면을 유지하고(보통 1분 안), `SUCCEEDED`를 받으면 다음 단계로 간다. `FAILED`면 `error_code`로 실패 안내를 띄운다.
+2. **작업 따라가기**: 처음 한 번 `GET /v1/analyses/{id}`로 상태를 읽고, 그다음은 SSE `GET /v1/analyses/{id}/events`(6.0절)로 바뀌는 상태를 받는다. 주기적으로 GET을 다시 부르는 폴링은 하지 않는다. 끊기면 같은 작업의 SSE에 다시 붙는다. `RANKING_PENDING`을 받으면 SSE는 열어 둔 채 바로 4번(덱 받기)으로 가서 덱을 먼저 보여 준다. 이때 덱은 새 평가 기준이고 순위·도착 시각만 비어 있다. 같은 SSE에서 `SUCCEEDED`가 오면(보통 1~2초 뒤) 덱을 한 번 더 불러 순위를 채운다. `RANKING_PENDING` 없이 바로 `SUCCEEDED`를 받았으면 그대로 다음 단계로 간다. `FAILED`면 `error_code`로 실패 안내를 띄운다.
 3. **결과 확인**: `GET /v1/me/result`를 부르고 `recap_available`을 본다.
    - `true`면 리캡 덱으로 간다.
    - `false`면 이 결과는 리캡 기능(2026-11-20) 전에 받은 것이다. 덱 대신 기존 결과 화면을 보여 주고, 시즌 마감 전이면 "대화를 다시 올리면 팩폭 산타 카드를 받을 수 있다"는 재업로드 안내를 함께 둔다. 마감(12월 25일 0시 KST) 뒤에는 재업로드가 안 되므로 안내 없이 결과 화면만 보여 준다. 재업로드도 하루 3번 한도(9절)에 들어간다.
@@ -316,11 +317,11 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 5. **덱 그리기**: `cards`를 받은 순서대로 한 장씩 넘긴다(아래 그리는 규칙).
 6. **공유**: 카드마다 이미지 저장·공유 버튼을 둔다. 지금 카드를 1080×1920 PNG로 그려 Web Share API(`navigator.share({ files, text })`)에 넘기고, 공유 문구 `text`는 응답의 `share_text`를 그대로 쓴다. 파일 공유를 못 하는 브라우저는 이미지 내려받기와 `share_text` 복사로 대신한다.
 
-`ranking_pending`이 `true`일 때(재업로드 직후 순위 다시 계산 전, 최대 30초쯤):
+`ranking_pending`이 `true`일 때(작업 성공 직후 순위 다시 계산 전, 보통 1~2초, 몰리면 최대 약 6초):
 
 - 덱은 새 평가 기준이라 그대로 그린다. 이때 판정 카드의 `rank`와 `delivery_eta`는 `null`이다.
-- 순위·도착 시각 자리에는 숫자 없는 고정 라벨("순위 계산 중")을 두고, 30초쯤 뒤 `GET /v1/me/recap`을 한 번 더 불러 채운다. 결과 화면(`GET /v1/me/result`)은 그동안 지난 평가의 순위를 보여 줄 수 있으니 두 화면의 순위를 섞지 않는다.
-- 업로드 직후 흐름에서는 2번에서 `SUCCEEDED`까지 기다리므로 보통 `ranking_pending`이 `false`인 덱을 받는다.
+- 순위·도착 시각 자리에는 숫자 없는 고정 라벨("순위 계산 중")을 두고, SSE로 `SUCCEEDED`를 받으면 `GET /v1/me/recap`을 한 번 더 불러 채운다. SSE가 끊겼으면 몇 초 뒤 한 번 더 부른다. 결과 화면(`GET /v1/me/result`)은 그동안 지난 평가의 순위를 보여 줄 수 있으니 두 화면의 순위를 섞지 않는다.
+- 업로드 직후 흐름(2번)에서는 `RANKING_PENDING`에서 덱을 먼저 그리므로 처음 받는 덱은 대개 `ranking_pending`이 `true`다.
 
 #### 응답 예시
 
@@ -565,7 +566,7 @@ type RecapResponse = {
 - 한 번에 50줄이 온다. `더 보기`는 `next_cursor`를 `cursor` 쿼리로 보낸다. `next_cursor`가 `null`이면 마지막 페이지다.
 - `cursor`는 불투명 문자열이다. 직접 만들지 말고 받은 값만 보낸다. 잘못된 값이나 2026-11-17 이전 형식(숫자)은 `400`(`INVALID_CURSOR`)이다.
 - `cursor`에는 그 페이지의 순위 계산 시각이 들어 있다. 페이지 사이에 순위가 다시 계산되면 `409`(`RANKING_SNAPSHOT_CHANGED`)다. 이때는 목록을 비우고 `cursor` 없이 첫 페이지부터 다시 읽는다. 줄이 겹치거나 빠지지 않게 하려는 규칙이다.
-- 순위는 서버가 변경을 모아 30초쯤마다 다시 계산하고, 첫 페이지는 30초쯤 캐시한다. 새로고침해도 바로 바뀌지 않을 수 있다.
+- 순위는 서버가 변경 직후(1초쯤 모아서) 다시 계산하고, 첫 페이지는 계산 시각이 바뀌기 전까지 30초쯤 캐시한다. 새로 계산하면 캐시를 바로 버린다.
 - 아직 순위가 없으면 `participant_count`는 `0`, `computed_at`은 `null`, `rows`는 빈 배열이다(빈 상태 화면).
 
 ### 공유 `POST /v1/shares`, `/s/{token}`

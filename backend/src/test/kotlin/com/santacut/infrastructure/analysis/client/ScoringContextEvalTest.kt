@@ -231,7 +231,7 @@ class ScoringContextEvalTest {
 
     private fun run(digest: ScoringDigest): Run {
         val captured = Collections.synchronizedList(mutableListOf<ScoringChunkAnswer>())
-        val answers = ScoringChunks.of(digest).ask(SAMPLES, ScoreAnswerCalls::concurrently) { chunk ->
+        val answers = ScoringChunks.of(digest).ask(SAMPLES, ScoreAnswerCalls::concurrently, { chunks, ask -> ScoreAnswerCalls.each(chunks, chunks.size, ask) }) { chunk ->
             scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> captured += ScoringChunkAnswer(chunk, answer) }
         }
         return Run(answers, captured)

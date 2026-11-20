@@ -131,7 +131,16 @@ class SchemaBaselineTest @Autowired constructor(
         )
 
         /** schema.sql 밖에서 Hibernate가 나중에 더한 컬럼의 제약. 기준 스키마에는 그 컬럼이 없다. */
-        private val ADDED_AFTER_BASELINE = mapOf("ai_usage_days" to setOf("DEFAULT cached_input_tokens = 0"))
+        private val ADDED_AFTER_BASELINE = mapOf(
+            "ai_usage_days" to setOf(
+                "DEFAULT cached_input_tokens = 0",
+                "DEFAULT roast_input_tokens = 0",
+                "DEFAULT roast_cached_input_tokens = 0",
+                "DEFAULT roast_output_tokens = 0",
+                "DEFAULT roast_thought_tokens = 0",
+                "DEFAULT roast_calls = 0",
+            ),
+        )
         private const val ASSESSMENTS = "assessments"
         private const val CREATED_AT_DEFAULT = "DEFAULT created_at"
 

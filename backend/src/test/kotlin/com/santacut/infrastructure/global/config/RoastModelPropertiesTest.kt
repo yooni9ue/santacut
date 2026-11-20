@@ -1,6 +1,7 @@
 package com.santacut.infrastructure.global.config
 
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -16,5 +17,22 @@ class RoastModelPropertiesTest {
         assertFailsWith<IllegalArgumentException> { RoastModelProperties(thinkingLevel = "LOWEST") }
         assertEquals(1, RoastModelProperties(thinkingLevel = "", maxRewrites = 0).maxCalls())
         assertEquals("HIGH", RoastModelProperties(thinkingLevel = "HIGH").thinkingLevel)
+    }
+
+    @Test
+    fun `어림 출력 토큰 수는 1부터 출력 상한까지만 받는다`() {
+        assertFailsWith<IllegalArgumentException> { RoastModelProperties(estimatedOutputTokens = 0) }
+        assertFailsWith<IllegalArgumentException> { RoastModelProperties(maxOutputTokens = 1000, estimatedOutputTokens = 1001) }
+        assertEquals(1500, RoastModelProperties().estimatedOutputTokens)
+    }
+
+    @Test
+    fun `작가 단가 기본값은 Gemini 3_5 Flash 정가이고 생각 토큰은 출력 단가로 센다`() {
+        val properties = RoastModelProperties()
+
+        assertEquals(0, BigDecimal("1.5").compareTo(properties.inputUsdPerMillionTokens))
+        assertEquals(0, BigDecimal("0.15").compareTo(properties.cachedInputUsdPerMillionTokens))
+        assertEquals(0, BigDecimal("9").compareTo(properties.outputUsdPerMillionTokens))
+        assertEquals(properties.outputUsdPerMillionTokens, properties.thinkingUsdPerMillionTokens)
     }
 }

@@ -27,7 +27,11 @@ class RoastBrief(
 
     fun hasFact(key: String): Boolean = facts.find(key) != null
 
-    fun isQuotable(quote: String): Boolean = quote in quotes
+    /**
+     * 작은따옴표로 인용해도 되는지. 인용 후보 목록에 있거나, 목록 밖이라도 웃음·울음 자모 표기([RoastQuotes.isLaughOrCry])가
+     * 본인 말풍선에 글자 그대로 있으면 된다. 작가가 목록에 없는 'ㅋㅋㅋ'를 자주 써 다시 쓰기만 늘렸고, 본인이 실제로 친 표기라 사실과도 맞다.
+     */
+    fun isQuotable(quote: String): Boolean = quote in quotes || (RoastQuotes.isLaughOrCry(quote) && lines.containsText(quote))
 
     /** [text]가 본인 말풍선(가린 뒤)에서 [COPIED_LENGTH]자 이상 그대로 베낀 첫 구간. 따옴표 없이 옮겨 쓴 인용을 막는다. 없으면 null이다. */
     fun copiedIn(text: String): String? = lines.sharedRun(text, COPIED_LENGTH)

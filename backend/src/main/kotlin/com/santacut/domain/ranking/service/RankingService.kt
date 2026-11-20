@@ -17,6 +17,7 @@ import com.santacut.domain.ranking.model.RankedAssessmentTimes
 import com.santacut.domain.ranking.model.RankingBoard
 import com.santacut.domain.ranking.model.RankingBoardCache
 import com.santacut.domain.ranking.model.RankingCursor
+import com.santacut.domain.ranking.model.RankingRebuildRequested
 import com.santacut.domain.ranking.model.RankingRefresh
 import com.santacut.domain.ranking.model.RankingRows
 import com.santacut.domain.ranking.model.RankingStage
@@ -30,7 +31,10 @@ import com.santacut.infrastructure.participant.repository.RegionRepository
 import com.santacut.infrastructure.ranking.repository.RankingRefreshRepository
 import com.santacut.infrastructure.ranking.repository.ResultPopulationRepository
 import com.santacut.infrastructure.ranking.repository.ResultSnapshotRepository
+import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
@@ -45,18 +49,28 @@ class RankingService(
     private val rankingRefreshRepository: RankingRefreshRepository,
     private val appProperties: AppProperties,
     private val rankingProperties: RankingProperties,
+    private val eventPublisher: ApplicationEventPublisher,
 ) {
     private val firstPageCache = RankingBoardCache(rankingProperties.firstPageTtl)
+    private val logger = LoggerFactory.getLogger(RankingService::class.java)
 
     /**
-     * 순위에 영향을 주는 변경(심사 성공, 지역 변경, 참가자 삭제)이 있었다고 표시만 한다. 같은 트랜잭션에서 커밋된다.
-     * 실제 계산은 예약 작업이 [rebuildIfRequested]로 모아서 한다.
+     * 순위에 영향을 주는 변경(심사 성공, 지역 변경, 참가자 삭제)이 있었다고 표시한다. 같은 트랜잭션에서 커밋된다.
+     * 실제 계산은 [rebuildIfRequested]가 모아서 한다. 커밋 뒤 곧바로 계산을 예약하도록 [RankingRebuildRequested]를 알린다.
+     * 알림을 받지 못해도(앱이 꺼짐 등) 표시가 남아 예약 작업이 처리한다.
      */
     fun requestRebuild() {
         if (rankingRefreshRepository.markRequested(RankingRefresh.ID) == 0) {
             rankingRefreshRepository.save(RankingRefresh.requested())
         }
+        eventPublisher.publishEvent(RankingRebuildRequested)
     }
+
+    /** 변경이 커밋된 뒤 다시 계산하기 전 기다릴 시간. 커밋 직후 다시 계산을 꺼 두었으면 null이다. */
+    fun rebuildDebounce(): Duration? = rankingProperties.rebuildDebounce.takeIf { rankingProperties.rebuildAfterChange }
+
+    /** 커밋 뒤 다시 계산할 때 지난 계산이 끝난 뒤 지켜야 할 최소 간격. */
+    fun rebuildMinInterval(): Duration = rankingProperties.rebuildMinInterval
 
     /**
      * 참가자를 지운 뒤 처리. 시즌 마감 전이면 다시 계산을 요청하고, 마감 뒤에는 확정 순위를 그대로 두고 분포만 다시 센다.
@@ -96,8 +110,10 @@ class RankingService(
         val computedAt = now.truncatedTo(ChronoUnit.MILLIS)
         val snapshots = entries.toSnapshots(origin(), season().deliveryStart(), computedAt, rankingProperties.deliveryWindowDays)
         pruneSnapshots()
-        resultSnapshotRepository.saveAll(snapshots.toList())
+        val rows = snapshots.toList()
+        resultSnapshotRepository.saveAll(rows)
         firstPageCache.invalidate()
+        logger.info("순위 스냅숏 {}행을 새로 썼다", rows.size)
         return true
     }
 

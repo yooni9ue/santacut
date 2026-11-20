@@ -5,8 +5,10 @@ import com.santacut.domain.analysis.model.AnalysisSubmission
 import com.santacut.domain.analysis.model.ModelUsage
 import com.santacut.domain.analysis.model.EarnedBadges
 import com.santacut.domain.analysis.model.Score
+import com.santacut.domain.analysis.model.ScoreAnswer
 import com.santacut.domain.analysis.model.ScoredAssessment
 import com.santacut.domain.analysis.model.ScoringAttempt
+import com.santacut.domain.analysis.model.ScoringChunk
 import com.santacut.domain.analysis.model.ScoringChunkAnswers
 import com.santacut.domain.analysis.model.ScoringChunks
 import com.santacut.domain.analysis.model.ScoringDigest
@@ -21,6 +23,7 @@ import com.santacut.infrastructure.analysis.client.ScoreClient
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import tools.jackson.databind.ObjectMapper
+import java.util.concurrent.Semaphore
 
 @Service
 class AnalysisScoringService(
@@ -31,7 +34,14 @@ class AnalysisScoringService(
 ) {
     private val shrinkage = shrinkageProperties.toShrinkage()
     private val samples = samplingProperties.samples
+    private val chunkConcurrency = samplingProperties.chunkConcurrency
     private val logger = LoggerFactory.getLogger(AnalysisScoringService::class.java)
+
+    /**
+     * 모든 작업자를 합쳐 동시에 진행하는 채점 호출 자리. 작업자 3개가 구간을 4개씩 부르면 12개가 한꺼번에 나갈 수 있어 제공자 요청 한도에 닿는다.
+     * 먼저 기다린 호출부터 자리를 받는다.
+     */
+    private val callSlots = Semaphore(samplingProperties.maxConcurrentCalls, FAIR_SLOTS)
 
     /** 동시에 부른 호출의 사용량을 하나씩 기록하게 하는 잠금. 같은 날 사용량 행을 두 호출이 함께 만들지 않게 한다. */
     private val usageLock = Any()
@@ -72,19 +82,34 @@ class AnalysisScoringService(
     /**
      * 대화문을 구간으로 나눠([ScoringChunks]) 구간마다 [systemPrompt]와 함께 AI에 묻는다.
      * 한 구간이면 [samples]번 동시에(가상 스레드, [ScoreAnswerCalls]) 묻고 항목별 중앙값으로 합친다.
+     * 여러 구간이면 첫 구간을 먼저 묻고(뒤 호출이 시스템 프롬프트 캐시를 타게), 나머지를 한 번에 [chunkConcurrency]개까지 동시에 묻는다.
+     * 비용 예약은 호출 전에 모든 구간 호출의 합으로 한 번에 했다. 호출마다 앱 전체 자리([callSlots])를 하나씩 잡는다.
      * 한 호출이 예외를 던지면 그 답만 버리고 남은 답의 과반으로 합친다.
      * 호출이 끝날 때마다 그 호출의 사용량을 [recordUsage]에 넘긴다. 다른 호출이 실패해도 이미 과금된 호출은 기록된다.
      * 기록이 실패하면 로그만 남기고 이미 과금된 답은 버리지 않는다.
      * 점수 검증과 합산은 [score]가 한다.
      */
     fun ask(digest: ScoringDigest, systemPrompt: String, recordUsage: (ModelUsage) -> Unit): ScoringChunkAnswers =
-        ScoringChunks.of(digest).ask(samples, ScoreAnswerCalls::concurrently) { chunk ->
-            scoreClient.requestAnswer(chunk, systemPrompt).also { answer -> recordSafely(answer.usage, recordUsage) }
+        ScoringChunks.of(digest).ask(samples, ScoreAnswerCalls::concurrently, ::askEachChunk) { chunk ->
+            requestInSlot(chunk, systemPrompt).also { answer -> recordSafely(answer.usage, recordUsage) }
         }
 
     /** [attempt]의 채점 입력을 그 프롬프트 판으로 묻는다. 방법은 [ask]와 같다. */
     fun ask(attempt: ScoringAttempt, recordUsage: (ModelUsage) -> Unit): ScoringChunkAnswers =
         ask(attempt.digest, attempt.prompt.content, recordUsage)
+
+    /** 앱 전체 채점 호출 자리([callSlots])를 하나 잡은 동안만 묻는다. */
+    private fun requestInSlot(chunk: ScoringChunk, systemPrompt: String): ScoreAnswer {
+        callSlots.acquire()
+        try {
+            return scoreClient.requestAnswer(chunk, systemPrompt)
+        } finally {
+            callSlots.release()
+        }
+    }
+
+    private fun askEachChunk(chunks: List<ScoringChunk>, asker: (ScoringChunk) -> ScoreAnswer): List<ScoreAnswer> =
+        ScoreAnswerCalls.firstThenEach(chunks, chunkConcurrency, asker)
 
     /** 사용량 기록 실패(일시적인 DB 오류 등)가 받은 답을 버리게 하지 않는다. 로그에는 예외 클래스 이름만 남긴다. */
     private fun recordSafely(usage: ModelUsage, recordUsage: (ModelUsage) -> Unit) {
@@ -134,5 +159,6 @@ class AnalysisScoringService(
         private const val RULE_VERSION_PREFIX = "\nrule="
         private const val SAMPLES_PREFIX = "\nsamples="
         private const val SCORED_OUTCOME = "SCORED"
+        private const val FAIR_SLOTS = true
     }
 }
