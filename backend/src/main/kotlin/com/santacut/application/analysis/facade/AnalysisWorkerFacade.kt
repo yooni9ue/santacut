@@ -111,7 +111,7 @@ class AnalysisWorkerFacade(
     }
 
     companion object {
-        /** `santacut.ai.poll-delay-ms`가 없을 때 작업자가 다음 작업을 찾기 전 쉬는 시간(밀리초). 제출 뒤 채점 시작까지 평균 0.5초를 기다린다. 빈 폴링은 색인 조회 두 번뿐이다. */
+        /** `santacut.ai.poll-delay-ms`가 없을 때 작업자가 다음 작업을 찾기 전 쉬는 시간(밀리초). 제출 뒤 채점 시작까지 평균 0.5초를 기다린다. 빈 폴링은 만료 정리(조회 두 번)와 다음 작업 찾기(조회 한 번)를 짧은 트랜잭션으로 한다. */
         private const val DEFAULT_POLL_DELAY_MS = 1000L
     }
 }

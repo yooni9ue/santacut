@@ -36,7 +36,7 @@ class AiBudgetTest {
     fun `하루 사용량은 작가 호출을 작가 칸에 따로 더하고 비용은 두 모델 단가로 센 합이다`() {
         val day = AiUsageDay("2026-11-16")
 
-        day.add(ModelUsage(5_000, 100, "STOP"))
+        day.add(ModelUsage(5_000, 100, "STOP"), AiCallKind.SCORE)
         day.add(ModelUsage(5_000, 100, "STOP", 50, 1_000), AiCallKind.ROAST)
 
         assertEquals(5_000, day.inputTokens)
@@ -62,7 +62,7 @@ class AiBudgetTest {
     fun `하루 사용량에 캐시 읽기 토큰을 따로 더해 비용에 반영한다`() {
         val day = AiUsageDay("2026-11-16")
 
-        day.add(ModelUsage(5_000, 100, "STOP", 0, 1_000))
+        day.add(ModelUsage(5_000, 100, "STOP", 0, 1_000), AiCallKind.SCORE)
 
         assertEquals(1_000, day.cachedInputTokens)
         assertEquals(0, BigDecimal("0.0046").compareTo(day.costUsd(budget)))
@@ -72,8 +72,8 @@ class AiBudgetTest {
     fun `하루 사용량에 호출마다 토큰과 호출 수를 더한다`() {
         val day = AiUsageDay("2026-11-16")
 
-        day.add(ModelUsage(5_000, 100, "end_turn"))
-        day.add(ModelUsage(3_000, 50, "end_turn"))
+        day.add(ModelUsage(5_000, 100, "end_turn"), AiCallKind.SCORE)
+        day.add(ModelUsage(3_000, 50, "end_turn"), AiCallKind.SCORE)
 
         assertEquals(8_000, day.inputTokens)
         assertEquals(150, day.outputTokens)
@@ -84,7 +84,7 @@ class AiBudgetTest {
     fun `생각 토큰은 출력 단가로 청구되므로 출력 토큰에 함께 더한다`() {
         val day = AiUsageDay("2026-11-16")
 
-        day.add(ModelUsage(5_000, 100, "STOP", 40))
+        day.add(ModelUsage(5_000, 100, "STOP", 40), AiCallKind.SCORE)
 
         assertEquals(140, day.outputTokens)
     }
@@ -135,7 +135,7 @@ class AiBudgetTest {
         assertFalse(budget.isExhausted(today, thisMonth))
     }
 
-    private fun days(usage: ModelUsage): AiUsageDays = AiUsageDays(listOf(AiUsageDay("2026-11-16").apply { add(usage) }))
+    private fun days(usage: ModelUsage): AiUsageDays = AiUsageDays(listOf(AiUsageDay("2026-11-16").apply { add(usage, AiCallKind.SCORE) }))
 
     private fun scoreCost(usage: ModelUsage): BigDecimal = budget.costUsd(AiCallKind.SCORE, usage)
 

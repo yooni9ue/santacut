@@ -63,7 +63,7 @@ class AiUsageDay(
         protected set
 
     /** [kind] AI 호출 한 번의 사용량을 더한다. */
-    fun add(usage: ModelUsage, kind: AiCallKind = AiCallKind.SCORE) = when (kind) {
+    fun add(usage: ModelUsage, kind: AiCallKind) = when (kind) {
         AiCallKind.SCORE -> addScore(usage)
         AiCallKind.ROAST -> addRoast(usage)
     }
