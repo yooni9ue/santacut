@@ -28,6 +28,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property titleBannedWords 칭호에만 막는 말(요정, 천사, 분위기 메이커). 누구에게나 붙는 칭호라 이 사람의 자리를 말하지 못한다.
  * @property letterClosingEndings 쪽지 마지막 문장 끝에만 허용하는 산타 어미(~거라). 이 어미로 끝난 맨 끝은 말투 검사에서 뺀다. ~마는 막지 않으므로 넣지 않는다.
  * @property flipStart 뒤집기가 반드시 시작해야 하는 말("근데 "). 글자 수에 들어간다.
+ * @property slang 유행어 목록(roast/slang.json). 금지 목록은 [bannedWords]와 함께 막고, 허용 목록은 필드마다 [RoastSlang.maxPerField]개까지만 쓰게 한다.
+ * 허용 유행어 안의 알파벳('L을 가져가')은 알파벳 검사에서 뺀다. 느낌표는 허용 목록에 필요한 말이 없어 그대로 막는다.
  */
 data class RoastRules(
     @JsonProperty("residence_suffixes") val residenceSuffixes: List<String>,
@@ -51,6 +53,7 @@ data class RoastRules(
     @JsonProperty("title_banned_words") val titleBannedWords: List<String>,
     @JsonProperty("letter_closing_endings") val letterClosingEndings: List<String>,
     @JsonProperty("flip_start") val flipStart: String,
+    val slang: RoastSlang = RoastSlang.EMPTY,
 ) {
     private val particleGroup = alternation(particles)
     private val nameStems = NameStems(nameSurnames.toSet(), nameExceptions.toSet())
@@ -60,7 +63,8 @@ data class RoastRules(
     private val shortHonorifics = tokenRegex(STEM_TWO_OR_MORE, honorificShortSuffixes)
     private val numbers = Regex(alternationOfPatterns(numberPatterns))
     private val allowedNumbers = Regex(alternation(allowedNumberPhrases))
-    private val banned = Regex(alternation(bannedWords))
+    private val banned = Regex(alternationOfPatterns(listOf(alternation(bannedWords + slang.banned)) + slang.bannedPatterns))
+    private val slangStems = Regex(alternation(slang.allowed.stems()))
     private val coalWrong = Regex(alternation(coalForbidden))
     private val giftWrong = Regex(alternation(giftForbidden))
     private val mildWrong = Regex(alternation(mildForbidden))
@@ -104,7 +108,16 @@ data class RoastRules(
     /** 허용 표현("한 해", "한마디")을 뺀 뒤 처음 나온 숫자·수량·셈말 표현("세 번", "한 포대", "하나", "첫째"). 없으면 null이다. */
     fun numberIn(text: String): String? = numbers.find(allowedNumbers.replace(text, ""))?.value
 
-    /** 처음 나온 금지어(대화 상대를 사람으로 가리키는 말, 지어낸 추억, 재심). 없으면 null이다. */
+    /** [slang]을 끼운 규칙. 앱이 뜰 때 rules.json과 slang.json을 합친다. */
+    fun withSlang(slang: RoastSlang): RoastRules = copy(slang = slang)
+
+    /** 허용 유행어를 [RoastSlang.maxPerField]개보다 많이 썼으면 쓴 유행어들, 아니면 null이다. */
+    fun slangOverflowIn(text: String): String? {
+        val found = slangStems.findAll(text).toList()
+        return if (found.size > slang.maxPerField) found.joinToString(", ") { match -> match.value } else null
+    }
+
+    /** 처음 나온 금지어(대화 상대를 사람으로 가리키는 말, 지어낸 추억, 재심, 금지 유행어). 없으면 null이다. */
     fun bannedIn(text: String): String? = banned.find(text)?.value
 
     /** 판정과 어긋난 말. 석탄인데 선물을 받는다거나, 선물인데 석탄이라는 말이다. 없으면 null이다. */
@@ -126,8 +139,8 @@ data class RoastRules(
     /** 뒤집기가 [flipStart]("근데 ")로 시작하는지. */
     fun startsFlipRightly(text: String): Boolean = text.startsWith(flipStart)
 
-    /** 영문 낱말이 있는지. */
-    fun hasLatin(text: String): Boolean = LATIN.containsMatchIn(text)
+    /** 영문 낱말이 있는지. 허용 유행어 안의 알파벳은 보지 않는다. */
+    fun hasLatin(text: String): Boolean = LATIN.containsMatchIn(slangStems.replace(text, ""))
 
     /** [phraseKey] 입버릇의 표기 [display]를 작가에게 인용 후보로 넘겨도 되는지. */
     fun isQuotable(phraseKey: String, display: String): Boolean =

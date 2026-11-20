@@ -17,11 +17,13 @@ class RoastBrief(
     private val topics: RoastTopics,
     private val lines: RoastLines,
     private val blocked: BlockedWords,
+    private val slang: SlangWords = SlangWords.EMPTY,
 ) {
     /** 작가 입력. 다시 쓰기면 [rewrite]를 싣는다. */
     fun input(rewrite: RoastRewrite? = null): RoastInput =
         RoastInput(
-            verdict.key(), verdict.margin().word, verdict.grade().name, verdict.grade().temperature, facts, quotes, topics, lines.toActs(), rewrite,
+            verdict.key(), verdict.margin().word, verdict.grade().name, verdict.grade().temperature, facts, quotes, topics, lines.toActs(), slang.hints(),
+            rewrite,
         )
 
     /** 작가 사용자 메시지 본문(JSON 한 줄). 테스트·실측 도구에서도 이 함수로 입력을 만든다. */
@@ -76,6 +78,7 @@ class RoastBrief(
                 refreshed?.let { counted -> RoastTopics.of(counted, dossier.topics, catalog.rules.excludedTopics) } ?: RoastTopics.EMPTY,
                 all.trimmed(CHARS_PER_ACT),
                 all.blockedWords().plus(participants.toList()),
+                catalog.rules.slang.allowed,
             )
         }
     }
