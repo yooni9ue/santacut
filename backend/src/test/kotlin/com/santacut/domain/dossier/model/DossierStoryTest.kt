@@ -2,6 +2,7 @@ package com.santacut.domain.dossier.model
 
 import com.santacut.TestDossiers
 import com.santacut.TestDossiers.selves
+import com.santacut.domain.analysis.model.GiftVerdict
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoringMessage
 import org.junit.jupiter.api.Test
@@ -87,7 +88,16 @@ class DossierStoryTest {
         assertEquals("사유 공감 '괜찮아?' 200번이", lines[0].text)
         assertEquals(LineDraft("하위 판정 줄", false), LineDraft(lines.last().text, lines.last().shareable))
         assertEquals("전국 12위", verdict.bigValue)
-        assertEquals("종로구 · 도착 예정 12월 25일 오전 6시 12분", verdict.memo)
+        assertEquals("종로구", verdict.memo)
+    }
+
+    @Test
+    fun `판결 메모의 도착 예정 시각은 선물을 받을 때만 싣는다`() {
+        val gift = scene(write(richMessages(400), scoreHundredths = GiftVerdict.CUT_HUNDREDTHS), "verdict")
+        val coal = scene(write(richMessages(400), scoreHundredths = GiftVerdict.CUT_HUNDREDTHS - 1), "verdict")
+
+        assertEquals("종로구 · 도착 예정 12월 25일 오전 6시 12분", gift.memo)
+        assertEquals("종로구", coal.memo)
     }
 
     @Test
