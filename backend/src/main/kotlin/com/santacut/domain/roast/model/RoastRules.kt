@@ -6,7 +6,7 @@ import com.santacut.domain.dossier.model.TextForms
 /**
  * 팩폭 작가의 입력 안전장치와 출력 검증 규칙(roast/rules.json). 목록은 앱이 뜰 때 정규식으로 한 번 바꿔 둔다.
  *
- * 입력: 돈·직장·건강·연애·가족·정치·종교 낱말이 든 줄은 통째로 빼고([sensitiveForms], [sensitivePatterns]), 영문 낱말은 (영문),
+ * 입력: 돈(금액, 빚, 계좌 등)·정치·종교 낱말이 든 줄은 통째로 빼고([sensitiveForms], [sensitivePatterns]), 영문 낱말은 (영문),
  * 숫자열은 (숫자), 사람 이름은 호칭([honorificSuffixes] 등) 패턴과 호칭 없이 부른 이름([NameStems]) 규칙으로 (이름), 아파트·빌라 같은
  * 사는 곳 이름([residenceSuffixes])은 (집)으로 바꾼다. 지명·가게·행사 이름은 가리지 않는다(사람 이름만 가린다는 결정).
  * 접미사 패턴은 오탐이 잦은 낱말([suffixExceptions])을 건너뛴다.
@@ -59,7 +59,7 @@ data class RoastRules(
     private val mildWrong = Regex(alternation(mildForbidden))
     private val flipWrongStart = Regex("^\\s*(?:${alternation(flipForbiddenStarts)})")
 
-    /** 통째로 뺄 줄인지(돈·직장·건강·연애·가족·정치·종교 낱말, 금액). */
+    /** 통째로 뺄 줄인지(돈·정치·종교 낱말, 금액). 직장·건강·연애·가족 줄은 보낸다는 결정에 따라 빼지 않는다. */
     fun isSensitive(text: String): Boolean = sensitiveForms.appearsIn(text) || sensitive.containsMatchIn(text)
 
     /**

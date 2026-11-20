@@ -12,27 +12,27 @@ class RoastRulesTest {
     private val rules = TestRoasts.catalog.rules
 
     @Test
-    fun `돈·직장·건강·연애·가족 낱말이나 금액이 든 줄은 통째로 뺀다`() {
-        assertNull(rules.scrub("내일 회식 ㄱ?"))
+    fun `돈 낱말이나 금액이 든 줄은 통째로 뺀다`() {
         assertNull(rules.scrub("정산 완료했어"))
         assertNull(rules.scrub("만원씩 보내"))
         assertNull(rules.scrub("12,000원 나왔다"))
-        assertNull(rules.scrub("엄마가 부름"))
-        assertNull(rules.scrub("병원 다녀옴"))
         assertNotNull(rules.scrub("내일 보드게임 ㄱ?"))
     }
 
     @Test
-    fun `가족·연애·건강 낱말과 원 없는 금액, 줄 끝 돈과 빚이 든 줄도 통째로 뺀다`() {
-        listOf(
-            "남편이 늦음", "아내랑 감", "와이프 허락", "동생 데려감", "애인 생김", "전남친 봄", "응급실 감", "정신과 예약", "약 먹고 잠", "생리 중",
-            "빚 갚아야 함", "3만 보내", "2천 남음", "돈좀", "그거 다 돈", "1억 모음",
-        ).forEach { text -> assertNull(rules.scrub(text), text) }
+    fun `직장·건강·연애·가족 낱말이 든 줄은 빼지 않고 보낸다`() {
+        listOf("내일 회식 ㄱ?", "엄마가 부름", "병원 다녀옴", "남편이 늦음", "와이프 허락", "응급실 감", "퇴근하고 봄", "노조 분위기 어떰")
+            .forEach { text -> assertNotNull(rules.scrub(text), text) }
+    }
+
+    @Test
+    fun `원 없는 금액, 줄 끝 돈과 빚이 든 줄도 통째로 뺀다`() {
+        listOf("빚 갚아야 함", "3만 보내", "2천 남음", "돈좀", "그거 다 돈", "1억 모음").forEach { text -> assertNull(rules.scrub(text), text) }
     }
 
     @Test
     fun `민감 낱말과 꼴만 비슷한 말은 빼지 않는다`() {
-        listOf("범인 찾아내자", "만두 빚어 먹자", "3시에 만나", "돈까스 먹자").forEach { text -> assertNotNull(rules.scrub(text), text) }
+        listOf("만두 빚어 먹자", "3시에 만나", "돈까스 먹자").forEach { text -> assertNotNull(rules.scrub(text), text) }
     }
 
     @Test
