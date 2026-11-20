@@ -33,8 +33,8 @@ data class GiftVerdict(val hundredths: Int) {
     /** 판결 제목. 도장과 등급을 잇는다. 예: "겨우 실었다 · 굴뚝에 걸쳐서 통과". */
     fun headline(): String = stamp() + SEPARATOR + grade().label
 
-    /** 농담을 끈 판결 제목. 석탄 등급 이름은 쓰지 않는다. */
-    fun mildHeadline(): String = if (grade() == GiftGrade.COAL) stampMild() else stampMild() + SEPARATOR + grade().label
+    /** 농담을 끈 판결 제목. 통과 등급은 도장과 등급을 잇고, 탈락 세 등급은 등급 이름 없이 "내년 명단 예약"만 쓴다. */
+    fun mildHeadline(): String = if (passed) headline() else stampMild()
 
     fun margin(): CutMargin = CutMargin.of(grade())
 
@@ -47,8 +47,8 @@ data class GiftVerdict(val hundredths: Int) {
     /** 서버가 고정한 공유 문구. 등급마다 다르고 총점 표시를 넣는다([GiftGrade.shareTextWith]). */
     fun shareText(): String = grade().shareTextWith(scoreText())
 
-    /** 농담을 끈 사람의 공유 문구. 통과 등급은 공유 문구와 같고, 탈락 세 등급은 점수 없는 문구 하나다(도장과 같은 방식). */
-    fun shareTextMild(): String = if (passed) shareText() else MILD_SHARE_TEXT
+    /** 농담을 끈 사람의 공유 문구. 점수와 놀림 없이 통과면 선물 받은 문구, 탈락이면 내년으로 미룬 문구 하나다. */
+    fun shareTextMild(): String = if (passed) MILD_GIFT_SHARE_TEXT else MILD_COAL_SHARE_TEXT
 
     private fun pointsText(absoluteHundredths: Int): String =
         (absoluteHundredths / HUNDRED).toString() + DECIMAL_POINT + (absoluteHundredths % HUNDRED).toString().padStart(2, ZERO)
@@ -68,6 +68,7 @@ data class GiftVerdict(val hundredths: Int) {
         private const val DECIMAL_POINT = "."
         private const val SEPARATOR = " · "
         private const val MILD_COAL_STAMP = "내년 명단 예약"
-        private const val MILD_SHARE_TEXT = "올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐."
+        private const val MILD_GIFT_SHARE_TEXT = "산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐."
+        private const val MILD_COAL_SHARE_TEXT = "올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐."
     }
 }

@@ -59,11 +59,13 @@ class GiftVerdictTest {
     }
 
     @Test
-    fun `판결 제목은 도장과 등급을 잇고 농담을 끈 제목은 석탄 등급 이름을 쓰지 않는다`() {
+    fun `판결 제목은 도장과 등급을 잇고 농담을 끈 제목은 탈락 세 등급에서 도장만 쓴다`() {
         assertEquals("겨우 실었다 · 굴뚝에 걸쳐서 통과", GiftVerdict(7373).headline())
         assertEquals("아깝다 진짜 · 굴뚝 앞 유턴", GiftVerdict(6000).headline())
         assertEquals("반품 불가 · 석탄 당첨", GiftVerdict(3000).headline())
-        assertEquals("내년 명단 예약 · 명단에 없음", GiftVerdict(5200).mildHeadline())
+        assertEquals("겨우 실었다 · 굴뚝에 걸쳐서 통과", GiftVerdict(7373).mildHeadline())
+        assertEquals("내년 명단 예약", GiftVerdict(6000).mildHeadline())
+        assertEquals("내년 명단 예약", GiftVerdict(5200).mildHeadline())
         assertEquals("내년 명단 예약", GiftVerdict(3000).mildHeadline())
     }
 
@@ -97,8 +99,9 @@ class GiftVerdictTest {
     }
 
     @Test
-    fun `농담을 끈 공유 문구는 통과면 공유 문구와 같고 탈락이면 점수 없는 문구 하나다`() {
-        assertEquals(GiftVerdict(9210).shareText(), GiftVerdict(9210).shareTextMild())
+    fun `농담을 끈 공유 문구는 점수와 놀림 없이 통과·탈락 문구 하나씩이다`() {
+        assertEquals("산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐.", GiftVerdict(9210).shareTextMild())
+        assertEquals("산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐.", GiftVerdict(6500).shareTextMild())
         assertEquals("올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.", GiftVerdict(6499).shareTextMild())
         assertEquals("올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.", GiftVerdict(4000).shareTextMild())
     }

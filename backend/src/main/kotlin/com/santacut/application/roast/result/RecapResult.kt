@@ -15,7 +15,7 @@ import java.math.BigDecimal
  * @property score 총점(점, 소수 둘째 자리)
  * @property scoreText 총점 표시("73.73")
  * @property shareText 서버가 고정한 공유 문구. 등급마다 다르고 총점 표시가 들어간다.
- * @property shareTextMild 농담을 끈 사람의 공유 문구. 통과면 [shareText]와 같고 탈락이면 점수 없는 문구다.
+ * @property shareTextMild 농담을 끈 사람의 공유 문구. 점수와 놀림 없이 통과·탈락 문구 하나씩이다.
  * @property archetypeCode 산타 유형 코드
  * @property archetypeName 산타 유형 이름
  */

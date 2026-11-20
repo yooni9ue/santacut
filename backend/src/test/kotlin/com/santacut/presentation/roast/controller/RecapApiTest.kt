@@ -57,7 +57,7 @@ class RecapApiTest @Autowired constructor(
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.skin").value("GIFT"))
             .andExpect(jsonPath("$.share_text").value(allOf(startsWith("산타가 내 단톡방 다 읽고도 "), endsWith("점 줌. 이게 인성이다. 너도 까봐."))))
-            .andExpect(jsonPath("$.share_text_mild").value(startsWith("산타가 내 단톡방 다 읽고도 ")))
+            .andExpect(jsonPath("$.share_text_mild").value("산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐."))
             .andExpect(jsonPath("$.cards[*].kind", contains("VERDICT", "ROAST", "ROAST", "ROAST", "LETTER", "STORY", "ARCHETYPE", "DIMENSIONS")))
             .andExpect(jsonPath("$.cards[*].index", contains(0, 1, 2, 3, 4, 5, 6, 7)))
             .andExpect(jsonPath("$.cards[*].width", everyItem(`is`(1080))))

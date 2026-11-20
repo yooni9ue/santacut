@@ -25,7 +25,8 @@ data class RecapResponse(
     val shareText: String,
     @field:JsonProperty("share_text_mild")
     @field:Schema(
-        description = "농담을 끈 사람의 공유 문구. 통과면 share_text와 같고, 탈락이면 점수를 넣지 않은 문구 하나입니다.",
+        description = "농담을 끈 사람의 공유 문구. 점수와 놀림 없이 통과면 '산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐.', " +
+            "탈락이면 '올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.'입니다.",
         example = "올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.",
     )
     val shareTextMild: String,
