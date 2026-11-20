@@ -13,6 +13,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property quotable 작은따옴표로 인용해도 되는 입버릇
  * @property topics 막별 화제 후보
  * @property transcript 막별 본인 말풍선(가린 뒤)
+ * @property slang 써도 되는 유행어 표기 → 뜻(roast/slang.json). 목록 밖 유행어는 쓰지 않게 한다.
  * @property rewrite 다시 쓰기 요청. 첫 호출이면 싣지 않는다.
  */
 data class RoastInput(
@@ -24,5 +25,6 @@ data class RoastInput(
     val quotable: RoastQuotes,
     val topics: RoastTopics,
     val transcript: List<RoastTranscriptAct>,
+    val slang: Map<String, String> = emptyMap(),
     @field:JsonInclude(JsonInclude.Include.NON_NULL) val rewrite: RoastRewrite? = null,
 )

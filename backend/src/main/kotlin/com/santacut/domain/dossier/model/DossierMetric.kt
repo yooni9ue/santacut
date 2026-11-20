@@ -28,6 +28,13 @@ enum class DossierMetric(val key: String, val family: MetricFamily, val chart: C
     REPLY_MEDIAN_MINUTES("reply_median_minutes", MetricFamily.REPLY, null),
     KIND_WORDS_DENSITY("kind_words_density", MetricFamily.KIND, null),
     BLEEP_DENSITY("bleep_density", MetricFamily.BLEEP, null),
+    WEEKEND_RATIO("weekend_ratio", MetricFamily.WEEK, null),
+    MORNING_RATIO("morning_ratio", MetricFamily.CLOCK, ChartKind.HOURLY),
+    OFFICE_HOURS_RATIO("office_hours_ratio", MetricFamily.WEEK, ChartKind.HOURLY),
+    PEAK_HOUR_SHARE("peak_hour_share", MetricFamily.CLOCK, ChartKind.HOURLY),
+    BUSIEST_DAY_MULTIPLE("busiest_day_multiple", MetricFamily.SPIKE, null),
+    MEDIA_RATIO("media_ratio", MetricFamily.MEDIA, null),
+    MESSAGES_PER_DAY("messages_per_day", MetricFamily.VOLUME, ChartKind.MONTHLY),
     ;
 
     /** [stats]에서 이 지표의 값. 값이 없으면(1:1이 아닌 답장, ㅋ 없는 연타 등) null이다. */
@@ -68,7 +75,19 @@ enum class DossierMetric(val key: String, val family: MetricFamily, val chart: C
         EXCLAIM_RATIO -> stats.style.exclaimRatio
         REPLY_MEDIAN_MINUTES -> stats.reply.medianMinutes?.toDouble()
         KIND_WORDS_DENSITY -> densityOf(stats.words.kindWords.total(), stats.textCount())
-        else -> densityOf(stats.words.bleepCount, stats.textCount())
+        BLEEP_DENSITY -> densityOf(stats.words.bleepCount, stats.textCount())
+        else -> derivedValueIn(stats)
+    }
+
+    /** 이미 저장한 집계(요일·시간대 칸, 최다일, 글 메시지 수)에서 다시 세지 않고 끌어낸 값. 집계 판을 올리지 않아 옛 조서에도 쓴다. */
+    private fun derivedValueIn(stats: DossierStats): Double? = when (this) {
+        WEEKEND_RATIO -> stats.clock.weekendRatio()
+        MORNING_RATIO -> stats.clock.hourShare(MORNING_HOURS)
+        OFFICE_HOURS_RATIO -> stats.clock.hourShare(OFFICE_HOURS)
+        PEAK_HOUR_SHARE -> stats.clock.peakHourShare()
+        BUSIEST_DAY_MULTIPLE -> stats.volume.busiestDayMultiple()
+        MEDIA_RATIO -> stats.volume.mediaRatio()
+        else -> stats.volume.messagesPerDay()
     }
 
     private fun densityOf(count: Int, messageCount: Int): Double? =
@@ -79,6 +98,12 @@ enum class DossierMetric(val key: String, val family: MetricFamily, val chart: C
         private const val HOUR = "hour"
         private const val PER_HUNDRED = 100.0
         private const val TENTHS = 10.0
+
+        /** 아침 6시부터 9시 전까지. */
+        private val MORNING_HOURS = 6..8
+
+        /** 아침 9시부터 저녁 6시 전까지. 요일과 시간대를 함께 세지 않아 주말 낮도 들어간다. */
+        private val OFFICE_HOURS = 9..17
 
         fun ofKey(key: String): DossierMetric? = entries.find { metric -> metric.key == key }
     }

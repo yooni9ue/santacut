@@ -105,7 +105,7 @@ class RoastBriefTest {
         val facts = input.path("facts").values()
         assertTrue(facts.isNotEmpty())
         facts.forEach { fact -> assertEquals(setOf("key", "meaning", "level", "group"), fact.propertyNames().toSet()) }
-        assertTrue(facts.map { fact -> fact.path("key").asString() }.contains("phrase_giyeok_q"))
+        assertTrue(facts.map { fact -> fact.path("key").asString() }.any { key -> key.startsWith("phrase_") })
         val quotable = input.path("quotable").values().map { quote -> quote.asString() }
         assertTrue(quotable.contains("ㄱ?"))
         assertFalse(quotable.contains("조지자"))

@@ -9,6 +9,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * days(N일), times(N배) 중 하나다.
  * @property minMessages 이 지표가 극값 후보가 되려면 필요한 본인 메시지 수
  * @property mockable 거짓이면 놀림 문구 대신 중립 문구를 쓴다(ㅠ 밀도 등)
+ * @property lowRemarkable 거짓이면 중앙값 아래 값을 모두 백분위 50(보통)으로 본다. 0에 붙은 비율(심야·느낌표처럼 대부분이 거의 안 하는 버릇)은
+ * 아래쪽 꼬리가 짧아 보통 사람이 '훨씬 적음'으로 튀는데, 적게 하는 것은 놀릴 거리가 아니어서다. 0은 [MetricReading.isZero]가 따로 뺀다.
+ * @property note 기준값의 근거 메모. 엔진은 읽지 않는다.
  */
 data class MetricSpec(
     val key: String,
@@ -19,6 +22,8 @@ data class MetricSpec(
     val p90: Double,
     @JsonProperty("min_messages") val minMessages: Int,
     val mockable: Boolean,
+    @JsonProperty("low_remarkable") val lowRemarkable: Boolean = true,
+    val note: String? = null,
 ) {
     fun violations(): List<String> = listOfNotNull(
         "metrics.$key: 엔진이 계산하지 않는 지표다".takeIf { DossierMetric.ofKey(key) == null },
@@ -40,8 +45,9 @@ data class MetricSpec(
         else -> DossierFormat.decimal(value, PIECES)
     }
 
-    /** [value]의 백분위(0~100). p10 아래와 p90 위는 가까운 구간의 기울기로 늘린 뒤 자른다. */
+    /** [value]의 백분위(0~100). p10 아래와 p90 위는 가까운 구간의 기울기로 늘린 뒤 자른다. [lowRemarkable]이 거짓이면 중앙값 아래는 50이다. */
     fun percentileOf(value: Double): Double {
+        if (!lowRemarkable && value < p50) return MIDDLE
         val raw = if (value <= p50) {
             LOW_ANCHOR + (value - p10) * SPAN / (p50 - p10)
         } else {

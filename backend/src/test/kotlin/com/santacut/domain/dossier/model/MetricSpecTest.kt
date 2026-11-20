@@ -1,5 +1,6 @@
 package com.santacut.domain.dossier.model
 
+import com.santacut.TestDossiers
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 
@@ -13,6 +14,21 @@ class MetricSpecTest {
         assertEquals(70.0, spec.percentileOf(95.0))
         assertEquals(0.0, spec.percentileOf(0.0))
         assertEquals(100.0, spec.percentileOf(10_000.0))
+    }
+
+    @Test
+    fun `아래쪽을 놀리지 않는 지표는 중앙값 아래를 모두 보통으로 보고 위쪽은 그대로 잰다`() {
+        val night = MetricSpec("night_ratio", "심야 비율", "ratio", 0.01, 0.06, 0.2, 200, true, lowRemarkable = false)
+
+        assertEquals(listOf(50.0, 50.0, 50.0), listOf(0.001, 0.01, 0.059).map(night::percentileOf))
+        assertEquals(90.0, night.percentileOf(0.2))
+    }
+
+    @Test
+    fun `실제 사전에서 심야 비율이 낮은 보통 사람은 극값 후보가 되지 않는다`() {
+        val night = TestDossiers.readReal().metrics.toList().first { spec -> spec.key == "night_ratio" }
+
+        assertEquals(50.0, night.percentileOf(0.01))
     }
 
     @Test

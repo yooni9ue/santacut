@@ -10,6 +10,7 @@ import com.santacut.domain.roast.service.RoastService
 import org.junit.jupiter.api.Test
 import org.mockito.BDDMockito.given
 import org.mockito.Mockito.mock
+import java.time.Instant
 import kotlin.test.assertEquals
 
 /** 작가 실행기의 마지막 대체 경로. 어떤 실패도 채점 결과 저장을 막지 않는다. */
@@ -22,7 +23,9 @@ class RoastRunnerTest {
         val job = mock(AnalysisJob::class.java)
         val dossier = DossierDraft(STATS_JSON, DossierTone.NORMAL, 1)
         given(job.id).willReturn(JOB_ID)
-        given(roastService.seedOf(JOB_ID)).willReturn(SEED)
+        given(job.userId).willReturn(USER_ID)
+        given(job.createdAt).willReturn(CREATED_AT)
+        given(roastService.seedOf(USER_ID, CREATED_AT)).willReturn(SEED)
         given(roastService.isEnabled()).willReturn(false)
         given(roastService.fallbackDraft(SCORE, dossier, SEED)).willThrow(IllegalStateException("집계 깨짐"))
         given(roastService.fallbackDraft(SCORE, null, SEED)).willReturn(PLAIN)
@@ -34,6 +37,8 @@ class RoastRunnerTest {
 
     companion object {
         private const val JOB_ID = "job-1"
+        private const val USER_ID = "user-1"
+        private val CREATED_AT: Instant = Instant.parse("2026-11-20T00:00:00Z")
         private const val SEED = 7
         private const val SCORE = 7373
         private const val STATS_JSON = "{}"

@@ -31,6 +31,7 @@ import tools.jackson.databind.ObjectMapper
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.Year
 
 /**
  * 「팩폭 산타」 작가 문장 쓰기와 저장. 입력 조립·검증·대체 규칙은 도메인 모델([RoastBrief], [RoastReview], [RoastSheet])이 정한다.
@@ -60,12 +61,15 @@ class RoastService(
     /** 작가 모델이 설정돼 있고 연속 실패로 멈춘 동안이 아닌지. 아니면 작가를 부르지 않고 대체 문장만 쓴다. */
     fun isEnabled(): Boolean = roastClient.isEnabled() && !backoff.isPausedAt(clock.instant())
 
-    /** 작업 페이로드의 메시지와 미리 만든 조서 [dossier], 총점 [hundredths]로 작가 입력을 조립한다. 작업 성공이 페이로드를 지우므로 그 전에 부른다. */
-    fun brief(job: AnalysisJob, hundredths: Int, dossier: DossierDraft?): RoastBrief {
+    /**
+     * 작업 페이로드의 메시지와 미리 만든 조서 [dossier], 총점 [hundredths]로 작가 입력을 조립한다. 작업 성공이 페이로드를 지우므로 그 전에 부른다.
+     * [seed]([seedOf])로 작가에게 보낼 사실을 고른다.
+     */
+    fun brief(job: AnalysisJob, hundredths: Int, dossier: DossierDraft?, seed: Int): RoastBrief {
         val submission = objectMapper.readValue(job.requirePayload(), AnalysisSubmission::class.java)
         val messages = submission.events.toScoringSequence(SeoulTime.ZONE).toList()
         val participants = catalog.rules.participantNames(submission.speakerNames)
-        return RoastBrief.compose(messages, statsOf(dossier), GiftVerdict(hundredths), catalog, dossierCatalog, participants)
+        return RoastBrief.compose(messages, statsOf(dossier), GiftVerdict(hundredths), catalog, dossierCatalog, participants, seed)
     }
 
     /** 호출 전 비용 확인에 쓰는 어림 사용량. 다시 쓰기까지 최대 호출 수만큼이다. */
@@ -91,7 +95,10 @@ class RoastService(
 
     /** 작가 없이 대체 문장만으로 만든 결과. 조서 집계가 있으면 그 사실로 짝과 칩을 채운다. 작가가 실패하거나 꺼졌을 때, 기능 전 평가를 재사용할 때 쓴다. */
     fun fallbackDraft(hundredths: Int, dossier: DossierDraft?, seed: Int): RoastDraft =
-        draft(RoastBrief.compose(emptyList(), statsOf(dossier), GiftVerdict(hundredths), catalog, dossierCatalog), RoastSheet.EMPTY, null, seed)
+        draft(
+            RoastBrief.compose(emptyList(), statsOf(dossier), GiftVerdict(hundredths), catalog, dossierCatalog, seed = seed),
+            RoastSheet.EMPTY, null, seed,
+        )
 
     /** [assessment]의 팩폭 결과를 저장한다. */
     fun record(assessment: Assessment, draft: RoastDraft, recordedAt: Instant) {
@@ -122,7 +129,7 @@ class RoastService(
             roastRepository.save(previous.copyFor(assessment, recordedAt))
             return
         }
-        record(assessment, fallbackDraft(assessment.scoreHundredths, dossier, seedOf(assessment.id)), recordedAt)
+        record(assessment, fallbackDraft(assessment.scoreHundredths, dossier, seedOf(assessment.userId, assessment.createdAt)), recordedAt)
     }
 
     /** [assessmentId] 평가에 팩폭 결과(리캡 카드 문장)가 있는지. */
@@ -134,8 +141,11 @@ class RoastService(
         return objectMapper.readValue(roast.contentJson, RoastContent::class.java)
     }
 
-    /** 대체 문장을 고르는 시드. 같은 작업·평가에는 늘 같은 문장이다. */
-    fun seedOf(id: String): Int = id.hashCode()
+    /**
+     * 사실과 대체 문장을 고르는 시드. 참가자 [userId]와 [at]의 서울 기준 해로 만든다(String.hashCode는 JVM마다 같다).
+     * 같은 사람이 같은 해에 다시 내면 같은 사실·문장이 나오고, 다른 사람은 다르다. 같은 사람의 다른 방은 [RoastFacts.of]가 집계를 섞어 다르게 한다.
+     */
+    fun seedOf(userId: String, at: Instant): Int = "$userId$SEED_SEPARATOR${Year.from(at.atZone(SeoulTime.ZONE)).value}".hashCode()
 
     private tailrec fun refine(
         brief: RoastBrief,
@@ -191,6 +201,8 @@ class RoastService(
     companion object {
         /** 작가 호출이 이만큼 연달아 실패하면 잠시 멈춘다. */
         const val MAX_CONSECUTIVE_FAILURES = 3
+
+        private const val SEED_SEPARATOR = ":"
 
         /** 연속 실패 뒤 작가를 부르지 않는 시간. */
         val PAUSE: Duration = Duration.ofMinutes(5)

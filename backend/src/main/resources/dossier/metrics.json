@@ -49,7 +49,9 @@
    "p50": 0.06,
    "p90": 0.2,
    "min_messages": 200,
-   "mockable": true
+   "mockable": true,
+   "low_remarkable": false,
+   "note": "아래쪽은 놀리지 않는다(low_remarkable false). 0~5시 비율은 0에 붙은 분포라 p10(0.01)이 보통 사람 값과 거의 같아, 심야 1%인 평범한 사람이 '훨씬 적음'으로 튀었다. 위쪽 p50·p90은 그대로 둔다(손 추정)."
   },
   {
    "key": "peak_hour",
@@ -139,7 +141,9 @@
    "p50": 0.05,
    "p90": 0.18,
    "min_messages": 100,
-   "mockable": true
+   "mockable": true,
+   "low_remarkable": false,
+   "note": "아래쪽은 놀리지 않는다(low_remarkable false). 카톡에서 느낌표를 거의 안 쓰는 사람이 흔해 p10(0.01)이 보통 값에 붙어 있다. 위쪽 p50·p90은 그대로 둔다(손 추정)."
   },
   {
    "key": "reply_median_minutes",
@@ -190,6 +194,84 @@
    "p90": 8,
    "min_messages": 200,
    "mockable": true
+  },
+  {
+   "key": "weekend_ratio",
+   "label": "주말 비율",
+   "unit": "ratio",
+   "p10": 0.16,
+   "p50": 0.27,
+   "p90": 0.4,
+   "min_messages": 200,
+   "mockable": true,
+   "note": "토·일 비율. 이레에 고르게 보내면 2/7(약 0.29)인데, 평일 단톡(직장·학교)이 많아 중앙값을 조금 낮춘 손 추정이다."
+  },
+  {
+   "key": "morning_ratio",
+   "label": "아침 비율",
+   "unit": "ratio",
+   "p10": 0.01,
+   "p50": 0.04,
+   "p90": 0.1,
+   "min_messages": 200,
+   "mockable": true,
+   "low_remarkable": false,
+   "note": "6~9시 비율. 심야처럼 0에 붙은 분포라 아래쪽은 놀리지 않는다(low_remarkable false). 출근길 단톡을 반영한 손 추정이다."
+  },
+  {
+   "key": "office_hours_ratio",
+   "label": "근무시간 비율",
+   "unit": "ratio",
+   "p10": 0.25,
+   "p50": 0.42,
+   "p90": 0.62,
+   "min_messages": 200,
+   "mockable": true,
+   "note": "9~18시 비율. 요일과 시간대를 함께 세지 않아 주말 낮도 들어간다. 하루 활동 시간의 절반쯤이라 중앙값 0.42로 둔 손 추정이다."
+  },
+  {
+   "key": "peak_hour_share",
+   "label": "시간 집중도",
+   "unit": "ratio",
+   "p10": 0.07,
+   "p50": 0.1,
+   "p90": 0.15,
+   "min_messages": 200,
+   "mockable": true,
+   "note": "가장 바쁜 한 시간대의 비율. 스물네 칸에 고르면 0.042이고, 저녁 한두 시간에 몰리는 보통 단톡을 반영한 손 추정이다."
+  },
+  {
+   "key": "busiest_day_multiple",
+   "label": "최다일 몰빵 배수",
+   "unit": "times",
+   "p10": 3,
+   "p50": 6,
+   "p90": 14,
+   "min_messages": 300,
+   "mockable": true,
+   "note": "최다일 개수 ÷ 활동일 하루 평균. 하루 평균의 대여섯 배가 보통인 손 추정이다."
+  },
+  {
+   "key": "media_ratio",
+   "label": "사진·이모티콘 비율",
+   "unit": "ratio",
+   "p10": 0.015,
+   "p50": 0.06,
+   "p90": 0.15,
+   "min_messages": 200,
+   "mockable": true,
+   "note": "(말풍선 수 - 글 메시지 수) ÷ 말풍선 수. 사진·이모티콘·빈 메시지 자리표시의 비율. 카톡 내보내기 기준 손 추정이다."
+  },
+  {
+   "key": "messages_per_day",
+   "label": "활동일당 말풍선",
+   "unit": "count",
+   "p10": 4,
+   "p50": 12,
+   "p90": 35,
+   "min_messages": 100,
+   "mockable": true,
+   "note": "말풍선 수 ÷ 활동일. 메시지 양에 따라 늘 튀는 지표라 facts.json 무게를 낮췄다(0.6). 손 추정이다."
   }
  ]
 }

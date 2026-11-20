@@ -18,6 +18,7 @@ class RoastPromptSeedTest {
     private val prompt: String by lazy { contentOf(HEAD) }
     private val second: String by lazy { contentOf(SECOND_HEAD) }
     private val third: String by lazy { contentOf(THIRD_HEAD) }
+    private val fourth: String by lazy { contentOf(FOURTH_HEAD) }
 
     private fun contentOf(head: String): String {
         val start = sql.indexOf(head).also { index -> check(index >= 0) { "시드 없음: $head" } } + head.length
@@ -111,7 +112,28 @@ class RoastPromptSeedTest {
         assertTrue(third.contains("띄어 쓴 \"한 마디\"는 수를 세는 말이다"))
     }
 
+    @Test
+    fun `4판은 3판의 말투·안전 규칙을 지니고 유행어는 입력 slang 목록에서 필드마다 하나까지만 쓰게 한다`() {
+        assertTrue(fourth.contains("'~하거라', '~보아라', '~하였다', '~구나', '~습니다'"))
+        assertTrue(fourth.contains("실제 사람 이름과 별명을 쓰지 않는다"))
+        assertTrue(fourth.contains("반드시 \"근데 \"로 시작한다"))
+        assertTrue(fourth.contains("- slang: 써도 되는 유행어 표기와 그 뜻."))
+        assertTrue(fourth.contains("필드 하나에 하나까지만 쓰고, 모든 필드에 넣지 않는다"))
+        assertTrue(fourth.contains("유행어를 빼고 읽어도 웃겨야 한다"))
+        assertTrue(fourth.contains("성별, 나이, 세대, 사는 곳, 외모, 형편(돈), 마음 건강"))
+        assertFalse(fourth.contains("유행어('갑'"))
+    }
+
+    @Test
+    fun `4판은 밈 틀과 앞의 세 짝 계열 규칙을 주고 글자 수 범위는 서버 검증과 같다`() {
+        listOf("- 대조형:", "- 헤드라인형:", "- 번복형:", "- 칭호형:", "- 선언형:").forEach { frame -> assertTrue(fourth.contains(frame), frame) }
+        assertTrue(fourth.contains("앞의 세 짝은 group이 모두 다른 사실로 쓰고"))
+        listOf(RoastTextKind.ROAST, RoastTextKind.FLIP, RoastTextKind.TITLE, RoastTextKind.VERDICT, RoastTextKind.LETTER, RoastTextKind.STORY)
+            .forEach { kind -> assertTrue(fourth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+    }
+
     companion object {
+        private const val FOURTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0004','roast',4,'"
         private const val HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0001','roast',1,'"
         private const val SECOND_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0002','roast',2,'"
         private const val THIRD_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0003','roast',3,'"
