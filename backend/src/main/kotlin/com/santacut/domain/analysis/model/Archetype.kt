@@ -16,8 +16,8 @@ enum class Archetype(val koreanName: String) {
     TREE_TOP_STAR("트리 꼭대기 별"),
     MANNER_SNOWMAN("매너 눈사람"),
     GIFT_WRAPPER("선물 포장 장인"),
-    RUDOLPH_DRIVER("썰매 모는 루돌프"),
-    WORKSHOP_ELF("산타 공방 엘프"),
+    RUDOLPH_DRIVER("맨 앞에서 끄는 루돌프"),
+    WORKSHOP_ELF("일 벌이는 공방 엘프"),
     SANTA_CANDIDATE("산타 후보생"),
     GRINCH_APPRENTICE("그린치 견습생"),
     ;

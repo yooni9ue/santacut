@@ -41,7 +41,7 @@
    "key": "night_ratio",
    "meaning": "자정부터 새벽 다섯 시 전까지 보낸 말풍선의 비율",
    "group": "time",
-   "chip_label": "심야 말풍선",
+   "chip_label": "새벽 출몰률",
    "levels": [
     "남들보다 훨씬 적음",
     "남들보다 적음",
@@ -161,7 +161,7 @@
    "key": "question_ratio",
    "meaning": "물음표가 든 말풍선의 비율",
    "group": "mark",
-   "chip_label": "물음표 말풍선",
+   "chip_label": "물음표 살포율",
    "levels": [
     "남들보다 훨씬 적음",
     "남들보다 적음",
@@ -209,7 +209,7 @@
  "phrase": {
   "group": "habit",
   "meaning": "'{quote}'라고 보낸 횟수",
-  "chip_label": "'{quote}' 보낸 횟수",
+  "chip_label": "'{quote}' 발사 횟수",
   "levels": [
    "남들보다 많음",
    "남들보다 훨씬 많음"
