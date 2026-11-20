@@ -53,6 +53,8 @@ class ForeignKeyCheckConfiguration(private val jdbcTemplate: JdbcTemplate) {
                 RequiredForeignKey("shares", "snapshot_id", "result_snapshots", CASCADE),
                 RequiredForeignKey("dossiers", "user_id", PARTICIPANTS, CASCADE),
                 RequiredForeignKey("dossiers", "assessment_id", "assessments", CASCADE),
+                RequiredForeignKey("roasts", "user_id", PARTICIPANTS, CASCADE),
+                RequiredForeignKey("roasts", "assessment_id", "assessments", CASCADE),
             ),
         )
     }

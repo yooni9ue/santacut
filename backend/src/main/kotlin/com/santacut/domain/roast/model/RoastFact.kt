@@ -1,0 +1,21 @@
+package com.santacut.domain.roast.model
+
+import com.fasterxml.jackson.annotation.JsonIgnore
+
+/**
+ * 작가에게 보내는 사실 하나. 숫자 값은 보내지 않고 남들과 비교한 수준([level])만 말로 보낸다.
+ * 칩, 대체 문장 key, 인용 표기는 서버만 쓰고 작가 입력 JSON에는 싣지 않는다.
+ *
+ * @property group 사실의 계열. 한 계열이 재료를 독차지하지 않게 고를 때 겹치지 않게 한다.
+ * @property fallbackKey 대체 짝을 고르는 key. 지표는 방향 key(높으면 key, 낮으면 key_low), 입버릇은 phrase다.
+ * @property quote 입버릇 사실이면 그 표기(대체 문장에 끼운다), 아니면 null이다.
+ */
+data class RoastFact(
+    val key: String,
+    val meaning: String,
+    val level: String,
+    val group: String,
+    @get:JsonIgnore val chip: RoastChip,
+    @get:JsonIgnore val fallbackKey: String,
+    @get:JsonIgnore val quote: String? = null,
+)

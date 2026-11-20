@@ -1,16 +1,19 @@
 package com.santacut.domain.dossier.model
 
 /**
- * 판결 장(산타). 판정은 기존 점수 판정 그대로, 사유는 4개 항목 중 최고점 항목의 따뜻한 말 횟수, 주석은 통계 하나다.
- * 큰 값은 전국 순위, 메모는 지역과 도착 예정 시각이다. 하위 구간 줄은 카드에서 가린다.
+ * 판결 장(산타). 제목은 「팩폭 산타」 선물 판정([com.santacut.domain.analysis.model.GiftVerdict])의 도장과 등급, 사유는 4개 항목 중 최고점 항목의 따뜻한 말 횟수, 주석은 통계 하나다.
+ * 큰 값은 전국 순위, 메모는 지역과 도착 예정 시각(선물을 받을 때만)이다. 하위 구간 줄은 카드에서 가린다.
  */
 class VerdictScene(private val context: SceneContext, private val extremes: MetricReadings, private val subject: DossierSubject) {
     private val copy = context.copy().verdict
 
     fun scene(): DossierScene = DossierScene(
-        VERDICT, SceneKind.VERDICT, DossierScene.SANTA, subject.verdictTitle, subject.rank?.let(DossierFormat::nationalRank),
+        VERDICT, SceneKind.VERDICT, DossierScene.SANTA, headline(), subject.rank?.let(DossierFormat::nationalRank),
         SceneLines.numbered(listOfNotNull(reason(), note(), lowBand())), delivery(), null, true,
     )
+
+    /** 선물 판정 제목. 담백 톤이면 석탄 대신 "선물은 내년에"를 쓴다. */
+    private fun headline(): String = if (context.isMild()) subject.gift.mildHeadline() else subject.verdictTitle
 
     /** 최고점 항목에서 가장 많이 쓴 따뜻한 말과 그 횟수. 그 항목의 말을 한 번도 안 썼으면 뺀다. */
     private fun reason(): LineDraft? {
@@ -33,9 +36,10 @@ class VerdictScene(private val context: SceneContext, private val extremes: Metr
         return copy.lowBandTitle.pick(context.seed.of(LOW_BAND), context.slots)?.let { text -> LineDraft(text, false) }
     }
 
-    /** 지역과 도착 예정 시각. 둘 다 없으면 null이다. */
+    /** 지역과 도착 예정 시각. 석탄이면 선물이 가지 않으니 도착 시각은 빼고, 둘 다 없으면 null이다. */
     private fun delivery(): String? {
-        val parts = listOfNotNull(subject.regionName, subject.eta?.let { eta -> DELIVERY_PREFIX + DossierFormat.eta(eta) })
+        val eta = subject.eta?.takeIf { subject.gift.passed }
+        val parts = listOfNotNull(subject.regionName, eta?.let { value -> DELIVERY_PREFIX + DossierFormat.eta(value) })
         return parts.joinToString(SEPARATOR).ifEmpty { null }
     }
 

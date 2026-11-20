@@ -16,6 +16,9 @@ class PromptName private constructor(val value: String) {
         /** 분석 작업자가 AI 채점에 쓰는 프롬프트 이름. 1판은 prompts.sql이 넣는다. */
         val SCORE: PromptName = from("score")
 
+        /** 분석 작업자가 채점 뒤 「팩폭 산타」 문장을 쓸 때 쓰는 작가 프롬프트 이름. 1판은 prompts.sql이 넣는다. */
+        val ROAST: PromptName = from("roast")
+
         fun from(raw: String): PromptName {
             if (!PATTERN.matches(raw)) throw SantaCutException(ErrorCode.INVALID_REQUEST)
             return PromptName(raw)

@@ -286,11 +286,14 @@ class AnalysisJob(
         private val LEASE_MARGIN: Duration = Duration.ofMinutes(1)
 
         /**
-         * AI 호출 하나의 시간 상한이 [callTimeout]일 때의 작업 리스 길이. 구간 수 상한([ScoringChunks.MAX_CHUNKS])만큼 호출이 모두
-         * 상한까지 걸려도 리스가 남아 있어야 다른 작업자가 같은 작업을 다시 잡지 않는다.
+         * 채점 호출 하나의 시간 상한이 [callTimeout]이고, 채점 뒤 팩폭 작가를 최대 [writerCalls]번 각 [writerCallTimeout]까지 부를 때의 작업 리스 길이.
+         * 구간 수 상한([ScoringChunks.MAX_CHUNKS])만큼의 채점 호출과 작가 호출이 모두 상한까지 걸려도 리스가 남아 있어야
+         * 다른 작업자가 같은 작업을 다시 잡지 않고, 결과 기록이 리스를 잃지 않는다.
          */
-        fun leaseDurationFor(callTimeout: Duration): Duration =
-            callTimeout.multipliedBy(ScoringChunks.MAX_CHUNKS.toLong()).plus(LEASE_MARGIN)
+        fun leaseDurationFor(callTimeout: Duration, writerCallTimeout: Duration = Duration.ZERO, writerCalls: Int = 0): Duration =
+            callTimeout.multipliedBy(ScoringChunks.MAX_CHUNKS.toLong())
+                .plus(writerCallTimeout.multipliedBy(writerCalls.toLong()))
+                .plus(LEASE_MARGIN)
 
         /** 이 시각보다 먼저 만든 대기 작업은 [QUEUE_EXPIRY]를 넘겨 만료 대상이다. */
         fun queueExpiryCutoff(now: Instant): Instant = now.minus(QUEUE_EXPIRY)

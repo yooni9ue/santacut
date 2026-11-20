@@ -1,0 +1,167 @@
+package com.santacut.domain.roast.model
+
+import com.santacut.TestDossiers
+import com.santacut.TestRoasts
+import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/** 작가 응답 필드 단위 검증. 떨어진 필드마다 사유를 남긴다. */
+class RoastReviewTest {
+    private val gift = TestRoasts.brief(messages())
+    private val coal = TestRoasts.brief(messages(), TestRoasts.COAL_SCORE)
+    private val factKeys = gift.facts.keys()
+
+    @Test
+    fun `규칙을 지킨 응답은 모든 필드가 통과한다`() {
+        val review = review(gift, validJson())
+
+        assertEquals(emptyList(), review.checks.failedFields())
+    }
+
+    @Test
+    fun `숫자·금지어·목록 밖 인용·영문·괄호는 그 필드만 떨어진다`() {
+        val json = validJson(
+            title = "물음표 세 번 요정",
+            verdict = "상대가 답할 때까지 물음표를 보냈다. 올해 선물 명단에 올린다.",
+            letter = "올해 '언제 볼까'로 판을 열던 버릇이 좋았다. Santa도 그 버릇은 그대로 두라고 한다. 내년에도 그렇게 먼저 말을 꺼내라.",
+            verdictMild = "올해 말풍선 잘 읽었다. (장소)에서 내년에 선물을 챙겨 보낸다.",
+        )
+
+        val checks = review(gift, json).checks
+
+        assertEquals(listOf("title", "verdict", "verdict_mild", "letter"), checks.failedFields())
+        val reasons = checks.reasonsFor(listOf("title", "verdict", "verdict_mild", "letter"))
+        assertTrue(reasons.any { reason -> reason.contains("숫자 표현(세 번)") })
+        assertTrue(reasons.any { reason -> reason.contains("금지어(상대)") })
+        assertTrue(reasons.any { reason -> reason.contains("목록 밖 인용(언제 볼까)") })
+        assertTrue(reasons.any { reason -> reason.contains("알파벳") })
+        assertTrue(reasons.any { reason -> reason.contains("괄호") })
+    }
+
+    @Test
+    fun `돈·직장 낱말과 다들은 금지어가 아니라 통과한다`() {
+        val json = validJson(verdict = "연차 내고 정산까지 챙기던 손을 봤다. 다들 모인 판에 선물 얹는다.")
+
+        assertEquals(emptyList(), review(gift, json).checks.failedFields())
+    }
+
+    @Test
+    fun `큰따옴표와 낫표로 감싼 목록 밖 인용도 떨어진다`() {
+        val json = validJson(
+            title = "“언제 볼까” 신호탄 요정",
+            verdict = "「언제 볼까?」 하나로 판을 깔던 손을 봤다. 선물 명단에 올린다.",
+            letter = "올해 『언제 볼까』로 판을 열던 버릇이 좋았다. 할 말이 생기면 미루지 않고 먼저 꺼냈다. 내년에도 그대로 두어라.",
+        )
+
+        val checks = review(gift, json).checks
+
+        assertEquals(listOf("title", "verdict", "letter"), checks.failedFields())
+        assertEquals(3, checks.reasonsFor(listOf("title", "verdict", "letter")).count { reason -> reason.contains("목록 밖 인용(언제 볼까") })
+    }
+
+    @Test
+    fun `따옴표 없이 본인 말풍선을 여덟 글자 넘게 베끼면 떨어진다`() {
+        val brief = TestRoasts.brief(messages() + TestDossiers.self(TestDossiers.START.plusDays(200), "오늘은 무조건 보드게임 하자"))
+        val json = validJson(verdict = "무조건 보드게임 하자고 조르던 손을 봤다. 선물 명단에 올린다.")
+
+        val checks = review(brief, json).checks
+
+        assertEquals(listOf("verdict"), checks.failedFields())
+        assertTrue(checks.reasonsFor(listOf("verdict")).any { reason -> reason.contains("말풍선 베낌") })
+    }
+
+    @Test
+    fun `석탄인데 선물을 받는다는 판결과 석탄을 쓴 담백 판결, 근데로 여는 뒤집기는 떨어진다`() {
+        val json = validJson(
+            verdict = "ㄱ? 하나로 버텼다. 그래도 올해 선물 받는 건 어렵지 않겠다.",
+            verdictMild = "올해 말풍선 잘 읽었다. 석탄은 접어 두고 내년에 다시 보자.",
+            firstFlip = "근데 그 덕에 판이 늘 먼저 열렸다. 그건 고마운 일이다.",
+        )
+
+        val failed = review(coal, json).checks.failedFields()
+
+        assertTrue(failed.containsAll(listOf("verdict", "verdict_mild", "pairs[0]")))
+    }
+
+    @Test
+    fun `없는 사실 key와 앞 짝과 겹친 사실 key는 그 짝만 떨어진다`() {
+        val json = validJson(secondKey = "unknown_fact", thirdKey = factKeys[0])
+
+        val failed = review(gift, json).checks.failedFields()
+
+        assertEquals(listOf("pairs[1]", "pairs[2]"), failed)
+    }
+
+    @Test
+    fun `JSON이 아니면 json 실패 하나만 남고 읽은 값이 없다`() {
+        val review = review(gift, "{\"title\": \"잘린 응")
+
+        assertNull(review.output)
+        assertEquals(listOf("json"), review.checks.failedFields())
+    }
+
+    @Test
+    fun `대체 문장은 판정마다 모두 검증 규칙을 통과한다`() {
+        val fallback = TestRoasts.catalog.fallback
+        val texts = listOf(
+            RoastTextKind.TITLE to fallback.titles, RoastTextKind.VERDICT to fallback.verdicts,
+            RoastTextKind.VERDICT_MILD to fallback.verdictsMild, RoastTextKind.LETTER to fallback.letters,
+        )
+        texts.forEach { (kind, lines) ->
+            lines.gift.forEach { text -> assertEquals(emptyList(), TextProblems.of(text, kind, gift, TestRoasts.catalog.rules).toList(), text) }
+            lines.coal.forEach { text -> assertEquals(emptyList(), TextProblems.of(text, kind, coal, TestRoasts.catalog.rules).toList(), text) }
+        }
+        val pairs = fallback.pairs.values.map { pair -> pair.toPair("x", "ㄱ?") } + fallback.genericPairs.take(RoastSheet.MIN_PAIRS)
+        pairs.forEach { pair ->
+            assertEquals(emptyList(), TextProblems.of(pair.roast, RoastTextKind.ROAST, coal, TestRoasts.catalog.rules).toList(), pair.roast)
+            assertEquals(emptyList(), TextProblems.of(pair.flip, RoastTextKind.FLIP, coal, TestRoasts.catalog.rules).toList(), pair.flip)
+        }
+        fallback.story.values.flatten().forEach { line ->
+            assertEquals(emptyList(), TextProblems.of(line, RoastTextKind.STORY, gift, TestRoasts.catalog.rules).toList(), line)
+        }
+    }
+
+    @Test
+    fun `대체 짝 key는 사실 규칙의 지표 방향을 모두 덮는다`() {
+        val keys = TestRoasts.catalog.facts.toList().flatMap { spec -> listOf(spec.key, spec.key + "_low") }
+        val missing = keys.filterNot { key -> key in TestRoasts.catalog.fallback.pairs } - setOf("reply_median_minutes")
+
+        assertFalse(missing.isNotEmpty(), missing.toString())
+    }
+
+    private fun review(brief: RoastBrief, json: String): RoastReview = RoastReview.of(json, brief, TestRoasts.catalog.rules, TestRoasts.mapper)
+
+    private fun validJson(
+        title: String = "물음표 신호탄 요정",
+        verdict: String = "ㄱ? 하나로 판을 깔던 손을 봤다. 선물 명단에 이름 적어 둔다.",
+        verdictMild: String = "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
+        letter: String = "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 두어라.",
+        firstFlip: String = "망설이지 않고 먼저 판을 열었다. 그 손이 제일 빨랐다.",
+        secondKey: String = factKeys[1],
+        thirdKey: String = factKeys[2],
+    ): String = TestRoasts.mapper.writeValueAsString(
+        mapOf(
+            "title" to title, "verdict" to verdict, "verdict_mild" to verdictMild, "letter" to letter,
+            "pairs" to listOf(
+                pair(factKeys[0], "'ㄱ?' 없이는 말이 안 시작된다. 거의 출발 신호다.", firstFlip),
+                pair(secondKey, "웃음을 치기 시작하면 손을 뗄 줄 모른다. 키보드가 고생이다.", "웃길 때는 끝까지 크게 웃었다. 그게 다 남았다."),
+                pair(thirdKey, "물음표가 말끝에 자꾸 매달린다. 취조실이 따로 없다.", "궁금한 건 그냥 넘기지 않고 꼭 물어봤다."),
+                pair(factKeys[3], "대답을 짧게 끊어 던진다. 말풍선이 거의 신호등이다.", "망설이지 않고 바로바로 답을 던졌다. 빠른 손이었다."),
+                pair(factKeys[4], "말풍선을 쪼개서 연달아 보낸다. 알림이 줄줄이 울린다.", "생각나는 대로 바로바로 꺼내 놓았다. 숨김이 없었다."),
+            ),
+            "story" to listOf(story(1, "새해 첫 막에는 판부터 깔자고 졸랐다."), story(2, "한여름에는 조용히 숨을 골랐다."), story(3, "연말에는 다시 먼저 말을 꺼냈다.")),
+        ),
+    )
+
+    private fun pair(key: String, roast: String, flip: String) = mapOf("fact_key" to key, "roast" to roast, "flip" to flip)
+
+    private fun story(act: Int, line: String) = mapOf("act" to act, "line" to line)
+
+    private fun messages() = TestDossiers.selves(
+        List(150) { index -> listOf("내일 ㄱ?", "ㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋㅋ", "언제 볼까?", "ㄱㄱ 바로 출발", "넹")[index % 5] },
+        minutesApart = 3,
+    )
+}

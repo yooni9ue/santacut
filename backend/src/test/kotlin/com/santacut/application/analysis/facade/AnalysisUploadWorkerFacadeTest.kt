@@ -78,6 +78,13 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         given(scoreClient.isEnabled()).willReturn(true)
     }
 
+    /** 상대 이름은 이벤트(본문·화자 표시)에는 없고, 팩폭 작가가 이름을 가리는 데 쓰는 참여자 이름 목록에만 있다. */
+    private fun assertSpeakerOnlyInNames(payload: String) {
+        val submission = objectMapper.readValue(payload, AnalysisSubmission::class.java)
+        assertFalse(objectMapper.writeValueAsString(submission.events).contains(OTHER_SPEAKER))
+        assertTrue(OTHER_SPEAKER in submission.speakerNames)
+    }
+
     @Test
     fun `검증을 통과하면 상대 이름을 화자 표시로 바꿔 담아 대기열에 넣고 원본을 지운다`() {
         val job = upload(TestChatFiles.kakaoIos(OPEN_TIME, EVENT_COUNT))
@@ -88,7 +95,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         val payload = analysisJobRepository.findById(job.jobId.toString()).orElseThrow().requirePayload()
         assertTrue(payload.contains("고마워 0"))
         assertTrue(payload.contains(OTHER_TEXT))
-        assertFalse(payload.contains(OTHER_SPEAKER))
+        assertSpeakerOnlyInNames(payload)
         assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
     }
 
@@ -134,7 +141,7 @@ class AnalysisUploadWorkerFacadeTest @Autowired constructor(
         assertTrue(payload.contains("고마워 0"))
         assertTrue(payload.contains("INSTAGRAM"))
         assertTrue(payload.contains(OTHER_TEXT))
-        assertFalse(payload.contains(OTHER_SPEAKER))
+        assertSpeakerOnlyInNames(payload)
         assertFalse(analysisUploadRepository.existsById(job.jobId.toString()))
     }
 

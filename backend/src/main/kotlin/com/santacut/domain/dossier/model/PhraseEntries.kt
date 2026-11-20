@@ -25,7 +25,7 @@ class PhraseEntries @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
 
     /** 본인 메시지 본문 [text]에서 어휘마다 센 횟수를 [counts]에 더한다. */
     fun addCountsIn(text: String, counts: EntryCounts) {
-        values.forEachIndexed { index, entry -> counts.add(index, entry.forms.countIn(text)) }
+        values.forEachIndexed { index, entry -> counts.add(index, entry.countIn(text)) }
     }
 
     /** [counts]로 쌓은 횟수 중 한 번 이상 나온 어휘. */

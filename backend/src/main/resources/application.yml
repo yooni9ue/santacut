@@ -9,7 +9,7 @@
       mode: always
       # Hibernate가 테이블을 만든 다음 매번 실행되는 시드. 모두 IF NOT EXISTS나 INSERT OR IGNORE라 기존 DB에는 없는 것만 더한다.
       # seed.sql: 유일 인덱스, 순위 계산 요청 행, 서울 지역. regions.sql: 서울 밖 시·도와 시·군·구.
-      # prompts.sql: 채점 프롬프트(score) 1판부터 최신 판까지. 테이블은 schema.sql 없이 엔티티로만 만든다.
+      # prompts.sql: 채점 프롬프트(score)와 팩폭 작가 프롬프트(roast) 1판부터 최신 판까지. 테이블은 schema.sql 없이 엔티티로만 만든다.
       data-locations: classpath:seed.sql,classpath:regions.sql,classpath:prompts.sql
   jpa:
     hibernate:
@@ -77,6 +77,16 @@ santacut:
     # 제공자가 호출을 막았거나(권한, 요청 한도) 연달아 3번 실패하면 이만큼 작업 잡기를 멈춘다.
     pause: 15m
     max-consecutive-failures: 3
+  # 「팩폭 산타」 작가 호출(채점 뒤 한 번, 검증에 떨어진 필드만 최대 max-rewrites번 다시). 채점 모델 설정과 따로 둔다.
+  # ROAST_MODEL을 비우면 작가를 부르지 않고 서버 대체 문장만 쓴다. 작가가 실패해도 채점 결과는 정상 저장된다.
+  # 생각 토큰이 출력 한도를 함께 써서 응답이 잘렸던 실측이 있어 출력 한도를 넉넉히 둔다. 작업 리스는 작가 호출 수만큼 늘어난다.
+  ai.roast:
+    model: ${ROAST_MODEL:gemini-3.5-flash}
+    temperature: 1.0
+    max-output-tokens: 8192
+    thinking-level: LOW
+    call-timeout: 60s
+    max-rewrites: 2
   # 동시에 채점하는 분석 작업 수. 작업 하나가 Gemini를 한 구간 대화는 3번 동시에, 긴 대화는 최대 8구간을 차례로 부른다(backend-design.md).
   ai.worker:
     concurrency: ${ANALYSIS_WORKER_CONCURRENCY:3}

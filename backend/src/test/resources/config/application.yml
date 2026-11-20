@@ -11,6 +11,10 @@ santacut:
   # 조서 테스트는 실제 콘텐츠 문구에 기대지 않도록 작은 픽스처 리소스를 읽는다. 실제 리소스는 DossierResourcesTest가 따로 검사한다.
   dossier:
     resource-location: classpath:dossier-fixture/
+  # 팩폭 작가는 기본으로 끈다(대체 문장만 쓴다). 작가 흐름은 RoastClient를 목으로 바꾼 테스트가 따로 확인한다.
+  ai:
+    roast:
+      model: ""
 # 조회 수 테스트(QueryCountTest)가 요청 하나에 SQL을 몇 번 준비하는지 센다. 테스트에서만 켠다.
 spring:
   jpa:

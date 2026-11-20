@@ -10,6 +10,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS prompts_name_version ON prompts(name,version);
 CREATE UNIQUE INDEX IF NOT EXISTS shares_active_snapshot_unique ON shares(user_id,snapshot_id);
 -- 평가 하나에 산타 조서 하나다. 평가를 지우면 조서도 외래 키 삭제 규칙으로 지워진다.
 CREATE UNIQUE INDEX IF NOT EXISTS dossiers_assessment_unique ON dossiers(assessment_id);
+-- 평가 하나에 팩폭 결과 하나다. 평가를 지우면 팩폭 결과도 외래 키 삭제 규칙으로 지워진다.
+CREATE UNIQUE INDEX IF NOT EXISTS roasts_assessment_unique ON roasts(assessment_id);
 
 -- 호출 수로 세던 하루 AI 한도 테이블이다. 지금은 쓰지 않으므로 예전 DB에 남은 것을 지운다.
 DROP TABLE IF EXISTS ai_daily_budget;

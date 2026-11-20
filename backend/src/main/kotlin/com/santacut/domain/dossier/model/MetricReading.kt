@@ -26,6 +26,12 @@ class MetricReading(
 
     fun isMockable(): Boolean = spec.mockable
 
+    /** 시드 기준 백분위(0~100). */
+    fun percentileRank(): Double = percentile
+
+    /** 값을 metrics.json의 unit에 맞춰 단위까지 붙인 글. 팩폭 카드 칩에 쓴다. */
+    fun formattedValue(): String = spec.format(value)
+
     /** 느린 답장과 삐 처리는 카드에 싣지 않는다. 나머지는 공유할 수 있다. */
     fun isShareable(): Boolean = metric.isCardSafe(isHigh())
 

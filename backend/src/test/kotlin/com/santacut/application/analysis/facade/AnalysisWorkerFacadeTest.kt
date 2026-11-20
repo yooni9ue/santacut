@@ -32,8 +32,11 @@ import com.santacut.domain.dossier.model.DossierTally
 import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.prompt.model.PromptName
+import com.santacut.domain.roast.model.RoastAnswer
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.client.ScoreClient
+import com.santacut.infrastructure.roast.client.RoastClient
+import com.santacut.infrastructure.roast.repository.RoastRepository
 import com.santacut.infrastructure.analysis.repository.AiUsageDayRepository
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
 import com.santacut.infrastructure.analysis.repository.AssessmentRepository
@@ -47,6 +50,7 @@ import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.BDDMockito.given
 import org.mockito.Mockito.doReturn
+import org.mockito.Mockito.mockingDetails
 import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
@@ -90,7 +94,7 @@ import kotlin.test.assertTrue
     ],
 )
 @Import(WorkerTestClockConfiguration::class)
-@MockitoBean(types = [ScoreClient::class])
+@MockitoBean(types = [ScoreClient::class, RoastClient::class])
 @MockitoSpyBean(types = [DossierService::class])
 class AnalysisWorkerFacadeTest @Autowired constructor(
     private val analysisWorkerFacade: AnalysisWorkerFacade,
@@ -100,6 +104,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     private val resultFacade: ResultFacade,
     private val participantFacade: ParticipantFacade,
     private val scoreClient: ScoreClient,
+    private val roastClient: RoastClient,
+    private val roastRepository: RoastRepository,
     private val clock: MutableClock,
     private val analysisJobRepository: AnalysisJobRepository,
     private val promptRepository: PromptRepository,
@@ -514,6 +520,190 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         assertTrue(aiBudgetService.isBlocked(clock.instant()))
     }
 
+    @Test
+    fun `채점을 마치면 작가 문장을 검증해 통과한 문장을 팩폭 결과로 평가와 함께 저장한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        val roast = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        assertEquals(1, roast.promptVersion)
+        assertEquals(ROAST_MODEL, roast.model)
+        assertTrue(roast.contentJson.contains("\"text\":\"$VALID_TITLE\",\"source\":\"AI\""))
+        assertFalse(roast.contentJson.contains(SAMPLE_TEXT))
+        assertNull(storedJob(job).payload)
+    }
+
+    @Test
+    fun `검증에 떨어진 필드는 사유를 붙여 최대 두 번 다시 부르고 끝까지 떨어지면 대체 문장으로 채운다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        val inputs = mutableListOf<String>()
+        given(roastClient.request(anyString(), anyString())).willAnswer { invocation ->
+            inputs += invocation.getArgument<String>(1)
+            RoastAnswer(roastJson("물음표 세 번 요정"), ROAST_USAGE)
+        }
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals(3, inputs.size)
+        assertFalse(inputs[0].contains("\"rewrite\""))
+        assertTrue(inputs[1].contains("\"rewrite\"") && inputs[1].contains("title 숫자 표현(세 번)"))
+        val roast = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        assertFalse(roast.contentJson.contains("물음표 세 번 요정"))
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
+    }
+
+    @Test
+    fun `조서 집계가 없어 사실이 없으면 짝을 기다리지 않아 작가를 한 번만 부른다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        doReturn(null).`when`(dossierService).draft(anyJob())
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals(1, requestCount())
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
+    }
+
+    @Test
+    fun `작가 호출 자체가 실패하면 다시 쓰지 않고 바로 대체 문장으로 채운다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(null, FAILED_ROAST_USAGE, failed = true))
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals(1, requestCount())
+        val roast = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        assertTrue(roast.contentJson.contains("\"source\":\"FALLBACK\""))
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
+    }
+
+    @Test
+    fun `작가 호출이 예외를 던져도 채점 결과는 정상 저장되고 팩폭은 대체 문장으로 채운다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willThrow(IllegalStateException("작가 장애"))
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
+        val roast = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        assertNull(roast.promptVersion)
+        assertEquals("", roast.model)
+        assertTrue(roast.contentJson.contains("\"source\":\"FALLBACK\""))
+    }
+
+    @Test
+    fun `작가 비용 예약이 한도에 막혀도 채점 결과는 저장되고 작가는 부르지 않는다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.estimateUsage(anyString(), anyString())).willReturn(OVER_BUDGET_ESTIMATE)
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertEquals("SUCCEEDED", rankedStatus(job).status)
+        assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        verify(roastClient, never()).request(anyString(), anyString())
+    }
+
+    @Test
+    fun `작가 프롬프트가 없으면 작가를 부르지 않고 대체 문장으로 저장한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast(withPrompt = false)
+        val job = submitAnalysis()
+
+        analysisWorkerFacade.processNextJob()
+
+        assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
+        verify(roastClient, never()).request(anyString(), anyString())
+    }
+
+    @Test
+    fun `같은 채점 입력으로 다시 내면 지난 팩폭 결과를 새 평가에 복사하고 작가를 다시 부르지 않는다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        val calls = requestCount()
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val previous = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(first).assessmentId)))
+        val copied = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertNotEquals(previous.id, copied.id)
+        assertEquals(previous.contentJson, copied.contentJson)
+        assertEquals(calls, requestCount())
+    }
+
+    @Test
+    fun `지난 평가에 팩폭 결과가 없으면 같은 입력 재사용 때 작가 없이 대체 문장으로 저장한다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        roastRepository.deleteAll()
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val saved = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertNull(saved.promptVersion)
+        assertTrue(saved.contentJson.contains("\"verdict\":\"gift\""))
+    }
+
+    @Test
+    fun `지난 팩폭 결과가 대체 문장뿐이면 같은 입력 재사용 때 복사하지 않고 작가를 한 번 새로 부른다`() {
+        given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
+        val first = submitAnalysis()
+        analysisWorkerFacade.processNextJob()
+        enableRoast()
+        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        val second = submitAnalysis(first.participantId)
+
+        analysisWorkerFacade.processNextJob()
+
+        val saved = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(second).assessmentId)))
+        assertEquals(1, saved.promptVersion)
+        assertTrue(saved.contentJson.contains("\"text\":\"$VALID_TITLE\",\"source\":\"AI\""))
+        assertTrue(requestCount() > 0)
+        assertEquals("SUCCEEDED", rankedStatus(second).status)
+    }
+
+    /** 작가를 켜고 작가 프롬프트 1판을 넣는다([withPrompt]가 거짓이면 넣지 않는다). */
+    private fun enableRoast(withPrompt: Boolean = true) {
+        given(roastClient.isEnabled()).willReturn(true)
+        given(roastClient.model()).willReturn(ROAST_MODEL)
+        given(roastClient.estimateUsage(anyString(), anyString())).willReturn(ESTIMATE)
+        if (withPrompt) promptRepository.save(Prompt.initial(PromptName.ROAST, ROAST_PROMPT, OPEN_TIME))
+    }
+
+    private fun requestCount(): Int = mockingDetails(roastClient).invocations.count { invocation -> invocation.method.name == "request" }
+
+    /** 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답. 짝이 없으므로 짝은 대체 문장으로 채워진다. */
+    private fun roastJson(title: String): String = objectMapper.writeValueAsString(
+        mapOf(
+            "title" to title,
+            "verdict" to "말풍선마다 고맙다는 말을 얹었다. 선물 명단에 이름 적어 둔다.",
+            "verdict_mild" to "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
+            "letter" to "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 두어라.",
+            "pairs" to emptyList<Any>(),
+            "story" to listOf(1, 2, 3).map { act -> mapOf("act" to act, "line" to "그 막에는 고맙다는 말을 먼저 꺼냈다.") },
+        ),
+    )
+
+
     private fun submitAnalysis(
         participantId: UUID = registerParticipant(),
         text: String = SAMPLE_TEXT,
@@ -592,6 +782,11 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val SHORT_TEXT = "고마워"
         private const val CACHE_KEY = "같은 채점 입력"
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
+        private const val ROAST_PROMPT = "작가 프롬프트 1판"
+        private const val ROAST_MODEL = "gemini-3.5-flash"
+        private const val VALID_TITLE = "고맙다 연타 요정"
+        private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
+        private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
         private const val DIMENSION_COUNT = 4
         private const val EXPECTED_SCORE_HUNDREDTHS = 9500

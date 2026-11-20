@@ -9,6 +9,7 @@ import com.santacut.application.ranking.result.RankingBoardResult
 import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.ranking.model.RankingCursor
 import com.santacut.domain.ranking.service.RankingService
+import com.santacut.domain.roast.service.RoastService
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -19,6 +20,7 @@ import java.time.Clock
 class ResultFacade(
     private val rankingService: RankingService,
     private val dossierService: DossierService,
+    private val roastService: RoastService,
     private val clock: Clock,
     private val transaction: TransactionRunner,
 ) {
@@ -29,7 +31,8 @@ class ResultFacade(
         val result = rankingService.findLatestResult(command.participantId)
         val profile = rankingService.findProfile(result.assessment, result.snapshot)
         val dossierAvailable = dossierService.exists(result.latest.id)
-        return MyRankingResult.from(result, profile, rankingService.stageAt(clock.instant()), dossierAvailable)
+        val recapAvailable = roastService.exists(result.latest.id)
+        return MyRankingResult.from(result, profile, rankingService.stageAt(clock.instant()), dossierAvailable, recapAvailable)
     }
 
     /**

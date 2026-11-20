@@ -2,6 +2,7 @@ package com.santacut.domain.dossier.model
 
 import com.santacut.TestDossiers
 import com.santacut.TestDossiers.selves
+import com.santacut.domain.analysis.model.GiftVerdict
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoringMessage
 import org.junit.jupiter.api.Test
@@ -83,11 +84,20 @@ class DossierStoryTest {
 
         val verdict = scene(view, "verdict")
         val lines = verdict.lines.toList()
-        assertEquals("석탄 착불 배송", verdict.headline)
+        assertEquals("석탄", verdict.headline)
         assertEquals("사유 공감 '괜찮아?' 200번이", lines[0].text)
         assertEquals(LineDraft("하위 판정 줄", false), LineDraft(lines.last().text, lines.last().shareable))
         assertEquals("전국 12위", verdict.bigValue)
-        assertEquals("종로구 · 도착 예정 12월 25일 오전 6시 12분", verdict.memo)
+        assertEquals("종로구", verdict.memo)
+    }
+
+    @Test
+    fun `판결 메모의 도착 예정 시각은 선물을 받을 때만 싣는다`() {
+        val gift = scene(write(richMessages(400), scoreHundredths = GiftVerdict.CUT_HUNDREDTHS), "verdict")
+        val coal = scene(write(richMessages(400), scoreHundredths = GiftVerdict.CUT_HUNDREDTHS - 1), "verdict")
+
+        assertEquals("종로구 · 도착 예정 12월 25일 오전 6시 12분", gift.memo)
+        assertEquals("종로구", coal.memo)
     }
 
     @Test
@@ -182,7 +192,7 @@ class DossierStoryTest {
     }
 
     private fun subject(assessmentId: String, scoreHundredths: Int): DossierSubject = DossierSubject(
-        assessmentId, if (scoreHundredths < MID_SCORE) "석탄 착불 배송" else "선물 배송 출발", scoreHundredths, CARE_FIRST, RANK, ETA, REGION, YEAR,
+        assessmentId, scoreHundredths, CARE_FIRST, RANK, ETA, REGION, YEAR,
     )
 
     /** 입버릇 셋, 따뜻한 말, 주제, ㅋ가 섞인 본인 메시지 [count]개. 달마다 나뉘도록 하루씩 띄운다. */
@@ -200,7 +210,6 @@ class DossierStoryTest {
         /** 제목(headline) 없이 내려가는 장면. 티저는 가린 숫자만, 소환장은 칭호만 크게 보여 준다. */
         private val UNTITLED_SCENES = setOf("teaser", "summons")
         private const val HIGH_SCORE = 8000
-        private const val MID_SCORE = 5000
         private const val LOW_SCORE = 3000
         private const val RANK = 12
         private const val REGION = "종로구"

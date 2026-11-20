@@ -29,6 +29,15 @@ class AnalysisUploadTest {
     }
 
     @Test
+    fun `참여자 표시 이름은 본인을 포함해 처음 나온 순서로 제출 내용에 담는다`() {
+        val lines = listOf(line(yesterday, OTHER_SPEAKER, "안녕")) + ownLines(yesterday, MIN_EVENTS)
+
+        val submission = upload(lines).normalize(now, noInstagram, noDossier)
+
+        assertEquals(listOf(OTHER_SPEAKER, SELF_SPEAKER), submission.speakerNames)
+    }
+
+    @Test
     fun `올해 1월 1일(한국 시각) 전이거나 5분 넘게 미래인 메시지는 버린다`() {
         val stale = line(AnalysisEvent.periodStart(now).minusSeconds(60), SELF_SPEAKER, "작년 메시지")
         val future = line(now.plus(Duration.ofMinutes(10)), SELF_SPEAKER, "미래 메시지")

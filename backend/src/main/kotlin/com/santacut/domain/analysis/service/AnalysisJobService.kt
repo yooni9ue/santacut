@@ -20,6 +20,7 @@ import com.santacut.domain.global.exception.SantaCutException
 import com.santacut.domain.global.model.ClientRateLimit
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.repository.AnalysisJobRepository
+import com.santacut.infrastructure.global.config.RoastModelProperties
 import com.santacut.infrastructure.global.config.ScoreModelProperties
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -38,13 +39,19 @@ class AnalysisJobService(
     private val eventPublisher: ApplicationEventPublisher,
     analysisStreamProperties: AnalysisStreamProperties,
     scoreModelProperties: ScoreModelProperties,
+    roastModelProperties: RoastModelProperties,
     clientRateLimitProperties: ClientRateLimitProperties,
 ) {
     private val submissionLimit = ClientRateLimit(
         clientRateLimitProperties.submissionsPerClient, clientRateLimitProperties.submissionWindow,
     )
     private val streamLimit = AnalysisStreamLimit(analysisStreamProperties.maxOpenStreams, analysisStreamProperties.retryAfter)
-    private val leaseDuration = AnalysisJob.leaseDurationFor(scoreModelProperties.callTimeout)
+    /** 작가 호출의 실제 HTTP 상한은 채점과 같은 클라이언트 설정이라, 작가 설정과 채점 설정 중 긴 값으로 리스를 잡는다. */
+    private val leaseDuration = AnalysisJob.leaseDurationFor(
+        scoreModelProperties.callTimeout,
+        maxOf(roastModelProperties.callTimeout, scoreModelProperties.callTimeout),
+        roastModelProperties.maxCalls(),
+    )
 
     fun toPayload(submission: AnalysisSubmission): AnalysisPayload =
         AnalysisPayload(objectMapper.writeValueAsString(submission))
@@ -54,6 +61,9 @@ class AnalysisJobService(
         season().verifyOpenAt(now)
         submission.verifyAcceptableAt(now)
     }
+
+    /** [now]에 시즌이 마감됐는지. 작업을 바꾸지 않고 묻기만 한다. */
+    fun isSeasonClosedAt(now: Instant): Boolean = season().isClosedAt(now)
 
     /** 완료 시점에 시즌이 마감됐으면 작업을 시즌 마감 실패로 저장하고 참을 돌려준다. */
     fun freezeIfSeasonClosed(job: AnalysisJob, completedAt: Instant): Boolean {

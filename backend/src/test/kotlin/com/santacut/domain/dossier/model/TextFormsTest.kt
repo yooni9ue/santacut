@@ -25,4 +25,13 @@ class TextFormsTest {
         assertEquals(2, TextForms(listOf("ㅋㅋ")).countIn("ㅋㅋㅋㅋㅋ"))
         assertEquals(2, TextForms(listOf("진짜", "찐짜")).countIn("진짜? 찐짜!"))
     }
+
+    @Test
+    fun `낱말 경계로 세면 두 글자 이상도 앞뒤에 글자가 붙은 자리는 세지 않는다`() {
+        val forms = TextForms(listOf("ㄱ?"))
+        assertEquals(1, forms.countIn("내일 ㄱ?", wholeWord = true))
+        assertEquals(1, forms.countIn("ㄱ??", wholeWord = true))
+        assertEquals(0, forms.countIn("ㄱㄱ?", wholeWord = true))
+        assertEquals(1, forms.countIn("ㄱㄱ?"))
+    }
 }
