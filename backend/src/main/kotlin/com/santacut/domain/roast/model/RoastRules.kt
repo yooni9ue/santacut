@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property particles 낱말 뒤에 붙어도 같은 낱말로 보는 조사
  * @property nameSurnames 세 글자 이름 줄기로 볼 첫 글자(흔한 성)
  * @property nameExceptions 이름 줄기로 보지 않는 흔한 말(친구, 얘들, 사람 등)
+ * @property nameTitles 참여자 표시 이름 끝에 붙여 쓰면 떼는 직함(대리, 과장 등)
  * @property unquotablePhrases quotable로 넘기지 않는 입버릇 key(비속어, 사람 부르는 말). 조서 통계에는 그대로 남는다.
  * @property quotableMaxLength quotable로 넘기는 입버릇 표기의 최대 글자 수
  * @property excludedTopics 화제 후보로 넘기지 않는 조서 주제 key. 직장 이야기도 보낸다는 결정에 따라 지금은 비어 있다.
@@ -30,6 +31,7 @@ data class RoastRules(
     @JsonProperty("suffix_exceptions") val suffixExceptions: List<String>,
     @JsonProperty("name_surnames") val nameSurnames: String,
     @JsonProperty("name_exceptions") val nameExceptions: List<String>,
+    @JsonProperty("name_titles") val nameTitles: List<String>,
     @JsonProperty("unquotable_phrases") val unquotablePhrases: List<String>,
     @JsonProperty("quotable_max_length") val quotableMaxLength: Int,
     @JsonProperty("excluded_topics") val excludedTopics: List<String>,
@@ -77,9 +79,9 @@ data class RoastRules(
         return MaskPattern(Regex("(?<![가-힣])(?:$words)"), NAME_LABEL)
     }
 
-    /** 참여자 표시 이름 [speakers]로 만든 가릴 이름. 흔한 성과 이름 예외 목록을 쓴다. */
+    /** 참여자 표시 이름 [speakers]로 만든 가릴 이름. 붙여 쓴 호칭·직함([honorificSuffixes], [honorificShortSuffixes], [nameTitles])은 떼고 이름 예외 목록으로 거른다. */
     fun participantNames(speakers: List<String>): ParticipantNames =
-        ParticipantNames.of(speakers, nameSurnames.toSet(), nameExceptions.toSet())
+        ParticipantNames.of(speakers, honorificSuffixes + honorificShortSuffixes + nameTitles, nameExceptions.toSet())
 
     /** 출력 문장에서 사람 이름이나 사는 곳 이름으로 의심되는 낱말(호칭, 단지 접미사). 없으면 빈 목록이다. */
     fun suspectsIn(text: String): List<String> {

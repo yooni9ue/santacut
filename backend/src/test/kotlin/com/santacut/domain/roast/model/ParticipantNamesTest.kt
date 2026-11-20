@@ -26,6 +26,20 @@ class ParticipantNamesTest {
     }
 
     @Test
+    fun `붙여 쓴 호칭·직함은 떼고 이름을 넣는다`() {
+        val names = rules.participantNames(listOf("김민수대리", "지은오빠", "현규형")).toList()
+
+        assertTrue(names.containsAll(listOf("김민수", "민수", "지은", "현규")))
+        assertFalse("규형" in names)
+    }
+
+    @Test
+    fun `세 글자 덩이는 성을 몰라도 끝 두 글자를 넣고 흔한 말은 거른다`() {
+        assertTrue("민수" in rules.participantNames(listOf("피민수")).toList())
+        assertFalse("대리" in rules.participantNames(listOf("왕대리")).toList())
+    }
+
+    @Test
     fun `이모지·숫자·영문이 붙은 표시 이름에서도 한글 이름 덩이를 넣고 한글 음절이 없는 이름은 뺀다`() {
         val names = rules.participantNames(listOf("민수❤", "지은2", "현규 Kim", "ㅇㅇ", "Kim")).toList()
 
