@@ -15,7 +15,10 @@ class BlockedWordsTest {
     }
 
     @Test
-    fun `긴 낱말부터 맞춘다`() {
+    fun `긴 낱말부터 맞추고 정규식 특수 문자가 든 낱말도 글자 그대로 맞춘다`() {
         assertEquals("현규형", BlockedWords(listOf("현규", "현규형")).foundIn("현규형 타령"))
+        assertEquals("a.b", BlockedWords(listOf("a.b")).foundIn("x a.b y"))
+        assertNull(BlockedWords(listOf("a.b")).foundIn("axb"))
+        assertNull(BlockedWords.EMPTY.foundIn("아무 말"))
     }
 }
