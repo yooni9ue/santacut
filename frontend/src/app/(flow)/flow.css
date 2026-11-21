@@ -65,41 +65,73 @@
 .flow-extra-chart { display: flex; align-items: end; gap: 2px; height: 80px; margin-top: auto; }
 .flow-extra-chart i { flex: 1; min-width: 2px; background: #d9362b; }
 
-.flow-recap { margin: 24px 0 30px; }
-.flow-recap-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 13px; font-weight: 700; color: #77736b; }
-.flow-recap-top strong { color: #c52f25; font-size: 15px; font-variant-numeric: tabular-nums; }
-.flow-recap-progress { display: flex; gap: 5px; margin-bottom: 16px; }
-.flow-recap-progress button { flex: 1; height: 8px; min-width: 0; padding: 0; border: 0; border-radius: 8px; background: #e9e6df; cursor: pointer; }
-.flow-recap-progress button.is-active { background: #d9362b; }
-.flow-recap-card { display: flex; flex-direction: column; width: 100%; aspect-ratio: 9 / 16; padding: 26px; border-radius: 18px; background: #f6f0e4; color: #2d2a27; box-shadow: 0 20px 40px #4033211c, inset 0 0 0 1px #decfbb; overflow-wrap: anywhere; }
-.flow-recap-card.is-coal { background: #292725; color: #f8efe1; box-shadow: 0 20px 40px #12100f30, inset 0 0 0 1px #514a42; }
-.flow-recap-card-top { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid currentColor; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
-.flow-recap-score { display: block; margin-top: 24px; font-size: clamp(48px, 16vw, 74px); line-height: 1; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
-.flow-recap-score small { margin-left: 4px; font-size: 17px; letter-spacing: 0; }
-.flow-recap-copy { display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 14px; padding: 18px 0; }
-.flow-recap-copy h3 { font-size: clamp(24px, 8vw, 37px); line-height: 1.17; letter-spacing: -.04em; }
-.flow-recap-copy p { font-size: clamp(14px, 4.2vw, 18px); line-height: 1.45; }
-.flow-recap-copy .flow-extra-chip { align-self: flex-start; font-weight: 700; }
-.flow-recap-card-bottom { padding-top: 13px; border-top: 1px solid currentColor; font-size: 11px; font-weight: 700; letter-spacing: .08em; opacity: .65; }
+.flow-recap { margin: 22px 0 30px; }
+.flow-recap-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; color: #185044; font-size: 13px; font-weight: 800; }
+.flow-recap-top strong { color: #bb332c; font-size: 15px; font-variant-numeric: tabular-nums; }
+.flow-recap-progress { display: flex; gap: 5px; margin-bottom: 14px; }
+.flow-recap-progress button { flex: 1; min-width: 0; height: 8px; padding: 0; border: 0; border-radius: 6px; background: #e7e9e4; cursor: pointer; }
+.flow-recap-progress button.is-active { background: #c93d35; }
+.flow-recap-progress button[aria-current=step] ~ button { background: #dfe7dc; }
+.flow-recap-card {
+  --card-bg: #16493e;
+  --card-accent: #f3d494;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  padding: 24px 22px 28px;
+  overflow: hidden;
+  border: 5px solid #f3d494;
+  border-radius: 20px;
+  background: radial-gradient(circle at 14% 20%, #ffffff21 0 1px, transparent 2px), radial-gradient(circle at 77% 38%, #ffffff26 0 2px, transparent 3px), var(--card-bg);
+  background-size: 80px 95px, 110px 130px, auto;
+  color: #fffaf0;
+  box-shadow: 0 18px 38px #16493e38;
+  overflow-wrap: anywhere;
+}
+.flow-recap-card::before { content: "❄"; position: absolute; top: 67px; right: 23px; color: #fff; font-size: 72px; line-height: 1; opacity: .12; pointer-events: none; }
+.flow-recap-card::after { content: ""; position: absolute; inset: auto 0 0; height: 13px; background: repeating-linear-gradient(110deg, #bd342e 0 17px, #fff5e6 17px 34px); }
+.flow-recap-card.is-roast, .flow-recap-card.is-archetype { --card-bg: #902d31; box-shadow: 0 18px 38px #7b2b3038; }
+.flow-recap-card.is-letter, .flow-recap-card.is-story { --card-bg: #183d55; box-shadow: 0 18px 38px #183d5538; }
+.flow-recap-card.is-coal { --card-bg: #292b2a; --card-accent: #f3d494; box-shadow: 0 18px 38px #292b2a38; }
+.flow-recap-card-top { z-index: 1; display: flex; justify-content: space-between; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #fff9; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.flow-recap-card-top span:last-child { color: var(--card-accent); }
+.flow-recap-score { z-index: 1; display: block; margin: 16px 0 18px; color: #fffaf0; font-size: clamp(48px, 15vw, 68px); line-height: 1; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.flow-recap-score small { margin-left: 4px; color: var(--card-accent); font-size: 17px; letter-spacing: 0; }
+.flow-recap-copy {
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  min-height: 0;
+  padding: 28px 20px 20px;
+  border: 1px solid #e3cda7;
+  border-radius: 12px;
+  background: #fff9ec;
+  color: #263b34;
+  box-shadow: inset 0 0 0 3px #fff9ec, inset 0 0 0 4px #e9d7b8;
+}
+.flow-recap-copy h3 { font-size: clamp(23px, 7vw, 33px); line-height: 1.2; letter-spacing: -.04em; }
+.flow-recap-copy p { font-size: clamp(13px, 3.8vw, 17px); line-height: 1.4; }
+.flow-recap-copy .flow-extra-stamp { align-self: flex-start; padding: 6px 12px; border: 2px solid #b9352f; border-radius: 6px; color: #b9352f; font-size: 18px; font-weight: 900; transform: rotate(-6deg); }
+.flow-recap-copy .flow-extra-chip { align-self: flex-start; padding: 7px 11px; border: 1px solid #b9352f; border-radius: 20px; color: #b9352f; font-weight: 800; }
+.flow-recap-card-bottom { z-index: 1; margin-top: 13px !important; color: #fff6e2; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-align: center; }
 .flow-recap-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 13px 0 10px; }
-.flow-recap-nav button { min-height: 44px; min-width: 85px; padding: 0 10px; border: 1px solid #ddd7cf; border-radius: 9px; background: #fff; font-weight: 700; }
+.flow-recap-nav button { min-width: 85px; min-height: 44px; padding: 0 10px; border: 1px solid #aac5b6; border-radius: 10px; background: #eaf3eb; color: #185044; font-weight: 800; }
 .flow-recap-nav button:disabled { opacity: .35; }
-.flow-recap-nav span { font-size: 13px; font-weight: 700; color: #69645e; text-align: center; }
+.flow-recap-nav span { color: #185044; font-size: 13px; font-weight: 800; text-align: center; }
+.flow-recap .flow-extra-actions button:first-child { border-color: #bb332c; background: #bb332c; color: #fff; }
+.flow-recap .flow-extra-actions button:last-child { border-color: #aac5b6; color: #185044; }
 .flow-legacy-result, .flow-dossier { margin: 24px 0; }
-.flow-legacy-result > summary, .flow-dossier > summary { display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 0 16px; border: 1px solid #e0ded8; border-radius: 12px; background: #faf9f6; cursor: pointer; font-weight: 700; list-style: none; }
+.flow-legacy-result > summary, .flow-dossier > summary { display: flex; justify-content: space-between; align-items: center; min-height: 56px; padding: 0 16px; border: 1px solid #d6e0d5; border-radius: 12px; background: #f2f6ef; color: #185044; cursor: pointer; font-weight: 700; list-style: none; }
 .flow-legacy-result > summary::-webkit-details-marker, .flow-dossier > summary::-webkit-details-marker { display: none; }
 .flow-legacy-result[open] > summary, .flow-dossier[open] > summary { margin-bottom: 16px; }
 
-.flow-recap-card.is-roast { background: #f9e8e4; box-shadow: 0 20px 40px #723e321f, inset 0 0 0 1px #eacbc3; }
-.flow-recap-card.is-letter { background: #e8eee7; box-shadow: 0 20px 40px #395b3d1c, inset 0 0 0 1px #c9d8c6; }
-.flow-recap-card.is-story { background: #e8eef5; box-shadow: 0 20px 40px #354d6a1c, inset 0 0 0 1px #c9d4e4; }
-.flow-recap-card.is-archetype { background: #f3e9d4; }
-.flow-recap-card.is-dimensions { background: #f0eee9; }
-.flow-recap-card.is-coal { background: #292725; color: #f8efe1; box-shadow: 0 20px 40px #12100f30, inset 0 0 0 1px #514a42; }
-.flow-recap-card-top span:last-child { color: #c52f25; }
-.flow-recap-score { color: #bd3229; }
-.flow-recap-card.is-coal .flow-recap-score, .flow-recap-card.is-coal .flow-recap-card-top span:last-child { color: #f4bd73; }
-.flow-recap-copy .flow-extra-stamp { border: 2px solid #bd3229; color: #bd3229; transform: rotate(-5deg); font-weight: 900; }
-.flow-recap-card.is-coal .flow-extra-stamp { border-color: #f4bd73; color: #f4bd73; }
-.flow-recap-copy .flow-extra-chip { border-color: #bd3229; color: #bd3229; }
-.flow-recap-card.is-coal .flow-extra-chip { border-color: #f4bd73; color: #f4bd73; }
+.flow-app.is-holiday { background: #fffaf1; }
+.flow-app.is-holiday .flow-header { background: #fffaf1; border-color: #dbe4d7; }
+.flow-app.is-holiday .flow-content > h1 { color: #16493e; }
+.flow-app.is-holiday .flow-kicker { color: #b9352f; }
+.flow-app.is-holiday .flow-prototype-note { color: #69766c; }
