@@ -2,6 +2,7 @@
 
 import { isAxiosError } from "axios";
 import { toBlob } from "html-to-image";
+import { StuckSanta } from "@/components/stuck-santa";
 import { useEffect, useRef, useState } from "react";
 import { formatKoreanDate, getMyDossier, getMyRecap, resultError, type DossierResponse, type DossierScene, type RecapCard, type RecapResponse } from "@/lib/results";
 
@@ -13,6 +14,9 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [showContents, setShowContents] = useState(false);
+  const assessmentId = useRef<string | undefined>(undefined);
+  const touchStart = useRef<{ x: number; y: number } | undefined>(undefined);
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
@@ -25,7 +29,8 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
       if (controller.signal.aborted) return;
       if (responses[0].status === "fulfilled") {
         setRecap(responses[0].value);
-        setActiveIndex(0);
+        if (assessmentId.current !== responses[0].value?.assessment_id) setActiveIndex(0);
+        assessmentId.current = responses[0].value?.assessment_id;
       }
       if (responses[1].status === "fulfilled") setDossier(responses[1].value);
       const failure = responses.find(response => response.status === "rejected");
@@ -44,9 +49,12 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
     setMessage("");
     try {
       await document.fonts.ready;
+      await Promise.all(Array.from(node.querySelectorAll("img")).map(image => image.decode()));
       const blob = await toBlob(node, {
         backgroundColor: getComputedStyle(node).backgroundColor,
-        pixelRatio: 1080 / node.offsetWidth,
+        canvasWidth: 1080,
+        canvasHeight: 1920,
+        pixelRatio: 1,
         filter: element => !(element instanceof HTMLElement && element.dataset.private === "true"),
       });
       if (!blob) throw new Error("이미지를 만들지 못했어요.");
@@ -74,20 +82,35 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
   }
 
   const activeCard = recap?.cards[activeIndex];
+  function finishSwipe(event: React.TouchEvent<HTMLElement>) {
+    const start = touchStart.current;
+    touchStart.current = undefined;
+    if (!start || !recap || busy) return;
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      setActiveIndex(index => Math.max(0, Math.min(recap.cards.length - 1, index + (dx < 0 ? 1 : -1))));
+    }
+  }
   return <>
     {recap && <section className="flow-recap" aria-label="팩폭 산타 카드">
-      <div className="flow-recap-top"><span>북극에서 온 판정</span><strong aria-live="polite">{activeIndex + 1} / {recap.cards.length}</strong></div>
+      <div className="flow-recap-top"><strong aria-live="polite">{activeIndex + 1} / {recap.cards.length}</strong><button type="button" aria-expanded={showContents} onClick={() => setShowContents(value => !value)}>전체 카드 ⊞</button></div>
       <div className="flow-recap-progress" aria-label="카드 선택">{recap.cards.map((card, index) =>
-        <button key={card.index} type="button" className={index === activeIndex ? "is-active" : ""} aria-label={`${index + 1}번째 카드 ${recapCardName(card.kind)}`} aria-current={index === activeIndex ? "step" : undefined} onClick={() => setActiveIndex(index)} />
+        <button key={card.index} type="button" disabled={busy} className={index === activeIndex ? "is-active" : ""} aria-label={`${index + 1}번째 카드 ${recapCardName(card.kind)}`} aria-current={index === activeIndex ? "step" : undefined} onClick={() => setActiveIndex(index)} />
       )}</div>
+      {showContents && <div className="flow-recap-contents" aria-label="전체 카드 목록">{recap.cards.map((card, index) => <button key={card.index} type="button" aria-current={index === activeIndex ? "step" : undefined} onClick={() => { setActiveIndex(index); setShowContents(false); }}><span>{String(index + 1).padStart(2, "0")}</span>{recapCardName(card.kind)}</button>)}</div>}
       {activeCard && <>
-        <article className={`flow-recap-card is-${activeCard.kind.toLowerCase()} ${recap.skin === "COAL" ? "is-coal" : ""}`} ref={node => { cardRefs.current[`recap-${activeCard.index}`] = node; }}>
-          <div className="flow-recap-card-top"><span>SANTA CUT</span><span>{recapCardName(activeCard.kind)}</span></div>
+        <article className={`flow-recap-card is-${activeCard.kind.toLowerCase()} ${recap.skin === "COAL" ? "is-coal" : ""}`}
+          onTouchStart={event => { touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY }; }}
+          onTouchEnd={finishSwipe}
+          ref={node => { cardRefs.current[`recap-${activeCard.index}`] = node; }}>
+          <div className="flow-recap-card-top"><span>산타컷</span><span>{recapCardName(activeCard.kind)}</span></div>
           <strong className="flow-recap-score">{activeCard.score_text}<small>점</small></strong>
           <div className="flow-recap-copy"><RecapContent card={activeCard} mild={mild} /></div>
-          <p className="flow-recap-card-bottom">북극 심사 기록 · 2026</p>
+          <div className="flow-recap-art" aria-hidden="true"><StuckSanta freed={recap.skin === "GIFT"} /></div>
+          <p className="flow-recap-card-bottom">SANTA CUT · CHRISTMAS 2026</p>
         </article>
-        <div className="flow-recap-nav"><button type="button" disabled={activeIndex === 0} onClick={() => setActiveIndex(index => index - 1)}>← 이전</button><span>{recapCardName(activeCard.kind)}</span><button type="button" disabled={activeIndex === recap.cards.length - 1} onClick={() => setActiveIndex(index => index + 1)}>다음 →</button></div>
+        <div className="flow-recap-nav"><button type="button" disabled={busy || activeIndex === 0} onClick={() => setActiveIndex(index => index - 1)}>← 이전</button><span>{recapCardName(activeCard.kind)}</span><button type="button" disabled={busy || activeIndex === recap.cards.length - 1} onClick={() => setActiveIndex(index => index + 1)}>다음 →</button></div>
         <div className="flow-extra-actions"><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, mild ? recap.share_text_mild : recap.share_text, true)}>이 카드 공유</button><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, "", false)}>이미지 저장</button></div>
       </>}
       <label className="flow-extra-toggle"><input type="checkbox" checked={mild} onChange={event => setMild(event.target.checked)} /> 농담 빼고 보기</label>
@@ -104,6 +127,7 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
     </section></details>}
     {error && <p className="flow-error" role="alert">새 결과 카드를 불러오지 못했어요. {error}</p>}
     {message && <p role="status">{message}</p>}
+    {busy && <p role="status">이미지를 만들고 있어요.</p>}
   </>;
 }
 
@@ -113,9 +137,9 @@ function recapCardName(kind: RecapCard["kind"]) {
 
 function RecapContent({ card, mild }: { card: RecapCard; mild: boolean }) {
   switch (card.kind) {
-    case "VERDICT": return <><h3>{card.title}</h3><b className="flow-extra-stamp">{mild ? card.stamp_mild : card.stamp}</b>{(card.passed || !mild) && <p>{card.grade}</p>}<p>{mild ? card.verdict_mild : card.verdict}</p><p>선물 컷 65 · {card.cut_distance}</p><p>{card.ranking_pending ? "순위 계산 중" : card.rank == null ? "순위 집계 전" : `순위 ${card.rank}위`}</p>{card.delivery_eta && <p>{formatKoreanDate(card.delivery_eta)}</p>}</>;
-    case "ROAST": return <>{card.chip && <p className="flow-extra-chip">{card.chip.label} · {card.chip.value}</p>}<h3>{card.roast}</h3><p>{card.flip}</p></>;
-    case "LETTER": return <><h3>산타가 남긴 쪽지</h3><p>{card.letter}</p></>;
+    case "VERDICT": return <><h3>{card.title}</h3><div className="flow-recap-verdict"><b className="flow-extra-stamp">{mild ? card.stamp_mild : card.stamp}</b>{(card.passed || !mild) && <span>{card.grade}</span>}</div><p>{mild ? card.verdict_mild : card.verdict}</p><small className="flow-recap-cut">선물 컷 65 · {card.cut_distance}</small><div className="flow-recap-facts"><p><small>통합 순위</small><span>{card.ranking_pending ? "순위 계산 중" : card.rank == null ? "순위 집계 전" : `${card.rank}위`}</span></p>{card.delivery_eta && <p><small>선물 도착 예정</small>{formatKoreanDate(card.delivery_eta)}</p>}</div></>;
+    case "ROAST": return <>{card.chip && <p className="flow-extra-chip">{card.chip.label}<strong>{card.chip.value}</strong></p>}<h3>{card.roast}</h3><p className="flow-recap-handwriting">{card.flip}</p></>;
+    case "LETTER": return <><h3>놀려서 미안,<br />근데 진심이다.</h3><p className="flow-recap-handwriting">{card.letter}</p><small>— 북극에서, 야근 중인 산타</small></>;
     case "STORY": return <><h3>올해 너, 세 줄 요약</h3>{card.acts.map(act => <p key={act.act}><b>{act.months}</b> {act.line}</p>)}</>;
     case "ARCHETYPE": return <><h3>북극 인사팀 배치 결과</h3><p>{card.archetype.name}</p></>;
     case "DIMENSIONS": return <><h3>산타 채점표</h3>{card.bars.map(bar => <p key={bar.key}>{bar.label} <b>{bar.score.toFixed(2)}</b></p>)}</>;
