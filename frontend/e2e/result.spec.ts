@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 test("결과를 PNG로 공유·저장하고 카톡용 링크를 공유한다", async ({ page }) => {
   await page.addInitScript(() => {
@@ -81,6 +82,10 @@ test("새 결과의 리캡과 조서를 표시하고 카드 이미지를 저장�
     page.getByRole("region", { name: "팩폭 산타 카드" }).getByRole("button", { name: "이미지 저장" }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("santacut-recap-1.png");
+  const image = await readFile(await download.path());
+  expect(image.subarray(1, 4).toString()).toBe("PNG");
+  expect(image.readUInt32BE(16)).toBe(1080);
+  expect(image.readUInt32BE(20)).toBe(1920);
 });
 
 test("순위 계산 중에는 새 리캡을 먼저 보여 준다", async ({ page }) => {
