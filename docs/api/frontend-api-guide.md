@@ -10,7 +10,7 @@
 | **예정(서버 작업 전)** | 방향은 정했지만 서버 코드가 아직 없다. 응답 모양과 이름은 바뀔 수 있다 |
 | **프론트 작업** | 서버 변경 없이 화면에서 만든다 |
 
-PR #81(문구 v3)은 `develop`에 합쳐졌다. PR #82(사실 다양화, 새 지표, `slang.json`, 임시 프롬프트 v4)는 아직 열려 있으니 이 문서에서는 "PR #82에서 예정"으로만 적는다.
+PR #81(문구 v3)과 PR #82(사실 다양화, 새 지표, `slang.json`, 임시 프롬프트 v4)는 `develop`에 합쳐졌다.
 
 ## 프론트 반영 체크리스트 (백엔드 계약 요구사항)
 
@@ -18,7 +18,7 @@ PR #81(문구 v3)은 `develop`에 합쳐졌다. PR #82(사실 다양화, 새 지
 
 표시가 없는 항목은 모두 지금 동작하는 API에 화면을 붙이는 프론트 작업이다.
 
-- [ ] **[긴급] 심사 완료 뒤 결과 화면 이동**(프론트 작업): 지금 분석 화면(`LiveAnalysisScreen`, `frontend/src/components/flow/screens.tsx`)은 상태가 `SUCCEEDED`가 되어도 "심사가 끝났어요"만 보여 주고 `/result`로 가지 않는다. 링크나 버튼도 없어서 사용자는 결과를 볼 수 없다(2026-11-20 dev에서 확인, 서버 채점과 SSE는 정상). `SUCCEEDED`를 받으면 `/result`로 이동(`router.replace`)하고, 이동이 안 될 때를 위해 "결과 보기" 버튼도 둔다. `RANKING_PENDING` 동안은 대기 화면을 유지한다(6.0절).
+- [x] **심사 완료 뒤 결과 화면 이동**(프론트 작업): `SUCCEEDED`를 받으면 `내 결과 보기` 버튼으로 `/result`에 이동한다. `RANKING_PENDING` 동안에는 새 리캡을 먼저 조회해 보여 준다(6.0절). 자동 이동은 현재 사용하지 않는다.
 - [ ] **API 주소**: Vercel Preview·Development에 `https://api-dev.santacut.me`, Production은 운영 서버를 켠 뒤 `https://api.santacut.me`(0절).
 - [ ] **도메인 연결**: Vercel Settings → Domains에 `santacut.me`, `www.santacut.me`(main), `dev.santacut.me`(develop)를 추가한다. DNS는 백엔드가 Route 53에 걸어 두었다.
 - [ ] **쿠키·CSRF**: 모든 `fetch`에 `credentials: 'include'`, SSE는 `{ withCredentials: true }`. 쓰기 요청 전 `GET /v1/csrf` 본문의 토큰을 `X-XSRF-TOKEN` 헤더로 보낸다. 쿠키는 다른 출처라 읽을 수 없다(2·3절).

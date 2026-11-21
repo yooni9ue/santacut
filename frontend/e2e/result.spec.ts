@@ -53,3 +53,46 @@ test("결과를 PNG로 공유·저장하고 카톡용 링크를 공유한다", a
   expect(await page.evaluate(() => Reflect.get(window, "copiedLink"))).toBe(shareUrl);
   expect(shareRequests).toBe(1);
 });
+
+test("새 결과의 리캡과 조서를 표시하고 카드 이미지를 저장한다", async ({ page }) => {
+  await page.route("**/v1/me/result", route => route.fulfill({ json: {
+    score_hundredths: 7055, verdict: "선물 실었다", comment: "올해도 수고했어.", rank: 1, tied: false,
+    eta: "2026-12-24T18:30:02Z", ranking_pending: false, recap_available: true, dossier_available: true,
+  } }));
+  await page.route("**/v1/me/recap", route => route.fulfill({ json: {
+    assessment_id: "test-assessment", skin: "GIFT", score_text: "70.55", share_text: "서버 공유 문구", share_text_mild: "담백한 서버 공유 문구",
+    cards: [{ index: 0, kind: "VERDICT", width: 1080, height: 1920, score_text: "70.55", cut_distance: "+5.55", passed: true,
+      stamp: "선물 실었다", stamp_mild: "선물 실었다", grade: "썰매 탑승 완료", rank: 1, ranking_pending: false,
+      delivery_eta: "2026-12-24T18:30:02Z", title: "단톡방 출석왕", verdict: "산타가 봤다.", verdict_mild: "선물 실어 뒀다." }],
+  } }));
+  await page.route("**/v1/me/dossier", route => route.fulfill({ json: {
+    title: "웃음 과다 야간 근무자", tone: "normal", scenes: [{ id: "hook", kind: "hook", speaker: "elf", headline: "올해의 한마디",
+      big_value: "킹받네", lines: [{ id: "public", text: "312번", shareable: true }, { id: "private", text: "화면에서만 보는 말", shareable: false }],
+      memo: null, chart: null, shareable: true }],
+  } }));
+  await page.goto("/result");
+  await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("단톡방 출석왕")).toBeVisible();
+  await expect(page.getByRole("region", { name: "산타 조서" }).getByText("킹받네")).toBeVisible();
+  await page.getByRole("checkbox", { name: "석탄 농담 끄기" }).check();
+  await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("선물 실어 뒀다.")).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("region", { name: "팩폭 산타 카드" }).getByRole("button", { name: "이미지 저장" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("santacut-recap-1.png");
+});
+
+test("순위 계산 중에는 새 리캡을 먼저 보여 준다", async ({ page }) => {
+  await page.route("**/v1/me/analysis", route => route.fulfill({ json: { id: "analysis-pending", status: "RANKING_PENDING", error_code: null } }));
+  await page.route("**/v1/analyses/analysis-pending", route => route.fulfill({ json: { id: "analysis-pending", status: "RANKING_PENDING", error_code: null } }));
+  await page.route("**/v1/analyses/analysis-pending/events", route => route.fulfill({ contentType: "text/event-stream", body: "" }));
+  await page.route("**/v1/me/recap", route => route.fulfill({ json: {
+    assessment_id: "pending", skin: "GIFT", score_text: "70.55", share_text: "서버 공유 문구", share_text_mild: "담백한 문구",
+    cards: [{ index: 0, kind: "VERDICT", width: 1080, height: 1920, score_text: "70.55", cut_distance: "+5.55", passed: true,
+      stamp: "선물 실었다", stamp_mild: "선물 실었다", grade: "썰매 탑승 완료", rank: null, ranking_pending: true,
+      delivery_eta: null, title: "출석왕", verdict: "산타가 봤다.", verdict_mild: "선물 실어 뒀다." }],
+  } }));
+  await page.goto("/analysis");
+  await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("출석왕")).toBeVisible();
+  await expect(page.getByText("순위 계산 중", { exact: true })).toBeVisible();
+});
