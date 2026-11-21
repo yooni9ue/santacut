@@ -5,7 +5,7 @@ import { toBlob } from "html-to-image";
 import { useEffect, useRef, useState } from "react";
 import { formatKoreanDate, getMyDossier, getMyRecap, resultError, type DossierResponse, type DossierScene, type RecapCard, type RecapResponse } from "@/lib/results";
 
-export function ResultExtras({ recapAvailable, dossierAvailable }: { recapAvailable?: boolean; dossierAvailable?: boolean }) {
+export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: { recapAvailable?: boolean; dossierAvailable?: boolean; refreshKey?: string }) {
   const [recap, setRecap] = useState<RecapResponse>();
   const [dossier, setDossier] = useState<DossierResponse>();
   const [error, setError] = useState("");
@@ -31,7 +31,7 @@ export function ResultExtras({ recapAvailable, dossierAvailable }: { recapAvaila
     }
     void load();
     return () => controller.abort();
-  }, [recapAvailable, dossierAvailable]);
+  }, [recapAvailable, dossierAvailable, refreshKey]);
 
   async function exportCard(id: string, name: string, text: string, share: boolean) {
     const node = cardRefs.current[id];

@@ -43,7 +43,13 @@ test("invalid files and nicknames show actionable errors", async ({ page }) => {
 });
 
 test("analysis error states preserve a clear retry path", async ({ page }) => {
-  await page.goto("/analysis");
+  await page.goto("/upload");
+  await page.getByRole("button", { name: "파일 없이 예시로 둘러보기" }).click();
+  await page.getByRole("link", { name: "이 파일로 계속" }).click();
+  await page.getByRole("textbox", { name: "닉네임" }).fill("루돌프테스터");
+  await page.getByRole("button", { name: "다음", exact: true }).click();
+  await page.getByRole("checkbox").check();
+  await page.getByRole("link", { name: "심사 화면 보기" }).click();
   await page.getByRole("button", { name: "오류", exact: true }).click();
   await expect(page.getByRole("heading", { name: "산타가 잠깐 멈췄어요." })).toBeVisible();
   await page.getByRole("button", { name: "다시 시도하는 화면 보기" }).click();
