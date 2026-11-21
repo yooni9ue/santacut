@@ -72,8 +72,9 @@ test("새 결과의 리캡과 조서를 표시하고 카드 이미지를 저장�
   } }));
   await page.goto("/result");
   await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("단톡방 출석왕")).toBeVisible();
-  await expect(page.getByRole("region", { name: "산타 조서" }).getByText("킹받네")).toBeVisible();
-  await page.getByRole("checkbox", { name: "석탄 농담 끄기" }).check();
+  await page.getByText("산타 조서 더 보기").click();
+  await expect(page.getByText("킹받네")).toBeVisible();
+  await page.getByRole("checkbox", { name: "농담 빼고 보기" }).check();
   await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("선물 실어 뒀다.")).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -95,4 +96,24 @@ test("순위 계산 중에는 새 리캡을 먼저 보여 준다", async ({ page
   await page.goto("/analysis");
   await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("출석왕")).toBeVisible();
   await expect(page.getByText("순위 계산 중", { exact: true })).toBeVisible();
+});
+
+test("여덟 장 리캡의 마지막 카드까지 이동할 수 있다", async ({ page }) => {
+  await page.route("**/v1/me/result", route => route.fulfill({ json: {
+    score_hundredths: 7055, verdict: "판정", comment: "평", rank: 1, tied: false,
+    eta: null, ranking_pending: false, recap_available: true, dossier_available: false,
+  } }));
+  await page.route("**/v1/me/recap", route => route.fulfill({ json: {
+    assessment_id: "eight-cards", skin: "GIFT", score_text: "70.55", share_text: "공유 문구", share_text_mild: "담백 문구",
+    cards: Array.from({ length: 8 }, (_, index) => ({ index, kind: "ROAST", width: 1080, height: 1920,
+      score_text: "70.55", chip: null, roast: `카드 ${index + 1}`, flip: "근데 괜찮아." })),
+  } }));
+  await page.goto("/result");
+  await expect(page.getByText("1 / 8")).toBeVisible();
+  await page.getByRole("button", { name: "8번째 카드 산타의 팩폭" }).click();
+  await expect(page.getByText("8 / 8")).toBeVisible();
+  await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("카드 8")).toBeVisible();
+  await expect(page.getByRole("button", { name: "다음 →" })).toBeDisabled();
+  await page.getByRole("button", { name: "← 이전" }).click();
+  await expect(page.getByText("7 / 8")).toBeVisible();
 });

@@ -12,6 +12,7 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
   const [mild, setMild] = useState(false);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const cardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
@@ -22,7 +23,10 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
         dossierAvailable ? getMyDossier(controller.signal) : Promise.resolve(undefined),
       ]);
       if (controller.signal.aborted) return;
-      if (responses[0].status === "fulfilled") setRecap(responses[0].value);
+      if (responses[0].status === "fulfilled") {
+        setRecap(responses[0].value);
+        setActiveIndex(0);
+      }
       if (responses[1].status === "fulfilled") setDossier(responses[1].value);
       const failure = responses.find(response => response.status === "rejected");
       if (failure?.status === "rejected" && !(isAxiosError(failure.reason) && failure.reason.response?.status === 404)) {
@@ -69,20 +73,27 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
     }
   }
 
+  const activeCard = recap?.cards[activeIndex];
   return <>
-    {recap && <section className="flow-extra" aria-label="팩폭 산타 카드">
-      <div className="flow-extra-heading"><h2>팩폭 산타 카드</h2><span>{recap.cards.length}장</span></div>
-      <label className="flow-extra-toggle"><input type="checkbox" checked={mild} onChange={event => setMild(event.target.checked)} /> 석탄 농담 끄기</label>
-      <div className="flow-extra-deck">{recap.cards.map(card => <div key={card.index} className="flow-extra-item">
-        <article className={`flow-extra-card ${recap.skin === "COAL" ? "is-coal" : ""}`} ref={node => { cardRefs.current[`recap-${card.index}`] = node; }}>
-          <p className="flow-extra-kicker">SANTA CUT / {card.kind}</p><strong className="flow-extra-score">{card.score_text}</strong>
-          <RecapContent card={card} mild={mild} />
+    {recap && <section className="flow-recap" aria-label="팩폭 산타 카드">
+      <div className="flow-recap-top"><span>북극에서 온 판정</span><strong aria-live="polite">{activeIndex + 1} / {recap.cards.length}</strong></div>
+      <div className="flow-recap-progress" aria-label="카드 선택">{recap.cards.map((card, index) =>
+        <button key={card.index} type="button" className={index === activeIndex ? "is-active" : ""} aria-label={`${index + 1}번째 카드 ${recapCardName(card.kind)}`} aria-current={index === activeIndex ? "step" : undefined} onClick={() => setActiveIndex(index)} />
+      )}</div>
+      {activeCard && <>
+        <article className={`flow-recap-card is-${activeCard.kind.toLowerCase()} ${recap.skin === "COAL" ? "is-coal" : ""}`} ref={node => { cardRefs.current[`recap-${activeCard.index}`] = node; }}>
+          <div className="flow-recap-card-top"><span>SANTA CUT</span><span>{recapCardName(activeCard.kind)}</span></div>
+          <strong className="flow-recap-score">{activeCard.score_text}<small>점</small></strong>
+          <div className="flow-recap-copy"><RecapContent card={activeCard} mild={mild} /></div>
+          <p className="flow-recap-card-bottom">북극 심사 기록 · 2026</p>
         </article>
-        <div className="flow-extra-actions"><button disabled={busy} onClick={() => void exportCard(`recap-${card.index}`, `santacut-recap-${card.index + 1}.png`, mild ? recap.share_text_mild : recap.share_text, true)}>이미지 공유</button><button disabled={busy} onClick={() => void exportCard(`recap-${card.index}`, `santacut-recap-${card.index + 1}.png`, "", false)}>이미지 저장</button></div>
-      </div>)}</div>
+        <div className="flow-recap-nav"><button type="button" disabled={activeIndex === 0} onClick={() => setActiveIndex(index => index - 1)}>← 이전</button><span>{recapCardName(activeCard.kind)}</span><button type="button" disabled={activeIndex === recap.cards.length - 1} onClick={() => setActiveIndex(index => index + 1)}>다음 →</button></div>
+        <div className="flow-extra-actions"><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, mild ? recap.share_text_mild : recap.share_text, true)}>이 카드 공유</button><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, "", false)}>이미지 저장</button></div>
+      </>}
+      <label className="flow-extra-toggle"><input type="checkbox" checked={mild} onChange={event => setMild(event.target.checked)} /> 농담 빼고 보기</label>
       <p className="flow-extra-share-text">{mild ? recap.share_text_mild : recap.share_text}</p>
     </section>}
-    {dossier && <section className="flow-extra" aria-label="산타 조서">
+    {dossier && <details className="flow-dossier" aria-label="산타 조서"><summary>산타 조서 더 보기 <span>↗</span></summary><section className="flow-extra">
       <div className="flow-extra-heading"><h2>산타 조서</h2><span>{dossier.title}</span></div>
       <div className="flow-extra-deck">{dossier.scenes.map(scene => <div key={scene.id} className="flow-extra-item">
         <article className="flow-extra-card" ref={node => { cardRefs.current[`dossier-${scene.id}`] = node; }}>
@@ -90,10 +101,14 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
         </article>
         {scene.shareable && <div className="flow-extra-actions"><button disabled={busy} onClick={() => void exportCard(`dossier-${scene.id}`, `santacut-dossier-${scene.id}.png`, "산타 조서", true)}>이미지 공유</button><button disabled={busy} onClick={() => void exportCard(`dossier-${scene.id}`, `santacut-dossier-${scene.id}.png`, "", false)}>이미지 저장</button></div>}
       </div>)}</div>
-    </section>}
+    </section></details>}
     {error && <p className="flow-error" role="alert">새 결과 카드를 불러오지 못했어요. {error}</p>}
     {message && <p role="status">{message}</p>}
   </>;
+}
+
+function recapCardName(kind: RecapCard["kind"]) {
+  return { VERDICT: "최종 판정", ROAST: "산타의 팩폭", LETTER: "산타의 쪽지", STORY: "올해의 기록", ARCHETYPE: "산타 유형", DIMENSIONS: "채점표" }[kind];
 }
 
 function RecapContent({ card, mild }: { card: RecapCard; mild: boolean }) {
