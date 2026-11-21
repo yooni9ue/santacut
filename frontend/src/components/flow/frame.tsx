@@ -14,7 +14,7 @@ export function FlowFrame({ children, title, description, back = "/", step, acti
     <header className="flow-header"><Link href={back} className="flow-back" aria-label="이전 단계">←</Link><Link href="/" className="flow-brand">산타<span>컷</span><i>✳</i></Link><span className="flow-preview-tag">{registration ? "실제 참가 등록" : live ? "실제 파일 분석" : "화면 미리보기"}</span></header>
     {step !== undefined && <nav className="flow-stepper" aria-label="진행 단계">{["기록 준비", "참가 정보", "산타 심사"].map((label, index) => <span key={label} aria-current={index === step ? "step" : undefined} className={index <= step ? "is-active" : ""}><b>{index + 1}</b>{label}{index < 2 && <i aria-hidden="true">· · ·</i>}</span>)}</nav>}
     <main className="flow-content"><p className="flow-kicker">SANTA CUT / 2026</p><h1>{title}</h1>{description && <p className="flow-description">{description}</p>}{children}</main>
-    <p className="flow-prototype-note">{registration ? "참가 정보는 서버에 저장됩니다. 파일 전송은 별도 확인과 동의 후 진행됩니다." : live ? "파일은 확인·동의한 뒤에만 전송됩니다. 점수·순위 화면은 아직 준비 중이에요." : "파일 전송·AI 심사는 실행되지 않는 예시 화면입니다."}</p>
+    <p className="flow-prototype-note">{registration ? "참가 정보는 서버에 저장됩니다. 파일 전송은 별도 확인과 동의 후 진행됩니다." : live ? "재미로 보는 산타 판정이에요. 실제 선물은 배송되지 않습니다." : "파일 전송·AI 심사는 실행되지 않는 예시 화면입니다."}</p>
     {action && <div className="flow-action">{action}</div>}
   </div>;
 }
