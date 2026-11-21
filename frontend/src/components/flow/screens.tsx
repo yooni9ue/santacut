@@ -12,6 +12,7 @@ import { analysisError, analysisFailure, getAnalysis, getLatestAnalysis, isFinis
 import { getParticipant } from "@/lib/participants";
 import { formatKoreanDate, formatScore, getMyResult, resultError } from "@/lib/results";
 import { ResultShare } from "./result-share";
+import { ResultExtras } from "./result-extras";
 import { getRankings, rankingError, type RankingRow } from "@/lib/rankings";
 
 export function StartScreen() {
@@ -204,7 +205,8 @@ function LiveResultScreen() {
   const rank = result.rank == null ? "계산 중" : `${result.tied ? "공동 " : ""}${result.rank}위`;
   return <FlowFrame back="/analysis" title={<>산타의 판정이<br />도착했습니다.</>} description={`${data.nickname || "참가자"} 님, 마음의 준비 됐죠?`} action={<NextLink href="/ranking">전체 랭킹 보기</NextLink>}>
     <div className="flow-result-card"><span className="flow-status-pill">{result.stage === "FINAL" ? "시즌 확정" : "실제 결과"}</span><span className="flow-result-face" aria-hidden="true">◉‿◉</span><h2>{result.archetype?.name || "산타의 판정"}</h2><p className="flow-score">{formatScore(result.score_hundredths)}<span>점</span></p><p className="flow-verdict">“{result.comment || result.verdict}”</p><div className="flow-result-stats"><div><small>{result.ranking_pending ? "순위 반영" : "통합 순위"}</small><b>{rank}</b></div><div><small>선물 도착 예정</small><b className="flow-eta">{formatKoreanDate(result.eta)}</b></div></div>{result.ranking_pending && <p className="flow-fine-print">새 심사의 점수는 확정됐고 순위는 반영 중이에요.</p>}</div>
-    {result.dimension_scores && result.dimension_scores.length > 0 && <details className="flow-breakdown"><summary>산타가 본 네 가지 항목 <span>＋</span></summary><dl>{result.dimension_scores.map(dimension => <div key={dimension.key}><dt>{dimension.label}{result.weakest_dimension?.key === dimension.key && <small> 근거가 적어요</small>}</dt><dd>{dimension.score.toFixed(2)}<span>점</span></dd></div>)}</dl>{result.top_percent != null && <p>전체 참가자 중 상위 {result.top_percent}%예요.</p>}</details>}
+    {result.dimension_scores && result.dimension_scores.length > 0 && <details className="flow-breakdown"><summary>산타가 본 네 가지 항목 <span>＋</span></summary><dl>{result.dimension_scores.map(dimension => <div key={dimension.key}><dt>{dimension.label}{result.low_confidence_dimensions?.includes(dimension.key) && <small> 대화에서 판단할 근거가 적어요</small>}</dt><dd>{dimension.score.toFixed(2)}<span>점</span></dd></div>)}</dl>{result.top_percent != null && <p>전체 참가자 중 상위 {result.top_percent}%예요.</p>}</details>}
+    <ResultExtras recapAvailable={result.recap_available} dossierAvailable={result.dossier_available} />
     <ResultShare ranked={result.rank != null} />
     <Link className="flow-text-link" href="/start">다른 기록으로 다시 시작 ↗</Link>
   </FlowFrame>;

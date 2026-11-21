@@ -41,3 +41,26 @@
 .flow-share-actions button:disabled { color: #66665f; cursor: default; }
 .flow-share-copy button { flex: none; }
 .flow-share-copy input { width: 100%; min-width: 0; }
+
+.flow-extra { margin: 28px 0; }
+.flow-extra-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.flow-extra-heading h2 { font-size: 22px; }
+.flow-extra-heading span { color: #666; font-size: 13px; }
+.flow-extra-toggle { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 12px; font-size: 14px; }
+.flow-extra-toggle input { width: 18px; height: 18px; }
+.flow-extra-deck { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; }
+.flow-extra-item { flex: 0 0 100%; scroll-snap-align: start; min-width: 0; }
+.flow-extra-card { display: flex; flex-direction: column; gap: 18px; min-height: 0; aspect-ratio: 9 / 16; padding: 24px; border: 1px solid #ddd7c9; border-radius: 18px; background: #f8f5eb; color: #242424; overflow-wrap: anywhere; }
+.flow-extra-card.is-coal { background: #262523; color: #f8f5eb; border-color: #38332b; }
+.flow-extra-card h3 { font-size: clamp(22px, 7vw, 32px); line-height: 1.25; }
+.flow-extra-card p { font-size: 17px; line-height: 1.5; }
+.flow-extra-kicker { font-size: 11px !important; letter-spacing: .12em; }
+.flow-extra-score { font-size: clamp(48px, 17vw, 76px); line-height: 1; }
+.flow-extra-value { font-size: clamp(32px, 11vw, 52px); }
+.flow-extra-stamp, .flow-extra-chip { align-self: flex-start; padding: 8px 12px; border: 1px solid currentColor; border-radius: 999px; }
+.flow-extra-actions { display: flex; gap: 8px; margin-top: 10px; }
+.flow-extra-actions button { flex: 1; min-height: 44px; border: 1px solid #ddd; border-radius: 9px; background: #fff; color: #242424; font-weight: 700; }
+.flow-extra-actions button:disabled { opacity: .5; }
+.flow-extra-share-text { margin-top: 8px !important; font-size: 13px; color: #666; }
+.flow-extra-chart { display: flex; align-items: end; gap: 2px; height: 80px; margin-top: auto; }
+.flow-extra-chart i { flex: 1; min-width: 2px; background: #d9362b; }
