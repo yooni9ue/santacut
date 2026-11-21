@@ -2,6 +2,7 @@
 
 import { isAxiosError } from "axios";
 import { toBlob } from "html-to-image";
+import { StuckSanta } from "@/components/stuck-santa";
 import { useEffect, useRef, useState } from "react";
 import { formatKoreanDate, getMyDossier, getMyRecap, resultError, type DossierResponse, type DossierScene, type RecapCard, type RecapResponse } from "@/lib/results";
 
@@ -106,9 +107,7 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
           <div className="flow-recap-card-top"><span>산타컷</span><span>{recapCardName(activeCard.kind)}</span></div>
           <strong className="flow-recap-score">{activeCard.score_text}<small>점</small></strong>
           <div className="flow-recap-copy"><RecapContent card={activeCard} mild={mild} /></div>
-          {/* Decorative artwork is part of the exported card. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="flow-recap-art" src="/images/holiday-duo.png" width={1100} height={733} alt="" />
+          <div className="flow-recap-art" aria-hidden="true"><StuckSanta freed={recap.skin === "GIFT"} /></div>
           <p className="flow-recap-card-bottom">SANTA CUT · CHRISTMAS 2026</p>
         </article>
         <div className="flow-recap-nav"><button type="button" disabled={busy || activeIndex === 0} onClick={() => setActiveIndex(index => index - 1)}>← 이전</button><span>{recapCardName(activeCard.kind)}</span><button type="button" disabled={busy || activeIndex === recap.cards.length - 1} onClick={() => setActiveIndex(index => index + 1)}>다음 →</button></div>

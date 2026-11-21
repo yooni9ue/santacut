@@ -138,7 +138,7 @@ test("좁은 화면에서도 긴 편지와 일러스트가 카드 안에 들어�
   await page.evaluate(() => document.fonts.ready);
   const measurements = await page.locator(".flow-recap-card").evaluate(card => {
     const text = card.querySelector(".flow-recap-copy")!.getBoundingClientRect();
-    const artwork = card.querySelector("img")!.getBoundingClientRect();
+    const artwork = card.querySelector(".flow-recap-art")!.getBoundingClientRect();
     return { contentHeight: card.scrollHeight, height: card.clientHeight, textBottom: text.bottom, artworkTop: artwork.top };
   });
   expect(measurements.contentHeight).toBeLessThanOrEqual(measurements.height + 1);
