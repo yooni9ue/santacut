@@ -13,13 +13,13 @@ test("결과를 PNG로 공유·저장하고 카톡용 링크를 공유한다", a
   });
   await page.route("**/v1/me/result", route => route.fulfill({ json: { score_hundredths: 8245, verdict: "기록이 꽤 다정해요.", comment: "오늘도 따뜻했어요.", archetype: { code: "HOT_COCOA_COURIER", name: "핫초코 배달부" }, rank: 3, tied: true, eta: "2026-12-26T03:24:00Z", delivery_sequence: 4, computed_at: "2026-11-17T00:00:00Z", ranking_pending: false, stage: "PREVIEW" } }));
   await page.route("**/v1/csrf", route => route.fulfill({ json: { headerName: "X-XSRF-TOKEN", token: "test-token" } }));
-  const shareUrl = "https://santacut.me/s/test-share";
+  const shareUrl = "http://127.0.0.1:3100/s/test-share";
   let shareRequests = 0;
   await page.route("**/v1/shares", route => {
     shareRequests++;
     expect(route.request().headers()["x-xsrf-token"]).toBe("test-token");
     expect(route.request().postDataJSON()).toEqual({ include_quote: false });
-    return route.fulfill({ json: { token: "test-share", url: shareUrl, imageUrl: `${shareUrl}/image.png` } });
+    return route.fulfill({ json: { token: "test-share", url: "https://api-dev.santacut.me/s/test-share", imageUrl: "https://api-dev.santacut.me/s/test-share/image.png" } });
   });
   await page.route("**/s/test-share/image.png", route => route.fulfill({
     contentType: "image/png",
@@ -173,12 +173,12 @@ test("리캡 링크는 클릭할 때 생성하고 복사 실패 시 직접 복�
   } }));
   await page.route("**/v1/csrf", route => route.fulfill({ json: { headerName: "X-XSRF-TOKEN", token: "test-token" } }));
   let requests = 0;
-  const url = "https://santacut.me/s/recap-test";
+  const url = "http://127.0.0.1:3100/s/recap-test";
   await page.route("**/v1/shares", route => {
     requests++;
     expect(route.request().postDataJSON()).toEqual({ include_quote: false });
     expect(route.request().headers()["x-xsrf-token"]).toBe("test-token");
-    return route.fulfill({ json: { token: "recap-test", url, imageUrl: `${url}/image.png` } });
+    return route.fulfill({ json: { token: "recap-test", url: "https://api-dev.santacut.me/s/recap-test", imageUrl: "https://api-dev.santacut.me/s/recap-test/image.png" } });
   });
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
