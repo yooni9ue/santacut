@@ -144,3 +144,42 @@ test("좁은 화면에서도 긴 편지와 일러스트가 카드 안에 들어�
   expect(measurements.contentHeight).toBeLessThanOrEqual(measurements.height + 1);
   expect(measurements.textBottom).toBeLessThanOrEqual(measurements.artworkTop + 1);
 });
+
+test("리캡 링크는 클릭할 때 생성하고 복사 실패 시 직접 복사할 수 있다", async ({ page }) => {
+  await page.route("**/v1/me/result", route => route.fulfill({ json: {
+    score_hundredths: 7055, verdict: "판정", rank: 1, recap_available: true,
+  } }));
+  await page.route("**/v1/me/recap", route => route.fulfill({ json: {
+    assessment_id: "link-test", skin: "GIFT", score_text: "70.55", share_text: "공유 문구", share_text_mild: "공유 문구",
+    cards: [{ index: 0, kind: "LETTER", score_text: "70.55", letter: "올해도 고마웠어." }],
+  } }));
+  await page.route("**/v1/csrf", route => route.fulfill({ json: { headerName: "X-XSRF-TOKEN", token: "test-token" } }));
+  let requests = 0;
+  const url = "https://santacut.me/s/recap-test";
+  await page.route("**/v1/shares", route => {
+    requests++;
+    expect(route.request().postDataJSON()).toEqual({ include_quote: false });
+    expect(route.request().headers()["x-xsrf-token"]).toBe("test-token");
+    return route.fulfill({ json: { token: "recap-test", url, imageUrl: `${url}/image.png` } });
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (value: string) => {
+      Reflect.set(window, "copiedRecapLink", value);
+    } } });
+  });
+  await page.goto("/result");
+  const button = page.getByRole("button", { name: "링크 공유하기", exact: true });
+  await expect(button).toBeEnabled();
+  expect(requests).toBe(0);
+  await button.click();
+  await expect(page.getByRole("status")).toContainText("링크를 복사했어요");
+  expect(await page.evaluate(() => Reflect.get(window, "copiedRecapLink"))).toBe(url);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("Denied"); } } });
+  });
+  await button.click();
+  await expect(page.getByRole("status")).toContainText("직접 복사");
+  await expect(page.getByRole("textbox", { name: "공유할 결과 링크" })).toHaveValue(url);
+  expect(requests).toBe(1);
+});

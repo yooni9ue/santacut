@@ -170,7 +170,7 @@ function LiveAnalysisScreen() {
       <SantaDance active={hasStatus && !finished && !disconnected && !error} />
       <span className="flow-status-pill">{status?.status ?? "확인 중"}</span><h2 aria-live="polite">{title}</h2>{!succeeded && <p>{status?.status === "FAILED" ? analysisFailure(status.error_code) : "새로운 POST 요청 없이 현재 작업만 확인합니다."}</p>}
     </div>
-    {(status?.status === "RANKING_PENDING" || succeeded) && <ResultExtras recapAvailable refreshKey={status.status} />}
+    {(status?.status === "RANKING_PENDING" || succeeded) && <ResultExtras recapAvailable ranked={succeeded} refreshKey={status.status} />}
     {disconnected && !finished && <div role="alert"><p>실시간 연결이 끊겼어요. 다시 연결하면 최신 상태를 확인할 수 있어요.</p><button className="flow-secondary" onClick={() => { setDisconnected(false); setConnectionAttempt(value => value + 1); }}>실시간 상태 다시 연결</button></div>}{error && <p className="flow-error" role="alert">{error}</p>}{status?.status === "FAILED" && <Link href="/upload" className="flow-text-link">다른 파일 준비하기 ↗</Link>}
   </FlowFrame>;
 }
@@ -205,7 +205,7 @@ function LiveResultScreen() {
   if (!result) return <FlowFrame back="/analysis" step={2} title={<>아직 결과가<br />없어요.</>} description="분석이 끝나면 점수와 판정을 확인할 수 있어요." action={<Link className="flow-primary" href="/analysis">심사 상태 확인하기 ↗</Link>}><InfoNote>결과가 준비되기 전에는 새로운 파일을 자동으로 제출하지 않아요.</InfoNote></FlowFrame>;
   const rank = result.rank == null ? "계산 중" : `${result.tied ? "공동 " : ""}${result.rank}위`;
   return <FlowFrame back="/analysis" live holiday={result.recap_available} title={result.recap_available ? "산타가 읽었어." : <>산타의 판정이<br />도착했습니다.</>} description={result.recap_available ? undefined : `${data.nickname || "참가자"} 님, 마음의 준비 됐죠?`} action={result.recap_available ? undefined : <NextLink href="/ranking">전체 랭킹 보기</NextLink>}>
-    <ResultExtras recapAvailable={result.recap_available} dossierAvailable={result.dossier_available} />
+    <ResultExtras recapAvailable={result.recap_available} dossierAvailable={result.dossier_available} ranked={result.rank != null} />
     {result.recap_available === false && result.stage !== "FINAL" && <InfoNote>대화를 다시 올리면 팩폭 산타 카드를 받을 수 있어요. 다시 올리는 것도 하루 제출 횟수에 포함됩니다.</InfoNote>}
     <details className="flow-legacy-result" open={!result.recap_available}><summary>점수·유형 자세히 보기 <span>↗</span></summary><div className="flow-result-card"><span className="flow-status-pill">{result.stage === "FINAL" ? "시즌 확정" : "실제 결과"}</span><span className="flow-result-face" aria-hidden="true">◉‿◉</span><h2>{result.archetype?.name || "산타의 판정"}</h2><p className="flow-score">{formatScore(result.score_hundredths)}<span>점</span></p><p className="flow-verdict">“{result.comment || result.verdict}”</p><div className="flow-result-stats"><div><small>{result.ranking_pending ? "순위 반영" : "통합 순위"}</small><b>{rank}</b></div><div><small>선물 도착 예정</small><b className="flow-eta">{formatKoreanDate(result.eta)}</b></div></div>{result.ranking_pending && <p className="flow-fine-print">새 심사의 점수는 확정됐고 순위는 반영 중이에요.</p>}</div></details>
     {result.dimension_scores && result.dimension_scores.length > 0 && <details className="flow-breakdown"><summary>산타가 본 네 가지 항목 <span>＋</span></summary><dl>{result.dimension_scores.map(dimension => <div key={dimension.key}><dt>{dimension.label}{result.low_confidence_dimensions?.includes(dimension.key) && <small> 대화에서 판단할 근거가 적어요</small>}</dt><dd>{dimension.score.toFixed(2)}<span>점</span></dd></div>)}</dl>{result.top_percent != null && <p>전체 참가자 중 상위 {result.top_percent}%예요.</p>}</details>}

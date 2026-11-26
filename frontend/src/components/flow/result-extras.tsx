@@ -6,7 +6,9 @@ import { StuckSanta } from "@/components/stuck-santa";
 import { useEffect, useRef, useState } from "react";
 import { formatKoreanDate, getMyDossier, getMyRecap, resultError, type DossierResponse, type DossierScene, type RecapCard, type RecapResponse } from "@/lib/results";
 
-export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: { recapAvailable?: boolean; dossierAvailable?: boolean; refreshKey?: string }) {
+import { ResultLinkShare } from "./result-link-share";
+
+export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey, ranked = false }: { recapAvailable?: boolean; dossierAvailable?: boolean; refreshKey?: string; ranked?: boolean }) {
   const [recap, setRecap] = useState<RecapResponse>();
   const [dossier, setDossier] = useState<DossierResponse>();
   const [error, setError] = useState("");
@@ -113,6 +115,7 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey }: {
         <div className="flow-recap-nav"><button type="button" disabled={busy || activeIndex === 0} onClick={() => setActiveIndex(index => index - 1)}>← 이전</button><span>{recapCardName(activeCard.kind)}</span><button type="button" disabled={busy || activeIndex === recap.cards.length - 1} onClick={() => setActiveIndex(index => index + 1)}>다음 →</button></div>
         <div className="flow-extra-actions"><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, mild ? recap.share_text_mild : recap.share_text, true)}>이 카드 공유</button><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, "", false)}>이미지 저장</button></div>
       </>}
+      <ResultLinkShare key={recap.assessment_id} ranked={ranked} />
       <label className="flow-extra-toggle"><input type="checkbox" checked={mild} onChange={event => setMild(event.target.checked)} /> 농담 빼고 보기</label>
       <p className="flow-extra-share-text">{mild ? recap.share_text_mild : recap.share_text}</p>
     </section>}
