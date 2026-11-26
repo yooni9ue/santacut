@@ -84,8 +84,7 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey, ran
     const snapshot = recap;
     const width = cardRefs.current[`recap-${snapshot.cards[activeIndex].index}`]?.getBoundingClientRect().width ?? 340;
     try {
-      const { zipSync } = await import("fflate");
-      const files: Record<string, Uint8Array> = {};
+      const images: Blob[] = [];
       for (const [index, card] of snapshot.cards.entries()) {
         flushSync(() => {
           setExportPreview({ card, skin: snapshot.skin, mild, width });
@@ -93,11 +92,12 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey, ran
         });
         if (!exportRef.current) throw new Error("카드를 준비하지 못했어요. 다시 시도해 주세요.");
         const blob = await renderCard(exportRef.current);
-        files[`santacut-recap-${String(index + 1).padStart(2, "0")}.png`] = new Uint8Array(await blob.arrayBuffer());
+        images.push(blob);
       }
-      const zip = zipSync(files, { level: 0 });
-      downloadFile(new Blob([new Uint8Array(zip)], { type: "application/zip" }), "santacut-recap-all.zip");
-      setMessage(`카드 ${snapshot.cards.length}장을 ZIP으로 저장했어요. 압축을 풀면 각 PNG 이미지를 볼 수 있어요.`);
+      images.forEach((blob, index) => {
+        window.setTimeout(() => downloadFile(blob, `santacut-recap-${String(index + 1).padStart(2, "0")}.png`), index * 350);
+      });
+      setMessage(`카드 ${snapshot.cards.length}장을 각각 PNG로 저장했어요. 브라우저에서 여러 파일 다운로드를 허용해 주세요.`);
     } catch (failure) {
       setMessage(resultError(failure));
     } finally {
