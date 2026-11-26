@@ -71,7 +71,7 @@
 .flow-app.is-holiday .flow-preview-tag { display: none; }
 .flow-app.is-holiday .flow-content { padding: 22px 20px; }
 .flow-app.is-holiday .flow-kicker { display: none; }
-.flow-app.is-holiday .flow-content > h1 { font-family: 'Santa Headline', sans-serif; font-size: 34px; line-height: 1; margin: 0 0 12px; }
+.flow-app.is-holiday .flow-content > h1 { font-family: 'Santa Headline', sans-serif; font-size: 34px; line-height: 1.2; letter-spacing: 0; margin: 0 0 12px; }
 .flow-recap { margin: 12px 0 28px; }
 .flow-recap-top { display: flex; align-items: center; justify-content: space-between; color: #777770; font-size: 12px; }
 .flow-recap-top strong { font-variant-numeric: tabular-nums; }
@@ -93,19 +93,19 @@
 .flow-recap-score { display: block; margin: 12px 0 10px; color: #d9362b; font-size: clamp(42px, 15vw, 62px); line-height: 1; letter-spacing: -.07em; font-weight: 900; font-variant-numeric: tabular-nums; }
 .flow-recap-score small { margin-left: 5px; color: #242424; font-size: 16px; letter-spacing: 0; font-weight: 500; }
 .flow-recap-copy { position: relative; display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 10px; padding-bottom: 10px; }
-.flow-recap-copy h3 { font-family: 'Santa Headline', sans-serif; font-weight: 700; font-size: clamp(26px, 8vw, 35px); line-height: 1.05; letter-spacing: -.03em; }
-.flow-recap-copy p { font-size: clamp(12px, 3.6vw, 15px); line-height: 1.5; }
+.flow-recap-copy h3 { font-family: 'Santa Headline', sans-serif; font-weight: 700; font-size: clamp(28px, 8vw, 35px); line-height: 1.25; letter-spacing: 0; word-break: keep-all; }
+.flow-recap-copy p { font-size: 15px; line-height: 1.65; word-break: keep-all; }
 .flow-recap-verdict { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.flow-recap-verdict > span { font-size: 11px; color: #777770; }
-.flow-recap-copy .flow-extra-stamp { align-self: flex-start; padding: 5px 9px; border: 2px solid #d9362b; border-radius: 5px; color: #d9362b; font-family: 'Santa Headline', sans-serif; font-size: 20px; line-height: 1; transform: rotate(-5deg); }
-.flow-recap-cut { font-size: 10px; color: #8b8b80; }
+.flow-recap-verdict > span { font-size: 12px; color: #62625b; }
+.flow-recap-copy .flow-extra-stamp { align-self: flex-start; padding: 5px 9px; border: 2px solid #d9362b; border-radius: 5px; color: #d9362b; font-family: 'Santa Headline', sans-serif; font-size: 22px; line-height: 1.2; transform: rotate(-3deg); }
+.flow-recap-cut { font-size: 12px; color: #62625b; }
 .flow-recap-facts { display: flex; gap: 16px; padding-top: 8px; border-top: 1px dashed #d9d9d1; }
-.flow-recap-facts p { font-size: 11px; font-weight: 700; }
-.flow-recap-facts small { display: block; font-size: 9px; font-weight: 400; color: #87877e; margin-bottom: 3px; }
+.flow-recap-facts p { font-size: 13px; font-weight: 700; }
+.flow-recap-facts small { display: block; font-size: 11px; font-weight: 400; color: #62625b; margin-bottom: 3px; }
 .flow-recap-copy .flow-extra-chip { display: flex; align-items: baseline; gap: 10px; align-self: flex-start; padding: 0; border: 0; font-size: 12px; }
 .flow-extra-chip strong { color: #d9362b; font-size: 29px; font-weight: 900; }
-.flow-recap-copy .flow-recap-handwriting { font-family: 'Santa Pen', cursive; font-size: 24px; line-height: 1.05; }
-.flow-recap-copy > small { font-size: 11px; color: #87877e; }
+.flow-recap-copy .flow-recap-message { font-family: inherit; font-size: 15px; line-height: 1.75; letter-spacing: 0; }
+.flow-recap-copy > small { font-size: 12px; line-height: 1.5; color: #62625b; }
 .flow-recap-art { display: flex; justify-content: center; flex: 0 0 150px; height: 150px; margin: 0 -8px; }
 .flow-recap-art svg { display: block; width: 100%; height: 100%; }
 .flow-recap-card.is-letter .flow-recap-art, .flow-recap-card.is-story .flow-recap-art { flex-basis: 105px; height: 105px; }
@@ -113,12 +113,12 @@
 .flow-recap-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 12px 0; }
 .flow-recap-nav button { min-width: 82px; min-height: 44px; border: 1px solid #deded9; border-radius: 9px; background: #fff; color: #242424; font-weight: 700; }
 .flow-recap-nav button:disabled { opacity: .3; }
-.flow-recap-nav > span { font-size: 12px; color: #85857a; }
+.flow-recap-nav > span { font-size: 13px; color: #62625b; }
 .flow-recap .flow-extra-actions button { min-height: 48px; border-radius: 10px; }
 .flow-recap .flow-extra-actions button:first-child { background: #d9362b; border-color: #d9362b; color: #fff; }
 .flow-recap .flow-extra-actions button:last-child { background: #fff; border-color: #deded9; color: #242424; }
-.flow-recap .flow-extra-toggle { font-size: 12px; color: #777770; }
-.flow-recap .flow-extra-share-text { color: #85857a; font-size: 11px; }
+.flow-recap .flow-extra-toggle { font-size: 14px; color: #62625b; }
+.flow-recap .flow-extra-share-text { color: #62625b; font-size: 13px; line-height: 1.6; }
 .flow-legacy-result, .flow-dossier { margin: 18px 0; }
 .flow-legacy-result > summary, .flow-dossier > summary { display: flex; justify-content: space-between; align-items: center; min-height: 52px; padding: 0 16px; border: 1px solid #deded9; border-radius: 12px; background: #fafaf8; color: #242424; cursor: pointer; font-size: 13px; list-style: none; }
 .flow-legacy-result > summary::-webkit-details-marker, .flow-dossier > summary::-webkit-details-marker { display: none; }
@@ -128,7 +128,7 @@
  .flow-recap-card { padding: 16px 18px 0; }
  .flow-recap-card-bottom { margin-inline: -18px !important; }
  .flow-recap-copy { gap: 7px; }
- .flow-recap-copy h3 { font-size: 26px; }
- .flow-recap-copy .flow-recap-handwriting { font-size: 22px; }
+ .flow-recap-copy h3 { font-size: 28px; }
+ .flow-recap-copy .flow-recap-message { font-size: 14px; line-height: 1.65; }
  .flow-recap-art { flex-basis: 130px; height: 130px; }
 }

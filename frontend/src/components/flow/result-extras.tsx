@@ -138,8 +138,8 @@ function recapCardName(kind: RecapCard["kind"]) {
 function RecapContent({ card, mild }: { card: RecapCard; mild: boolean }) {
   switch (card.kind) {
     case "VERDICT": return <><h3>{card.title}</h3><div className="flow-recap-verdict"><b className="flow-extra-stamp">{mild ? card.stamp_mild : card.stamp}</b>{(card.passed || !mild) && <span>{card.grade}</span>}</div><p>{mild ? card.verdict_mild : card.verdict}</p><small className="flow-recap-cut">선물 컷 65 · {card.cut_distance}</small><div className="flow-recap-facts"><p><small>통합 순위</small><span>{card.ranking_pending ? "순위 계산 중" : card.rank == null ? "순위 집계 전" : `${card.rank}위`}</span></p>{card.delivery_eta && <p><small>선물 도착 예정</small>{formatKoreanDate(card.delivery_eta)}</p>}</div></>;
-    case "ROAST": return <>{card.chip && <p className="flow-extra-chip">{card.chip.label}<strong>{card.chip.value}</strong></p>}<h3>{card.roast}</h3><p className="flow-recap-handwriting">{card.flip}</p></>;
-    case "LETTER": return <><h3>놀려서 미안,<br />근데 진심이다.</h3><p className="flow-recap-handwriting">{card.letter}</p><small>— 북극에서, 야근 중인 산타</small></>;
+    case "ROAST": return <>{card.chip && <p className="flow-extra-chip">{card.chip.label}<strong>{card.chip.value}</strong></p>}<h3>{card.roast}</h3><p className="flow-recap-message">{card.flip}</p></>;
+    case "LETTER": return <><h3>놀려서 미안,<br />근데 진심이다.</h3><p className="flow-recap-message">{card.letter}</p><small>— 북극에서, 야근 중인 산타</small></>;
     case "STORY": return <><h3>올해 너, 세 줄 요약</h3>{card.acts.map(act => <p key={act.act}><b>{act.months}</b> {act.line}</p>)}</>;
     case "ARCHETYPE": return <><h3>북극 인사팀 배치 결과</h3><p>{card.archetype.name}</p></>;
     case "DIMENSIONS": return <><h3>산타 채점표</h3>{card.bars.map(bar => <p key={bar.key}>{bar.label} <b>{bar.score.toFixed(2)}</b></p>)}</>;
