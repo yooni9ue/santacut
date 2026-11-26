@@ -11,6 +11,8 @@ import com.santacut.domain.analysis.model.ScoreDimension
  * 장난기 기준값과 유형 비율은 가장 최근 순위 계산 때 저장한 [ResultPopulation], 상위 비율은 그 순위의 참가자 수로 낸다.
  *
  * @property topPercent 상위 몇 %인지. 참가자가 [MIN_PARTICIPANTS_FOR_TOP_PERCENT]명보다 적거나 순위가 없으면 null이다.
+ * @property rankedTopPercent 리캡 카드 상단 바에 싣는 상위 몇 %. 참가자 수 기준 없이 순위와 그 순위 계산의 참가자 수로 내고, 순위가 없을 때만 null이다.
+ * @property participantCount 그 순위 계산에 든 참가자 수. 순위가 없으면 0이다.
  * @property archetypeSharePercent 같은 유형인 참가자 비율(%). 참가자가 [ArchetypeCounts.MIN_PARTICIPANTS_FOR_SHARE]명보다 적으면 null이다.
  * @property badges 본인 말에서 받은 배지 라벨
  * @property quote 본인 근거 줄의 20자 이하 한마디. 상대 말은 들어가지 않는다.
@@ -19,6 +21,8 @@ class ResultProfile(
     val archetype: Archetype,
     val dimensionScores: ScoreComponents,
     val topPercent: Int?,
+    val rankedTopPercent: Int?,
+    val participantCount: Long,
     val archetypeSharePercent: Int?,
     val badges: List<String>,
     val quote: String?,
@@ -39,15 +43,17 @@ class ResultProfile(
          */
         fun of(assessment: Assessment, snapshot: ResultSnapshot?, population: ResultPopulation, participantCount: Long): ResultProfile {
             val archetype = population.archetypeOf(assessment)
+            val rankedTopPercent = topPercentOf(snapshot?.rank, participantCount)
             return ResultProfile(
-                archetype, assessment.dimensionScores(), topPercentOf(snapshot?.rank, participantCount),
+                archetype, assessment.dimensionScores(), rankedTopPercent.takeIf { participantCount >= MIN_PARTICIPANTS_FOR_TOP_PERCENT },
+                rankedTopPercent, participantCount,
                 population.sharePercentOf(archetype), assessment.badgeLabels(), assessment.quote,
             )
         }
 
         /** 상위 비율(올림, 1~100). 공유 링크가 붙잡아 남은 옛 스냅숏은 그 계산의 행이 일부만 남아 순위가 참가자 수보다 클 수 있다. */
         private fun topPercentOf(rank: Int?, participantCount: Long): Int? {
-            if (rank == null || participantCount < MIN_PARTICIPANTS_FOR_TOP_PERCENT) return null
+            if (rank == null || participantCount <= 0) return null
             return ((rank * PERCENT + participantCount - 1) / participantCount).toInt().coerceIn(1, PERCENT)
         }
     }
