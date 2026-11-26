@@ -122,3 +122,25 @@ test("여덟 장 리캡의 마지막 카드까지 이동할 수 있다", async (
   await page.getByRole("button", { name: "← 이전" }).click();
   await expect(page.getByText("7 / 8")).toBeVisible();
 });
+
+test("좁은 화면에서도 긴 편지와 일러스트가 카드 안에 들어간다", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  const letter = "올해도 네가 먼저 안부를 물어서 이 방에 웃을 일이 많았어. 어색한 침묵마다 먼저 말을 꺼내고 친구의 기쁜 일에도 제일 크게 웃었지. 북극에서도 그 마음을 다 읽었어. 내년에도 지금처럼 다정하게 지내라.";
+  await page.route("**/v1/me/result", route => route.fulfill({ json: {
+    score_hundredths: 7055, verdict: "판정", rank: 1, recap_available: true, dossier_available: false,
+  } }));
+  await page.route("**/v1/me/recap", route => route.fulfill({ json: {
+    assessment_id: "long-letter", skin: "GIFT", score_text: "70.55", share_text: "공유 문구", share_text_mild: "담백 문구",
+    cards: [{ index: 0, kind: "LETTER", width: 1080, height: 1920, score_text: "70.55", letter }],
+  } }));
+  await page.goto("/result");
+  await expect(page.getByText(letter)).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const measurements = await page.locator(".flow-recap-card").evaluate(card => {
+    const text = card.querySelector(".flow-recap-copy")!.getBoundingClientRect();
+    const artwork = card.querySelector(".flow-recap-art")!.getBoundingClientRect();
+    return { contentHeight: card.scrollHeight, height: card.clientHeight, textBottom: text.bottom, artworkTop: artwork.top };
+  });
+  expect(measurements.contentHeight).toBeLessThanOrEqual(measurements.height + 1);
+  expect(measurements.textBottom).toBeLessThanOrEqual(measurements.artworkTop + 1);
+});
