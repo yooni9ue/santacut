@@ -34,6 +34,12 @@ data class RecapResult(
     val archetypeName: String,
     val dimensions: DimensionBarResults,
 ) {
+    /**
+     * 카드 덱 순서. 판정, 팩폭 세 장, 쪽지, 줄거리(있을 때만), 유형, 항목 막대 순으로 고정이고 index는 0부터 이 순서다.
+     * 로그인 사용자 리캡 응답이 이 목록을 따른다.
+     */
+    fun cards(): RecapCards = RecapCards.of(this)
+
     companion object {
         private const val HUNDREDTHS_SCALE = 2
 
