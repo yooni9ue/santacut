@@ -23,12 +23,12 @@ import com.santacut.domain.ranking.service.RankingService
 import com.santacut.domain.roast.service.RoastService
 import com.santacut.domain.share.model.RecapDeck
 import jakarta.servlet.http.Cookie
-import org.hamcrest.Matchers.containsString
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -109,14 +109,26 @@ class ShareApiTest @Autowired constructor(
     }
 
     @Test
+    fun `조서 문장과 상대 말은 저장한 카드 덱에도 공개 페이지에도 나오지 않는다`() {
+        val token = createShare(participantWithResult(withRoast = true))
+        val recapJson = assertNotNull(recapJsonOf(token))
+        val html = pageOf(token)
+
+        listOf(SELF_SECRET, PARTNER_SECRET).forEach { secret ->
+            assertFalse(recapJson.contains(secret), "카드 덱에 비공개 문자열이 있습니다: $secret")
+            assertFalse(html.contains(secret), "공개 페이지에 비공개 문자열이 있습니다: $secret")
+        }
+    }
+
+    @Test
     fun `취소했거나 없는 링크는 보안 헤더가 붙은 볼 수 없는 결과 페이지다`() {
-        val html = mockMvc.perform(get("/s/not-a-token").accept(MediaType.TEXT_HTML))
+        val response = mockMvc.perform(get("/s/not-a-token").accept(MediaType.TEXT_HTML))
             .andExpect(status().isNotFound)
             .andExpect(header().string(HttpHeaders.CACHE_CONTROL, NO_STORE))
             .andExpect(header().string(REFERRER_POLICY, NO_REFERRER))
-            .andExpect(header().string(CSP, containsString("default-src 'none'")))
-            .andReturn().response.getContentAsString(Charsets.UTF_8)
-        assertTrue(html.contains("더 이상 볼 수 없는 결과"))
+            .andReturn().response
+        assertSinglePagePolicy(response)
+        assertTrue(response.getContentAsString(Charsets.UTF_8).contains("더 이상 볼 수 없는 결과"))
     }
 
     private fun createShare(session: Cookie): String {
@@ -127,13 +139,23 @@ class ShareApiTest @Autowired constructor(
         return JsonPath.read(body, "$.token")
     }
 
-    private fun pageOf(token: String): String = mockMvc.perform(get("/s/$token").accept(MediaType.TEXT_HTML))
-        .andExpect(status().isOk)
-        .andExpect(header().string(HttpHeaders.CACHE_CONTROL, NO_STORE))
-        .andExpect(header().string(REFERRER_POLICY, NO_REFERRER))
-        .andExpect(header().string(CSP, containsString("script-src 'sha256-")))
-        .andExpect(header().string(CSP, containsString("frame-ancestors 'none'")))
-        .andReturn().response.getContentAsString(Charsets.UTF_8)
+    /** 공개 페이지 HTML. 카드 덱·요약 페이지 모두 보안 헤더와 공유 페이지 정책 하나만 붙어야 한다. */
+    private fun pageOf(token: String): String {
+        val response = mockMvc.perform(get("/s/$token").accept(MediaType.TEXT_HTML))
+            .andExpect(status().isOk)
+            .andExpect(header().string(HttpHeaders.CACHE_CONTROL, NO_STORE))
+            .andExpect(header().string(REFERRER_POLICY, NO_REFERRER))
+            .andReturn().response
+        assertSinglePagePolicy(response)
+        return response.getContentAsString(Charsets.UTF_8)
+    }
+
+    /** 정책이 둘이면 브라우저가 교집합을 적용해 인라인 스크립트가 막힌다. 공유 페이지 정책(스크립트 해시) 하나만 있어야 한다. */
+    private fun assertSinglePagePolicy(response: MockHttpServletResponse) {
+        val policies = response.getHeaders(CSP)
+        assertEquals(1, policies.size, "Content-Security-Policy 헤더: $policies")
+        assertTrue(policies.single().contains("script-src 'sha256-") && policies.single().contains("frame-ancestors 'none'"), policies.single())
+    }
 
     private fun deckOf(token: String): RecapDeck = objectMapper.readValue(assertNotNull(recapJsonOf(token)), RecapDeck::class.java)
 
@@ -146,7 +168,7 @@ class ShareApiTest @Autowired constructor(
         val now = clock.instant()
         val job = AnalysisJob.enqueue(participant.id, IdempotencyKey.from("key-" + UUID.randomUUID()), EMPTY_SUBMISSION, AnalysisPayload("{}"), now)
         val score = Score.shrunk(SCORES.map { BigDecimal(it) }, LowConfidenceDimensions.NONE, null)
-        val dossier = TestDossiers.draft(TestDossiers.selves(DOSSIER_TEXTS))
+        val dossier = TestDossiers.draft(TestDossiers.selves(DOSSIER_TEXTS) + PARTNER_MESSAGES)
         transactionTemplate.executeWithoutResult {
             val assessment = assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
             if (withRoast) roastService.record(assessment, roastService.fallbackDraft(score.hundredths, dossier, 0), now)
@@ -165,6 +187,15 @@ class ShareApiTest @Autowired constructor(
         private const val CSP = "Content-Security-Policy"
         private val SCORES = listOf(90, 90, 90, 90)
         private val EMPTY_SUBMISSION = AnalysisSubmission(DataSource.KAKAO, AnalysisEvents(emptyList()))
-        private val DOSSIER_TEXTS = List(40) { "진짜 ㅋㅋㅋ 고마워" }
+        /** 조서 집계에 넣는 본인 문장과 상대 말. 공유 카드 덱과 공개 페이지에 나오면 안 되는 고유 문자열을 담는다. */
+        private const val SELF_SECRET = "조서비공개문장7f3a"
+        private const val PARTNER_SECRET = "상대고유발언9c2e"
+        private const val PARTNER_MESSAGE_COUNT = 20
+        private const val PARTNER_OFFSET_MINUTES = 30L
+        private const val MINUTES_APART = 60L
+        private val DOSSIER_TEXTS = List(40) { "진짜 ㅋㅋㅋ 고마워 $SELF_SECRET" }
+        private val PARTNER_MESSAGES = List(PARTNER_MESSAGE_COUNT) { index ->
+            TestDossiers.partner(TestDossiers.START.plusMinutes(PARTNER_OFFSET_MINUTES + index * MINUTES_APART), "$PARTNER_SECRET 고마워")
+        }
     }
 }

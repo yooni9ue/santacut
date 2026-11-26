@@ -135,6 +135,11 @@ class SecurityConfiguration(
             "/v1/csrf", "/v1/regions", "/v1/nicknames/availability",
             "/v1/participants", "/v1/participants/**", "/v1/rankings", "/s/**",
         )
+        /**
+         * 모든 응답의 기본 정책. Spring Security는 응답에 이미 Content-Security-Policy가 있으면 이 값을 쓰지 않는다.
+         * 그래서 공개 공유 페이지(`/s/` 아래 경로)는 컨트롤러·오류 처리기가 붙인 페이지 정책(인라인 스크립트 해시) 하나만 나간다.
+         * 정책이 둘이면 브라우저가 교집합을 적용해 넘김 스크립트가 막히므로 ShareApiTest가 헤더 수를 확인한다.
+         */
         private const val CONTENT_SECURITY_POLICY = "default-src 'self'; script-src 'self'; " +
             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; " +
             "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
