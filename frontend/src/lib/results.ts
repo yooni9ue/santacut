@@ -66,7 +66,9 @@ export async function getMyDossier(signal?: AbortSignal) {
   return (await api.get<DossierResponse>("/me/dossier", { signal })).data;
 }
 export async function createShare() {
-  return (await api.post<ShareResponse>("/shares", { include_quote: false })).data;
+  const share = (await api.post<ShareResponse>("/shares", { include_quote: false })).data;
+  const path = `/s/${encodeURIComponent(share.token)}`;
+  return { ...share, url: new URL(path, window.location.origin).href, imageUrl: new URL(`${path}/image.png`, window.location.origin).href };
 }
 
 export function resultError(error: unknown) { return getApiErrorMessage(error); }

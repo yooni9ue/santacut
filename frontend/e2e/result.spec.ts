@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { unzipSync } from "fflate";
 import { readFile } from "node:fs/promises";
 
 test("결과를 PNG로 공유·저장하고 카톡용 링크를 공유한다", async ({ page }) => {
@@ -12,13 +13,13 @@ test("결과를 PNG로 공유·저장하고 카톡용 링크를 공유한다", a
   });
   await page.route("**/v1/me/result", route => route.fulfill({ json: { score_hundredths: 8245, verdict: "기록이 꽤 다정해요.", comment: "오늘도 따뜻했어요.", archetype: { code: "HOT_COCOA_COURIER", name: "핫초코 배달부" }, rank: 3, tied: true, eta: "2026-12-26T03:24:00Z", delivery_sequence: 4, computed_at: "2026-11-17T00:00:00Z", ranking_pending: false, stage: "PREVIEW" } }));
   await page.route("**/v1/csrf", route => route.fulfill({ json: { headerName: "X-XSRF-TOKEN", token: "test-token" } }));
-  const shareUrl = "https://santacut.me/s/test-share";
+  const shareUrl = "http://127.0.0.1:3100/s/test-share";
   let shareRequests = 0;
   await page.route("**/v1/shares", route => {
     shareRequests++;
     expect(route.request().headers()["x-xsrf-token"]).toBe("test-token");
     expect(route.request().postDataJSON()).toEqual({ include_quote: false });
-    return route.fulfill({ json: { token: "test-share", url: shareUrl, imageUrl: `${shareUrl}/image.png` } });
+    return route.fulfill({ json: { token: "test-share", url: "https://api-dev.santacut.me/s/test-share", imageUrl: "https://api-dev.santacut.me/s/test-share/image.png" } });
   });
   await page.route("**/s/test-share/image.png", route => route.fulfill({
     contentType: "image/png",
@@ -79,7 +80,7 @@ test("새 결과의 리캡과 조서를 표시하고 카드 이미지를 저장�
   await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("선물 실어 뒀다.")).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("region", { name: "팩폭 산타 카드" }).getByRole("button", { name: "이미지 저장" }).click(),
+    page.getByRole("region", { name: "팩폭 산타 카드" }).getByRole("button", { name: "현재 카드 저장" }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("santacut-recap-1.png");
   const image = await readFile(await download.path());
@@ -121,6 +122,23 @@ test("여덟 장 리캡의 마지막 카드까지 이동할 수 있다", async (
   await expect(page.getByRole("button", { name: "다음 →" })).toBeDisabled();
   await page.getByRole("button", { name: "← 이전" }).click();
   await expect(page.getByText("7 / 8")).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "전체 8장 저장 (ZIP)", exact: true }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("santacut-recap-all.zip");
+  const files = unzipSync(await readFile(await download.path()));
+  expect(Object.keys(files)).toEqual(Array.from({ length: 8 }, (_, i) => `santacut-recap-${String(i + 1).padStart(2, "0")}.png`));
+  for (const bytes of Object.values(files)) {
+    const png = Buffer.from(bytes);
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+    expect(png.readUInt32BE(16)).toBe(1080);
+    expect(png.readUInt32BE(20)).toBe(1920);
+  }
+  expect(new Set(Object.values(files).map(bytes => Buffer.from(bytes).toString("base64"))).size).toBe(8);
+  await expect(page.getByText("7 / 8", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "전체 8장 저장 (ZIP)", exact: true })).toBeEnabled();
+
 });
 
 test("좁은 화면에서도 긴 편지와 일러스트가 카드 안에 들어간다", async ({ page }) => {
@@ -143,4 +161,43 @@ test("좁은 화면에서도 긴 편지와 일러스트가 카드 안에 들어�
   });
   expect(measurements.contentHeight).toBeLessThanOrEqual(measurements.height + 1);
   expect(measurements.textBottom).toBeLessThanOrEqual(measurements.artworkTop + 1);
+});
+
+test("리캡 링크는 클릭할 때 생성하고 복사 실패 시 직접 복사할 수 있다", async ({ page }) => {
+  await page.route("**/v1/me/result", route => route.fulfill({ json: {
+    score_hundredths: 7055, verdict: "판정", rank: 1, recap_available: true,
+  } }));
+  await page.route("**/v1/me/recap", route => route.fulfill({ json: {
+    assessment_id: "link-test", skin: "GIFT", score_text: "70.55", share_text: "공유 문구", share_text_mild: "공유 문구",
+    cards: [{ index: 0, kind: "LETTER", score_text: "70.55", letter: "올해도 고마웠어." }],
+  } }));
+  await page.route("**/v1/csrf", route => route.fulfill({ json: { headerName: "X-XSRF-TOKEN", token: "test-token" } }));
+  let requests = 0;
+  const url = "http://127.0.0.1:3100/s/recap-test";
+  await page.route("**/v1/shares", route => {
+    requests++;
+    expect(route.request().postDataJSON()).toEqual({ include_quote: false });
+    expect(route.request().headers()["x-xsrf-token"]).toBe("test-token");
+    return route.fulfill({ json: { token: "recap-test", url: "https://api-dev.santacut.me/s/recap-test", imageUrl: "https://api-dev.santacut.me/s/recap-test/image.png" } });
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", { configurable: true, value: undefined });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (value: string) => {
+      Reflect.set(window, "copiedRecapLink", value);
+    } } });
+  });
+  await page.goto("/result");
+  const button = page.getByRole("button", { name: "링크 공유하기", exact: true });
+  await expect(button).toBeEnabled();
+  expect(requests).toBe(0);
+  await button.click();
+  await expect(page.getByRole("status")).toContainText("링크를 복사했어요");
+  expect(await page.evaluate(() => Reflect.get(window, "copiedRecapLink"))).toBe(url);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("Denied"); } } });
+  });
+  await button.click();
+  await expect(page.getByRole("status")).toContainText("직접 복사");
+  await expect(page.getByRole("textbox", { name: "공유할 결과 링크" })).toHaveValue(url);
+  expect(requests).toBe(1);
 });
