@@ -71,7 +71,21 @@ class ShareTest {
         assertNull(quoted.quote)
     }
 
+    @Test
+    fun `리캡 카드 덱은 없는 링크에만 한 번 싣고 이미 있으면 그대로 둔다`() {
+        val legacy = Share("t", "u", "s", "n", 500, 1, share.eta, "v", "c", share.computedAt)
+        assertFalse(legacy.carriesRecap())
+
+        legacy.attachRecap(FIRST_DECK)
+        legacy.attachRecap(SECOND_DECK)
+
+        assertTrue(legacy.carriesRecap())
+        assertEquals(FIRST_DECK, legacy.recapJson)
+    }
+
     companion object {
+        private const val FIRST_DECK = "{\"version\":1,\"cards\":[]}"
+        private const val SECOND_DECK = "{\"version\":2,\"cards\":[]}"
         private val SHARED_AT: Instant = Instant.parse("2026-12-02T03:30:00Z")
     }
 }

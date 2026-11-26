@@ -6,6 +6,7 @@ import com.santacut.domain.analysis.model.GiftVerdict
 import com.santacut.domain.ranking.model.ResultProfile
 import com.santacut.domain.ranking.model.ResultSnapshot
 import com.santacut.domain.roast.model.RoastContent
+import com.santacut.domain.share.model.RecapDeck
 import java.math.BigDecimal
 
 /**
@@ -34,6 +35,15 @@ data class RecapResult(
     val archetypeName: String,
     val dimensions: DimensionBarResults,
 ) {
+    /**
+     * 카드 덱 순서. 판정, 팩폭 세 장, 쪽지, 줄거리(있을 때만), 유형, 항목 막대 순으로 고정이고 index는 0부터 이 순서다.
+     * 로그인 사용자 리캡 응답과 공유 링크 카드 스냅숏이 모두 이 목록을 따른다.
+     */
+    fun cards(): RecapCards = RecapCards.of(this)
+
+    /** 공유 링크에 고정할 카드 덱. [cards] 순서 그대로다. */
+    fun toDeck(): RecapDeck = RecapDeck.of(skin, cards().toDeckCards(this))
+
     companion object {
         private const val HUNDREDTHS_SCALE = 2
 

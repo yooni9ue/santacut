@@ -78,10 +78,16 @@ class ApiExceptionHandler(
             request.requestURI.startsWith(SHARE_PAGE_PATH_PREFIX) &&
             request.getHeader(HttpHeaders.ACCEPT)?.contains(MediaType.TEXT_HTML_VALUE) == true
 
-    private fun inactiveSharePage(): ResponseEntity<String> = ResponseEntity.status(HttpStatus.NOT_FOUND)
-        .contentType(HTML_UTF8)
-        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
-        .body(shareFacade.getInactivePage().html)
+    /** 볼 수 없는 공유 결과 페이지. 공개 공유 페이지와 같은 보안 헤더를 붙인다. */
+    private fun inactiveSharePage(): ResponseEntity<String> {
+        val page = shareFacade.getInactivePage()
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .contentType(HTML_UTF8)
+            .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
+            .header(REFERRER_POLICY, NO_REFERRER)
+            .header(CONTENT_SECURITY_POLICY, page.contentSecurityPolicy)
+            .body(page.html)
+    }
 
     private fun respond(errorCode: ErrorCode, request: HttpServletRequest, retryAt: Instant?): ResponseEntity<ApiErrorResponse> {
         val now = clock.instant()
@@ -106,6 +112,9 @@ class ApiExceptionHandler(
         private const val MIN_RETRY_AFTER_SECONDS = 1L
         private const val SHARE_PAGE_PATH_PREFIX = "/s/"
         private const val NO_STORE = "no-store"
+        private const val REFERRER_POLICY = "Referrer-Policy"
+        private const val NO_REFERRER = "no-referrer"
+        private const val CONTENT_SECURITY_POLICY = "Content-Security-Policy"
         private val HTML_UTF8 = MediaType(MediaType.TEXT_HTML, Charsets.UTF_8)
     }
 }

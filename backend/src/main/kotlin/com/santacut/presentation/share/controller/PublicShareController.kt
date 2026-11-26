@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController
 
 /**
  * 로그인 없이 볼 수 있는 공유 결과 페이지와 카드 이미지.
+ * 페이지 응답에는 렌더러가 정한 Content-Security-Policy(인라인 스크립트 해시, 글꼴 출처)를 붙인다.
  */
 @RestController
 class PublicShareController(
@@ -25,6 +26,7 @@ class PublicShareController(
         return ResponseEntity.ok()
             .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
             .header(REFERRER_POLICY, NO_REFERRER)
+            .header(CONTENT_SECURITY_POLICY, result.contentSecurityPolicy)
             .body(result.html)
     }
 
@@ -39,5 +41,6 @@ class PublicShareController(
         private const val NO_STORE = "no-store"
         private const val REFERRER_POLICY = "Referrer-Policy"
         private const val NO_REFERRER = "no-referrer"
+        private const val CONTENT_SECURITY_POLICY = "Content-Security-Policy"
     }
 }
