@@ -136,3 +136,6 @@
 .flow-recap-link-share .flow-secondary { margin-top: 10px; justify-content: center; gap: 12px; }
 .flow-recap-link-share .flow-secondary:disabled { opacity: .5; cursor: not-allowed; }
 .flow-recap-link-share input { width: 100%; min-height: 44px; padding: 10px; border: 1px solid #deded9; border-radius: 8px; font-size: 14px; color: #242424; background: #fff; }
+
+.flow-recap-export { position: fixed; left: -10000px; top: 0; pointer-events: none; }
+.flow-recap .flow-recap-save-all button:first-child { background: #fff; color: #242424; border-color: #deded9; }

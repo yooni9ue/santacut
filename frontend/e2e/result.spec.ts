@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { unzipSync } from "fflate";
 import { readFile } from "node:fs/promises";
 
 test("결과를 PNG로 공유·저장하고 카톡용 링크를 공유한다", async ({ page }) => {
@@ -79,7 +80,7 @@ test("새 결과의 리캡과 조서를 표시하고 카드 이미지를 저장�
   await expect(page.getByRole("region", { name: "팩폭 산타 카드" }).getByText("선물 실어 뒀다.")).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("region", { name: "팩폭 산타 카드" }).getByRole("button", { name: "이미지 저장" }).click(),
+    page.getByRole("region", { name: "팩폭 산타 카드" }).getByRole("button", { name: "현재 카드 저장" }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("santacut-recap-1.png");
   const image = await readFile(await download.path());
@@ -121,6 +122,23 @@ test("여덟 장 리캡의 마지막 카드까지 이동할 수 있다", async (
   await expect(page.getByRole("button", { name: "다음 →" })).toBeDisabled();
   await page.getByRole("button", { name: "← 이전" }).click();
   await expect(page.getByText("7 / 8")).toBeVisible();
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "전체 8장 저장 (ZIP)", exact: true }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("santacut-recap-all.zip");
+  const files = unzipSync(await readFile(await download.path()));
+  expect(Object.keys(files)).toEqual(Array.from({ length: 8 }, (_, i) => `santacut-recap-${String(i + 1).padStart(2, "0")}.png`));
+  for (const bytes of Object.values(files)) {
+    const png = Buffer.from(bytes);
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+    expect(png.readUInt32BE(16)).toBe(1080);
+    expect(png.readUInt32BE(20)).toBe(1920);
+  }
+  expect(new Set(Object.values(files).map(bytes => Buffer.from(bytes).toString("base64"))).size).toBe(8);
+  await expect(page.getByText("7 / 8", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "전체 8장 저장 (ZIP)", exact: true })).toBeEnabled();
+
 });
 
 test("좁은 화면에서도 긴 편지와 일러스트가 카드 안에 들어간다", async ({ page }) => {
