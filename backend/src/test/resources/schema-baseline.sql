@@ -28,7 +28,7 @@ CREATE INDEX IF NOT EXISTS snapshots_latest ON result_snapshots(computed_at,user
 CREATE TABLE IF NOT EXISTS result_populations (id INTEGER PRIMARY KEY, playfulness_split INTEGER NOT NULL, archetype_counts TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS shares (token TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE, snapshot_id TEXT NOT NULL REFERENCES result_snapshots(id) ON DELETE CASCADE, nickname TEXT NOT NULL, score_hundredths INTEGER NOT NULL, rank INTEGER NOT NULL, eta TEXT NOT NULL, verdict TEXT NOT NULL, comment TEXT NOT NULL, computed_at TEXT NOT NULL, revoked_at TEXT, tied INTEGER NOT NULL DEFAULT 0, stage TEXT NOT NULL DEFAULT 'PREVIEW', created_at TEXT);
 CREATE INDEX IF NOT EXISTS shares_owner ON shares(user_id,snapshot_id);
--- archetype, top_percent, badge, weakest_dimension, dimension_scores, quote(본인이 고른 한마디)는 기존 DB에 Hibernate가 더한다. 그 전 링크는 NULL이다.
+-- archetype, top_percent, badge, weakest_dimension, dimension_scores, quote(본인이 고른 한마디), recap_json(공유 당시 리캡 카드 덱 JSON, TEXT)은 기존 DB에 Hibernate가 더한다. 그 전 링크는 NULL이다.
 
 CREATE UNIQUE INDEX IF NOT EXISTS shares_active_snapshot_unique ON shares(user_id,snapshot_id) WHERE revoked_at IS NULL;
 -- AI 시스템 프롬프트 판. 같은 이름 안에서 판 번호는 1부터 늘고 겹치지 않는다. score 1판은 prompts.sql이 넣는다.

@@ -37,6 +37,7 @@ import java.time.format.DateTimeFormatter
  * @property weakestDimension 공유 당시 가장 약한 항목. 컬럼에는 항목 키로 저장한다.
  * @property dimensionScores 공유 당시 항목 점수 JSON 배열
  * @property quote 본인이 싣기로 고른 한마디. 고르지 않았으면 null이다.
+ * @property recapJson 공유 당시 리캡 카드 덱([RecapDeck]) JSON. 이 컬럼이 생기기 전 링크와 팩폭 문장이 없던 평가의 링크는 null이고 요약 화면으로 보인다.
  */
 @Entity
 @Table(name = "shares", indexes = [Index(name = "shares_owner", columnList = "user_id, snapshot_id")])
@@ -60,6 +61,7 @@ class Share(
     weakestDimension: ScoreDimension? = null,
     dimensionScores: String? = null,
     quote: String? = null,
+    recapJson: String? = null,
 ) {
     @Id
     @Column(name = "token")
@@ -150,12 +152,24 @@ class Share(
     var quote: String? = quote
         protected set
 
+    @Column(name = "recap_json", columnDefinition = RECAP_JSON_COLUMN_DEFINITION)
+    var recapJson: String? = recapJson
+        protected set
+
     /** 본인 한마디를 싣고 있는지. */
     fun carriesQuote(): Boolean = quote != null
 
     /** 본인 한마디([assessmentQuote])를 [includeQuote]일 때만 싣는다. 다른 값은 공유한 순간 값 그대로 둔다. */
     fun chooseQuote(assessmentQuote: String?, includeQuote: Boolean) {
         quote = assessmentQuote.takeIf { includeQuote }
+    }
+
+    /** 리캡 카드 덱을 싣고 있는지. */
+    fun carriesRecap(): Boolean = recapJson != null
+
+    /** 카드 덱이 없는 링크에만 [json]을 한 번 싣는다. 이미 있으면 공유한 순간 값 그대로 둔다. */
+    fun attachRecap(json: String) {
+        if (recapJson == null) recapJson = json
     }
 
     /** 산타 유형 이름. 예전 링크면 빈 문자열이다. */
@@ -202,6 +216,7 @@ class Share(
         private const val TIED_COLUMN_DEFINITION = "INTEGER NOT NULL DEFAULT 0"
         private const val STAGE_COLUMN_DEFINITION = "TEXT NOT NULL DEFAULT 'PREVIEW'"
         private const val CREATED_AT_COLUMN_DEFINITION = "TEXT"
+        private const val RECAP_JSON_COLUMN_DEFINITION = "TEXT"
         private const val TOP_PREFIX = "상위 "
         private const val PERCENT_SUFFIX = "%"
         private const val WEAKEST_PREFIX = "아쉬운 항목 "
@@ -211,7 +226,7 @@ class Share(
 
         /**
          * 공유 링크를 만든다. 순위, 공동 순위 여부, 상태, 시각, 유형과 꾸밈 값은 만든 순간 값으로 고정한다.
-         * 본인 한마디는 [includeQuote]가 참일 때만 싣는다.
+         * 본인 한마디는 [includeQuote]가 참일 때만 싣는다. 리캡 카드 덱 [recapJson]은 팩폭 문장이 없던 평가면 null이다.
          */
         fun issue(
             participant: Participant,
@@ -221,11 +236,12 @@ class Share(
             issuedAt: Instant,
             profile: ResultProfile,
             includeQuote: Boolean,
+            recapJson: String?,
         ): Share = Share(
             RandomToken.generate(), participant.id, snapshot.id, participant.nickname, assessment.scoreHundredths,
             snapshot.rank, snapshot.eta, assessment.verdict, assessment.comment, snapshot.computedAt,
             snapshot.tied, stage, issuedAt, profile.archetype, profile.topPercent, profile.firstBadge(),
-            profile.weakestDimension(), assessment.components, profile.quote.takeIf { includeQuote },
+            profile.weakestDimension(), assessment.components, profile.quote.takeIf { includeQuote }, recapJson,
         )
     }
 }
