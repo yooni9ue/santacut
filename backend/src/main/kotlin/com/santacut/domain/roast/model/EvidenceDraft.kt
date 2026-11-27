@@ -48,6 +48,9 @@ data class EvidenceDraft(val kindKey: String, val lineId: Int?, val chipKey: Str
         )
     }
 
+    /** 다시 쓰기 입력에 싣는 받아 둔 카드. */
+    fun toKept(): KeptCard = KeptCard(kindKey, lineId, chipKey, label, line)
+
     /** 검증을 통과한 이 카드를 저장할 근거로 바꾼다. 말풍선과 칩은 [brief]에서 서버가 채운다. */
     fun toEvidence(brief: RoastBrief): RoastEvidence? {
         val kind = kind() ?: return null
