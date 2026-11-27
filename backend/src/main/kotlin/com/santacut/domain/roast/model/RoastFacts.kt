@@ -26,9 +26,11 @@ class RoastFacts(private val values: List<RoastFact>) {
 
     fun find(key: String): RoastFact? = values.find { fact -> fact.key == key }
 
-    /** [usedKeys]에 없는 사실마다 대체 짝을 만든다. 대체 문장이 없는 사실은 건너뛴다. */
-    fun fallbackPairsExcept(usedKeys: List<String>, fallback: RoastFallback): List<RoastPair> =
-        values.filterNot { fact -> fact.key in usedKeys }.mapNotNull(fallback::pairFor)
+    /** 근거 카드 칩 후보. 순서는 사실 순서다. */
+    fun chipFacts(): RoastChipFacts = RoastChipFacts(values.map { fact -> RoastChipFact(fact.key, fact.chip) })
+
+    /** 작가 입력의 칩 후보. */
+    fun chipHints(): RoastChipHints = RoastChipHints(values.map { fact -> RoastChipHint(fact.key, fact.chip.label, fact.chip.value) })
 
     /** 이 후보들에 [other]를 덧붙인다. */
     operator fun plus(other: RoastFacts): RoastFacts = RoastFacts(values + other.values)
@@ -93,12 +95,13 @@ class RoastFacts(private val values: List<RoastFact>) {
          * 조서 집계 [stats](지금 사전으로 다시 읽은 것)에서 사실을 고른다. 지표는 놀릴 수 있고(mockable) 카드에 실을 수 있고 값이 0이 아니며
          * 백분위가 가운데가 아닌 것만 후보다. 입버릇은 인용해도 되는 말 가운데 보통보다 튀는 것만 후보다.
          * 입버릇도 점수 무게로 뽑는다. 고르기는 [seed](같은 참가자·같은 해면 같은 값)와 이 방의 집계를 섞은 난수로 한다. 재시도에는 같은 사실이, 다른 사람·다른 방에는 다른 사실이 나온다.
-         * 고른 입버릇 가운데 앞의 것은 지표와 함께 앞자리를 다투고, 둘째 것은 맨 뒤에 덧붙는다.
+         * 고른 입버릇 가운데 앞의 것은 지표와 함께 앞자리를 다투고, 둘째 것은 맨 뒤에 덧붙는다. 고맙다는 말이 한 번도 없으면 그 사실을 맨 뒤에 덧붙인다.
          */
         fun of(stats: DossierStats, dossier: DossierCatalog, catalog: RoastCatalog, seed: Int = 0): RoastFacts {
             val random = Random(Objects.hash(seed, stats.volume.messageCount, stats.volume.charCount, stats.volume.activeDays))
             val phrases = phraseFacts(stats, dossier, catalog).sampled(random, PHRASE_POOL, MAX_PHRASE_FACTS)
-            return (metricFacts(dossier.metrics.readings(stats).toList(), catalog.facts) + phrases.head()).drawn(random, MAX_DRAWN_FACTS) + phrases.tail()
+            val drawn = (metricFacts(dossier.metrics.readings(stats).toList(), catalog.facts) + phrases.head()).drawn(random, MAX_DRAWN_FACTS)
+            return drawn + phrases.tail() + RoastFacts(listOfNotNull(catalog.thanks.factOf(stats)))
         }
 
         private fun metricFacts(readings: List<MetricReading>, specs: RoastFactSpecs): RoastFacts = RoastFacts(

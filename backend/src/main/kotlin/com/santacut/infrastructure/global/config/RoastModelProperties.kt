@@ -54,7 +54,7 @@ data class RoastModelProperties(
         private const val DEFAULT_TEMPERATURE = 1.0
         private const val DEFAULT_MAX_OUTPUT_TOKENS = 8192
         private const val DEFAULT_THINKING_LEVEL = "LOW"
-        private const val DEFAULT_MAX_REWRITES = 2
+        private const val DEFAULT_MAX_REWRITES = 1
         private const val DEFAULT_ESTIMATED_OUTPUT_TOKENS = 1500
         private val DEFAULT_CALL_TIMEOUT: Duration = Duration.ofSeconds(60)
 

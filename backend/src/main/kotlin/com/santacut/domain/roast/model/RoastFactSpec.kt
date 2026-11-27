@@ -29,7 +29,7 @@ data class RoastFactSpec(
     /** [reading]을 사실로 바꾼다. 백분위가 가운데([BLAND_LOW]~[BLAND_HIGH])라 밋밋하면 null이다. 점수는 튀는 정도 × [weight]다. */
     fun factOf(reading: MetricReading): RoastFact? = levelOf(reading.percentileRank())?.let { level ->
         val chip = RoastChip(chipLabel, reading.formattedValue())
-        RoastFact(key, meaning, level, group, chip, reading.directionKey(), score = extremenessOf(reading.percentileRank()) * weight)
+        RoastFact(key, meaning, level, group, chip, extremenessOf(reading.percentileRank()) * weight)
     }
 
     private fun levelOf(percentile: Double): String? = when {

@@ -1,85 +1,69 @@
 package com.santacut.domain.roast.model
 
 /**
- * 작가 호출을 거듭하며 모은, 검증을 통과한 문장. 처음 통과한 문장을 지키고 빠진 필드만 다음 응답에서 채운다.
- * 짝은 사실 key가 겹치지 않게 [MAX_PAIRS]개까지 모으고 [pairTarget]개 이상이면 다시 쓰지 않는다. 줄거리는 막마다 한 줄이다.
- *
- * @property pairTarget 다시 쓰지 않아도 되는 짝 수. 짝은 사실마다 하나라 사실이 [MIN_PAIRS]개보다 적으면 사실 수이고, 사실이 없으면 0이다.
+ * 작가 호출을 거듭하며 모은, 검증을 통과한 덱 문장. 묶음(판정 한 줄, 근거 카드 전체, 결론) 단위로 처음 통과한 것을 지키고 빠진 묶음만 다음 응답에서 채운다.
+ * 근거 카드는 kind별 개수까지 모두 통과해야 한 번에 받는다. 묶음을 더할 때 덱 전체 허용 유행어가 상한([RoastSlang.maxPerDeck])을 넘으면 그 묶음은 받지 않는다.
  */
 class RoastSheet(
-    private val title: String?,
-    private val verdict: String?,
-    private val verdictMild: String?,
-    private val pairs: RoastPairs,
-    private val letter: String?,
-    private val story: RoastStoryLines,
-    private val pairTarget: Int = MIN_PAIRS,
+    private val verdictLine: String?,
+    private val evidence: EvidenceDrafts?,
+    private val conclusion: ConclusionDraft?,
 ) {
-    /** 응답 [review]에서 통과한 필드로 빈칸을 채운다. 읽을 수 없는 응답이면 그대로다. */
-    fun absorb(review: RoastReview): RoastSheet {
+    /** 응답 [review]에서 통과한 묶음으로 빈칸을 채운다. 읽을 수 없는 응답이면 그대로다. */
+    fun absorb(review: RoastReview, rules: RoastRules): RoastSheet {
         val output = review.output ?: return this
         val checks = review.checks
-        return RoastSheet(
-            title ?: output.title.takeIf { checks.passed(TITLE) },
-            verdict ?: output.verdict.takeIf { checks.passed(VERDICT) },
-            verdictMild ?: output.verdictMild.takeIf { checks.passed(VERDICT_MILD) },
-            pairs.plus(output.pairs.passing(checks)),
-            letter ?: output.letter.takeIf { checks.passed(LETTER) },
-            story.plus(output.story.passing(checks)),
-            pairTarget,
-        )
+        val withVerdict = RoastSheet(verdictLine ?: output.verdictLine.takeIf { checks.passed(RoastChecks.VERDICT_LINE_FIELD) }, evidence, conclusion)
+            .orIfOverflow(this, rules)
+        val withEvidence = RoastSheet(withVerdict.verdictLine, evidence ?: output.evidence.takeIf { checks.passedGroup(EvidenceDrafts.FIELD) }, conclusion)
+            .orIfOverflow(withVerdict, rules)
+        return RoastSheet(withEvidence.verdictLine, withEvidence.evidence, conclusion ?: output.conclusion.takeIf { checks.passed(ConclusionDraft.FIELD) })
+            .orIfOverflow(withEvidence, rules)
     }
 
-    /** 아직 채우지 못한 필드 이름(다시 쓰기 대상). */
+    /** 아직 채우지 못한 묶음 이름(다시 쓰기 대상). */
     fun missingFields(): List<String> = listOfNotNull(
-        TITLE.takeIf { title == null },
-        VERDICT.takeIf { verdict == null },
-        VERDICT_MILD.takeIf { verdictMild == null },
-        RoastPairs.FIELD.takeIf { pairs.size() < pairTarget },
-        LETTER.takeIf { letter == null },
-        RoastStoryLines.FIELD.takeIf { story.size() < ACTS },
+        RoastChecks.VERDICT_LINE_FIELD.takeIf { verdictLine == null },
+        EvidenceDrafts.FIELD.takeIf { evidence == null },
+        ConclusionDraft.FIELD.takeIf { conclusion == null },
     )
 
     fun isComplete(): Boolean = missingFields().isEmpty()
 
-    /** 빠진 필드와 직전 응답 [review]의 사유, 이미 쓴 사실 key로 다시 쓰기 요청을 만든다. */
+    /** 빠진 묶음과 직전 응답 [review]의 사유로 다시 쓰기 요청을 만든다. */
     fun rewriteFor(review: RoastReview): RoastRewrite {
         val missing = missingFields()
-        return RoastRewrite(missing, review.checks.reasonsFor(missing + RoastChecks.JSON_FIELD), pairs.factKeys())
+        return RoastRewrite(missing, review.checks.reasonsFor(missing + RoastChecks.JSON_FIELD + RoastChecks.DECK_FIELD))
     }
 
-    /** 빈칸을 대체 문장([fallback], [seed]로 고름)으로 채워 저장할 내용을 만든다. 짝에는 [brief] 사실의 서버 숫자 칩을 붙인다. */
-    fun toContent(brief: RoastBrief, fallback: RoastFallback, seed: Int): RoastContent {
-        val passed = brief.verdict.passed
+    /**
+     * 빈칸을 서버 대체 문장으로 채워 저장할 내용을 만든다. 판정 한 줄과 결론은 [brief] 판정 구간의 고정 문장,
+     * 근거 카드는 칩 후보로 만든 통계 카드다. 작가 문장과 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 고정 문장을 쓴다.
+     */
+    fun toContent(brief: RoastBrief, fallback: RoastFallback, rules: RoastRules): RoastContent {
+        val grade = brief.verdict.grade()
+        val band = fallback.bandOf(grade)
+        val cards = evidence?.toEvidences(brief) ?: brief.fallbackEvidence(fallback)
+        val fallbackSlang = (if (verdictLine == null) rules.slangCountIn(band.verdictLine) else 0) +
+            (if (conclusion == null) rules.slangCountIn(band.finalLine) else 0)
+        val plain = slangCount(rules) + fallbackSlang > rules.slang.maxPerDeck
         return RoastContent(
             brief.verdict.key(),
-            RoastText.of(title, fallback.titles.pick(passed, seed)),
-            RoastText.of(verdict, fallback.verdicts.pick(passed, seed)),
-            RoastText.of(verdictMild, fallback.verdictsMild.pick(passed, seed)),
-            pairs.completedWith(brief.facts, fallback),
-            RoastText.of(letter, fallback.letters.pick(passed, seed)),
-            story.completedWith(fallback, seed),
+            RoastText.of(verdictLine, band.verdictLine(plain)),
+            cards,
+            conclusion?.toConclusion(brief) ?: fallback.conclusionOf(grade, cards.hero(), plain),
         )
     }
 
+    private fun slangCount(rules: RoastRules): Int =
+        (verdictLine?.let(rules::slangCountIn) ?: 0) + (evidence?.slangCount(rules) ?: 0) + (conclusion?.slangCount(rules) ?: 0)
+
+    /** 덱 전체 유행어가 상한을 넘으면 [previous]를 돌려준다. */
+    private fun orIfOverflow(previous: RoastSheet, rules: RoastRules): RoastSheet =
+        if (slangCount(rules) > rules.slang.maxPerDeck) previous else this
+
     companion object {
-        const val TITLE = "title"
-        const val VERDICT = "verdict"
-        const val VERDICT_MILD = "verdict_mild"
-        const val LETTER = "letter"
-
-        /** 화면에 쓰는 짝 수. 이만큼 모이면 다시 쓰지 않고, 모자라면 대체 짝으로 채운다. */
-        const val MIN_PAIRS = 3
-
-        /** 작가에게 받는 짝 수(나머지는 예비). */
-        const val MAX_PAIRS = 5
-        const val ACTS = 3
-
         /** 아무것도 통과하지 못한 처음 상태. 작가를 부르지 않으면 이대로 대체 문장만 쓴다. */
-        val EMPTY = RoastSheet(null, null, null, RoastPairs.EMPTY, null, RoastStoryLines.EMPTY)
-
-        /** [brief]로 작가를 부르기 전 빈 상태. 사실이 모자라면 그 수만큼만 짝을 기다린다. */
-        fun startFor(brief: RoastBrief): RoastSheet =
-            RoastSheet(null, null, null, RoastPairs.EMPTY, null, RoastStoryLines.EMPTY, minOf(MIN_PAIRS, brief.facts.size()))
+        val EMPTY = RoastSheet(null, null, null)
     }
 }

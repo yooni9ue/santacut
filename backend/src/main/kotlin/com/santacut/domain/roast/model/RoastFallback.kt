@@ -1,42 +1,42 @@
 package com.santacut.domain.roast.model
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import com.santacut.domain.analysis.model.GiftGrade
 
 /**
  * 작가 문장이 검증을 끝내 통과하지 못했을 때 쓰는 서버 대체 문장(roast/fallback.json).
- * 칭호·판결·담백 판결·쪽지는 판정별, 짝은 사실의 방향 key별(입버릇은 phrase), 줄거리는 막별이다.
+ * 판정 한 줄과 결론 칭호·마지막 한 줄은 구간(등급)별 고정 문장이고, 근거 카드 라벨과 한 줄은 종류별이다.
  *
- * @property pairs 사실 방향 key별 대체 짝
- * @property genericPairs 쓸 사실이 모자랄 때 채우는 일반 짝
- * @property story 막 번호("1"~"3")별 줄거리 후보
+ * @property bands 등급 이름([GiftGrade.name])별 고정 문장
+ * @property evidence 근거 카드 종류 key([EvidenceKind.key])별 대체 라벨과 한 줄
  */
 data class RoastFallback(
-    val titles: VerdictLines,
-    val verdicts: VerdictLines,
-    @JsonProperty("verdicts_mild") val verdictsMild: VerdictLines,
-    val letters: VerdictLines,
-    val pairs: Map<String, FallbackPair>,
-    @JsonProperty("generic_pairs") val genericPairs: FallbackPairs,
-    val story: Map<String, List<String>>,
+    val bands: Map<String, RoastBandCopy>,
+    val evidence: Map<String, EvidenceCopy>,
 ) {
     fun violations(): List<String> = listOfNotNull(
-        "fallback: 판정별 후보가 빈 목록이 있다".takeIf { titles.isMalformed() || verdicts.isMalformed() || verdictsMild.isMalformed() || letters.isMalformed() },
-        "fallback.generic_pairs: 최소 ${RoastSheet.MIN_PAIRS}개가 있어야 한다".takeIf { genericPairs.toList().size < RoastSheet.MIN_PAIRS },
-        "fallback.story: 막마다 후보가 있어야 한다".takeUnless { story.keys.containsAll(STORY_KEYS) && emptyList<String>() !in story.values },
+        "fallback.bands: 등급마다 문장이 있어야 한다".takeUnless { bands.keys.containsAll(GiftGrade.entries.map(GiftGrade::name)) },
+        "fallback.evidence: 근거 종류마다 라벨과 한 줄이 있어야 한다".takeUnless {
+            EvidenceKind.entries.all { kind -> evidence[kind.key]?.isMalformed() == false }
+        },
     )
 
-    /** [fact]의 대체 짝. 그 방향의 문장이 없으면 null이다. */
-    fun pairFor(fact: RoastFact): RoastPair? = pairs[fact.fallbackKey]?.toPair(fact.key, fact.quote)
+    fun bandOf(grade: GiftGrade): RoastBandCopy = bands.getValue(grade.name)
 
-    /** [act]막 대체 줄거리. */
-    fun storyLine(act: Int, seed: Int): RoastStoryLine {
-        val candidates = story[act.toString()].orEmpty()
-        return RoastStoryLine(act, candidates[seed.mod(candidates.size)], RoastSource.FALLBACK)
+    /** [kind] 근거 카드 가운데 [index]번째(0부터) 통계 카드. 칩은 [fact]이고 말풍선은 없다. */
+    fun evidenceOf(kind: EvidenceKind, index: Int, fact: RoastChipFact): RoastEvidence {
+        val copy = evidence.getValue(kind.key)
+        return RoastEvidence(kind, null, fact.key, fact.chip, null, copy.labelAt(index), copy.lineAt(index), RoastSource.FALLBACK)
     }
 
-    companion object {
-        /** 사실 없이 쓴 일반 대체 짝의 사실 key. 칩이 없다. */
-        const val GENERIC_KEY = "generic"
-        private val STORY_KEYS = setOf("1", "2", "3")
+    /** [grade] 구간의 대체 결론. 대표 말풍선과 칩은 [hero] 근거 카드 것이고, 없으면 비운다. [plain]이면 유행어 없는 마지막 한 줄을 쓴다. */
+    fun conclusionOf(grade: GiftGrade, hero: RoastEvidence?, plain: Boolean): RoastConclusion {
+        val band = bandOf(grade)
+        return RoastConclusion(
+            RoastText(band.title, RoastSource.FALLBACK), hero?.lineId, hero?.chipKey, hero?.quote, hero?.chip,
+            RoastText(band.finalLine(plain), RoastSource.FALLBACK),
+        )
     }
+
+    /** 모든 대체 문장. 배포 전에 검증 규칙을 통과하는지 테스트가 확인한다. */
+    fun allBandTexts(): List<String> = bands.values.flatMap(RoastBandCopy::all)
 }

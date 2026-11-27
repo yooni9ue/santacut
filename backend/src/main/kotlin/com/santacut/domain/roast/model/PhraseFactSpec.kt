@@ -39,11 +39,10 @@ data class PhraseFactSpec(
         }
         val chip = RoastChip(chipLabel.replace(QUOTE, tally.display), DossierFormat.times(tally.count))
         val score = minOf(specificity / FULL_SCORE, 1.0) * weight
-        return RoastFact(KEY_PREFIX + tally.key, meaning.replace(QUOTE, tally.display), level, group, chip, FALLBACK_KEY, tally.display, score)
+        return RoastFact(KEY_PREFIX + tally.key, meaning.replace(QUOTE, tally.display), level, group, chip, score)
     }
 
     companion object {
-        const val FALLBACK_KEY = "phrase"
         const val QUOTE = "{quote}"
         private const val KEY_PREFIX = "phrase_"
         private const val LEVEL_COUNT = 2

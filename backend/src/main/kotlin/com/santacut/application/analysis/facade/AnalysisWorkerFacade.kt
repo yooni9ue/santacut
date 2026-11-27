@@ -81,10 +81,12 @@ class AnalysisWorkerFacade(
     private fun reuseOrScore(job: AnalysisJob) {
         val attempt = scoring.prepare(job, promptService.latest(PromptName.SCORE))
         val dossier = heldJobs.draftDossier(job)
-        val freshRoast = heldJobs.scoreNeedingRoast(attempt)?.let { hundredths -> roasts.write(job, hundredths, dossier, budget::spendingOnRoast) }
+        val freshRoast = heldJobs.assessmentNeedingRoast(attempt)?.let { previous ->
+            roasts.write(job, previous.scoreHundredths, previous.dimensionScores(), dossier, budget::spendingOnRoast)
+        }
         if (heldJobs.reuseIfSameDigest(attempt, dossier, freshRoast)) return
         val scored = score(attempt)
-        val roast = roasts.write(job, scored.score.hundredths, dossier, budget::spendingOnRoast)
+        val roast = roasts.write(job, scored.score.hundredths, scored.score.components, dossier, budget::spendingOnRoast)
         heldJobs.complete(attempt, scored, dossier, roast)
         budget.recordSuccess()
     }

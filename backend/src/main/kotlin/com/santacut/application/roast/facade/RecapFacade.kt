@@ -16,11 +16,14 @@ class RecapFacade(
     private val rankingService: RankingService,
     private val roastService: RoastService,
 ) {
-    /** 최신 결과 찾기 → 그 결과의 팩폭 문장 찾기 → 순위·꾸밈 값과 함께 카드 값 만들기. 결과가 없으면 RESULT_NOT_FOUND, 팩폭 문장이 없으면 RECAP_NOT_FOUND다. */
+    /**
+     * 최신 결과 찾기 → 그 결과의 덱 내용 찾기 → 순위·꾸밈 값과 함께 카드 값 만들기. 결과가 없으면 RESULT_NOT_FOUND, 팩폭 문장이 없으면 RECAP_NOT_FOUND다.
+     * 옛 작가 프롬프트로 쓴 결과도 통계 카드로 바꿔 보여 준다.
+     */
     @Transactional(readOnly = true)
     fun getMyRecap(command: MyRecapCommand): RecapResult {
         val result = rankingService.findLatestResult(command.participantId)
-        val content = roastService.get(result.latest.id)
+        val content = roastService.get(result.latest)
         val snapshot = result.latestSnapshot()
         return RecapResult.of(result.latest, snapshot, rankingService.findProfile(result.latest, snapshot), content)
     }

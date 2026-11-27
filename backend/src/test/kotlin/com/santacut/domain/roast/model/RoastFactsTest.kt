@@ -48,7 +48,7 @@ class RoastFactsTest {
             val drawn = facts.take(RoastFacts.MAX_DRAWN_FACTS).filterNot { fact -> fact.group == HABIT && fact != firstHabit(facts) }
             assertEquals(drawn.size, drawn.map(RoastFact::group).toSet().size, "시드 $seed")
             assertEquals(SHOWN, facts.take(SHOWN).map(RoastFact::group).toSet().size, "시드 $seed")
-            assertTrue(facts.size in MIN_FACTS..RoastFacts.MAX_DRAWN_FACTS + 1, "시드 $seed 사실 ${facts.size}개")
+            assertTrue(facts.size in MIN_FACTS..RoastFacts.MAX_DRAWN_FACTS + TRAILING_FACTS, "시드 $seed 사실 ${facts.size}개")
         }
     }
 
@@ -77,6 +77,8 @@ class RoastFactsTest {
     private fun firstHabit(facts: List<RoastFact>): RoastFact? = facts.firstOrNull { fact -> fact.group == HABIT }
 
     companion object {
+        /** 뽑은 사실 뒤에 덧붙는 사실 수(둘째 입버릇, 고맙다는 말 없음). */
+        private const val TRAILING_FACTS = 2
         private val SEEDS = 1..200
         private const val SHOWN = 3
         private const val HABIT = "habit"

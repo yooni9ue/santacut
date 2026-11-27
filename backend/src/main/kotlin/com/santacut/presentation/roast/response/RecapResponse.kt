@@ -23,21 +23,23 @@ data class RecapResponse(
         example = "산타가 내 단톡방 다 읽음. 73.73점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐?",
     )
     val shareText: String,
-    @field:JsonProperty("share_text_mild")
-    @field:Schema(
-        description = "농담을 끈 사람의 공유 문구. 점수와 놀림 없이 통과면 '산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐.', " +
-            "탈락이면 '올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.'입니다.",
-        example = "올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.",
-    )
-    val shareTextMild: String,
+    @field:Schema(description = "전국 순위. 카드마다 같은 값이 있습니다. 순위 계산이 끝나면 참가자 수와 상관없이 늘 있고, 최신 결과가 아직 순위에 반영되지 않았으면 null입니다.", nullable = true)
+    val rank: Int?,
+    @field:JsonProperty("top_percent")
+    @field:Schema(description = "상위 비율(%, 1~100). 순위와 그 순위 계산의 참가자 수로 냅니다. 순위가 없으면 null입니다.", nullable = true)
+    val topPercent: Int?,
+    @field:JsonProperty("ranking_pending")
+    @field:Schema(description = "최신 결과가 아직 순위에 반영되지 않았으면 true입니다. 이때는 이 API를 다시 불러 순위가 들어올 때까지 기다립니다.")
+    val rankingPending: Boolean,
     @field:ArraySchema(
         arraySchema = Schema(
-            description = "카드 목록(순서 고정): VERDICT, ROAST 세 장, LETTER, STORY(있을 때만), ARCHETYPE, DIMENSIONS. 모두 1080x1920(9:16)입니다.",
+            description = "카드 목록(순서 고정, 5~8장, 모두 1080x1920). 선물 덱: VERDICT, CUTLINE, REASON(최대 3), CUT(최대 2), CONCLUSION. " +
+                "석탄 덱: VERDICT, CUTLINE, CUT(최대 3), KEEP(1), CONCLUSION.",
         ),
         schema = Schema(
             oneOf = [
-                VerdictCardResponse::class, RoastCardResponse::class, LetterCardResponse::class, StoryCardResponse::class,
-                ArchetypeCardResponse::class, DimensionsCardResponse::class,
+                VerdictCardResponse::class, CutlineCardResponse::class, ReasonCardResponse::class, CutCardResponse::class,
+                KeepCardResponse::class, ConclusionCardResponse::class,
             ],
         ),
     )
@@ -45,7 +47,8 @@ data class RecapResponse(
 ) {
     companion object {
         fun from(result: RecapResult): RecapResponse = RecapResponse(
-            result.assessmentId, result.skin, result.score, result.scoreText, result.shareText, result.shareTextMild, RecapCardResponses.from(result),
+            result.assessmentId, result.skin, result.score, result.scoreText, result.shareText, result.top.rank, result.top.topPercent,
+            result.top.rankingPending, RecapCardResponses.from(result),
         )
     }
 }

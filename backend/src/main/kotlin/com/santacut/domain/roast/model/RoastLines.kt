@@ -18,6 +18,12 @@ class RoastLines(private val values: List<RoastLine>) {
     /** 가린 원래 낱말과 이름 줄기 전체(차단 목록). */
     fun blockedWords(): BlockedWords = BlockedWords(values.flatMap { line -> line.masked + line.names })
 
+    /** 말풍선 표시에서 ○○로 가릴 낱말 전체([RoastLine.quoteWords]). */
+    fun quoteWords(): List<String> = values.flatMap(RoastLine::quoteWords)
+
+    /** 이름 패턴 [names]로 가린 줄마다의 말풍선 표시. */
+    fun quotes(names: MaskPattern?): LineQuotes = LineQuotes(values.map { line -> line.quoteBy(names) })
+
     /** 어느 줄 본문에 [text]가 글자 그대로 있는지. */
     fun containsText(text: String): Boolean = values.any { line -> text in line.text }
 

@@ -171,7 +171,7 @@ class ShareApiTest @Autowired constructor(
         val dossier = TestDossiers.draft(TestDossiers.selves(DOSSIER_TEXTS) + PARTNER_MESSAGES)
         transactionTemplate.executeWithoutResult {
             val assessment = assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
-            if (withRoast) roastService.record(assessment, roastService.fallbackDraft(score.hundredths, dossier, 0), now)
+            if (withRoast) roastService.record(assessment, roastService.fallbackDraft(score.hundredths, score.components, dossier, 0), now)
             rankingService.rebuild(now)
         }
         return Cookie(SESSION_COOKIE, participant.sessionToken)

@@ -16,9 +16,9 @@ class TextProblems(private val values: List<String>) {
         private const val PARENTHESES = "()"
 
         /**
-         * [kind] 문장 [text]를 검사한다. 글자 수, 숫자·셈말 표현, 금지 말투(옛말투·유행어·이모지·느낌표·ㅋㅋ, 따옴표 인용 밖만), 금지어,
-         * 가린 낱말(이름 등), 알파벳(허용 유행어 안 제외), 필드마다 하나를 넘은 유행어, 괄호 표기, 이름·사는 곳 의심, 목록 밖 인용, 본인 말풍선을 길게 베낀 말, 판정 방향,
-         * 담백 판결의 석탄·탈락, "근데 "로 열지 않은 뒤집기를 본다.
+         * [kind] 문장 [text]를 검사한다. 글자 수, 숫자·셈말 표현, 금지 말투(옛말투·유행어·이모지·느낌표·ㅋㅋ, 따옴표 인용 밖만), 칭호 금지어,
+         * 필드마다 하나를 넘은 유행어, 판정 방향, 칭찬 뒤집기 말(근데·덕분에·그래도), 상 이름 꼴이 아닌 라벨,
+         * 금지어(영포티 말투 포함), 가린 낱말(이름 등), 알파벳(허용 유행어 안 제외), 괄호 표기, 이름·사는 곳 의심, 목록 밖 인용, 본인 말풍선을 길게 베낀 말을 본다.
          */
         fun of(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): TextProblems =
             TextProblems(wordingProblems(text, kind, brief, rules) + safetyProblems(text, brief, rules) + quoteProblems(text, brief))
@@ -26,12 +26,12 @@ class TextProblems(private val values: List<String>) {
         private fun wordingProblems(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): List<String> = listOfNotNull(
             kind.lengthProblemOf(text),
             rules.numberIn(text)?.let { found -> "숫자 표현($found)" },
-            rules.toneIn(QUOTE.replace(text, ""), kind == RoastTextKind.LETTER)?.let { found -> "금지 말투($found)" },
+            rules.toneIn(QUOTE.replace(text, ""))?.let { found -> "금지 말투($found)" },
             rules.titleBannedIn(text)?.takeIf { kind == RoastTextKind.TITLE }?.let { found -> "칭호 금지어($found)" },
             rules.slangOverflowIn(text)?.let { found -> "유행어는 필드마다 하나까지($found)" },
             rules.wrongDirectionIn(text, brief.verdict.passed)?.let { found -> "판정과 어긋남($found)" },
-            rules.mildWrongIn(text)?.takeIf { kind == RoastTextKind.VERDICT_MILD }?.let { found -> "담백 판결 금지어($found)" },
-            "\"${rules.flipStart}\"로 시작하지 않음".takeIf { kind == RoastTextKind.FLIP && !rules.startsFlipRightly(text) },
+            rules.flipIn(text)?.let { found -> "칭찬 뒤집기 말($found)" },
+            "라벨은 '${rules.labelSuffix}'으로 끝나는 상 이름이어야 한다".takeIf { kind == RoastTextKind.LABEL && !rules.isAwardLabel(text) },
         )
 
         private fun safetyProblems(text: String, brief: RoastBrief, rules: RoastRules): List<String> = listOfNotNull(

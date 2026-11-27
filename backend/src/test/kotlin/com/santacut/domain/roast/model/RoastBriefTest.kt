@@ -87,8 +87,8 @@ class RoastBriefTest {
         val participants = TestRoasts.catalog.rules.participantNames(listOf("평친성필", "평친동준", "윤현식"))
 
         val brief = RoastBrief.compose(
-            messages, TestDossiers.tally(messages, TestRoasts.dossier).stats, GiftVerdict(TestRoasts.GIFT_SCORE), TestRoasts.catalog, TestRoasts.dossier,
-            participants,
+            messages, TestDossiers.tally(messages, TestRoasts.dossier).stats, GiftVerdict(TestRoasts.GIFT_SCORE), TestRoasts.MIXED, TestRoasts.catalog,
+            TestRoasts.dossier, participants,
         )
 
         val input = brief.inputText(TestRoasts.mapper)

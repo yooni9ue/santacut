@@ -1,27 +1,55 @@
 package com.santacut.application.roast.result
 
+import com.santacut.domain.analysis.model.GiftVerdict
+import com.santacut.domain.analysis.model.ScoreComponents
+import com.santacut.domain.analysis.model.ScoreDimension
+import com.santacut.domain.ranking.model.ResultProfile
+import com.santacut.domain.roast.model.EvidenceKind
+import com.santacut.domain.roast.model.RoastContent
+import com.santacut.domain.roast.model.RoastEvidence
 import com.santacut.domain.share.model.RecapDeckCards
+import java.time.Instant
 
 /**
- * 리캡 카드 덱의 순서. 카드 종류 순서를 정하는 유일한 곳이다: 판정, 팩폭 세 장, 쪽지, 줄거리(있을 때만), 유형, 항목 막대.
- * 로그인 사용자 리캡 응답(`RecapCardResponses`)과 공유 링크 카드 스냅숏([toDeckCards])이 모두 이 목록을 따른다.
+ * 리캡 카드 덱의 순서. 카드 종류 순서를 정하는 유일한 곳이다.
+ * 선물 덱은 판정, 컷 표, 선물 받는 이유(최대 셋), 점수 깎인 말(최대 둘), 결론이고, 석탄 덱은 판정, 컷 표, 점수 깎인 말(최대 셋), 살아남은 말 하나, 결론이다.
+ * 덱은 다섯 장에서 여덟 장이다. 근거 카드 수와 최소 장수는 도메인([RoastContent.forDeck])이 맞춰 넘긴다.
+ * 로그인 사용자 리캡 응답과 공유 링크 카드 스냅숏([toDeckCards])이 모두 이 목록을 따른다.
  */
 data class RecapCards(val values: List<RecapCard>) {
-    /** 공유 링크에 저장할 카드 목록. 순서와 index는 그대로다. */
-    fun toDeckCards(result: RecapResult): RecapDeckCards = RecapDeckCards(values.map { card -> card.toDeckCard(result) })
+    /** 공유 링크에 저장할 카드 목록. 순서와 index는 그대로이고 모든 카드에 상단 바 [top]을 싣는다. */
+    fun toDeckCards(top: RecapTopResult, scoreText: String): RecapDeckCards =
+        RecapDeckCards(values.map { card -> card.toDeckCard(top, scoreText) })
 
     companion object {
-        /** index를 매기기 전 자리표시 값. [of]가 순서대로 0부터 다시 매긴다. */
-        private const val UNNUMBERED = -1
+        private const val PLUS = " +"
+        private const val MINUS = " −"
 
-        fun of(result: RecapResult): RecapCards {
-            val unnumbered = listOf(RecapCard(UNNUMBERED, RecapCardKind.VERDICT)) +
-                result.pairs.values.map { pair -> RecapCard(UNNUMBERED, RecapCardKind.ROAST, pair) } +
-                RecapCard(UNNUMBERED, RecapCardKind.LETTER) +
-                listOfNotNull(RecapCard(UNNUMBERED, RecapCardKind.STORY).takeUnless { result.story.isEmpty() }) +
-                RecapCard(UNNUMBERED, RecapCardKind.ARCHETYPE) +
-                RecapCard(UNNUMBERED, RecapCardKind.DIMENSIONS)
-            return RecapCards(unnumbered.mapIndexed { index, card -> card.copy(index = index) })
+        /**
+         * 판정 [gift], 덱에 맞춘 팩폭 내용 [content], 꾸밈 값 [profile], 선물 도착 예정 시각 [eta]로 덱을 만든다.
+         * 근거 카드의 영역 태그는 선물 받는 이유면 높은 항목부터 "+", 점수 깎인 말이면 낮은 항목부터 "−"를 붙인다.
+         */
+        fun of(gift: GiftVerdict, content: RoastContent, profile: ResultProfile, eta: Instant?): RecapCards {
+            val evidence = content.evidence.toList()
+            val cards = listOf(RecapVerdictCard.of(gift, content.verdictLine.text, eta), RecapCutlineCard.of(gift.grade())) +
+                evidence.mapIndexed { position, item -> evidenceCard(item, evidence.take(position), profile.dimensionScores) } +
+                listOfNotNull(content.conclusion?.let { conclusion -> RecapConclusionCard.of(gift, profile, conclusion) })
+            return RecapCards(cards.mapIndexed { index, card -> card.at(index) })
+        }
+
+        private fun evidenceCard(evidence: RoastEvidence, before: List<RoastEvidence>, dimensions: ScoreComponents): RecapEvidenceCard {
+            val ordinal = before.count { previous -> previous.kind == evidence.kind }
+            return RecapEvidenceCard.of(evidence, ordinal + 1, dimTagOf(evidence.kind, ordinal, dimensions))
+        }
+
+        private fun dimTagOf(kind: EvidenceKind, ordinal: Int, dimensions: ScoreComponents): String? {
+            val ranked = dimensions.rankedDimensions()
+            val dimension: ScoreDimension? = when (kind) {
+                EvidenceKind.REASON -> ranked.getOrNull(ordinal)
+                EvidenceKind.CUT -> ranked.reversed().getOrNull(ordinal)
+                EvidenceKind.KEEP -> null
+            }
+            return dimension?.let { found -> found.label + if (kind == EvidenceKind.REASON) PLUS else MINUS }
         }
     }
 }

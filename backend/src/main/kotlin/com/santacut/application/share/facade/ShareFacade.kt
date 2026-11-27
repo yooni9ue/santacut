@@ -92,7 +92,7 @@ class ShareFacade(
     private fun recapDeckOf(assessment: Assessment, snapshot: ResultSnapshot, profile: ResultProfile? = null): RecapDeck? {
         if (!roastService.exists(assessment.id)) return null
         return try {
-            val content = roastService.get(assessment.id)
+            val content = roastService.get(assessment)
             RecapResult.of(assessment, snapshot, profile ?: rankingService.findProfile(assessment, snapshot), content).toDeck()
         } catch (exception: RuntimeException) {
             logger.warn("공유 링크에 실을 리캡 카드를 만들지 못해 카드 없이 둔다: {}", exception.javaClass.simpleName)

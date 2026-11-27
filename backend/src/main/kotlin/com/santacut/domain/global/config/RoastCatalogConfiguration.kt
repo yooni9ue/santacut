@@ -6,6 +6,7 @@ import com.santacut.domain.roast.model.RoastFactSpecs
 import com.santacut.domain.roast.model.RoastFallback
 import com.santacut.domain.roast.model.RoastRules
 import com.santacut.domain.roast.model.RoastSlang
+import com.santacut.domain.roast.model.ThanksFactSpec
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.io.ResourceLoader
@@ -38,6 +39,7 @@ class RoastCatalogConfiguration {
                     .withSlang(objectMapper.treeToValue(node("slang.json"), RoastSlang::class.java)),
                 objectMapper.treeToValue(facts.path("facts"), RoastFactSpecs::class.java),
                 objectMapper.treeToValue(facts.path("phrase"), PhraseFactSpec::class.java),
+                objectMapper.treeToValue(facts.path("thanks"), ThanksFactSpec::class.java),
                 objectMapper.treeToValue(node("fallback.json"), RoastFallback::class.java),
             )
             val violations = catalog.violations()

@@ -328,10 +328,6 @@
  "gift_forbidden": [
   "석탄"
  ],
- "mild_forbidden": [
-  "석탄",
-  "탈락"
- ],
  "tone_patterns": [
   "하거라",
   "보아라",
@@ -356,8 +352,10 @@
   "천사",
   "분위기 메이커"
  ],
- "letter_closing_endings": [
-  "거라"
+ "flip_words": [
+  "근데",
+  "덕분에",
+  "그래도"
  ],
- "flip_start": "근데 "
+ "label_suffix": "상"
 }

@@ -1,6 +1,7 @@
 package com.santacut.application.roast.runner
 
 import com.santacut.domain.analysis.model.AnalysisJob
+import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.dossier.model.DossierDraft
 import com.santacut.domain.dossier.model.DossierTone
 import com.santacut.domain.prompt.service.PromptService
@@ -27,10 +28,10 @@ class RoastRunnerTest {
         given(job.createdAt).willReturn(CREATED_AT)
         given(roastService.seedOf(USER_ID, CREATED_AT)).willReturn(SEED)
         given(roastService.isEnabled()).willReturn(false)
-        given(roastService.fallbackDraft(SCORE, dossier, SEED)).willThrow(IllegalStateException("집계 깨짐"))
-        given(roastService.fallbackDraft(SCORE, null, SEED)).willReturn(PLAIN)
+        given(roastService.fallbackDraft(SCORE, DIMENSIONS, dossier, SEED)).willThrow(IllegalStateException("집계 깨짐"))
+        given(roastService.fallbackDraft(SCORE, DIMENSIONS, null, SEED)).willReturn(PLAIN)
 
-        val draft = runner.write(job, SCORE, dossier) { _, _ -> RoastSheet.EMPTY }
+        val draft = runner.write(job, SCORE, DIMENSIONS, dossier) { _, _ -> RoastSheet.EMPTY }
 
         assertEquals(PLAIN, draft)
     }
@@ -41,6 +42,7 @@ class RoastRunnerTest {
         private val CREATED_AT: Instant = Instant.parse("2026-11-20T00:00:00Z")
         private const val SEED = 7
         private const val SCORE = 7373
+        private val DIMENSIONS = ScoreComponents.fromColumn("[80,70,60,75]")
         private const val STATS_JSON = "{}"
         private val PLAIN = RoastDraft("{}", null, "")
     }

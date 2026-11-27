@@ -305,5 +305,12 @@
    "남들보다 훨씬 많음"
   ],
   "weight": 0.8
+ },
+ "thanks": {
+  "group": "thanks",
+  "meaning": "고맙다는 말(고마워, 고맙다, ㄱㅅ, 감사, 땡큐)을 보낸 말풍선 수",
+  "level": "올해 전혀 없음",
+  "chip_label": "'고마워'",
+  "min_messages": 50
  }
 }

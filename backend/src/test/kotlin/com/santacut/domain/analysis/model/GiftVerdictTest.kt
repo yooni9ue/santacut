@@ -99,10 +99,17 @@ class GiftVerdictTest {
     }
 
     @Test
-    fun `농담을 끈 공유 문구는 점수와 놀림 없이 통과·탈락 문구 하나씩이다`() {
-        assertEquals("산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐.", GiftVerdict(9210).shareTextMild())
-        assertEquals("산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐.", GiftVerdict(6500).shareTextMild())
-        assertEquals("올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.", GiftVerdict(6499).shareTextMild())
-        assertEquals("올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐.", GiftVerdict(4000).shareTextMild())
+    fun `리캡 큰 글자와 친구 소환 고정문은 판정마다 하나씩이다`() {
+        assertEquals("착한 아이", GiftVerdict(6500).childLabel())
+        assertEquals("나쁜 아이", GiftVerdict(6499).childLabel())
+        assertEquals("우리 방에서 나보다 착한 애 나와", GiftVerdict(9210).friendCall())
+        assertEquals("우리 방 석탄 동기 구함", GiftVerdict(4000).friendCall())
+    }
+
+    @Test
+    fun `구간마다 컷 표 구간 표시와 고정 문구, 해시태그 낱말이 있다`() {
+        assertEquals(listOf("90+", "75~89", "65~74", "55~64", "50~54", "≤49"), GiftGrade.entries.map(GiftGrade::range))
+        assertEquals("바지 걸렸는데 통과", GiftGrade.SCRAPED_THROUGH.detail)
+        assertEquals("걸쳐서통과", GiftGrade.SCRAPED_THROUGH.tag)
     }
 }
