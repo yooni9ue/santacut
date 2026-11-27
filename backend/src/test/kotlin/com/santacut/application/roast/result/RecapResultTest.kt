@@ -54,6 +54,9 @@ class RecapResultTest {
         assertNull(statCard.quote)
         assertEquals("공감 점수 90점", statCard.chipText)
         assertEquals("공감 +", statCard.dimTag)
+        val cut = coal.cards.values.filterIsInstance<RecapEvidenceCard>().first()
+        assertTrue(cut.chipText.startsWith(cut.dimTag.orEmpty().removeSuffix(" −")))
+        assertTrue(cut.dimTag.orEmpty().endsWith("−"))
     }
 
     @Test
@@ -75,13 +78,13 @@ class RecapResultTest {
     }
 
     @Test
-    fun `근거 카드는 종류 안 순번과 영역 태그를 갖고 결론은 친구 소환 고정문과 해시태그 낱말을 싣는다`() {
+    fun `근거 카드는 종류 안 순번을 갖고 작가 카드는 영역 태그가 없으며 결론은 친구 소환 고정문과 해시태그 낱말을 싣는다`() {
         val result = resultOf(COAL, "[40,50,60,70]", cards(EvidenceKind.CUT, 2) + cards(EvidenceKind.KEEP, 1))
         val evidence = result.cards.values.filterIsInstance<RecapEvidenceCard>()
         val conclusion = result.cards.values.filterIsInstance<RecapConclusionCard>().single()
 
         assertEquals(listOf(1, 2, 1), evidence.map(RecapEvidenceCard::ordinal))
-        assertEquals(listOf("공감 −", "응원 −", null), evidence.map(RecapEvidenceCard::dimTag))
+        assertEquals(listOf(null, null, null), evidence.map(RecapEvidenceCard::dimTag))
         assertEquals("우리 방 석탄 동기 구함", conclusion.friendCall)
         assertEquals("석탄당첨", conclusion.bandTag)
         assertTrue(result.cards.values.filterIsInstance<RecapCutlineCard>().single().bands.values.single { band -> band.current }.code == "COAL")

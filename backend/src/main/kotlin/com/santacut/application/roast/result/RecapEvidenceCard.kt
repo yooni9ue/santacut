@@ -14,7 +14,7 @@ import com.santacut.domain.share.model.RecapDeckKind
  * @property chipText 서버 칩 글자(예: `'고마워' 0번`)
  * @property label 상 이름 라벨(예: 답장독촉상)
  * @property line 한 줄(숫자 없음)
- * @property dimTag 영역 태그(예: "협력 +", "존중 −"). 살아남은 말은 null이다.
+ * @property dimTag 영역 태그(예: "협력 +", "존중 −"). 항목 점수 통계 카드에만 있고 작가 카드·입버릇 칩 카드·살아남은 말은 null이다.
  */
 data class RecapEvidenceCard(
     override val index: Int,

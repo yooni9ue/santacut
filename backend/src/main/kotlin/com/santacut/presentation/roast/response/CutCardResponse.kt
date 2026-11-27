@@ -35,7 +35,7 @@ data class CutCardResponse(
     @field:Schema(description = "한 줄(20자 이하, 숫자 없음)")
     val line: String,
     @field:JsonProperty("dim_tag")
-    @field:Schema(description = "영역 태그. 낮은 항목부터 '−'를 붙입니다.", nullable = true, example = "존중 −")
+    @field:Schema(description = "영역 태그. 항목 점수 통계 카드에만 그 항목에 '−'를 붙여 싣고, 작가 카드·입버릇·지표 칩 카드는 null입니다.", nullable = true, example = "존중 −")
     val dimTag: String?,
 ) : RecapCardResponse {
     companion object {

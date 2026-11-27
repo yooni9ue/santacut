@@ -384,10 +384,10 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
                {"code": "COAL", "label": "석탄 당첨", "range": "≤49", "current": false}]},
     {"index": 2, "kind": "REASON", "width": 1080, "height": 1920, "score_text": "72.40", "rank": 48213, "top_percent": 38,
      "ordinal": 1, "quote": "○○이는 언제 가능?", "chip_text": "'ㄱ?' 발사 횟수 19번", "label": "약속발사상",
-     "line": "판은 늘 여기서 열렸다.", "dim_tag": "협력 +"},
+     "line": "판은 늘 여기서 열렸다.", "dim_tag": null},
     {"index": 3, "kind": "CUT", "width": 1080, "height": 1920, "score_text": "72.40", "rank": 48213, "top_percent": 38,
      "ordinal": 1, "quote": null, "chip_text": "'고마워' 0번", "label": "감사품절상",
-     "line": "고맙다는 말이 품절됐다.", "dim_tag": "존중 −"},
+     "line": "고맙다는 말이 품절됐다.", "dim_tag": null},
     {"index": 4, "kind": "CONCLUSION", "width": 1080, "height": 1920, "score_text": "72.40", "rank": 48213, "top_percent": 38,
      "verdict": "착한 아이", "passed": true, "grade": "굴뚝에 걸쳐서 통과", "grade_code": "SCRAPED_THROUGH",
      "band_tag": "걸쳐서통과", "band_position": 2, "title": "약속 발사대", "archetype_code": "CAROL_LEADER",
@@ -454,7 +454,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | `chip_text` | string | 서버 칩 글자(예: `'고마워' 0번`, `물음표 살포율 34%`, `공감 점수 82점`) |
 | `label` | string | 상 이름 꼴 라벨(8자 이하, 예: 답장독촉상). 상장 테두리나 양식은 그리지 않고 글자로만 둔다 |
 | `line` | string | 한 줄(20자 이하) |
-| `dim_tag` | string 또는 null | 영역 태그. 선물 받는 이유는 `"협력 +"`처럼 높은 항목, 점수 깎인 말은 `"존중 −"`처럼 낮은 항목이다. 살아남은 말은 `null` |
+| `dim_tag` | string 또는 null | 영역 태그. 항목 점수 통계 카드(칩이 `"공감 점수 82점"` 꼴)에만 있다. 선물 받는 이유는 `"공감 +"`, 점수 깎인 말은 `"존중 −"`처럼 그 칩의 항목이다. 작가 카드, 입버릇·지표 칩 카드, 살아남은 말은 `null`이라 태그 자리를 비운다 |
 
 #### `CONCLUSION` 결론 카드
 
