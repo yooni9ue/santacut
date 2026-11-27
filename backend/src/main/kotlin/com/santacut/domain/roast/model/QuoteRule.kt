@@ -2,13 +2,13 @@ package com.santacut.domain.roast.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.santacut.domain.dossier.model.KindWords
-import com.santacut.domain.dossier.model.StyleCounter
 import java.time.DayOfWeek
 
 /**
  * 지표 칩과 말풍선이 같은 이야기를 하는지 가리는 규칙(roast/facts.json의 quote_rule). 근거 카드는 칩 하나와 말풍선 하나를 나란히 띄우므로,
  * 말풍선은 그 칩이 센 버릇을 직접 보여 줘야 한다. 물음표 칩에 물음표 없는 말풍선, 피크타임 칩에 다른 시각의 말풍선은 떨어진다.
- * 말풍선으로 보여 줄 수 없는 지표(이모지·사진, 양, 길이, 답장 간격 등)는 [NONE]이라 말풍선 없이 칩만 크게 띄운다.
+ * 말풍선으로 보여 줄 수 없는 지표(이모지·사진, 양, 길이, 짧은 말풍선 비율, 답장 간격 등)는 [NONE]이라 말풍선 없이 칩만 크게 띄운다.
+ * 짧은 말풍선 비율은 근거 말풍선이 한글 네 음절 이상이어야 해 다섯 글자 이하 조건과 거의 겹치지 않으므로 [NONE]으로 둔다.
  * 시간대 경계는 조서 집계와 같다(새벽 0~4시, 아침 6~8시, 근무시간 9~17시, 연달아 보내기는 본인 말풍선끼리 3분 안).
  *
  * @property hint 작가 입력의 칩 후보에 싣는 말풍선 조건 설명([PEAK_HOUR]는 [HOUR_SLOT]에 가장 바쁜 시를 넣는다)
@@ -45,9 +45,6 @@ enum class QuoteRule(val hint: String) {
     @JsonProperty("burst")
     BURST("연달아 보낸 묶음 안의 말풍선만(transcript 시각 뒤 '연달아' 표시)"),
 
-    @JsonProperty("short")
-    SHORT("다섯 글자 이하 말풍선만"),
-
     @JsonProperty("kind")
     KIND("고맙다·수고 같은 따뜻한 말이 든 말풍선만"),
 
@@ -81,7 +78,6 @@ enum class QuoteRule(val hint: String) {
             PEAK_HOUR -> time != null && peakHour != null && time.hour == peakHour
             WEEKEND -> time != null && time.dayOfWeek in WEEKEND_DAYS
             BURST -> quote.burst
-            SHORT -> text.codePointCount(0, text.length) <= StyleCounter.SHORT_LENGTH
             KIND -> kinds?.appearIn(text) == true
             NONE -> false
         }

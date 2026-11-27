@@ -38,6 +38,8 @@ class DeckWordingTest {
         listOf("약속은 늘 네 물음표에서 시작한다.", "새벽 라면 호출은 이제 전통이다.", "답장 독촉 현행범이다.", "질문으로 판 깔기, 요이~", "물음표만 던지고 사라지냐?")
             .forEach { line -> assertFalse(TextProblems.isFlatEnding(line, rules), line) }
         assertTrue(TextProblems.isFlatEnding("약속은 늘 'ㄱ?'", rules))
+        assertTrue(TextProblems.isFlatEnding("약속 시작은 늘 '빨리'.", rules), "따옴표 인용으로 끝나면 밋밋하다")
+        assertFalse(TextProblems.isFlatEnding("'빨리' 소리가 또 들린다.", rules))
         assertTrue(TextProblems.isFlatEnding("질문으로 판 깔기.", rules))
     }
 
@@ -51,21 +53,34 @@ class DeckWordingTest {
     @Test
     fun `라벨 첫머리가 앞 라벨과 같거나 판정 한 줄을 옮기면 떨어진다`() {
         assertEquals(
-            listOf("앞 카드 라벨과 첫머리가 같다(답장)"),
-            TextProblems.sharedLabel("답장지연상", listOf("답장독촉상"), "", "상").toList(),
+            listOf("앞 카드 라벨과 첫머리가 같다(답장독)"),
+            TextProblems.sharedLabel("답장독촉왕상", listOf("답장독촉상"), "", "상").toList(),
         )
         assertEquals(
             listOf("판정 한 줄을 그대로 옮긴 라벨(답장독촉)"),
             TextProblems.sharedLabel("답장독촉상", emptyList(), "답장 독촉 혐의로 체포하겠어.", "상").toList(),
         )
         assertEquals(emptyList(), TextProblems.sharedLabel("약속발사상", listOf("감사품절상"), "선물 상자 탑승 완료, 딸깍.", "상").toList())
+        assertEquals(emptyList(), TextProblems.sharedLabel("답장지연상", listOf("답장독촉상"), "", "상").toList(), "두 음절만 같으면 통과한다")
     }
 
     @Test
-    fun `회귀 - 카드마다 버릇·방을 같은 낱말을 되풀이하면 뒤 카드가 떨어진다`() {
+    fun `회귀 - 세 글자 이상 낱말을 두 카드에, 짧은 낱말을 세 카드에 되풀이하면 뒤 카드가 떨어진다`() {
+        val first = "빨리 대답하라며 방을 볶는 버릇."
+        val second = "뭐함 질문으로 단톡을 깨우는 버릇."
+        assertEquals(emptyList(), TextProblems.repeated(second, listOf(first), emptyList()).toList(), "짧은 낱말은 두 카드까지 괜찮다")
         assertEquals(
             listOf("앞 카드와 같은 낱말(버릇)"),
-            TextProblems.repeated("뭐함 질문으로 단톡을 깨우는 버릇.", listOf("빨리 대답하라며 방을 볶는 버릇."), emptyList()).toList(),
+            TextProblems.repeated("새벽마다 알림 켜는 버릇.", listOf(first, second), emptyList()).toList(),
+        )
+        assertEquals(
+            listOf("앞 카드와 같은 낱말(현행범이다)"),
+            TextProblems.repeated("물음표 살포 현행범이다.", listOf("답장 독촉 현행범이다."), emptyList()).toList(),
+        )
+        assertEquals(
+            emptyList(),
+            TextProblems.repeated("진짜 오늘도 수준이다.", listOf("진짜 오늘도 수준이다.", "진짜 오늘도 수준이다."), emptyList()).toList(),
+            "흔한 말은 되풀이로 치지 않는다",
         )
         assertEquals(emptyList(), TextProblems.repeated("'수고' 발사에 귀가 닳았다.", listOf("'수고' 소리가 또 들린다."), emptyList()).toList())
         assertEquals(emptyList(), TextProblems.repeated("발사 횟수로 판을 깔았다.", listOf("발사 횟수가 또 늘었다."), listOf("'빨리' 발사 횟수")).toList())

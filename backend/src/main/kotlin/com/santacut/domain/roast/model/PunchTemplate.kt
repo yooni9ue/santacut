@@ -16,6 +16,9 @@ data class PunchTemplate(val template: String, val marker: String, val fallback:
         "$where: fallback에 펀치 표지 $marker 가 없다".takeUnless { marker in rules.punchMarksIn(fallback) },
     )
 
+    /** 유행어 없는 틀인지. 틀과 대체 문장 모두 허용 유행어를 쓰지 않는다(표지가 프리패스·이야~ 같은 구간 펀치 틀 표지다). */
+    fun isPlain(rules: RoastRules): Boolean = rules.slangCountIn(template) == 0 && rules.slangCountIn(fallback) == 0
+
     /** [text]가 이 틀을 썼는지. 따옴표 인용 밖에 [marker]가 있어야 한다. */
     fun isUsedIn(text: String, rules: RoastRules): Boolean = marker in rules.punchMarksIn(text)
 }

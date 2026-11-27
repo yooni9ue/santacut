@@ -36,10 +36,10 @@ class PunchTemplatesTest {
     @Test
     fun `서로 다른 세 시드는 서로 다른 첫 추천 틀을 받고 같은 시드는 늘 같은 추천을 받는다`() {
         listOf(TestRoasts.GIFT_SCORE, TestRoasts.COAL_SCORE).forEach { hundredths ->
-            val firsts = SEEDS.map { seed -> punch.candidatesFor(GiftVerdict(hundredths), seed).take(1).hints().single() }
+            val firsts = SEEDS.map { seed -> punch.candidatesFor(GiftVerdict(hundredths), seed, rules).take(1).hints().single() }
             assertEquals(SEEDS.size, firsts.toSet().size, firsts.toString())
             SEEDS.forEach { seed ->
-                assertEquals(punch.candidatesFor(GiftVerdict(hundredths), seed).hints(), punch.candidatesFor(GiftVerdict(hundredths), seed).hints())
+                assertEquals(punch.candidatesFor(GiftVerdict(hundredths), seed, rules).hints(), punch.candidatesFor(GiftVerdict(hundredths), seed, rules).hints())
             }
         }
     }
@@ -82,7 +82,7 @@ class PunchTemplatesTest {
         val brief = TestRoasts.brief(habitMessages(), TestRoasts.COAL_SCORE)
 
         assertTrue(rules.punchClashIn("답장 독촉 혐의로 체포하겠어.", "독촉 상습 혐의로 체포하겠어.") != null)
-        assertTrue(rules.punchClashIn("굴뚝 앞 유턴. 아 줴줴이야~", "올해 너는 '유턴'이야~") != null)
+        assertTrue(rules.punchClashIn("올해 너는 '독촉'이야~", "올해 너는 '빨리'야~") != null)
         assertEquals(null, rules.punchClashIn("선물 상자 탑승 완료, 딸깍.", "착한 아이 확정이다. 넌 남아라."))
 
         val verdict = "독촉 상습 혐의로 체포하겠어."
@@ -147,6 +147,33 @@ class PunchTemplatesTest {
     }
 
     @Test
+    fun `추천 틀 세 개 안에는 늘 유행어 없는 틀이 하나 이상 든다`() {
+        HUNDREDTHS.values.forEach { hundredths ->
+            (0 until SEED_SWEEP).forEach { seed ->
+                val suggested = punch.candidatesFor(GiftVerdict(hundredths), seed, rules).take(punch.suggestions)
+                assertTrue(suggested.toList().any { template -> template.isPlain(rules) }, "$hundredths $seed ${suggested.hints()}")
+            }
+        }
+    }
+
+    @Test
+    fun `이야~ 표지는 문장 끝에서만, 줴줴이야~ 안에서는 세지 않는다`() {
+        assertEquals(setOf("줴줴이야"), rules.punchMarksIn("굴뚝 앞 유턴. 아 줴줴이야~"))
+        assertEquals(setOf("야~"), rules.punchMarksIn("올해 너는 '유턴'이야~"))
+        assertEquals(emptySet(), rules.punchMarksIn("너야~ 하고 넘긴 약속이다."))
+        assertEquals(null, rules.punchClashIn("굴뚝 앞 유턴. 아 줴줴이야~", "올해 너는 '유턴'이야~"))
+    }
+
+    @Test
+    fun `마침표 셋 말줄임과 물결표 없는 티원 같은 표기 흔들림도 같은 유행어로 센다`() {
+        assertEquals(setOf("엄…"), rules.punchMarksIn("엄... 이걸로 통과다."))
+        assertEquals(setOf("티~원"), rules.punchMarksIn("약속 잡자마자 티원."))
+        assertEquals(setOf("티~원"), rules.punchMarksIn("약속 잡자마자 티～원."))
+        assertEquals(1, rules.slangCountIn("엄... 또 물음표다."))
+        assertEquals("엄…", rules.punchClashIn("엄… 판정이다.", "엄... 마지막이다."))
+    }
+
+    @Test
     fun `isPunch는 따옴표로 든 본인 말 안의 유행어를 펀치로 세지 않는다`() {
         assertFalse(rules.isPunch("올해 장부에는 '딸깍'뿐."))
         assertFalse(rules.isPunch("올해 장부에는 '요이~'뿐."))
@@ -169,6 +196,9 @@ class PunchTemplatesTest {
     companion object {
         /** 서로 다른 첫 추천 틀을 받는 참가자·해 시드 셋. */
         private val SEEDS = listOf(1, 2, 3)
+
+        /** 추천 안의 유행어 없는 틀을 확인할 시드 수. */
+        private const val SEED_SWEEP = 50
         private const val PLAIN_VERDICT = "장부 결산이 끝났다."
 
         /** 등급마다 그 구간에 드는 총점(100분의 1점). */

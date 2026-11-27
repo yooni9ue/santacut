@@ -132,7 +132,7 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "short"
+   "quote_rule": "none"
   },
   {
    "key": "longest_message_length",

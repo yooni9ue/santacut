@@ -66,8 +66,14 @@ class RoastBrief(
         return entry.countIn(quote) > 0
     }
 
-    /** [key] 칩 후보의 말풍선 조건. 칩 후보가 아니면 말풍선 없이 쓰는 [QuoteRule.NONE]이다. */
-    fun quoteRuleOf(key: String): QuoteRule = facts.find(key)?.quoteRule ?: QuoteRule.NONE
+    /**
+     * [key] 칩 후보의 말풍선 조건. 칩 후보가 아니면 말풍선 없이 쓰는 [QuoteRule.NONE]이다.
+     * 피크타임 조건인데 가장 바쁜 시를 모르면(조서 집계 없음) 맞는 말풍선을 가릴 수 없어 [QuoteRule.NONE]으로 본다.
+     */
+    fun quoteRuleOf(key: String): QuoteRule {
+        val rule = facts.find(key)?.quoteRule ?: return QuoteRule.NONE
+        return if (rule == QuoteRule.PEAK_HOUR && peakHour == null) QuoteRule.NONE else rule
+    }
 
     /**
      * [lineId]번 말풍선이 [key] 칩의 말풍선 조건([QuoteRule])에 맞는지. 입버릇 칩은 [quoteHasPhrase]로 본다.
@@ -145,7 +151,7 @@ class RoastBrief(
             val refreshed = stats?.refreshedBy(dossier.phrases)
             val facts = refreshed?.let { counted -> RoastFacts.of(counted, dossier, catalog, seed) } ?: RoastFacts.EMPTY
             val slots = RoastSlots.of(verdict, dimensions)
-            val punches = catalog.punch.candidatesFor(verdict, seed)
+            val punches = catalog.punch.candidatesFor(verdict, seed, catalog.rules)
             return RoastBrief(
                 verdict,
                 facts,

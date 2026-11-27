@@ -3,11 +3,14 @@ package com.santacut.domain.roast.model
 import com.santacut.TestDossiers
 import com.santacut.TestRoasts
 import com.santacut.domain.analysis.model.GiftVerdict
+import com.santacut.domain.dossier.model.DossierMetric
+import com.santacut.domain.dossier.model.MetricReading
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.JsonNode
 import java.time.LocalDateTime
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** 지표 칩과 말풍선이 같은 버릇을 가리키는지 보는 말풍선 조건. 말풍선으로 못 보여 주는 칩은 말풍선 없이 통계 카드로 쓴다. */
@@ -23,8 +26,6 @@ class QuoteRuleTest {
         assertFalse(QuoteRule.EXCLAIM.accepts(quote("드디어 끝났다"), null, kinds))
         assertTrue(QuoteRule.LAUGH.accepts(quote("ㅋㅋㅋ 이거 뭐야"), null, kinds))
         assertFalse(QuoteRule.LAUGH.accepts(quote("이거 뭐야 진짜"), null, kinds))
-        assertTrue(QuoteRule.SHORT.accepts(quote("오늘가능"), null, kinds))
-        assertFalse(QuoteRule.SHORT.accepts(quote("미안 늦게 봤어"), null, kinds))
         assertTrue(QuoteRule.KIND.accepts(quote("오늘 얘기 들어줘서 고마워"), null, kinds))
         assertFalse(QuoteRule.KIND.accepts(quote("카페 여기 어때"), null, kinds))
     }
@@ -64,7 +65,7 @@ class QuoteRuleTest {
     }
 
     @Test
-    fun `회귀 - 언제 가능에 피크타임 칩, 미안 늦게 봤어에 짧은 말풍선 칩, 카페 여기 어때에 따뜻한 말 칩은 떨어진다`() {
+    fun `회귀 - 언제 가능에 피크타임 칩, 카페 여기 어때에 따뜻한 말 칩은 맞지 않아 떨어지고 미안 늦게 봤어에 짧은 말풍선 칩은 말풍선 없이 쓰라고 떨어진다`() {
         val brief = briefOf(
             LineQuote(WHEN, "○○는 언제 가능?", at(14)),
             LineQuote(SORRY, "미안 늦게 봤어", at(21)),
@@ -73,11 +74,13 @@ class QuoteRuleTest {
 
         listOf(
             EvidenceDraft("cut", WHEN, PEAK_SHARE, "시간독촉상", "피크타임마다 같은 질문이 온다."),
-            EvidenceDraft("cut", SORRY, SHORT_RATIO, "답장지연상", "짧은 답 대신 사과가 먼저 온다."),
             EvidenceDraft("reason", CAFE, KIND_WORDS, "카페추천상", "따뜻한 말로 카페 지도를 폈다."),
         ).forEach { draft ->
             assertTrue(draft.problems(brief, rules).any { reason -> reason.startsWith("말풍선이 칩과 맞지 않는다") }, draft.toString())
         }
+        val shortChip = EvidenceDraft("cut", SORRY, SHORT_RATIO, "답장지연상", "짧은 답 대신 사과가 먼저 온다.")
+        assertTrue(shortChip.problems(brief, rules).contains("이 칩($SHORT_RATIO)은 말풍선 없이 쓴다(line_id를 null로)"))
+        assertEquals(QuoteRule.NONE, TestRoasts.catalog.facts.find(SHORT_RATIO)?.quoteRule)
         val fitting = EvidenceDraft("cut", WHEN, QUESTION, "질문살포상", "물음표 살포로 약속을 굴린다.")
         assertFalse(fitting.problems(brief, rules).any { reason -> reason.contains("말풍선이 칩과") }, fitting.problems(brief, rules).toString())
     }
@@ -119,9 +122,32 @@ class QuoteRuleTest {
         assertTrue(input.contains("3|03-02 월 10시|"), input)
     }
 
-    private fun briefOf(vararg quotes: LineQuote): RoastBrief = RoastBrief(
+    @Test
+    fun `낮음 수준 지표 칩은 버릇이 드물다는 칩이라 말풍선 없이 쓴다`() {
+        val spec = assertNotNull(TestRoasts.catalog.facts.find("night_ratio"))
+        val metric = TestRoasts.dossier.metrics.toList().first { candidate -> candidate.key == "night_ratio" }
+
+        val rare = spec.factOf(MetricReading(DossierMetric.NIGHT_RATIO, metric, RARE_VALUE, VERY_LOW_PERCENTILE))
+        val low = spec.factOf(MetricReading(DossierMetric.NIGHT_RATIO, metric, RARE_VALUE, LOW_PERCENTILE))
+        val frequent = spec.factOf(MetricReading(DossierMetric.NIGHT_RATIO, metric, FREQUENT_VALUE, HIGH_PERCENTILE))
+
+        assertEquals(QuoteRule.NONE, rare?.quoteRule)
+        assertEquals(QuoteRule.NONE, low?.quoteRule)
+        assertEquals(QuoteRule.NIGHT, frequent?.quoteRule)
+    }
+
+    @Test
+    fun `가장 바쁜 시를 모르면 피크타임 칩은 말풍선 없이 쓴다`() {
+        val unknownPeak = briefOf(LineQuote(WHEN, "○○는 언제 가능?", at(14)), peakHour = null)
+
+        assertEquals(QuoteRule.NONE, unknownPeak.quoteRuleOf(PEAK_SHARE))
+        assertEquals(QuoteRule.PEAK_HOUR, briefOf().quoteRuleOf(PEAK_SHARE))
+        assertEquals(emptyList(), EvidenceDraft("cut", null, PEAK_SHARE, "몰빵출몰상", "피크타임에만 몰빵한다.").problems(unknownPeak, rules))
+    }
+
+    private fun briefOf(vararg quotes: LineQuote, peakHour: Int? = PEAK_HOUR): RoastBrief = RoastBrief(
         GiftVerdict(TestRoasts.GIFT_SCORE), FACTS, RoastQuotes.EMPTY, RoastTopics.EMPTY, RoastLines.EMPTY, BlockedWords.EMPTY,
-        lineQuotes = LineQuotes(quotes.toList()), kinds = kinds, peakHour = PEAK_HOUR,
+        lineQuotes = LineQuotes(quotes.toList()), kinds = kinds, peakHour = peakHour,
     )
 
     private fun quote(text: String, time: LocalDateTime = MONDAY): LineQuote = LineQuote(1, text, time)
@@ -133,6 +159,11 @@ class QuoteRuleTest {
         private const val SORRY = 2
         private const val CAFE = 3
         private const val PEAK_HOUR = 21
+        private const val RARE_VALUE = 0.01
+        private const val FREQUENT_VALUE = 0.3
+        private const val VERY_LOW_PERCENTILE = 5.0
+        private const val LOW_PERCENTILE = 20.0
+        private const val HIGH_PERCENTILE = 95.0
         private const val PEAK_SHARE = "peak_hour_share"
         private const val SHORT_RATIO = "short_ratio"
         private const val KIND_WORDS = "kind_words_density"
@@ -146,7 +177,7 @@ class QuoteRuleTest {
         private val FACTS = RoastFacts(
             listOf(
                 fact(PEAK_SHARE, "피크타임 몰빵률", "15%", QuoteRule.PEAK_HOUR),
-                fact(SHORT_RATIO, "짧은 말풍선", "16%", QuoteRule.SHORT),
+                fact(SHORT_RATIO, "짧은 말풍선", "16%", QuoteRule.NONE),
                 fact(KIND_WORDS, "따뜻한 말", "100개당 26.6개", QuoteRule.KIND),
                 fact(QUESTION, "물음표 살포율", "34%", QuoteRule.QUESTION),
                 fact(EMOJI, "이모지 밀도", "100개당 3.2개", QuoteRule.NONE),

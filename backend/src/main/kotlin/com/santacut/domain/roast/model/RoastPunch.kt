@@ -31,8 +31,10 @@ data class RoastPunch(
     /**
      * 판정 [verdict] 구간의 후보를 시드 [seed]로 섞은 순서. 사실 고르기처럼 같은 참가자·같은 해면 같은 순서이고 다른 사람은 다르다.
      * 앞 [suggestions]개가 작가 추천이고, 나머지는 대체 문장이 판정 한 줄과 겹칠 때 넘겨 볼 예비다.
+     * 추천 안에는 유행어 없는 틀([PunchTemplate.isPlain])이 늘 하나 이상 든다([PunchTemplates.withPlainWithin]).
      */
-    fun candidatesFor(verdict: GiftVerdict, seed: Int): PunchTemplates = poolOf(verdict).shuffledBy(Random(Objects.hash(seed, SEED_PURPOSE)))
+    fun candidatesFor(verdict: GiftVerdict, seed: Int, rules: RoastRules): PunchTemplates =
+        poolOf(verdict).shuffledBy(Random(Objects.hash(seed, SEED_PURPOSE))).withPlainWithin(suggestions, rules)
 
     companion object {
         /** 풀 하나에 있어야 하는 서로 다른 펀치 구조(표지) 수. */

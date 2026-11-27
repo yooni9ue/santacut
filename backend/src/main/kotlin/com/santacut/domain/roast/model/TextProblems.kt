@@ -29,13 +29,25 @@ class TextProblems(private val values: List<String>) {
         const val COPIED_LABEL_LENGTH = 3
 
         /** 앞 카드 문장과 이만큼 이상 같은 한글 낱말이 겹치면 되풀이로 본다. */
-        private const val REPEATED_WORD_LENGTH = 2
+        private const val REPEATED_WORD_LENGTH = 3
+
+        /** 이만큼의 카드(이 카드 포함)에 나오면 짧은 낱말도 되풀이로 본다. */
+        private const val REPEATED_CARD_COUNT = 3
+
+        /** 되풀이로 치지 않는 흔한 부사·대명사·서술어. 카드마다 나와도 틀에 찍은 문장으로 읽히지 않는다. */
+        private val REPEAT_STOPWORDS = setOf(
+            "진짜", "그냥", "매번", "항상", "이미", "아직", "벌써", "결국", "역시", "완전", "너는", "네가",
+            "있다", "없다", "했다", "한다", "이다", "거다", "거야", "오늘도", "수준이다",
+        )
 
         /** 라벨끼리 이만큼의 첫머리 음절이 같으면 겹친 라벨로 본다. */
-        private const val LABEL_HEAD_LENGTH = 2
+        private const val LABEL_HEAD_LENGTH = 3
 
         /** 끝 표시(마침표, 물결표, 말줄임표, 따옴표, 공백)를 뗀 문장 끝. */
         private val TRAILING_MARKS = Regex("[\\s.,~…?!'\"‘’“”]+$")
+
+        /** 따옴표 인용으로 끝나는 문장(끝의 마침표·공백만 뗀다). "약속은 늘 '빨리'."처럼 인용으로 맺으면 명사 끝처럼 밋밋하다. */
+        private val QUOTE_ENDING = Regex("['\"’”」』][\\s.]*$")
         private const val HANGUL_FIRST = 0xAC00
         private const val HANGUL_LAST = 0xD7A3
         private const val JONGSEONG_COUNT = 28
@@ -83,13 +95,15 @@ class TextProblems(private val values: List<String>) {
 
         /**
          * 근거 카드 [text]가 앞 카드 문장 [earlier]의 내용 낱말을 되풀이했는지. 따옴표로 든 입버릇과 이 카드 칩 글([chipTexts])에 있는 낱말은 빼고 본다.
-         * 덱을 넘겨 볼 때 '버릇'·'방을'처럼 같은 말이 카드마다 되풀이되면 틀에 찍은 문장으로 읽힌다.
+         * 덱을 넘겨 볼 때 같은 말이 카드마다 되풀이되면 틀에 찍은 문장으로 읽힌다. 다만 흔한 말([REPEAT_STOPWORDS])은 보지 않고,
+         * [REPEATED_WORD_LENGTH]음절 이상 낱말은 두 카드부터, 짧은 낱말('버릇'·'방을')은 [REPEATED_CARD_COUNT]카드에 나올 때만 되풀이로 본다.
          */
         fun repeated(text: String, earlier: List<String>, chipTexts: List<String>): TextProblems {
-            val own = chipTexts.flatMap(::contentWordsOf).toSet()
-            val previous = earlier.flatMap { other -> contentWordsOf(QUOTE.replace(other, "")) }.toSet()
+            val own = chipTexts.flatMap(::contentWordsOf).toSet() + REPEAT_STOPWORDS
+            val previous = earlier.flatMap { other -> contentWordsOf(QUOTE.replace(other, "")).toSet() }.groupingBy { word -> word }.eachCount()
             val word = contentWordsOf(QUOTE.replace(text, "")).firstOrNull { candidate ->
-                candidate.length >= REPEATED_WORD_LENGTH && candidate in previous && candidate !in own
+                val seen = previous[candidate] ?: 0
+                candidate !in own && seen > 0 && (candidate.length >= REPEATED_WORD_LENGTH || seen + 1 >= REPEATED_CARD_COUNT)
             }
             return TextProblems(listOfNotNull(word?.let { found -> "앞 카드와 같은 낱말($found)" }))
         }
@@ -114,12 +128,13 @@ class TextProblems(private val values: List<String>) {
         private fun labelStemOf(label: String, suffix: String): String = label.trim().removeSuffix(suffix).replace(SPACE, "")
 
         /**
-         * 근거 한 줄 [text]의 끝이 완결된 찌르기 문장인지. 끝 표시를 뗀 마지막 글자가 한글 음절이 아니거나(따옴표 입버릇으로 끝남),
+         * 근거 한 줄 [text]의 끝이 완결된 찌르기 문장인지. 따옴표 인용으로 끝나거나, 끝 표시를 뗀 마지막 글자가 한글 음절이 아니거나,
          * 받침 ㅁ(~함·~음·~봄·~챙김 같은 요약)이나 문장 끝이 될 수 없는 받침(명사 끝: 타입, 버릇, 폭격), 명사형 끝(~하기)이면 밋밋하다.
          * 허용 유행어가 들어 있으면('질문으로 판 깔기, 요이~') 유행어가 펀치를 맡으므로 보지 않는다.
          */
         fun isFlatEnding(text: String, rules: RoastRules): Boolean {
             if (rules.slangCountIn(text) > 0) return false
+            if (QUOTE_ENDING.containsMatchIn(text)) return true
             val last = TRAILING_MARKS.replace(text, "").lastOrNull() ?: return true
             if (last.code !in HANGUL_FIRST..HANGUL_LAST) return true
             val jongseong = (last.code - HANGUL_FIRST) % JONGSEONG_COUNT

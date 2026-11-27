@@ -20,7 +20,7 @@ class PunchTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     fun markerCount(): Int = values.map(PunchTemplate::marker).distinct().size
 
     /** 대체 문장에 허용 유행어가 없는 틀이 있는지. 덱 전체 유행어 상한을 넘을 때 쓸 펀치가 있어야 한다. */
-    fun hasPlain(rules: RoastRules): Boolean = values.any { punch -> rules.slangCountIn(punch.fallback) == 0 }
+    fun hasPlain(rules: RoastRules): Boolean = values.any { punch -> punch.isPlain(rules) }
 
     /** 틀마다의 위반. [where]는 풀 이름이다. */
     fun violations(where: String, rules: RoastRules): List<String> =
@@ -33,6 +33,18 @@ class PunchTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     /** [random]으로 섞고 표지가 겹치는 틀을 뺀 후보 순서. 같은 시드면 늘 같은 순서다. */
     fun shuffledBy(random: Random): PunchTemplates = PunchTemplates(values.shuffled(random).distinctBy(PunchTemplate::marker))
+
+    /**
+     * 앞 [count]개 안에 유행어 없는 틀이 하나는 들도록 고친 순서. 이미 있으면 그대로이고, 없으면 첫 유행어 없는 틀을 [count]번째 자리로 당긴다.
+     * 덱 전체 유행어 상한을 다른 필드가 다 쓴 작가도 추천 틀 하나는 쓸 수 있게 한다.
+     */
+    fun withPlainWithin(count: Int, rules: RoastRules): PunchTemplates {
+        val head = values.take(count)
+        if (count <= 0 || head.any { punch -> punch.isPlain(rules) }) return this
+        val plain = values.drop(count).firstOrNull { punch -> punch.isPlain(rules) } ?: return this
+        val rest = values - plain
+        return PunchTemplates(rest.take(count - 1) + plain + rest.drop(count - 1))
+    }
 
     /** 앞 [count]개(작가에게 보내는 추천 틀). */
     fun take(count: Int): PunchTemplates = PunchTemplates(values.take(count))
@@ -51,7 +63,7 @@ class PunchTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
      * [plain]이면 허용 유행어가 없는 대체 문장만 고른다. 맞는 틀이 없으면 null이다.
      */
     fun fallbackFor(verdictLine: String, plain: Boolean, rules: RoastRules): String? = values.firstOrNull { punch ->
-        rules.punchClashIn(verdictLine, punch.fallback) == null && (!plain || rules.slangCountIn(punch.fallback) == 0)
+        rules.punchClashIn(verdictLine, punch.fallback) == null && (!plain || punch.isPlain(rules))
     }?.fallback
 
     companion object {
