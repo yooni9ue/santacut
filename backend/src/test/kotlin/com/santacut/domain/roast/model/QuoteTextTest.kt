@@ -18,6 +18,12 @@ class QuoteTextTest {
     }
 
     @Test
+    fun `한글 네 음절 이상인 말풍선만 근거로 쓸 만하고 자모 반응과 단답은 아니다`() {
+        listOf("빨리 대답좀", "펜타 숙소 ㄱ?", "푹 자 내일 보자", "○○이는 언제가능?").forEach { text -> assertTrue(QuoteText.isSubstantial(text), text) }
+        listOf("ㅇㅇ", "ㅋㅋㅋㅋ", "ㄴㄴ", "넹", "내일 ㄱ?", "ㅇㅋ 알겠어", "").forEach { text -> assertFalse(QuoteText.isSubstantial(text), text) }
+    }
+
+    @Test
     fun `20자를 넘으면 19자에서 자르고 말줄임표를 붙인다`() {
         val quote = QuoteText.render("가나다라마바사아자차카타파하 가나다라마바사", null)
 

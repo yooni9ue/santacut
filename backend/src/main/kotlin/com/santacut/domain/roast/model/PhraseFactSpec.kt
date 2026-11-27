@@ -44,7 +44,8 @@ data class PhraseFactSpec(
 
     companion object {
         const val QUOTE = "{quote}"
-        private const val KEY_PREFIX = "phrase_"
+        /** 입버릇 사실 key 머리말. 뒤에 입버릇 key가 붙는다. */
+        const val KEY_PREFIX = "phrase_"
         private const val LEVEL_COUNT = 2
         private const val MORE_INDEX = 0
         private const val MUCH_MORE_INDEX = 1
