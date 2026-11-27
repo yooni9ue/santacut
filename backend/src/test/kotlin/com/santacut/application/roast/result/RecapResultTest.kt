@@ -48,7 +48,7 @@ class RecapResultTest {
         val gift = resultOf(GIFT, "[90,80,70,50]", emptyList())
         val coal = resultOf(COAL, "[40,40,40,70]", emptyList())
 
-        assertEquals(listOf("VERDICT", "CUTLINE", "REASON", "REASON", "CONCLUSION"), gift.cards.values.map { card -> card.kind.name })
+        assertEquals(listOf("VERDICT", "CUTLINE", "REASON", "CUT", "CONCLUSION"), gift.cards.values.map { card -> card.kind.name })
         assertEquals(listOf("VERDICT", "CUTLINE", "CUT", "KEEP", "CONCLUSION"), coal.cards.values.map { card -> card.kind.name })
         val statCard = gift.cards.values.filterIsInstance<RecapEvidenceCard>().first()
         assertNull(statCard.quote)

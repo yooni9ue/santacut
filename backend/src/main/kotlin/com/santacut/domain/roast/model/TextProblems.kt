@@ -11,8 +11,8 @@ class TextProblems(private val values: List<String>) {
     fun labeled(label: String): List<String> = values.map { reason -> "$label: $reason" }
 
     companion object {
-        /** 따옴표·낫표 인용. 곧은·둥근 작은따옴표와 큰따옴표, 홑·겹낫표를 본다. */
-        private val QUOTE = Regex("'([^'\\n]*)'|‘([^’\\n]*)’|\"([^\"\\n]*)\"|“([^”\\n]*)”|「([^」\\n]*)」|『([^』\\n]*)』")
+        /** 따옴표·낫표 인용. 곧은·둥근 작은따옴표와 큰따옴표, 홑·겹낫표를 본다. 유행어 세기도 이 인용 밖만 본다([RoastRules.slangCountIn]). */
+        val QUOTE = Regex("'([^'\\n]*)'|‘([^’\\n]*)’|\"([^\"\\n]*)\"|“([^”\\n]*)”|「([^」\\n]*)」|『([^』\\n]*)』")
         private const val PARENTHESES = "()"
         private val HANGUL_RUN = Regex("[가-힣]{2,}")
 
@@ -20,6 +20,7 @@ class TextProblems(private val values: List<String>) {
         private val GENERIC_STEMS = setOf("산타", "올해", "이건", "그건", "이거", "그거", "인정", "장부", "말풍", "보낸", "보냈")
         private const val GENERIC_STEM_LENGTH = 2
         private const val GENERIC = "일반론(말풍선·칩과 겹치는 낱말이 없다)"
+        private const val NOT_PUNCH = "밈 펀치가 아니다(slang 표기나 펀치 틀 표지가 없다)"
 
         /**
          * 일반론 검사. 문장 [text]가 고른 말풍선 표시 [quote]나 칩 글([chipTexts]: 칩 이름, 칩 뜻 풀이)과 내용 낱말을 하나 이상 나눠야 한다.
@@ -46,7 +47,7 @@ class TextProblems(private val values: List<String>) {
 
         /**
          * [kind] 문장 [text]를 검사한다. 글자 수, 숫자·셈말 표현, 금지 말투(옛말투·유행어·이모지·느낌표·ㅋㅋ, 따옴표 인용 밖만), 칭호 금지어,
-         * 필드마다 하나를 넘은 유행어, 판정 방향, 칭찬 뒤집기 말(근데·덕분에·그래도), 상 이름 꼴이 아닌 라벨,
+         * 필드마다 하나를 넘은 유행어, 판정 방향, 칭찬 뒤집기 말(근데·덕분에·그래도, 따옴표로 든 본인 입버릇 '근데'는 제외), 상 이름 꼴이 아닌 라벨, 밈 펀치가 아닌 결론 한 줄([RoastRules.isPunch]),
          * 금지어(영포티 말투 포함), 가린 낱말(이름 등), 알파벳(허용 유행어 안 제외), 괄호 표기, 이름·사는 곳 의심, 목록 밖 인용, 본인 말풍선을 길게 베낀 말을 본다.
          */
         fun of(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): TextProblems =
@@ -59,8 +60,9 @@ class TextProblems(private val values: List<String>) {
             rules.titleBannedIn(text)?.takeIf { kind == RoastTextKind.TITLE }?.let { found -> "칭호 금지어($found)" },
             rules.slangOverflowIn(text)?.let { found -> "유행어는 필드마다 하나까지($found)" },
             rules.wrongDirectionIn(text, brief.verdict.passed)?.let { found -> "판정과 어긋남($found)" },
-            rules.flipIn(text)?.let { found -> "칭찬 뒤집기 말($found)" },
+            rules.flipIn(QUOTE.replace(text, ""))?.let { found -> "칭찬 뒤집기 말($found)" },
             "라벨은 '${rules.labelSuffix}'으로 끝나는 상 이름이어야 한다".takeIf { kind == RoastTextKind.LABEL && !rules.isAwardLabel(text) },
+            NOT_PUNCH.takeIf { kind == RoastTextKind.FINAL_LINE && !rules.isPunch(text) },
         )
 
         private fun safetyProblems(text: String, brief: RoastBrief, rules: RoastRules): List<String> = listOfNotNull(

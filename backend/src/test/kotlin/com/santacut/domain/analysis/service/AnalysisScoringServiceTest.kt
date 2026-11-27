@@ -40,7 +40,8 @@ class AnalysisScoringServiceTest @Autowired constructor(
         val recorded = mutableListOf<ModelUsage>()
         val answers = analysisScoringService.ask(digest, SYSTEM_PROMPT) { usage -> recorded += usage }
 
-        val texts = recordingChatModel.prompts.map { it.userMessage.text.orEmpty() }
+        // 이 컨텍스트의 분석 작업자가 뜨자마자 앞 테스트가 남긴 작업을 같은 모델로 채점·팩폭할 수 있어, 이 테스트 프롬프트로 보낸 호출만 센다.
+        val texts = recordingChatModel.prompts.filter { prompt -> prompt.systemMessage.text == SYSTEM_PROMPT }.map { it.userMessage.text.orEmpty() }
         val lines = texts.flatMap { text -> text.substringAfter(TRANSCRIPT_HEADER).lines().filterNot { it.startsWith(GAP_LINE_PREFIX) } }
         assertEquals(EXPECTED_HUNDREDTHS, analysisScoringService.score(answers).hundredths)
         assertTrue(texts.size in 2..ScoringChunks.MAX_CHUNKS, "chunks=${texts.size}")

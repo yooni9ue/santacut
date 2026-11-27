@@ -17,6 +17,13 @@ object QuoteText {
     private val PHONE = Regex("\\d{2,4}[-. ]?\\d{3,4}[-. ]?\\d{4}")
     private val ACCOUNT = Regex("\\d[\\d-]{8,}\\d")
     private val SPACES = Regex("\\s+")
+    private val NON_SYLLABLE = Regex("[^가-힣]")
+
+    /** 근거 말풍선으로 쓰려면 필요한 한글 음절 수. ㅇㅇ·ㅋㅋ·ㄴㄴ 같은 자모 반응이나 넹·응 같은 단답은 버릇을 보여 주지 못한다. */
+    const val MIN_SYLLABLES = 4
+
+    /** 말풍선 표시 [text]가 근거로 쓸 만한지. 가린 이름(○○)과 자모·기호를 빼고 한글 음절이 [MIN_SYLLABLES]개 이상이어야 한다. */
+    fun isSubstantial(text: String): Boolean = NON_SYLLABLE.replace(text, "").length >= MIN_SYLLABLES
 
     /** 원문 [original]을 말풍선 표시로 바꾼다. [names]는 ○○로 가릴 이름 패턴이고 없으면 null이다. 지우고 나서 비면 빈 문자열이다. */
     fun render(original: String, names: MaskPattern?): String {

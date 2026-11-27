@@ -5,6 +5,7 @@ import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoringMessage
 import com.santacut.domain.dossier.model.DossierCatalog
 import com.santacut.domain.dossier.model.DossierStats
+import com.santacut.domain.dossier.model.PhraseEntries
 import tools.jackson.databind.ObjectMapper
 
 /**
@@ -13,6 +14,7 @@ import tools.jackson.databind.ObjectMapper
  *
  * @property slots 서버가 정한 근거 카드 수(항목 점수로 정하고 재료로 줄인 것)
  * @property statSlots 칩 통계 카드로 채울 때의 근거 카드 수. 말풍선이 필요 없어 칩 후보 수로만 줄인다.
+ * @property phrases 입버릇 사전. 입버릇 칩을 고른 말풍선에 그 입버릇이 있는지 셀 때 쓴다(집계와 같은 표면형으로 센다).
  */
 class RoastBrief(
     val verdict: GiftVerdict,
@@ -25,6 +27,7 @@ class RoastBrief(
     val slots: RoastSlots = RoastSlots.NONE,
     private val lineQuotes: LineQuotes = LineQuotes.EMPTY,
     private val statSlots: RoastSlots = slots,
+    private val phrases: PhraseEntries = PhraseEntries.EMPTY,
 ) {
     /** 작가 입력. 다시 쓰기면 [rewrite]를 싣는다. */
     fun input(rewrite: RoastRewrite? = null): RoastInput =
@@ -40,6 +43,19 @@ class RoastBrief(
 
     /** [key] 칩 후보의 칩 이름과 뜻 풀이. 일반론 검사의 근거로 쓴다(고마워 칩 뜻 풀이는 고맙다·감사 같은 변형을 든다). 없으면 빈 목록이다. */
     fun chipTextsOf(key: String): List<String> = facts.find(key)?.let { fact -> listOf(fact.chip.label, fact.meaning) }.orEmpty()
+
+    /** [key]가 입버릇 칩 후보면 그 입버릇 표기. 입버릇 칩이 아니거나 후보가 없으면 null이다. */
+    fun phraseOf(key: String): String? = chipOf(key)?.takeIf { key.startsWith(PhraseFactSpec.KEY_PREFIX) }?.quotedPhrase()
+
+    /**
+     * 말풍선 표시 [quote]에 [key] 입버릇 칩의 입버릇이 있는지. 칩 횟수를 센 것과 같은 사전 표면형으로 센다(미쳤다는 미쳤·ㅁㅊ, 말도 안 돼는 말도안돼도 친다).
+     * 입버릇 칩이 아니면 참이다. 사전에서 찾지 못한 입버릇은 칩 표기가 글자 그대로 있어야 한다.
+     */
+    fun quoteHasPhrase(key: String, quote: String): Boolean {
+        val display = phraseOf(key) ?: return true
+        val entry = phrases.find(key.removePrefix(PhraseFactSpec.KEY_PREFIX)) ?: return display in quote
+        return entry.countIn(quote) > 0
+    }
 
     /** [key] 칩 후보의 서버 칩 값. 없으면 null이다. */
     fun chipOf(key: String): RoastChip? = facts.find(key)?.chip
@@ -111,6 +127,7 @@ class RoastBrief(
                 slots.limitedTo(lineQuotes.usableCount(), facts.size()),
                 lineQuotes,
                 slots.limitedTo(Int.MAX_VALUE, facts.size()),
+                dossier.phrases,
             )
         }
     }

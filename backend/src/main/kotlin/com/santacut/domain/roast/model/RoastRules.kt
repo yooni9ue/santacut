@@ -64,6 +64,7 @@ data class RoastRules(
     private val allowedNumbers = Regex(alternation(allowedNumberPhrases))
     private val banned = Regex(alternationOfPatterns(listOf(alternation(bannedWords + slang.banned)) + slang.bannedPatterns))
     private val slangStems = Regex(alternation(slang.allowed.stems()))
+    private val punchMarkers = Regex(alternation(slang.punchMarkers))
     private val coalWrong = Regex(alternation(coalForbidden))
     private val giftWrong = Regex(alternation(giftForbidden))
     private val tone = Regex(alternationOfPatterns(tonePatterns))
@@ -116,9 +117,9 @@ data class RoastRules(
     /** [slang]을 끼운 규칙. 앱이 뜰 때 rules.json과 slang.json을 합친다. */
     fun withSlang(slang: RoastSlang): RoastRules = copy(slang = slang)
 
-    /** 허용 유행어를 [RoastSlang.maxPerField]개보다 많이 썼으면 쓴 유행어들, 아니면 null이다. */
+    /** 허용 유행어를 [RoastSlang.maxPerField]개보다 많이 썼으면 쓴 유행어들, 아니면 null이다. 따옴표로 든 본인 입버릇('스불재')은 세지 않는다. */
     fun slangOverflowIn(text: String): String? {
-        val found = slangStems.findAll(text).toList()
+        val found = slangStems.findAll(TextProblems.QUOTE.replace(text, "")).toList()
         return if (found.size > slang.maxPerField) found.joinToString(", ") { match -> match.value } else null
     }
 
@@ -148,16 +149,28 @@ data class RoastRules(
             label.split(WHITESPACE).last() !in COMMON_SANG_WORDS
     }
 
-    /** [text]에 쓴 허용 유행어 수. 덱 전체 상한([RoastSlang.maxPerDeck])을 셀 때 쓴다. */
-    fun slangCountIn(text: String): Int = slangStems.findAll(text).count()
+    /**
+     * 결론 마지막 한 줄 [text]가 밈 펀치인지. 허용 유행어([RoastSlang.allowed])나 구간 펀치 틀 표지([RoastSlang.punchMarkers])가 하나 이상 있어야 한다.
+     * 조언·설명·덕담으로 끝나는 밋밋한 한 줄("'빨리'를 적게 써라.")을 막는다.
+     */
+    fun isPunch(text: String): Boolean = slangStems.containsMatchIn(text) || punchMarkers.containsMatchIn(text)
+
+    /**
+     * [text]에 쓴 허용 유행어 수. 덱 전체 상한([RoastSlang.maxPerDeck])을 셀 때 쓴다.
+     * 따옴표로 든 본인 입버릇('스불재')은 작가 말투가 아니라 본인이 친 말이라 세지 않는다.
+     */
+    fun slangCountIn(text: String): Int = slangStems.findAll(TextProblems.QUOTE.replace(text, "")).count()
 
     /** 영문 낱말이 있는지. 허용 유행어 안의 알파벳은 보지 않는다. */
     fun hasLatin(text: String): Boolean = LATIN.containsMatchIn(slangStems.replace(text, ""))
 
-    /** [phraseKey] 입버릇의 표기 [display]를 작가에게 인용 후보로 넘겨도 되는지. */
+    /**
+     * [phraseKey] 입버릇의 표기 [display]를 작가에게 인용 후보로 넘겨도 되는지. 입버릇 칩 후보도 이 기준으로 고른다.
+     * 금지어나 셈말을 품은 입버릇(킹받네, 몇 시 등)은 인용하면 검증에 떨어지므로 칩·대체 문구에도 싣지 않는다.
+     */
     fun isQuotable(phraseKey: String, display: String): Boolean =
         phraseKey !in unquotablePhrases && display.codePointCount(0, display.length) <= quotableMaxLength &&
-            !hasLatin(display) && !DIGITS.containsMatchIn(display)
+            !hasLatin(display) && !DIGITS.containsMatchIn(display) && bannedIn(display) == null && numberIn(display) == null
 
     /** 낱말 하나를 가린다. 이름 줄기를 모을 [names]가 없으면(출력 검사) 호칭 없이 부른 이름은 보지 않는다. */
     private fun maskToken(token: String, masked: MutableList<String>, names: MutableList<String>?): String {

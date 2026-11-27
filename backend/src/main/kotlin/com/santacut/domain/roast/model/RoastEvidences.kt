@@ -2,9 +2,11 @@ package com.santacut.domain.roast.model
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
+import com.santacut.domain.analysis.model.GiftVerdict
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoreDimension
 import com.santacut.domain.dossier.model.DossierFormat
+import java.math.BigDecimal
 import java.math.RoundingMode
 
 /**
@@ -37,12 +39,13 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     /**
      * 덱에 실을 근거 카드. 판정([passed])마다 종류별 상한으로 자르고, 덱이 다섯 장 아래로 내려가지 않게 항목 점수 통계 카드로 채운다.
-     * 선물 덱은 이유가 적어도 한 장, 석탄 덱은 깎인 말과 살아남은 말이 적어도 한 장씩이고, 근거 카드는 모두 [MIN_CARDS]장 이상이다.
+     * 선물 덱은 이유와 깎인 말이 적어도 한 장씩(모든 항목이 컷 이상이어도 가장 낮은 항목으로 깎인 말을 채운다),
+     * 석탄 덱은 깎인 말과 살아남은 말이 적어도 한 장씩이고, 근거 카드는 모두 [MIN_CARDS]장 이상이다.
      * 항목 점수 칩은 이유·살아남은 말이면 높은 항목부터, 깎인 말이면 낮은 항목부터 쓴다. 문구는 대체 문장([fallback])이다.
      */
     fun completedFor(passed: Boolean, dimensions: ScoreComponents, fallback: RoastFallback): RoastEvidences {
         val capped = RoastEvidences(EvidenceKind.entries.flatMap { kind -> values.filter { it.kind == kind }.take(limitOf(kind, passed)) })
-        val required = if (passed) listOf(EvidenceKind.REASON) else listOf(EvidenceKind.CUT, EvidenceKind.KEEP)
+        val required = if (passed) listOf(EvidenceKind.REASON, EvidenceKind.CUT) else listOf(EvidenceKind.CUT, EvidenceKind.KEEP)
         val withRequired = required.fold(capped) { cards, kind ->
             if (cards.countOf(kind) == 0) cards.withDimension(kind, dimensions, fallback) else cards
         }
@@ -56,12 +59,16 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
         return next.filledTo(kind, dimensions, fallback)
     }
 
-    /** [kind] 통계 카드 한 장을 더한다. 쓸 항목이 남지 않았으면 그대로다. */
+    /**
+     * [kind] 통계 카드 한 장을 더한다. 쓸 항목이 남지 않았으면 그대로다.
+     * 깎인 말인데 그 항목이 컷 이상이면(모든 항목이 컷 이상인 선물 덱) 순한 깎인 말 문구를 쓴다.
+     */
     private fun withDimension(kind: EvidenceKind, dimensions: ScoreComponents, fallback: RoastFallback): RoastEvidences {
         val index = countOf(kind)
         val ranked = dimensions.rankedDimensions().let { order -> if (kind == EvidenceKind.CUT) order.reversed() else order }
         val dimension = ranked.getOrNull(index) ?: return this
-        return RoastEvidences(values + fallback.evidenceOf(kind, index, dimensionFact(dimension, dimensions)))
+        val mild = kind == EvidenceKind.CUT && dimensions.scoreOf(dimension) >= CUT_POINTS
+        return RoastEvidences(values + fallback.evidenceOf(kind, index, dimensionFact(dimension, dimensions), mild))
     }
 
     private fun inDeckOrder(): RoastEvidences = RoastEvidences(values.sortedBy { evidence -> evidence.kind.ordinal })
@@ -80,6 +87,10 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
         private const val MAX_COAL_KEEPS = 1
         private const val DIMENSION_CHIP_SUFFIX = " 점수"
         private const val POINT_UNIT = "점"
+        private val CUT_POINTS: BigDecimal = BigDecimal(GiftVerdict.CUT_POINTS)
+
+        /** 모든 항목 점수 칩 key. */
+        fun dimensionKeys(): List<String> = ScoreDimension.entries.map { dimension -> DIMENSION_KEY_PREFIX + dimension.key }
 
         /** 판정([passed])마다 [kind] 근거 카드 상한. 선물 덱은 이유 셋·깎인 말 둘, 석탄 덱은 깎인 말 셋·살아남은 말 하나다. */
         fun limitOf(kind: EvidenceKind, passed: Boolean): Int = when (kind) {

@@ -5,57 +5,985 @@
    "verdict_line": "올해 산타 최애는 너다. 요이~",
    "plain_verdict_line": "올해 산타 최애는 너다.",
    "title": "굴뚝 단골",
-   "final_line": "굴뚝 문이 활짝 열렸다. 딸깍.",
-   "plain_final_line": "굴뚝 문이 활짝 열렸다."
+   "final_line": "올해 굴뚝 프리패스는 너야. 요이~",
+   "plain_final_line": "올해 굴뚝 프리패스는 너야."
   },
   "GIFT_DEPARTED": {
    "verdict_line": "썰매 앞자리 확정, 딸깍.",
    "plain_verdict_line": "썰매 앞자리 확정이다.",
    "title": "썰매 앞자리",
-   "final_line": "선물은 이미 썰매에 탔다. 요이~",
-   "plain_final_line": "선물은 이미 썰매에 탔다."
+   "final_line": "썰매 앞자리 예약 완료, 딸깍.",
+   "plain_final_line": "썰매 앞자리는 너야."
   },
   "SCRAPED_THROUGH": {
    "verdict_line": "나쁜 아이냐고? 아뇨아뇨아뇨.",
    "plain_verdict_line": "겨우 굴뚝을 넘었다.",
    "title": "턱걸이 장인",
    "final_line": "바지 걸렸는데 통과다. 요이~",
-   "plain_final_line": "바지 걸렸는데 통과다."
+   "plain_final_line": "바지 걸린 채 굴뚝 프리패스."
   },
   "ONE_STEP_SHORT": {
    "verdict_line": "굴뚝 앞 유턴. 아 줴줴이야~",
    "plain_verdict_line": "굴뚝 앞에서 썰매가 돌았다.",
    "title": "유턴 기사",
    "final_line": "굴뚝 코앞에서 핸들 꺾었다. 엄…",
-   "plain_final_line": "굴뚝 코앞에서 핸들 꺾었다."
+   "plain_final_line": "올해 너는 굴뚝 앞 유턴이야~"
   },
   "OFF_LIST": {
    "verdict_line": "명단에 이름이 없다고요? 예?",
    "plain_verdict_line": "산타 명단에서 이름이 빠졌다.",
    "title": "명단 실종자",
    "final_line": "산타 명단에서 증발했다. L을 가져가.",
-   "plain_final_line": "산타 명단에서 증발했다."
+   "plain_final_line": "올해 너는 명단 밖이야~"
   },
   "COAL": {
    "verdict_line": "석탄 특송 출발. 체포하겠어.",
    "plain_verdict_line": "석탄 특송이 출발했다.",
    "title": "석탄 수집가",
-   "final_line": "착한 아이 명단에서 퇴사할게여.",
+   "final_line": "석탄 수집 혐의로 체포하겠어.",
    "plain_final_line": "착한 아이 명단에서 퇴사할게여."
   }
  },
  "evidence": {
   "reason": {
-   "labels": ["착한말풍선상", "산타인정상", "선물근거상"],
-   "lines": ["산타 장부에 착하게 적혔다.", "이건 산타도 인정한다.", "선물 썰매에 힘을 보탰다."]
+   "labels": [
+    "착한말풍선상",
+    "산타인정상",
+    "선물근거상"
+   ],
+   "lines": [
+    "산타 장부에 착하게 적혔다.",
+    "이건 산타도 인정한다.",
+    "선물 썰매에 힘을 보탰다."
+   ]
   },
   "cut": {
-   "labels": ["감점확정상", "산타메모상", "빨간줄상"],
-   "lines": ["산타 장부에 빨간 줄 그어졌다.", "이건 산타가 못 본 척 못 한다.", "산타 수첩에 따로 적혔다."]
+   "labels": [
+    "감점확정상",
+    "산타메모상",
+    "빨간줄상"
+   ],
+   "lines": [
+    "산타 장부에 빨간 줄 그어졌다.",
+    "이건 산타가 못 본 척 못 한다.",
+    "산타 수첩에 따로 적혔다."
+   ]
   },
   "keep": {
-   "labels": ["생존인정상"],
-   "lines": ["이건 산타도 인정. 넌 남아라."]
+   "labels": [
+    "생존인정상"
+   ],
+   "lines": [
+    "이건 산타도 인정. 넌 남아라."
+   ]
   }
- }
+ },
+ "chips": [
+  {
+   "keys": [
+    "laugh_density"
+   ],
+   "reason": {
+    "labels": [
+     "웃음폭격상"
+    ],
+    "lines": [
+     "ㅋ 밀도로 방을 데웠다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "웃음과속상"
+    ],
+    "lines": [
+     "ㅋ 밀도가 과속 단속감이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "웃음생존상"
+    ],
+    "lines": [
+     "ㅋ 밀도만은 살아남았다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "laugh_max_run"
+   ],
+   "reason": {
+    "labels": [
+     "웃음연사상"
+    ],
+    "lines": [
+     "최대치 ㅋ 연사로 방을 살렸다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "웃음난사상"
+    ],
+    "lines": [
+     "최대치 ㅋ 난사는 반칙이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "웃음장전상"
+    ],
+    "lines": [
+     "최대치 ㅋ 장전은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "emoji_density"
+   ],
+   "reason": {
+    "labels": [
+     "이모지장인상"
+    ],
+    "lines": [
+     "이모지로 말풍선을 꾸몄다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "이모지폭탄상"
+    ],
+    "lines": [
+     "이모지 폭탄 투하 현행범."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "이모지생존상"
+    ],
+    "lines": [
+     "이모지 감성은 살려 둔다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "night_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "야간근무상"
+    ],
+    "lines": [
+     "새벽에도 방을 지켰다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "야간출몰상"
+    ],
+    "lines": [
+     "새벽 출몰 현행범이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "새벽생존상"
+    ],
+    "lines": [
+     "새벽 출몰만은 봐줬다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "peak_hour"
+   ],
+   "reason": {
+    "labels": [
+     "골든타임상"
+    ],
+    "lines": [
+     "바쁜 시간마다 방을 열었다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "시간고정상"
+    ],
+    "lines": [
+     "바쁜 시간에만 나타난다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "시간엄수상"
+    ],
+    "lines": [
+     "시간 맞춰 칼같이 등장했다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "month_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "롤러코스터상"
+    ],
+    "lines": [
+     "달별 기복으로 방을 흔들었다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "기복폭발상"
+    ],
+    "lines": [
+     "기복이 롤러코스터급이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "기복생존상"
+    ],
+    "lines": [
+     "달마다 출렁여도 남았다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "message_count"
+   ],
+   "reason": {
+    "labels": [
+     "말풍선폭주상"
+    ],
+    "lines": [
+     "말풍선으로 방을 먹여 살렸다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "말풍선과적상"
+    ],
+    "lines": [
+     "말풍선 과적으로 썰매가 휘청."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "말풍선생존상"
+    ],
+    "lines": [
+     "말풍선 물량은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "active_days"
+   ],
+   "reason": {
+    "labels": [
+     "개근출석상"
+    ],
+    "lines": [
+     "남긴 날이 달력을 채웠다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "출석과다상"
+    ],
+    "lines": [
+     "남긴 날마다 흔적이 진하다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "개근생존상"
+    ],
+    "lines": [
+     "남긴 날만큼은 성실했다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "avg_length"
+   ],
+   "reason": {
+    "labels": [
+     "길이고집상"
+    ],
+    "lines": [
+     "평균 길이로 존재감을 찍었다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "길이위반상"
+    ],
+    "lines": [
+     "평균 길이부터 단속감이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "길이생존상"
+    ],
+    "lines": [
+     "평균 길이는 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "short_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "단답명수상"
+    ],
+    "lines": [
+     "짧게 끊어 치는 손맛이다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "단답발사상"
+    ],
+    "lines": [
+     "짧은 답으로 대화를 끊었다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "단답생존상"
+    ],
+    "lines": [
+     "짧게라도 꼬박꼬박 답했다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "longest_message_length"
+   ],
+   "reason": {
+    "labels": [
+     "대하소설상"
+    ],
+    "lines": [
+     "가장 긴 말풍선이 소설급이다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "장문폭탄상"
+    ],
+    "lines": [
+     "가장 긴 말풍선은 스크롤 지옥."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "장문생존상"
+    ],
+    "lines": [
+     "가장 긴 말풍선은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "burst_avg"
+   ],
+   "reason": {
+    "labels": [
+     "연속발신상"
+    ],
+    "lines": [
+     "연달아 보내며 방을 깨웠다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "연타발사상"
+    ],
+    "lines": [
+     "연달아 보내기로 알림 폭격."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "연타생존상"
+    ],
+    "lines": [
+     "연달아 보낸 열정은 남긴다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "burst_max"
+   ],
+   "reason": {
+    "labels": [
+     "연타장인상"
+    ],
+    "lines": [
+     "최대 연타로 분위기를 띄웠다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "연타폭주상"
+    ],
+    "lines": [
+     "최대 연타에 알림이 터졌다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "연타기록상"
+    ],
+    "lines": [
+     "연타 기록만은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "question_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "물음표장인상"
+    ],
+    "lines": [
+     "물음표로 대화를 굴렸다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "물음표살포상"
+    ],
+    "lines": [
+     "물음표 살포 현행범이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "물음표생존상"
+    ],
+    "lines": [
+     "물음표 던지기는 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "exclaim_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "느낌표충전상"
+    ],
+    "lines": [
+     "느낌표로 텐션을 올렸다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "느낌표과다상"
+    ],
+    "lines": [
+     "느낌표 과다로 귀가 울린다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "느낌표생존상"
+    ],
+    "lines": [
+     "느낌표 텐션은 살려 둔다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "reply_median_minutes"
+   ],
+   "reason": {
+    "labels": [
+     "답장명수상"
+    ],
+    "lines": [
+     "답장 간격으로 박자를 탔다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "답장지연상"
+    ],
+    "lines": [
+     "답장 간격이 거북이급이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "답장생존상"
+    ],
+    "lines": [
+     "답장은 늦어도 돌아왔다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "kind_words_density"
+   ],
+   "reason": {
+    "labels": [
+     "다정발사상"
+    ],
+    "lines": [
+     "따뜻한 말로 방을 데웠다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "온기품절상"
+    ],
+    "lines": [
+     "따뜻한 말이 품절됐다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "온기생존상"
+    ],
+    "lines": [
+     "따뜻한 말은 끝까지 남았다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "weekend_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "주말출근상"
+    ],
+    "lines": [
+     "주말에도 방을 지켰다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "주말잠수상"
+    ],
+    "lines": [
+     "주말만 되면 잠수 탄다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "주말생존상"
+    ],
+    "lines": [
+     "주말 출몰은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "morning_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "아침출근상"
+    ],
+    "lines": [
+     "아침마다 방 문을 열었다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "아침폭격상"
+    ],
+    "lines": [
+     "아침 알림 폭격 현행범이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "아침생존상"
+    ],
+    "lines": [
+     "아침 출몰은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "office_hours_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "근무중수다상"
+    ],
+    "lines": [
+     "근무시간에도 방을 챙겼다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "업무땡땡이상"
+    ],
+    "lines": [
+     "근무시간 수다 현행범이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "근무생존상"
+    ],
+    "lines": [
+     "근무 중 출몰은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "peak_hour_share"
+   ],
+   "reason": {
+    "labels": [
+     "피크타임상"
+    ],
+    "lines": [
+     "피크타임에 방을 달궜다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "몰빵출몰상"
+    ],
+    "lines": [
+     "피크타임에만 몰빵한다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "몰빵생존상"
+    ],
+    "lines": [
+     "몰빵 출몰도 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "busiest_day_multiple"
+   ],
+   "reason": {
+    "labels": [
+     "폭주기관상"
+    ],
+    "lines": [
+     "하루 폭주로 방을 끌었다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "하루폭주상"
+    ],
+    "lines": [
+     "하루 폭주가 사고 수준이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "폭주생존상"
+    ],
+    "lines": [
+     "하루 폭주도 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "media_ratio"
+   ],
+   "reason": {
+    "labels": [
+     "사진배달상"
+    ],
+    "lines": [
+     "사진으로 방을 채웠다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "이모티콘투척상"
+    ],
+    "lines": [
+     "이모티콘 투척 현행범이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "투척생존상"
+    ],
+    "lines": [
+     "사진 투척은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "messages_per_day"
+   ],
+   "reason": {
+    "labels": [
+     "하루살포상"
+    ],
+    "lines": [
+     "하루치 살포량이 방을 살렸다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "살포과다상"
+    ],
+    "lines": [
+     "하루 살포량이 과적 수준."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "살포생존상"
+    ],
+    "lines": [
+     "하루 살포량은 봐준다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "thanks_count"
+   ],
+   "reason": {
+    "labels": [
+     "감사보류상"
+    ],
+    "lines": [
+     "고마움은 행동으로 때웠다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "감사품절상"
+    ],
+    "lines": [
+     "고맙다는 말이 품절됐다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "감사생존상"
+    ],
+    "lines": [
+     "고맙다는 말은 마음에만."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "dimension_care_empathy"
+   ],
+   "reason": {
+    "labels": [
+     "공감만렙상"
+    ],
+    "lines": [
+     "공감 점수로 굴뚝을 넘었다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "공감부족상"
+    ],
+    "lines": [
+     "공감 점수가 발목을 잡았다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "공감생존상"
+    ],
+    "lines": [
+     "공감 점수는 살아남았다."
+    ]
+   },
+   "mild_cut": {
+    "labels": [
+     "공감막내상"
+    ],
+    "lines": [
+     "공감 점수가 그나마 막내다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "dimension_positivity_support"
+   ],
+   "reason": {
+    "labels": [
+     "응원단장상"
+    ],
+    "lines": [
+     "응원 점수로 썰매를 밀었다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "응원품절상"
+    ],
+    "lines": [
+     "응원 점수가 바닥을 쳤다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "응원생존상"
+    ],
+    "lines": [
+     "응원 점수는 지켜 냈다."
+    ]
+   },
+   "mild_cut": {
+    "labels": [
+     "응원막내상"
+    ],
+    "lines": [
+     "응원 점수는 살짝 처졌다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "dimension_respectful_communication"
+   ],
+   "reason": {
+    "labels": [
+     "존중모범상"
+    ],
+    "lines": [
+     "존중 점수가 장부 맨 위다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "존중실종상"
+    ],
+    "lines": [
+     "존중 점수에 빨간 줄이다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "존중생존상"
+    ],
+    "lines": [
+     "존중 점수는 살아남았다."
+    ]
+   },
+   "mild_cut": {
+    "labels": [
+     "존중막내상"
+    ],
+    "lines": [
+     "존중 점수는 조금 덜 빛났다."
+    ]
+   }
+  },
+  {
+   "keys": [
+    "dimension_cooperation_sharing"
+   ],
+   "reason": {
+    "labels": [
+     "협력장인상"
+    ],
+    "lines": [
+     "협력 점수로 판을 굴렸다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "협력실종상"
+    ],
+    "lines": [
+     "협력 점수가 발목을 잡았다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "협력생존상"
+    ],
+    "lines": [
+     "협력 점수는 지켜 냈다."
+    ]
+   },
+   "mild_cut": {
+    "labels": [
+     "협력막내상"
+    ],
+    "lines": [
+     "협력 점수가 막내 자리다."
+    ]
+   }
+  },
+  {
+   "prefix": "phrase_",
+   "reason": {
+    "labels": [
+     "'{phrase}'장인상",
+     "입버릇장인상"
+    ],
+    "lines": [
+     "'{phrase}' 발사로 방을 굴렸다.",
+     "입버릇 발사로 방을 굴렸다."
+    ]
+   },
+   "cut": {
+    "labels": [
+     "'{phrase}'연발상",
+     "입버릇연발상"
+    ],
+    "lines": [
+     "'{phrase}' 연발에 귀가 닳았다.",
+     "입버릇 발사에 귀가 닳았다."
+    ]
+   },
+   "keep": {
+    "labels": [
+     "'{phrase}'생존상",
+     "입버릇생존상"
+    ],
+    "lines": [
+     "'{phrase}' 발사는 봐준다.",
+     "입버릇 발사는 봐준다."
+    ]
+   }
+  }
+ ]
 }

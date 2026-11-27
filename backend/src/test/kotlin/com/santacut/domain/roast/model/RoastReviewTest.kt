@@ -185,8 +185,8 @@ class RoastReviewTest {
             assertEquals(0, rules.slangCountIn(band.plainVerdictLine) + rules.slangCountIn(band.plainFinalLine), grade.name)
         }
         fallback.evidence.values.forEach { copy ->
-            copy.labels.forEach { label -> assertNoProblems(label, RoastTextKind.LABEL, gift) }
-            copy.lines.forEach { line -> assertNoProblems(line, RoastTextKind.EVIDENCE_LINE, gift) }
+            copy.labels.toList().forEach { label -> assertNoProblems(label, RoastTextKind.LABEL, gift) }
+            copy.lines.toList().forEach { line -> assertNoProblems(line, RoastTextKind.EVIDENCE_LINE, gift) }
         }
     }
 

@@ -31,4 +31,9 @@ class PhraseEntries @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
     /** [counts]로 쌓은 횟수 중 한 번 이상 나온 어휘. */
     fun hitsOf(counts: EntryCounts): PhraseHits =
         PhraseHits(values.mapIndexed { index, entry -> PhraseHit(entry, counts[index]) }.filter { hit -> hit.count > 0 })
+
+    companion object {
+        /** 어휘가 없는 사전. 사전 없이 조립한 작가 입력(테스트 등)에서 쓴다. */
+        val EMPTY = PhraseEntries(emptyList())
+    }
 }

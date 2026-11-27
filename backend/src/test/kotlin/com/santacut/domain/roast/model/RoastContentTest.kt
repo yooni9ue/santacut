@@ -27,7 +27,8 @@ class RoastContentTest {
         assertEquals(EvidenceKind.REASON, first.kind)
         assertEquals(RoastChip("ㅋ 한 번에 최대", "12개"), first.chip)
         assertNull(first.quote)
-        assertEquals(RoastEvidences.MIN_CARDS, deck.evidence.size())
+        assertEquals(EvidenceKind.CUT, deck.evidence.toList().last().kind)
+        assertTrue(deck.evidence.size() >= RoastEvidences.MIN_CARDS)
         assertEquals(fallback.bandOf(GiftVerdict(GIFT).grade()).title, deck.conclusion?.title?.text)
         assertFalse(mapper.writeValueAsString(deck).contains("pairs"))
     }
@@ -45,15 +46,39 @@ class RoastContentTest {
     }
 
     @Test
-    fun `근거가 없는 저활동 결과는 항목 점수 통계 카드 두 장으로 최소 장수를 맞춘다`() {
+    fun `근거가 없는 저활동 선물 결과는 가장 높은 항목 이유와 가장 낮은 항목 깎인 말로 최소 장수를 맞춘다`() {
         val empty = RoastContent.fallbackOf(GiftVerdict(GIFT), fallback)
 
         val deck = empty.forDeck(GiftVerdict(GIFT), STRONG, fallback)
 
-        assertEquals(listOf(EvidenceKind.REASON, EvidenceKind.REASON), deck.evidence.toList().map(RoastEvidence::kind))
+        assertEquals(listOf(EvidenceKind.REASON, EvidenceKind.CUT), deck.evidence.toList().map(RoastEvidence::kind))
         assertTrue(deck.evidence.toList().all { card -> card.chipKey.startsWith(RoastEvidences.DIMENSION_KEY_PREFIX) && card.quote == null })
-        assertEquals("공감 점수", deck.evidence.toList().first().chip?.label)
+        assertEquals(listOf("공감 점수", "협력 점수"), deck.evidence.toList().map { card -> card.chip?.label })
         assertNotNull(deck.conclusion)
+    }
+
+    @Test
+    fun `모든 항목이 컷 이상인 선물 덱도 이유만으로 끝나지 않고 깎인 말 한 장을 싣는다`() {
+        val reasons = List(3) { index -> evidence(EvidenceKind.REASON, "r$index") }
+        val content = RoastContent.fallbackOf(GiftVerdict(GIFT), fallback).copy(evidence = RoastEvidences(reasons))
+
+        val deck = content.forDeck(GiftVerdict(GIFT), ScoreComponents.fromColumn("[90,85,80,70]"), fallback)
+
+        assertEquals(List(3) { EvidenceKind.REASON } + EvidenceKind.CUT, deck.evidence.toList().map(RoastEvidence::kind))
+        val cut = deck.evidence.toList().last()
+        assertEquals("협력 점수", cut.chip?.label)
+        assertEquals("협력막내상", cut.label)
+        assertFalse(cut.line.contains("발목"))
+    }
+
+    @Test
+    fun `컷 아래 항목으로 채운 깎인 말은 원래 깎인 말 문구를 쓴다`() {
+        val reasons = List(3) { index -> evidence(EvidenceKind.REASON, "r$index") }
+        val content = RoastContent.fallbackOf(GiftVerdict(GIFT), fallback).copy(evidence = RoastEvidences(reasons))
+
+        val deck = content.forDeck(GiftVerdict(GIFT), ScoreComponents.fromColumn("[90,85,80,50]"), fallback)
+
+        assertEquals("협력실종상", deck.evidence.toList().last().label)
     }
 
     @Test
