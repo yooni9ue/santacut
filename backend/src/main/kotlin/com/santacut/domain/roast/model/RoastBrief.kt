@@ -113,15 +113,22 @@ class RoastBrief(
 
     /**
      * 대표 사실 칩 key. 근거 카드나 결론 대표 칩 가운데 한 곳에 써야 한다. 가장 튀는 근거용 사실([RoastFacts.signature])이 작가가 실제로 놓을 수 있는
-     * 칩일 때만 대표로 정한다: 말풍선 없이 쓰는 칩이거나, 그 칩의 말풍선 조건에 맞는 본인 줄이 있거나, 깎인 말 자리가 있고 깎인 말에 쓸 수 있는 칩이다.
+     * 칩일 때만 대표로 정한다: 말풍선 없이 쓰는 칩이거나, 그 칩의 말풍선 조건에 맞는 본인 줄이 있거나, 깎인 말에 쓸 수 있고 쓸 수 있는 깎인 말 자리가 남는 칩이다.
+     * 본인 말 입버릇 칩([quoteCutKey])이 있으면 마지막 깎인 말 자리는 그 칩 몫이라, 깎인 말이 두 장 이상이거나 대표 사실이 바로 그 칩일 때만 깎인 말로 놓을 수 있다.
      * 놓을 수 없으면 작가가 통과할 길이 없어 null이다.
      */
     fun signatureKey(): String? {
         val fact = facts.signature() ?: return null
         val quoteless = quoteRuleOf(fact.key) == QuoteRule.NONE
         val fitting = lineQuotes.usableIds().any { lineId -> quoteFits(fact.key, lineId) }
-        val cuttable = fact.direction.allows(EvidenceKind.CUT) && slots.cut > 0
+        val cuttable = fact.direction.allows(EvidenceKind.CUT) && hasCutSlotFor(fact.key)
         return fact.key.takeIf { quoteless || fitting || cuttable }
+    }
+
+    /** [key] 칩이 쓸 수 있는 깎인 말 자리가 있는지. 본인 말 입버릇 칩이 마지막 자리를 맡으면 그 칩이거나 자리가 둘 이상이어야 한다. */
+    private fun hasCutSlotFor(key: String): Boolean {
+        val quoteCut = quoteCutKey()
+        return if (quoteCut == null || quoteCut == key) slots.cut > 0 else slots.cut > 1
     }
 
     /** 작가 사용자 메시지 본문(JSON 한 줄). 테스트·실측 도구에서도 이 함수로 입력을 만든다. */
@@ -235,8 +242,8 @@ class RoastBrief(
         /** 이만큼 이어진 글자가 본인 말풍선과 같으면 베낀 것으로 본다. */
         const val COPIED_LENGTH = 8
 
-        /** 컷과 이만큼(100분의 1점) 안으로 붙어야 칭호에 턱걸이 같은 아슬아슬하다는 말을 쓸 수 있다. 컷 +8점에 턱걸이를 붙이지 않게 한다. */
-        const val CLOSE_HUNDREDTHS = 300
+        /** 컷과 이만큼(100분의 1점) 안으로 붙어야 칭호에 턱걸이 같은 아슬아슬하다는 말을 쓸 수 있다. 작가에게 near_miss를 주는 거리와 같다. 컷 +8점에 턱걸이를 붙이지 않게 한다. */
+        const val CLOSE_HUNDREDTHS = 100
 
         /** 컷과 이만큼(100분의 1점) 안으로 붙으면 아슬아슬하다는 말을 작가에게 준다. */
         private const val NEAR_MISS_HUNDREDTHS = 100

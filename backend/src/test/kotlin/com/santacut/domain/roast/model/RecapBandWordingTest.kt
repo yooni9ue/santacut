@@ -88,13 +88,17 @@ class RecapBandWordingTest {
     }
 
     @Test
-    fun `회귀 - 컷 위 8점에 턱걸이 칭호는 점수와 어긋나 떨어지고 컷에 붙었을 때만 쓴다`() {
+    fun `회귀 - 컷 위 8점에 턱걸이 칭호는 점수와 어긋나 떨어지고 작가가 near_miss를 받는 1점 안에서만 쓴다`() {
         val far = briefOf(FAR_ABOVE_CUT, roasterFacts(), ROASTER_LINES, RoastSlots(2, 1, 0))
+        val justOutside = briefOf(JUST_OUTSIDE_NEAR_MISS, roasterFacts(), ROASTER_LINES, RoastSlots(2, 1, 0))
         val close = briefOf(CLOSE_ABOVE_CUT, roasterFacts(), ROASTER_LINES, RoastSlots(2, 1, 0))
 
         assertTrue(titleProblems("턱걸이 장인", far).contains("점수와 어긋난 칭호(턱걸이, 컷과 붙지 않았다)"))
         assertTrue(titleProblems("굴뚝 턱걸이", far).contains("점수와 어긋난 칭호(턱걸이, 컷과 붙지 않았다)"))
+        assertTrue(titleProblems("굴뚝 턱걸이", justOutside).contains("점수와 어긋난 칭호(턱걸이, 컷과 붙지 않았다)"))
+        assertEquals(null, justOutside.nearMiss())
         assertEquals(emptyList(), titleProblems("굴뚝 턱걸이", close))
+        assertTrue(close.nearMiss() != null)
     }
 
     @Test
@@ -145,7 +149,8 @@ class RecapBandWordingTest {
         private const val ONE_STEP = 6000
         private const val OFF_LIST = 5192
         private const val FAR_ABOVE_CUT = 7300
-        private const val CLOSE_ABOVE_CUT = 6620
+        private const val CLOSE_ABOVE_CUT = 6560
+        private const val JUST_OUTSIDE_NEAR_MISS = 6620
         private const val MAX_HUNDREDTHS = 10_000
         private const val SCORE_STEP = 100
         private const val FAMILY = "야~"

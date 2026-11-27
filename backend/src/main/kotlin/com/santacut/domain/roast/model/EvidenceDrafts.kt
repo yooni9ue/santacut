@@ -9,14 +9,24 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
     /** 고른 본인 줄 번호(말풍선 없는 카드는 뺀다). */
     fun lineIds(): Set<Int> = values.mapNotNull(EvidenceDraft::lineId).toSet()
 
-    /** kind별 개수가 서버 슬롯 수 [slots]와 같은지 본 검증(필드 evidence). */
-    fun countCheck(slots: RoastSlots): RoastCheck = RoastCheck(
+    /**
+     * kind별 개수가 서버 슬롯 수([RoastBrief.slots])와 같은지, 본인 말 입버릇 칩([RoastBrief.quoteCutKey])이 있으면 깎인 말 한 장이
+     * 그 칩에 본인 말풍선을 붙였는지 본 검증(필드 evidence). 본인 말 깎인 말이 없으면 첫 응답부터 다시 쓰기 사유로 알린다.
+     */
+    fun countCheck(brief: RoastBrief): RoastCheck = RoastCheck(
         FIELD,
         EvidenceKind.entries.mapNotNull { kind ->
             val actual = values.count { draft -> draft.kind() == kind }
-            "${kind.key} ${actual}개(${slots.countOf(kind)}개여야 한다)".takeUnless { actual == slots.countOf(kind) }
-        } + listOfNotNull("모르는 kind가 있다".takeIf { values.any { draft -> draft.kind() == null } }),
+            "${kind.key} ${actual}개(${brief.slots.countOf(kind)}개여야 한다)".takeUnless { actual == brief.slots.countOf(kind) }
+        } + listOfNotNull("모르는 kind가 있다".takeIf { values.any { draft -> draft.kind() == null } }, quoteCutMissing(brief)),
     )
+
+    /** 본인 말 입버릇 칩이 있는데 그 칩을 쓴 카드도, 본인 말을 붙인 입버릇 깎인 말도 없을 때의 사유. 없으면 null이다. */
+    private fun quoteCutMissing(brief: RoastBrief): String? {
+        val key = brief.quoteCutKey() ?: return null
+        if (key in chipKeys() || values.any(EvidenceDraft::isQuotedPhraseCut)) return null
+        return "cut 한 장은 본인 말풍선을 붙인 입버릇 칩($key, line_id 필수)으로 쓴다"
+    }
 
     /**
      * 카드마다의 검증(필드 evidence[0]~). 앞 카드와 같은 line_id·chip_key를 다시 쓰거나, 앞 카드 한 줄의 낱말을 되풀이하거나,

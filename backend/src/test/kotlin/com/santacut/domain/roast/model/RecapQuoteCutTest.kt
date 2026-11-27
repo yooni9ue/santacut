@@ -41,6 +41,40 @@ class RecapQuoteCutTest {
     }
 
     @Test
+    fun `회귀 - 깎인 말 한 자리뿐인 선물 덱은 그 자리를 본인 말 입버릇 몫으로 남겨 줄 없는 다른 나쁜 입버릇을 대표 사실로 정하지 않는다`() {
+        val facts = listOf(phrase("gwichana", "귀찮"), phrase("ppalri", "빨리"))
+        val oneCut = briefOf(GIFT, facts, PUSHER_LINES, RoastSlots(2, 1, 0))
+        val twoCuts = briefOf(GIFT, facts, PUSHER_LINES, RoastSlots(2, 2, 0))
+
+        assertEquals(PhraseFactSpec.KEY_PREFIX + "ppalri", oneCut.quoteCutKey())
+        assertEquals(null, oneCut.signatureKey())
+        assertEquals(PhraseFactSpec.KEY_PREFIX + "gwichana", twoCuts.signatureKey())
+        assertEquals(PhraseFactSpec.KEY_PREFIX + "ppalri", briefOf(GIFT, facts.reversed(), PUSHER_LINES, RoastSlots(2, 1, 0)).signatureKey())
+    }
+
+    @Test
+    fun `첫 응답의 근거 개수 검사가 본인 말 입버릇 깎인 말이 없으면 그 사유를 알린다`() {
+        val quoteless = EvidenceDrafts(
+            listOf(
+                EvidenceDraft("cut", null, "night_ratio", "새벽재촉상", "새벽마다 방을 찌른다."),
+                EvidenceDraft("cut", null, PhraseFactSpec.KEY_PREFIX + "haeteo_q", "숙제검사상", "'했어?'로 숙제 검사를 한다."),
+                EvidenceDraft("cut", null, ThanksFactSpec.KEY, "감사실종상", "고맙다는 말이 실종됐다."),
+                EvidenceDraft("keep", null, "message_count", "출석생존상", "말수 출석은 봐준다."),
+            ),
+        )
+        val quoted = EvidenceDrafts(
+            listOf(
+                EvidenceDraft("cut", 2, PhraseFactSpec.KEY_PREFIX + "ppalri", "재촉연사상", "'빨리' 소리로 방을 몬다."),
+                EvidenceDraft("cut", null, "night_ratio", "새벽재촉상", "새벽마다 방을 찌른다."),
+                EvidenceDraft("cut", null, ThanksFactSpec.KEY, "감사실종상", "고맙다는 말이 실종됐다."),
+            ),
+        )
+
+        assertTrue(quoteless.countCheck(pusher).reasons.contains("cut 한 장은 본인 말풍선을 붙인 입버릇 칩(phrase_ppalri, line_id 필수)으로 쓴다"))
+        assertFalse(quoted.countCheck(pusher).reasons.any { reason -> reason.startsWith("cut 한 장은") }, quoted.countCheck(pusher).reasons.toString())
+    }
+
+    @Test
     fun `어느 쪽으로도 읽히는 입버릇 뭐임은 깎인 말에 쓸 수 있다`() {
         assertEquals(ChipDirection.EITHER, catalog.phrase.directionOf("mwoim"))
         assertTrue(ChipDirection.EITHER.allows(EvidenceKind.CUT))
@@ -142,6 +176,7 @@ class RecapQuoteCutTest {
 
     companion object {
         private const val LINES = 5
+        private const val GIFT = 7373
         private const val SEEDS = 6
         private const val PUSHER_MESSAGES = 500
         private val COAL_DIMENSIONS = ScoreComponents.fromColumn("[40,40,40,70]")

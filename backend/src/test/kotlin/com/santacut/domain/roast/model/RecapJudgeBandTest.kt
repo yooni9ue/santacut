@@ -49,6 +49,15 @@ class RecapJudgeBandTest {
     }
 
     @Test
+    fun `마지막 한 줄 틀은 모두 빈칸에 6자 이상 여유를 남긴다`() {
+        (punch.bands.pools() + punch.skins.pools()).flatMap(PunchTemplates::toList).forEach { template ->
+            val bare = BLANK.replace(template.template, "")
+            val room = RoastTextKind.FINAL_LINE.maxLength - bare.codePointCount(0, bare.length)
+            assertTrue(room >= MIN_VERDICT_ROOM, "${template.template} 여유 $room")
+        }
+    }
+
+    @Test
     fun `작가 입력에 이 사람 구간이 쓸 수 없는 표현을 banned_marks로 싣고 명단에 없다는 말은 막지 않는다`() {
         val banned = briefOf(DEPARTED).input().bannedMarks
 
