@@ -2,12 +2,12 @@ package com.santacut.domain.roast.model
 
 /**
  * 작가가 쓰는 리캡 덱 문장 종류와 글자 수 범위(공백 포함, 코드 포인트).
- * 판정 한 줄 18자, 근거 라벨 8자, 근거 한 줄 20자, 결론 칭호 8자, 결론 한 줄 22자가 상한이다. 결론 한 줄은 펀치라 8자부터다.
+ * 판정 한 줄 18자, 근거 라벨 8자, 근거 한 줄 20자, 결론 칭호 8자, 결론 한 줄 22자가 상한이다. 결론 한 줄은 펀치라 8자부터, 근거 한 줄은 밋밋한 요약("미안 늦게 봄")을 막으려고 10자부터다.
  */
 enum class RoastTextKind(val minLength: Int, val maxLength: Int) {
     VERDICT_LINE(6, 18),
     LABEL(3, 8),
-    EVIDENCE_LINE(6, 20),
+    EVIDENCE_LINE(10, 20),
     TITLE(2, 8),
     FINAL_LINE(8, 22),
     ;

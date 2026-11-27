@@ -11,7 +11,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "laugh"
   },
   {
    "key": "laugh_max_run",
@@ -24,7 +25,8 @@
     "남들보다 김",
     "남들보다 훨씬 김"
    ],
-   "weight": 0.6
+   "weight": 0.6,
+   "quote_rule": "laugh"
   },
   {
    "key": "emoji_density",
@@ -36,7 +38,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "none"
   },
   {
    "key": "night_ratio",
@@ -48,7 +51,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "night"
   },
   {
    "key": "peak_hour",
@@ -60,7 +64,8 @@
     "남들보다 이른 시간",
     "남들보다 늦은 시간",
     "남들보다 훨씬 늦은 시간"
-   ]
+   ],
+   "quote_rule": "peak_hour"
   },
   {
    "key": "month_ratio",
@@ -72,7 +77,8 @@
     "남들보다 고름",
     "남들보다 큼",
     "남들보다 훨씬 큼"
-   ]
+   ],
+   "quote_rule": "none"
   },
   {
    "key": "message_count",
@@ -85,7 +91,8 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "weight": 0.5
+   "weight": 0.5,
+   "quote_rule": "none"
   },
   {
    "key": "active_days",
@@ -98,7 +105,8 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "weight": 0.5
+   "weight": 0.5,
+   "quote_rule": "none"
   },
   {
    "key": "avg_length",
@@ -110,7 +118,8 @@
     "남들보다 짧음",
     "남들보다 김",
     "남들보다 훨씬 김"
-   ]
+   ],
+   "quote_rule": "none"
   },
   {
    "key": "short_ratio",
@@ -122,7 +131,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "none"
   },
   {
    "key": "longest_message_length",
@@ -135,7 +145,8 @@
     "남들보다 김",
     "남들보다 훨씬 김"
    ],
-   "weight": 0.6
+   "weight": 0.6,
+   "quote_rule": "none"
   },
   {
    "key": "burst_avg",
@@ -147,7 +158,8 @@
     "남들보다 작음",
     "남들보다 큼",
     "남들보다 훨씬 큼"
-   ]
+   ],
+   "quote_rule": "burst"
   },
   {
    "key": "burst_max",
@@ -160,7 +172,8 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "weight": 0.6
+   "weight": 0.6,
+   "quote_rule": "burst"
   },
   {
    "key": "question_ratio",
@@ -172,7 +185,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "question"
   },
   {
    "key": "exclaim_ratio",
@@ -184,7 +198,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "exclaim"
   },
   {
    "key": "reply_median_minutes",
@@ -196,7 +211,8 @@
     "남들보다 빠름",
     "남들보다 느림",
     "남들보다 훨씬 느림"
-   ]
+   ],
+   "quote_rule": "none"
   },
   {
    "key": "kind_words_density",
@@ -208,7 +224,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "kind"
   },
   {
    "key": "weekend_ratio",
@@ -220,7 +237,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "weekend"
   },
   {
    "key": "morning_ratio",
@@ -232,7 +250,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "morning"
   },
   {
    "key": "office_hours_ratio",
@@ -244,7 +263,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "office"
   },
   {
    "key": "peak_hour_share",
@@ -256,7 +276,8 @@
     "남들보다 고르게 퍼짐",
     "남들보다 한 시간대에 몰림",
     "남들보다 한 시간대에 훨씬 몰림"
-   ]
+   ],
+   "quote_rule": "peak_hour"
   },
   {
    "key": "busiest_day_multiple",
@@ -268,7 +289,8 @@
     "남들보다 고름",
     "남들보다 큼",
     "남들보다 훨씬 큼"
-   ]
+   ],
+   "quote_rule": "none"
   },
   {
    "key": "media_ratio",
@@ -280,7 +302,8 @@
     "남들보다 적음",
     "남들보다 많음",
     "남들보다 훨씬 많음"
-   ]
+   ],
+   "quote_rule": "none"
   },
   {
    "key": "messages_per_day",
@@ -293,7 +316,8 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "weight": 0.6
+   "weight": 0.6,
+   "quote_rule": "none"
   }
  ],
  "phrase": {

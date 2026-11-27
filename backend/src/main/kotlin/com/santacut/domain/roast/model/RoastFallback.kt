@@ -43,12 +43,15 @@ data class RoastFallback(
      * [grade] 구간의 대체 결론. 대표 말풍선과 칩은 [hero] 근거 카드 것이고, 없으면 비운다. 고마워 칩은 대표 칩으로 쓰지 않는다.
      * [plain]이면 유행어 없는 마지막 한 줄을 쓴다.
      */
-    fun conclusionOf(grade: GiftGrade, hero: RoastEvidence?, plain: Boolean): RoastConclusion {
-        val band = bandOf(grade)
+    fun conclusionOf(grade: GiftGrade, hero: RoastEvidence?, plain: Boolean): RoastConclusion =
+        conclusionOf(grade, hero, bandOf(grade).finalLine(plain))
+
+    /** [grade] 구간의 대체 결론에 마지막 한 줄 [finalLine](이 사람의 펀치 틀 대체 문장)을 붙인다. 칭호와 대표 말·칩은 위와 같다. */
+    fun conclusionOf(grade: GiftGrade, hero: RoastEvidence?, finalLine: String): RoastConclusion {
         val chip = hero?.takeUnless { evidence -> evidence.chipKey == ThanksFactSpec.KEY }
         return RoastConclusion(
-            RoastText(band.title, RoastSource.FALLBACK), hero?.lineId, chip?.chipKey, hero?.quote, chip?.chip,
-            RoastText(band.finalLine(plain), RoastSource.FALLBACK),
+            RoastText(bandOf(grade).title, RoastSource.FALLBACK), hero?.lineId, chip?.chipKey, hero?.quote, chip?.chip,
+            RoastText(finalLine, RoastSource.FALLBACK),
         )
     }
 

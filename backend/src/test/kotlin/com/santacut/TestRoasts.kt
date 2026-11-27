@@ -7,6 +7,7 @@ import com.santacut.domain.dossier.model.DossierCatalog
 import com.santacut.domain.global.config.RoastCatalogConfiguration
 import com.santacut.domain.roast.model.RoastBrief
 import com.santacut.domain.roast.model.RoastCatalog
+import com.santacut.domain.roast.model.RoastPunch
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -25,8 +26,16 @@ object TestRoasts {
     val dossier: DossierCatalog by lazy { TestDossiers.readReal() }
 
     /** 메시지 [messages]와 그 메시지로 센 조서 집계, 총점 [hundredths], 항목 점수 [dimensions]로 조립한 작가 입력. */
-    fun brief(messages: List<ScoringMessage>, hundredths: Int = GIFT_SCORE, dimensions: ScoreComponents = MIXED): RoastBrief =
-        RoastBrief.compose(messages, TestDossiers.tally(messages, dossier).stats, GiftVerdict(hundredths), dimensions, catalog, dossier)
+    fun brief(messages: List<ScoringMessage>, hundredths: Int = GIFT_SCORE, dimensions: ScoreComponents = MIXED, seed: Int = 0): RoastBrief =
+        RoastBrief.compose(messages, TestDossiers.tally(messages, dossier).stats, GiftVerdict(hundredths), dimensions, catalog, dossier, seed = seed)
+
+    /** 펀치 틀 추천이 없는 작가 입력. 마지막 한 줄의 말투·유행어 표기만 볼 때 쓴다(추천 틀 검사를 하지 않는다). */
+    fun briefWithoutPunches(messages: List<ScoringMessage>, hundredths: Int = GIFT_SCORE, dimensions: ScoreComponents = MIXED): RoastBrief =
+        RoastBrief.compose(messages, TestDossiers.tally(messages, dossier).stats, GiftVerdict(hundredths), dimensions, catalogWithoutPunches, dossier)
+
+    private val catalogWithoutPunches: RoastCatalog by lazy {
+        RoastCatalog(catalog.rules, catalog.facts, catalog.phrase, catalog.thanks, catalog.fallback, RoastPunch.EMPTY)
+    }
 
     const val GIFT_SCORE = 7373
     const val COAL_SCORE = 4200

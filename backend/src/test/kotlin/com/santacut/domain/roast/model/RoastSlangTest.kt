@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 /** 유행어 목록(roast/slang.json): 허용 표기는 통과하고 필드마다 하나까지, 금지 말은 막는다. */
 class RoastSlangTest {
     private val rules = TestRoasts.catalog.rules
-    private val gift = TestRoasts.brief(TestDossiers.selves(List(MESSAGES) { "ㄱㄱ 바로 가자" }))
+    private val gift = TestRoasts.briefWithoutPunches(TestDossiers.selves(List(MESSAGES) { "ㄱㄱ 바로 가자" }))
 
     @Test
     fun `유행어 목록은 갱신 날짜와 출처를 지니고 규칙 위반이 없다`() {

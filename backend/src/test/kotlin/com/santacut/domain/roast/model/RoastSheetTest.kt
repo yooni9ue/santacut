@@ -3,7 +3,10 @@ package com.santacut.domain.roast.model
 import com.santacut.TestRoastAnswers.evidenceOf
 import com.santacut.TestRoastAnswers.habitMessages
 import com.santacut.TestRoastAnswers.lineFor
+import com.santacut.TestRoastAnswers.finalLineFor
+import com.santacut.TestRoastAnswers.heroOf
 import com.santacut.TestRoastAnswers.review
+import com.santacut.TestRoastAnswers.slangFor
 import com.santacut.TestRoastAnswers.validJson
 import com.santacut.TestRoasts
 import com.santacut.domain.analysis.model.GiftGrade
@@ -29,10 +32,11 @@ class RoastSheetTest {
         assertEquals(listOf(ConclusionDraft.FIELD), rewrite.fields)
         assertTrue(rewrite.reasons.any { reason -> reason.startsWith("conclusion title: 숫자 표현") })
 
-        val fixed = sheet.absorb(review(brief, validJson(brief, verdictLine = "바뀌면 안 되는 한 줄이다.")), brief, rules)
+        val finalLine = finalLineFor(brief, heroOf(brief).second, KEPT_VERDICT)
+        val fixed = sheet.absorb(review(brief, validJson(brief, verdictLine = "바뀌면 안 되는 한 줄이다.", finalLine = finalLine)), brief, rules)
         assertTrue(fixed.isComplete())
         val content = fixed.toContent(brief, fallback, rules)
-        assertEquals(RoastText("올해 약속 발사대, 딸깍.", RoastSource.AI), content.verdictLine)
+        assertEquals(RoastText(KEPT_VERDICT, RoastSource.AI), content.verdictLine)
         assertEquals(0, content.fallbackCount())
     }
 
@@ -114,7 +118,7 @@ class RoastSheetTest {
     @Test
     fun `작가 문장과 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 고정 문장을 쓴다`() {
         val slangy = evidenceOf(brief).mapIndexed { index, card ->
-            if (index < SLANG_CARDS) card + ("line" to lineFor(brief, card["chip_key"] as String, slang = true)) else card
+            if (index < SLANG_CARDS) card + ("line" to lineFor(brief, card["chip_key"] as String, slang = slangFor(index), index = index)) else card
         }
         val sheet = RoastSheet.EMPTY.absorb(review(brief, validJson(brief, verdictLine = "숫자 7 넣은 줄.", evidence = slangy)), brief, rules)
 
@@ -136,5 +140,8 @@ class RoastSheetTest {
     companion object {
         /** 덱 상한(세 개)을 채우는 유행어 든 근거 카드 수. */
         private const val SLANG_CARDS = 3
+
+        /** 합성 응답의 기본 판정 한 줄([com.santacut.TestRoastAnswers.validJson]). */
+        private const val KEPT_VERDICT = "올해 장부 결산, 딸깍."
     }
 }

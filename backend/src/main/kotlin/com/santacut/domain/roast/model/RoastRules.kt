@@ -119,7 +119,7 @@ data class RoastRules(
 
     /** 허용 유행어를 [RoastSlang.maxPerField]개보다 많이 썼으면 쓴 유행어들, 아니면 null이다. 따옴표로 든 본인 입버릇('스불재')은 세지 않는다. */
     fun slangOverflowIn(text: String): String? {
-        val found = slangStems.findAll(TextProblems.QUOTE.replace(text, "")).toList()
+        val found = slangStems.findAll(normalized(TextProblems.QUOTE.replace(text, ""))).toList()
         return if (found.size > slang.maxPerField) found.joinToString(", ") { match -> match.value } else null
     }
 
@@ -150,16 +150,47 @@ data class RoastRules(
     }
 
     /**
-     * 결론 마지막 한 줄 [text]가 밈 펀치인지. 허용 유행어([RoastSlang.allowed])나 구간 펀치 틀 표지([RoastSlang.punchMarkers])가 하나 이상 있어야 한다.
+     * 결론 마지막 한 줄 [text]가 밈 펀치인지. 따옴표 인용 밖에 허용 유행어([RoastSlang.allowed])나 구간 펀치 틀 표지([RoastSlang.punchMarkers])가 하나 이상 있어야 한다.
+     * 본인 입버릇을 따옴표로 든 것('딸깍')은 작가 펀치가 아니라 세지 않는다.
      * 조언·설명·덕담으로 끝나는 밋밋한 한 줄("'빨리'를 적게 써라.")을 막는다.
      */
-    fun isPunch(text: String): Boolean = slangStems.containsMatchIn(text) || punchMarkers.containsMatchIn(text)
+    fun isPunch(text: String): Boolean = punchMarksIn(text).isNotEmpty()
+
+    /**
+     * [text]에 쓴 펀치 표지: 허용 유행어 줄기와 구간 펀치 틀 표지([RoastSlang.punchMarkers]). 유행어 세기처럼 따옴표로 든 본인 말('딸깍')은 보지 않는다.
+     * 펀치 틀([PunchTemplate.marker])을 가려내고, 판정 한 줄과 마지막 한 줄이 같은 틀·같은 유행어를 되풀이하는지 볼 때 쓴다.
+     */
+    fun punchMarksIn(text: String): Set<String> {
+        val bare = normalized(TextProblems.QUOTE.replace(text, ""))
+        val slangs = slangStems.findAll(bare).toList()
+        val markers = punchMarkers.findAll(bare).filter { marker -> isStandaloneMarker(marker, slangs, bare) }
+        return (slangs.asSequence() + markers).map { match -> match.value }.toSet()
+    }
+
+    /**
+     * 구간 펀치 틀 표지 [marker]가 혼자 선 표지인지. 허용 유행어 안에 든 표지('줴줴이야~'의 '야~')는 그 유행어로만 센다.
+     * 물결표로 끝나는 표지('야~')는 문장 끝에 올 때만 센다('너야~ 근데'처럼 가운데 든 것은 틀이 아니다).
+     */
+    private fun isStandaloneMarker(marker: MatchResult, slangs: List<MatchResult>, text: String): Boolean {
+        val insideSlang = slangs.any { slang -> marker.range.first <= slang.range.last && slang.range.first <= marker.range.last }
+        val atEnd = !marker.value.endsWith(TILDE) || SENTENCE_TAIL.matches(text.substring(marker.range.last + 1))
+        return !insideSlang && atEnd
+    }
+
+    /**
+     * 유행어 표기 흔들림을 맞춘 글. 마침표 셋('엄...')은 말줄임표('엄…')로, 물결표를 빼거나 다른 물결표로 쓴 '티원'·'티～원'은 '티~원'으로 본다.
+     * 세기·펀치 검사에만 쓰고 저장 문장은 바꾸지 않는다.
+     */
+    private fun normalized(text: String): String = TEE_WON.replace(THREE_DOTS.replace(text, ELLIPSIS), TEE_WON_CANONICAL)
+
+    /** [first]와 [second]가 함께 쓴 펀치 표지(같은 유행어나 같은 펀치 틀). 없으면 null이다. */
+    fun punchClashIn(first: String, second: String): String? = punchMarksIn(first).intersect(punchMarksIn(second)).firstOrNull()
 
     /**
      * [text]에 쓴 허용 유행어 수. 덱 전체 상한([RoastSlang.maxPerDeck])을 셀 때 쓴다.
      * 따옴표로 든 본인 입버릇('스불재')은 작가 말투가 아니라 본인이 친 말이라 세지 않는다.
      */
-    fun slangCountIn(text: String): Int = slangStems.findAll(TextProblems.QUOTE.replace(text, "")).count()
+    fun slangCountIn(text: String): Int = slangStems.findAll(normalized(TextProblems.QUOTE.replace(text, ""))).count()
 
     /** 영문 낱말이 있는지. 허용 유행어 안의 알파벳은 보지 않는다. */
     fun hasLatin(text: String): Boolean = LATIN.containsMatchIn(slangStems.replace(text, ""))
@@ -217,6 +248,14 @@ data class RoastRules(
         private val LATIN = Regex("[A-Za-zＡ-Ｚａ-ｚ]+")
         private val DIGITS = Regex("[0-9０-９]+(?:[,.:][0-9０-９]+)*")
         private val HANGUL_TOKEN = Regex("[가-힣]+")
+        private const val TILDE = "~"
+        private const val ELLIPSIS = "…"
+        private const val TEE_WON_CANONICAL = "티~원"
+        private val THREE_DOTS = Regex("\\.{3}|‥")
+        private val TEE_WON = Regex("(?<![가-힣])티[~～〜]?원")
+
+        /** 문장 끝 뒤에 남아도 되는 꼬리(공백, 마침표, 물결표, 말줄임표). */
+        private val SENTENCE_TAIL = Regex("[\\s.~…]*")
 
         /** 목록을 글자 그대로 맞추는 정규식 선택지. 빈 목록이면 아무것도 맞지 않는다. */
         private fun alternation(words: List<String>): String =

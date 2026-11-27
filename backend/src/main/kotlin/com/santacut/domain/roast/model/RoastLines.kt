@@ -2,6 +2,7 @@ package com.santacut.domain.roast.model
 
 import com.santacut.domain.analysis.model.ScoringMessage
 import com.santacut.domain.dossier.model.DossierAct
+import java.time.Duration
 
 /**
  * 작가에게 보낼 본인 말풍선 줄 목록. 상대 말풍선은 넣지 않는다.
@@ -49,15 +50,26 @@ class RoastLines(private val values: List<RoastLine>) {
         val EMPTY = RoastLines(emptyList())
         private const val LINE_BREAK = "\n"
 
+        /** 본인 말풍선끼리 이 간격 안이면 연달아 보낸 묶음이다. 조서 집계(연달아 보내기)와 같은 기준이다. */
+        private val BURST_GAP: Duration = Duration.ofMinutes(3)
+
         /**
          * 메시지 [messages] 가운데 본인 글 메시지만 순번을 매겨 가린다. 빈 본문은 순번만 쓰고 넣지 않는다.
+         * 앞이나 뒤 메시지가 [BURST_GAP] 안에 보낸 본인 메시지면(조서의 연달아 보내기와 같은 기준) 그 줄은 연달아 보낸 묶음 안이다.
          * 두 번 가린다. 처음에 호칭·부르는 말에서 이름 줄기를 모으고, 그 줄기와 참여자 이름 [participants]가 어느 줄에 나와도 가린다.
          */
         fun of(messages: List<ScoringMessage>, rules: RoastRules, participants: ParticipantNames = ParticipantNames.EMPTY): RoastLines {
-            val first = messages.filter { message -> message.isSelf() && !message.isPlaceholder() }
-                .mapIndexedNotNull { index, message -> RoastLine.of(index + 1, message, rules) }
+            val first = messages.indices.filter { index -> messages[index].isSelf() && !messages[index].isPlaceholder() }
+                .mapIndexedNotNull { number, index -> RoastLine.of(number + 1, messages[index], rules, inBurst(messages, index)) }
             val pattern = rules.namePattern(first.flatMap(RoastLine::names) + participants.toList()) ?: return RoastLines(first)
             return RoastLines(first.map { line -> line.remaskedBy(pattern) })
         }
+
+        private fun inBurst(messages: List<ScoringMessage>, index: Int): Boolean =
+            (index > 0 && continues(messages[index - 1], messages[index])) ||
+                (index < messages.lastIndex && continues(messages[index], messages[index + 1]))
+
+        private fun continues(previous: ScoringMessage, next: ScoringMessage): Boolean =
+            previous.isSelf() && next.isSelf() && Duration.between(previous.localTime, next.localTime) <= BURST_GAP
     }
 }

@@ -10,6 +10,8 @@ import com.santacut.domain.dossier.model.MetricReading
  * @property levels 백분위 수준 말 네 개. 순서는 훨씬 낮음, 낮음, 높음, 훨씬 높음이다.
  * @property chipLabel 카드 칩 이름
  * @property weight 편집 무게(기본 1). 메시지 양에 따라 늘 튀는 지표(말풍선 수, 운행 일수, 최대 연타 등)는 낮춰 덜 뽑히게 한다.
+ * @property quoteRule 이 칩 근거 카드에 붙여도 되는 말풍선 조건(높음 수준일 때). 말풍선으로 보여 줄 수 없는 지표는 [QuoteRule.NONE]이다.
+ * 낮음 수준 사실은 늘 [QuoteRule.NONE]으로 쓴다.
  */
 data class RoastFactSpec(
     val key: String,
@@ -17,6 +19,7 @@ data class RoastFactSpec(
     val group: String,
     @JsonProperty("chip_label") val chipLabel: String,
     val levels: List<String>,
+    @JsonProperty("quote_rule") val quoteRule: QuoteRule,
     val weight: Double = DEFAULT_WEIGHT,
 ) {
     fun violations(): List<String> = listOfNotNull(
@@ -24,13 +27,20 @@ data class RoastFactSpec(
         "facts.$key: levels는 ${LEVEL_COUNT}개다".takeUnless { levels.size == LEVEL_COUNT },
         "facts.$key: meaning·group·chip_label이 비었다".takeIf { meaning.isBlank() || group.isBlank() || chipLabel.isBlank() },
         "facts.$key: weight는 0보다 크고 ${MAX_WEIGHT} 이하다".takeUnless { weight > 0.0 && weight <= MAX_WEIGHT },
+        "facts.$key: 지표 칩에는 입버릇 말풍선 조건(phrase)을 쓰지 않는다".takeIf { quoteRule == QuoteRule.PHRASE },
     )
 
     /** [reading]을 사실로 바꾼다. 백분위가 가운데([BLAND_LOW]~[BLAND_HIGH])라 밋밋하면 null이다. 점수는 튀는 정도 × [weight]다. */
     fun factOf(reading: MetricReading): RoastFact? = levelOf(reading.percentileRank())?.let { level ->
         val chip = RoastChip(chipLabel, reading.formattedValue())
-        RoastFact(key, meaning, level, group, chip, extremenessOf(reading.percentileRank()) * weight)
+        RoastFact(key, meaning, level, group, chip, extremenessOf(reading.percentileRank()) * weight, quoteRuleAt(reading.percentileRank()))
     }
+
+    /**
+     * 백분위 [percentile]에서의 말풍선 조건. 낮음·훨씬 낮음 수준이면 버릇이 드물다는 칩이라 그 버릇이 든 말풍선을 요구할 수 없어
+     * 말풍선 없이 쓴다([QuoteRule.NONE]). '새벽 출몰률이 낮다' 칩에 새벽 말풍선을 붙이라고 하지 않으려는 것이다.
+     */
+    private fun quoteRuleAt(percentile: Double): QuoteRule = if (percentile < BLAND_LOW) QuoteRule.NONE else quoteRule
 
     private fun levelOf(percentile: Double): String? = when {
         percentile >= VERY_HIGH -> levels[VERY_HIGH_INDEX]

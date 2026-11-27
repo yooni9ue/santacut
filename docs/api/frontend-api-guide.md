@@ -364,7 +364,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
   "skin": "GIFT",
   "score": 72.40,
   "score_text": "72.40",
-  "share_text": "산타가 내 단톡방 다 읽음. 72.40점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐?",
+  "share_text": "산타가 내 단톡방 다 읽음. 72.40점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐? #산타컷 #걸쳐서통과",
   "rank": 48213,
   "top_percent": 38,
   "ranking_pending": false,
@@ -406,7 +406,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | `skin` | string | 아님 | `GIFT`(착한 아이) 또는 `COAL`(나쁜 아이) |
 | `score` | number | 아님 | 총점(소수 둘째 자리) |
 | `score_text` | string | 아님 | 총점 표시(`"72.40"`) |
-| `share_text` | string | 아님 | 서버가 고정한 공유 문구. 등급마다 다르고 총점이 들어 있다 |
+| `share_text` | string | 아님 | 서버가 고정한 공유 문구. 등급마다 다르고 총점이 들어 있으며, 끝에 `#산타컷 #구간 태그` 해시태그가 붙는다 |
 | `rank` | number | 가능 | 전국 순위. `ranking_pending`일 때만 `null` |
 | `top_percent` | number | 가능 | 상위 비율(%, 1~100). 순위와 그 계산의 참가자 수로 낸다. 순위가 없으면 `null` |
 | `ranking_pending` | boolean | 아님 | 최신 결과가 아직 순위에 반영되지 않았으면 `true`. 이때 이 API를 다시 불러 기다린다 |

@@ -6,6 +6,9 @@ import tools.jackson.databind.JsonNode
 class EvidenceDrafts(private val values: List<EvidenceDraft>) {
     fun size(): Int = values.size
 
+    /** 고른 본인 줄 번호(말풍선 없는 카드는 뺀다). */
+    fun lineIds(): Set<Int> = values.mapNotNull(EvidenceDraft::lineId).toSet()
+
     /** kind별 개수가 서버 슬롯 수 [slots]와 같은지 본 검증(필드 evidence). */
     fun countCheck(slots: RoastSlots): RoastCheck = RoastCheck(
         FIELD,
@@ -15,16 +18,17 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
         } + listOfNotNull("모르는 kind가 있다".takeIf { values.any { draft -> draft.kind() == null } }),
     )
 
-    /** 카드마다의 검증(필드 evidence[0]~). 앞 카드와 같은 line_id·chip_key를 다시 쓰면 떨어진다. */
-    fun checks(brief: RoastBrief, rules: RoastRules): List<RoastCheck> = values.mapIndexed { index, draft ->
-        val previous = values.take(index)
-        RoastCheck(
-            fieldOf(index),
-            draft.problems(brief, rules) + listOfNotNull(
-                "앞 근거와 같은 line_id(${draft.lineId})".takeIf { draft.lineId != null && previous.any { it.lineId == draft.lineId } },
-                "앞 근거와 같은 chip_key(${draft.chipKey})".takeIf { previous.any { it.chipKey == draft.chipKey } },
-            ),
-        )
+    /**
+     * 카드마다의 검증(필드 evidence[0]~). 앞 카드와 같은 line_id·chip_key를 다시 쓰거나, 앞 카드 한 줄의 낱말을 되풀이하거나,
+     * 라벨 첫머리가 앞 라벨과 같거나 판정 한 줄 [verdictLine]을 옮긴 라벨이면 떨어진다.
+     * 앞 카드는 제 검증([EvidenceDraft.problems])을 통과한 카드만 견준다. 떨어질 카드 때문에 멀쩡한 뒤 카드까지 떨어지지 않게 한다.
+     */
+    fun checks(brief: RoastBrief, rules: RoastRules, verdictLine: String = ""): List<RoastCheck> {
+        val problems = values.map { draft -> draft.problems(brief, rules) }
+        return values.mapIndexed { index, draft ->
+            val previous = values.take(index).filterIndexed { earlier, _ -> problems[earlier].isEmpty() }
+            RoastCheck(fieldOf(index), problems[index] + EvidenceDrafts(previous).duplicatesOf(draft, brief, rules, verdictLine))
+        }
     }
 
     /** kind별 개수가 슬롯 수 [slots]와 모두 같은지. */
@@ -32,21 +36,23 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
 
     /**
      * 이 카드들에 응답 근거 카드 [response] 가운데 카드 검증 [checks]를 통과한 것을 더한다. 한 장이 떨어져도 나머지는 남긴다.
-     * kind별 슬롯 수 [slots]를 넘거나 이미 가진 카드와 line_id·chip_key가 겹치는 카드는 더하지 않는다.
-     * 다시 쓰기 응답이 이미 받은 카드를 그대로 다시 내도 겹침으로 걸러지고, 떨어졌던 자리만 새 카드로 찬다.
+     * kind별 슬롯 수([RoastBrief.slots])를 넘거나 이미 받은 카드와 line_id·chip_key·문장이 겹치는 카드는 더하지 않고, 그 사유를 결과에 남긴다.
+     * 다시 쓰기 응답이 이미 받은 카드를 그대로 다시 내면 사유 없이 건너뛰고, 떨어졌던 자리만 새 카드로 찬다.
      */
-    fun absorbed(response: EvidenceDrafts, checks: RoastChecks, slots: RoastSlots): EvidenceDrafts =
+    fun absorbed(response: EvidenceDrafts, checks: RoastChecks, brief: RoastBrief, rules: RoastRules): EvidenceIntake =
         response.values.withIndex()
             .filter { (index, _) -> checks.passed(fieldOf(index)) }
-            .fold(this) { kept, (_, draft) -> if (kept.accepts(draft, slots)) EvidenceDrafts(kept.values + draft) else kept }
+            .fold(EvidenceIntake(this, emptyList())) { intake, (index, draft) ->
+                val reasons = intake.kept.rejectionsOf(draft, brief, rules)
+                when {
+                    reasons.isEmpty() -> EvidenceIntake(EvidenceDrafts(intake.kept.values + draft), intake.reasons)
+                    draft in intake.kept.values -> intake
+                    else -> EvidenceIntake(intake.kept, intake.reasons + reasons.map { reason -> "${fieldOf(index)} $KEPT_PREFIX$reason" })
+                }
+            }
 
-    private fun accepts(draft: EvidenceDraft, slots: RoastSlots): Boolean {
-        val kind = draft.kind() ?: return false
-        return countOf(kind) < slots.countOf(kind) &&
-            values.none { kept -> kept.chipKey == draft.chipKey || (draft.lineId != null && kept.lineId == draft.lineId) }
-    }
-
-    private fun countOf(kind: EvidenceKind): Int = values.count { draft -> draft.kind() == kind }
+    /** 다시 쓰기 입력에 싣는 받아 둔 카드. */
+    fun toKept(): List<KeptCard> = values.map(EvidenceDraft::toKept)
 
     /** 문장에 쓴 허용 유행어 수. */
     fun slangCount(rules: RoastRules): Int = values.sumOf { draft -> rules.slangCountIn(draft.label) + rules.slangCountIn(draft.line) }
@@ -54,6 +60,23 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
     /** 검증을 통과한 카드를 저장할 근거로 바꾼다. 덱 순서(이유, 깎인 말, 살아남은 말)로 줄 세운다. */
     fun toEvidences(brief: RoastBrief): RoastEvidences =
         RoastEvidences(values.mapNotNull { draft -> draft.toEvidence(brief) }.sortedBy { evidence -> evidence.kind.ordinal })
+
+    /** [draft]를 받지 않는 사유. 슬롯이 찼거나 이미 받은 카드와 line_id·chip_key·문장이 겹치면 그 사유이고, 받을 수 있으면 빈 목록이다. */
+    private fun rejectionsOf(draft: EvidenceDraft, brief: RoastBrief, rules: RoastRules): List<String> {
+        val kind = draft.kind() ?: return listOf("모르는 kind(${draft.kindKey})")
+        val full = "${kind.key} 슬롯이 이미 찼다".takeUnless { countOf(kind) < brief.slots.countOf(kind) }
+        return listOfNotNull(full) + duplicatesOf(draft, brief, rules, "")
+    }
+
+    /** [draft]가 이 카드들과 겹치는 사유(같은 line_id·chip_key, 낱말 되풀이, 라벨 첫머리, 판정 한 줄을 옮긴 라벨). 없으면 빈 목록이다. */
+    private fun duplicatesOf(draft: EvidenceDraft, brief: RoastBrief, rules: RoastRules, verdictLine: String): List<String> =
+        listOfNotNull(
+            "앞 근거와 같은 line_id(${draft.lineId})".takeIf { draft.lineId != null && values.any { kept -> kept.lineId == draft.lineId } },
+            "앞 근거와 같은 chip_key(${draft.chipKey})".takeIf { values.any { kept -> kept.chipKey == draft.chipKey } },
+        ) + TextProblems.repeated(draft.line, values.map(EvidenceDraft::line), brief.chipTextsOf(draft.chipKey)).labeled(LINE) +
+            TextProblems.sharedLabel(draft.label, values.map(EvidenceDraft::label), verdictLine, rules.labelSuffix).labeled(LABEL)
+
+    private fun countOf(kind: EvidenceKind): Int = values.count { draft -> draft.kind() == kind }
 
     companion object {
         val EMPTY = EvidenceDrafts(emptyList())
@@ -63,6 +86,9 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
         private const val CHIP_KEY = "chip_key"
         private const val LABEL = "label"
         private const val LINE = "line"
+
+        /** 받아 둔 카드와 겹쳐 받지 않은 카드 사유의 머리말. */
+        private const val KEPT_PREFIX = "이미 받은 카드와 겹쳐 받지 않았다: "
 
         fun fieldOf(index: Int): String = "$FIELD[$index]"
 

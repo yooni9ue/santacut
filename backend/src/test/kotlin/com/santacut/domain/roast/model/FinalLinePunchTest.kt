@@ -8,11 +8,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** 결론 마지막 한 줄은 밈 펀치다. 허용 유행어나 구간 펀치 틀 표지가 있어야 하고 8자 이상 22자 이하다. */
+/** 결론 마지막 한 줄은 밈 펀치다. 허용 유행어나 구간 펀치 틀 표지가 있어야 하고 8자 이상 22자 이하다. 추천 틀 검사는 [PunchTemplatesTest]가 본다. */
 class FinalLinePunchTest {
     private val rules = TestRoasts.catalog.rules
-    private val gift = TestRoasts.brief(TestDossiers.selves(List(MESSAGES) { "다음 주말에 같이 놀러 가자" }))
-    private val coal = TestRoasts.brief(TestDossiers.selves(List(MESSAGES) { "다음 주말에 같이 놀러 가자" }), TestRoasts.COAL_SCORE)
+    private val gift = TestRoasts.briefWithoutPunches(TestDossiers.selves(List(MESSAGES) { "다음 주말에 같이 놀러 가자" }))
+    private val coal = TestRoasts.briefWithoutPunches(TestDossiers.selves(List(MESSAGES) { "다음 주말에 같이 놀러 가자" }), TestRoasts.COAL_SCORE)
 
     @Test
     fun `유행어나 펀치 틀 표지가 든 선언형 한 줄은 펀치다`() {

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
  *
  * @property group 사실의 계열. 한 계열이 재료를 독차지하지 않게 고를 때 겹치지 않게 한다.
  * @property score 고르기 점수(튀는 정도 × 편집 무게, 0~). 클수록 앞자리에 뽑힐 가능성이 크다. 서버만 쓴다.
+ * @property quoteRule 이 칩 근거 카드에 붙여도 되는 말풍선 조건. 입버릇 칩은 [QuoteRule.PHRASE], 그 밖에 정하지 않으면 말풍선 없이 쓰는 [QuoteRule.NONE]이다. 서버만 쓴다.
  */
 data class RoastFact(
     val key: String,
@@ -16,4 +17,5 @@ data class RoastFact(
     val group: String,
     @get:JsonIgnore val chip: RoastChip,
     @get:JsonIgnore val score: Double = 0.0,
+    @get:JsonIgnore val quoteRule: QuoteRule = if (key.startsWith(PhraseFactSpec.KEY_PREFIX)) QuoteRule.PHRASE else QuoteRule.NONE,
 )

@@ -10,10 +10,20 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
     /**
      * 결론 검증(필드 conclusion). 대표 줄은 보낸 본인 줄이어야 하고 대표 칩은 고마워 칩이 아닌 칩 후보여야 한다. 보낸 줄·후보가 없을 때만 비워도 된다.
      * 마지막 한 줄은 대표 말풍선이나 대표 칩(이름, 뜻 풀이)과 낱말이 겹쳐야 한다([TextProblems.grounding]).
+     * 판정 한 줄 [verdictLine]과 같은 유행어나 같은 펀치 틀을 쓰면 떨어진다. 대표 말풍선은 대표 칩의 말풍선 조건에 맞아야 하고,
+     * 말풍선으로 보여 줄 수 없는 칩([QuoteRule.NONE])을 대표 칩으로 고르면 대표 말 없이(hero_line_id null) 칩만 크게 띄운다.
+     * 근거 카드 [evidence]가 [RoastEvidences.MIN_CARDS]장뿐인 다섯 장 덱이면 대표 말을 근거 카드 말과 다른 줄로 골라야 한다(다른 줄이 남아 있을 때).
+     * 짧은 덱에서 같은 말풍선이 두 번 뜨지 않게 한다.
      */
-    fun check(brief: RoastBrief, rules: RoastRules): RoastCheck = RoastCheck(
+    fun check(brief: RoastBrief, rules: RoastRules, verdictLine: String = "", evidence: EvidenceDrafts = EvidenceDrafts.EMPTY): RoastCheck = RoastCheck(
         FIELD,
-        listOfNotNull(heroLineProblem(brief), heroChipProblem(brief)) +
+        listOfNotNull(
+            heroLineProblem(brief),
+            heroChipProblem(brief),
+            heroRepeatProblem(brief, evidence),
+            heroFitProblem(brief),
+            rules.punchClashIn(verdictLine, finalLine)?.let { mark -> "$FINAL_LINE: 판정 한 줄과 같은 펀치($mark)를 되풀이했다" },
+        ) +
             TextProblems.of(title, RoastTextKind.TITLE, brief, rules).labeled(TITLE) +
             TextProblems.of(finalLine, RoastTextKind.FINAL_LINE, brief, rules).labeled(FINAL_LINE) +
             TextProblems.grounding(finalLine, heroLineId?.let(brief::quoteOf), heroChipKey?.let(brief::chipTextsOf).orEmpty())
@@ -29,9 +39,30 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
     )
 
     private fun heroLineProblem(brief: RoastBrief): String? = when {
-        heroLineId == null -> "hero_line_id가 없다".takeIf { brief.lineCount() > 0 }
+        heroLineId == null -> "hero_line_id가 없다".takeIf { brief.lineCount() > 0 && !isQuotelessHero(brief) }
         brief.quoteOf(heroLineId) == null -> "보낸 본인 줄이 아닌 hero_line_id($heroLineId)"
         else -> null
+    }
+
+    /**
+     * 대표 말풍선과 대표 칩은 결론 카드에 나란히 뜨므로 칩의 말풍선 조건([RoastBrief.quoteFits])에 맞아야 한다.
+     * 말풍선 없이 쓰는 칩([QuoteRule.NONE])이면 대표 말을 비워야 한다.
+     */
+    private fun heroFitProblem(brief: RoastBrief): String? {
+        if (heroLineId == null || heroChipKey == null || brief.quoteOf(heroLineId) == null || !brief.hasFact(heroChipKey)) return null
+        if (isQuotelessHero(brief)) return "말풍선 없이 쓰는 대표 칩($heroChipKey)이면 hero_line_id를 null로 둔다"
+        val rule = brief.quoteRuleOf(heroChipKey)
+        return "대표 말풍선이 대표 칩과 맞지 않는다(${rule.hint})".takeUnless { brief.quoteFits(heroChipKey, heroLineId) }
+    }
+
+    /** 대표 칩이 말풍선으로 보여 줄 수 없는 칩 후보인지. 고마워 칩은 대표 칩이 될 수 없어 빼고 본다. */
+    private fun isQuotelessHero(brief: RoastBrief): Boolean =
+        heroChipKey != null && heroChipKey != ThanksFactSpec.KEY && brief.hasFact(heroChipKey) && brief.quoteRuleOf(heroChipKey) == QuoteRule.NONE
+
+    private fun heroRepeatProblem(brief: RoastBrief, evidence: EvidenceDrafts): String? {
+        val lineIds = evidence.lineIds()
+        val short = brief.slots.total() <= RoastEvidences.MIN_CARDS && brief.usableLineCount() > lineIds.size
+        return "다섯 장 덱이라 hero_line_id($heroLineId)는 근거 카드와 다른 줄로 고른다".takeIf { short && heroLineId != null && heroLineId in lineIds }
     }
 
     private fun heroChipProblem(brief: RoastBrief): String? = when {

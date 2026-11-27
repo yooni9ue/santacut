@@ -27,6 +27,9 @@ class KindWords @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
         values.forEachIndexed { index, kind -> counts.add(index, kind.forms.countIn(text)) }
     }
 
+    /** 본문 [text]에 사전의 따뜻한 말이 하나라도 있는지. 근거 카드의 따뜻한 말 칩에 붙일 말풍선을 고를 때 쓴다. */
+    fun appearIn(text: String): Boolean = values.any { kind -> kind.forms.appearsIn(text) }
+
     /** [counts]로 쌓은 말별 횟수. 한 번도 안 쓴 말은 뺀다. */
     fun countsOf(counts: EntryCounts): KindCounts = KindCounts(
         values.withIndex().associate { (index, kind) -> kind.key to counts[index] }.filterValues { count -> count > 0 },

@@ -32,6 +32,7 @@ import com.santacut.domain.dossier.model.DossierTally
 import com.santacut.domain.dossier.service.DossierService
 import com.santacut.domain.prompt.model.Prompt
 import com.santacut.domain.prompt.model.PromptName
+import com.santacut.domain.roast.model.QuoteRule
 import com.santacut.domain.roast.model.RoastAnswer
 import com.santacut.domain.ranking.model.Season
 import com.santacut.infrastructure.analysis.client.ScoreClient
@@ -61,6 +62,7 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.annotation.DirtiesContext
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import java.math.BigDecimal
 import java.time.Duration
@@ -716,26 +718,58 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     /**
-     * 작가 입력 [input]의 슬롯 수·본인 줄 번호·칩 후보로 채운, 결론 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답(프롬프트 5판).
-     * 근거 카드는 서로 다른 본인 줄과 칩을 쓴다.
+     * 작가 입력 [input]의 슬롯 수·본인 줄·칩 후보·추천 펀치 틀로 채운, 결론 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답(프롬프트 7판).
+     * 근거 카드는 서로 다른 칩을 쓰고, 말풍선 없이 쓰는 칩은 line_id 없이, 입버릇·따뜻한 말 칩은 그 말이 든 본인 줄로 쓴다.
+     * 대표 칩은 마지막 본인 줄에 맞는 칩이고, 없으면 말풍선 없이 쓰는 칩을 대표 말 없이 쓴다.
+     * 마지막 한 줄은 첫 추천 펀치 틀의 빈칸을 채워 쓴다(판정 한 줄에는 펀치 표지를 쓰지 않는다).
      */
     private fun roastJson(input: String, title: String): String {
         val root = objectMapper.readTree(input)
-        val lineIds = root.path("transcript").values().flatMap { act -> act.path("lines").values().map { line -> line.asString().substringBefore("|").toInt() } }
-        val chips = root.path("chips").values().map { chip -> chip.path("chip_key").asString() }
+        val lines = root.path("transcript").values().flatMap { act -> act.path("lines").values().map { line -> line.asString() } }
+        val chips = root.path("chips").values().filter { chip -> chip.path("kinds").isMissingNode }
         val slots = root.path("slots")
         val kinds = listOf("reason", "cut", "keep").flatMap { kind -> List(slots.path(kind).asInt()) { kind } }
-        val evidence = kinds.mapIndexed { index, kind ->
-            mapOf("kind" to kind, "line_id" to lineIds[index], "chip_key" to chips[index], "label" to EVIDENCE_LABELS[index], "line" to EVIDENCE_LINES[index])
+        val used = mutableSetOf<Int>()
+        val evidence = kinds.zip(chips).mapIndexed { index, (kind, chip) ->
+            val lineId = lineFor(chip, lines, used)?.also(used::add)
+            val word = HANGUL_WORD.find(chip.path("label").asString())?.value ?: "장부"
+            mapOf("kind" to kind, "line_id" to lineId, "chip_key" to chip.path("chip_key").asString(), "label" to EVIDENCE_LABELS[index],
+                "line" to EVIDENCE_LINES[index].replace(WORD_SLOT, word))
         }
+        val fitted = lines.lastOrNull()?.let { line -> chips.firstOrNull { chip -> fits(chip, line) }?.let { chip -> line to chip } }
+        val hero = fitted?.second ?: chips.firstOrNull { chip -> chip.path("quote").asString() == QuoteRule.NONE.hint }
+        val heroLine = fitted?.first ?: lines.lastOrNull().takeIf { hero == null }
+        val punch = root.path("punch_templates").values().firstOrNull()?.asString()?.replace(PUNCH_BLANK, HERO_WORD) ?: "고마움 장부 결산, 딸깍."
         return objectMapper.writeValueAsString(
             mapOf(
-                "verdict_line" to "올해 감사 연타, 딸깍.",
+                "verdict_line" to "올해 장부가 마감됐다.",
                 "evidence" to evidence,
-                "conclusion" to mapOf("title" to title, "hero_line_id" to lineIds.lastOrNull(), "hero_chip_key" to chips.firstOrNull().orEmpty(), "final_line" to "고마운 말은 올해도 이어졌다, 딸깍."),
+                "conclusion" to mapOf(
+                    "title" to title, "hero_line_id" to heroLine?.let(::lineIdOf), "hero_chip_key" to hero?.path("chip_key")?.asString().orEmpty(),
+                    "final_line" to punch,
+                ),
             ),
         )
     }
+
+    /** 칩 [chip] 카드에 붙일 본인 줄 번호. 말풍선 없이 쓰는 칩이면 null, 아니면 조건에 맞는 아직 안 쓴 줄이다. */
+    private fun lineFor(chip: JsonNode, lines: List<String>, used: Set<Int>): Int? {
+        if (chip.path("quote").asString() == QuoteRule.NONE.hint) return null
+        return lines.filter { line -> fits(chip, line) }.map(::lineIdOf).first { id -> id !in used }
+    }
+
+    /** 본인 줄 [line]이 칩 [chip]의 말풍선 조건에 맞는지. 이 테스트의 말풍선(SAMPLE_TEXT)으로 가릴 수 있는 입버릇·따뜻한 말 조건만 본다. */
+    private fun fits(chip: JsonNode, line: String): Boolean {
+        val text = line.substringAfterLast("|")
+        val phrase = QUOTED.find(chip.path("label").asString())?.groupValues?.get(1)
+        return when (chip.path("quote").asString()) {
+            QuoteRule.PHRASE.hint -> phrase != null && phrase in text
+            QuoteRule.KIND.hint -> "고마" in text
+            else -> false
+        }
+    }
+
+    private fun lineIdOf(line: String): Int = line.substringBefore("|").toInt()
 
     private fun submitAnalysis(
         participantId: UUID = registerParticipant(),
@@ -819,8 +853,18 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val ROAST_MODEL = "gemini-3.5-flash"
         private const val VALID_TITLE = "감사 연타왕"
         private val EVIDENCE_LABELS = listOf("감사연타상", "힘보탬상", "인사발사상", "고마움상", "말풍선상")
-        /** 본인 말풍선(SAMPLE_TEXT)과 낱말을 나눠 일반론 검사를 통과하는 근거 한 줄. */
-        private val EVIDENCE_LINES = listOf("고마움이 늘 먼저 나왔다.", "힘이 나는 말을 아끼지 않았다.", "인사는 오늘도 빨랐다.", "정말 산타 장부에 적혔다.", "오늘도 산타가 봤다.")
+
+        /** 칩 낱말([WORD_SLOT])을 받아 일반론 검사를 통과하고 카드끼리 낱말이 겹치지 않는 근거 한 줄. 모두 완결된 문장 끝으로 맺는다. */
+        private val EVIDENCE_LINES = listOf(
+            "{word} 기록이 먼저 쌓였다.", "{word} 소리를 아끼지 않았다.", "{word} 발사가 오늘도 빨랐다.", "{word} 흔적이 장부에 남았다.", "{word} 정성이 끝까지 묻었다.",
+        )
+        private const val WORD_SLOT = "{word}"
+        private val HANGUL_WORD = Regex("[가-힣]{2,}")
+        private val QUOTED = Regex("'([^']+)'")
+
+        /** 추천 펀치 틀의 빈칸(따옴표로 감싼 것 포함). 대표 말풍선(SAMPLE_TEXT)의 '고마웠어'와 첫 글자가 같은 낱말로 채운다. */
+        private val PUNCH_BLANK = Regex("'?\\([^)]*\\)'?")
+        private const val HERO_WORD = "고마움"
         private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
         private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"

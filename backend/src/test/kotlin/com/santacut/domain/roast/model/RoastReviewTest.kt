@@ -6,6 +6,7 @@ import com.santacut.TestRoastAnswers.lineFor
 import com.santacut.TestRoastAnswers.evidenceOf
 import com.santacut.TestRoastAnswers.habitMessages
 import com.santacut.TestRoastAnswers.review
+import com.santacut.TestRoastAnswers.slangFor
 import com.santacut.TestRoastAnswers.validJson
 import com.santacut.TestRoasts
 import com.santacut.domain.analysis.model.GiftGrade
@@ -19,6 +20,10 @@ import kotlin.test.assertTrue
 class RoastReviewTest {
     private val gift = TestRoasts.brief(habitMessages())
     private val coal = TestRoasts.brief(habitMessages(), TestRoasts.COAL_SCORE)
+
+    /** 펀치 틀 추천이 없는 입력. 구간 고정 마지막 한 줄(옛 결과·읽을 수 없는 결과용)은 추천 틀과 상관없이 검사한다. */
+    private val plainGift = TestRoasts.briefWithoutPunches(habitMessages())
+    private val plainCoal = TestRoasts.briefWithoutPunches(habitMessages(), TestRoasts.COAL_SCORE)
 
     @Test
     fun `규칙을 지킨 응답은 선물·석탄 모두 모든 필드가 통과한다`() {
@@ -75,7 +80,7 @@ class RoastReviewTest {
         assertTrue(gift.hasFact(ThanksFactSpec.KEY))
         val asReason = evidenceOf(gift).mapIndexed { index, card -> if (index == 0) card + ("chip_key" to ThanksFactSpec.KEY) else card }
         val asCut = evidenceOf(gift).mapIndexed { index, card ->
-            if (index == gift.slots.reason) card + ("chip_key" to ThanksFactSpec.KEY) + ("line" to lineFor(gift, ThanksFactSpec.KEY)) else card
+            if (index == gift.slots.reason) card + ("chip_key" to ThanksFactSpec.KEY) + ("line_id" to null) + ("line" to lineFor(gift, ThanksFactSpec.KEY, index = index)) else card
         }
         val keep = evidenceOf(coal).map { card -> if (card["kind"] == "keep") card + ("chip_key" to ThanksFactSpec.KEY) else card }
 
@@ -142,10 +147,9 @@ class RoastReviewTest {
     @Test
     fun `덱 전체에 허용 유행어를 세 개 넘게 쓰면 deck이 떨어진다`() {
         val cards = evidenceOf(gift).mapIndexed { index, card ->
-            if (index < 2) card + ("line" to lineFor(gift, card["chip_key"] as String, slang = true)) else card
+            if (index < 2) card + ("line" to lineFor(gift, card["chip_key"] as String, slang = slangFor(index), index = index)) else card
         }
-        val finalLine = "${chipWordOf(gift, gift.facts.keys().first())} 장부는 바빴다. 요이~"
-        val json = validJson(gift, verdictLine = "올해 약속 발사대, 딸깍.", finalLine = finalLine, evidence = cards)
+        val json = validJson(gift, evidence = cards)
 
         val checks = review(gift, json).checks
 
@@ -177,7 +181,7 @@ class RoastReviewTest {
         val rules = TestRoasts.catalog.rules
         val fallback = TestRoasts.catalog.fallback
         GiftGrade.entries.forEach { grade ->
-            val brief = if (grade.ordinal <= GiftGrade.SCRAPED_THROUGH.ordinal) gift else coal
+            val brief = if (grade.ordinal <= GiftGrade.SCRAPED_THROUGH.ordinal) plainGift else plainCoal
             val band = fallback.bandOf(grade)
             listOf(band.verdictLine, band.plainVerdictLine).forEach { line -> assertNoProblems(line, RoastTextKind.VERDICT_LINE, brief) }
             listOf(band.finalLine, band.plainFinalLine).forEach { line -> assertNoProblems(line, RoastTextKind.FINAL_LINE, brief) }
