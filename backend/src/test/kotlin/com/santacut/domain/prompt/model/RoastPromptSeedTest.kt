@@ -16,6 +16,7 @@ import kotlin.test.assertTrue
  * 3판은 2판에 v3 말투 규칙(짧은 반말, "근데 "로 여는 뒤집기, 등급 온도)을 더하고, 서버 검증과 같은 글자 수 범위를 준다.
  * 5판은 리캡 덱 스키마(판정 한 줄, 근거 카드, 결론)로 새로 쓰고, 그때 서버 검증과 같은 글자 수 범위를 준다.
  * 6판은 5판에 밈 펀치 마지막 한 줄, 찌르는 관찰형 판정·근거 한 줄, 근거 말풍선 규칙(짧은 반응 금지, 입버릇 칩은 그 입버릇이 든 말풍선)을 더한다.
+ * 7판은 6판에 추천 펀치 틀(punch_templates), 판정 한 줄과 마지막 한 줄의 펀치 되풀이 금지, 칩별 말풍선 조건, 완결된 근거 한 줄 끝을 더한다.
  */
 class RoastPromptSeedTest {
     private val sql: String by lazy { Files.readString(Path.of("src/main/resources/prompts.sql")) }
@@ -25,6 +26,7 @@ class RoastPromptSeedTest {
     private val fourth: String by lazy { contentOf(FOURTH_HEAD) }
     private val fifth: String by lazy { contentOf(FIFTH_HEAD) }
     private val sixth: String by lazy { contentOf(SIXTH_HEAD) }
+    private val seventh: String by lazy { contentOf(SEVENTH_HEAD) }
 
     private fun contentOf(head: String): String {
         val start = sql.indexOf(head).also { index -> check(index >= 0) { "시드 없음: $head" } } + head.length
@@ -166,8 +168,8 @@ class RoastPromptSeedTest {
     }
 
     @Test
-    fun `6판은 리캡 덱 필드를 지니고 글자 수 범위가 지금 서버 검증과 같다`() {
-        RoastTextKind.entries.forEach { kind -> assertTrue(sixth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+    fun `6판은 리캡 덱 필드를 지니고 글자 수 범위가 그때 서버 검증과 같다`() {
+        V6_RANGES.forEach { range -> assertTrue(sixth.contains(range), range) }
         listOf("verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips")
             .forEach { field -> assertTrue(sixth.contains(field), field) }
         assertTrue(sixth.contains("반드시 '상'으로 끝낸다"))
@@ -195,7 +197,46 @@ class RoastPromptSeedTest {
         assertTrue(sixth.contains("'푹 자 내일 보자'에 '수고' 칩"))
     }
 
+    @Test
+    fun `7판은 리캡 덱 필드를 지니고 글자 수 범위가 지금 서버 검증과 같다`() {
+        RoastTextKind.entries.forEach { kind -> assertTrue(seventh.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        listOf("verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips", "punch_templates")
+            .forEach { field -> assertTrue(seventh.contains(field), field) }
+        assertTrue(seventh.contains("반드시 '상'으로 끝낸다"))
+        assertTrue(seventh.contains("숫자와 셈말을 쓰지 않는다"))
+    }
+
+    @Test
+    fun `7판의 마지막 한 줄은 추천 펀치 틀 가운데 하나를 쓰고 판정 한 줄과 같은 유행어·틀을 되풀이하지 않는다`() {
+        assertTrue(seventh.contains("반드시 punch_templates 가운데 하나를 골라"))
+        assertTrue(seventh.contains("verdict_line과 final_line은 같은 slang 표기나 같은 펀치 틀"))
+        listOf("체포하겠어", "L을 가져가", "딸깍", "요이~", "아뇨아뇨아뇨", "줴줴이야", "엄…", "예?", "넌 나가라", "넌 남아라", "티~원", "퇴사할게여", "프리패스", "이야~")
+            .forEach { punch -> assertTrue(seventh.contains(punch), punch) }
+        assertFalse(seventh.contains("\"올해 너는 'ㄱ?'이야~\""))
+    }
+
+    @Test
+    fun `7판은 칩별 말풍선 조건과 실제로 어긋났던 짝을 나쁜 예로 든다`() {
+        assertTrue(seventh.contains("말풍선은 반드시 그 칩의 quote 조건에 맞아야 한다"))
+        assertTrue(seventh.contains("kind와 상관없이 line_id를 null로 둔다"))
+        listOf("'언제 가능?'에 피크타임 칩", "'미안 늦게 봤어'에 짧은 말풍선 칩").forEach { bad -> assertTrue(seventh.contains(bad), bad) }
+        assertTrue(seventh.contains("`줄번호|월-일 요일 시|본문`"))
+        assertTrue(seventh.contains("'연달아'"))
+    }
+
+    @Test
+    fun `7판의 근거 한 줄은 완결된 문장 끝으로 맺고 요약·명사 끝을 나쁜 예로 든다`() {
+        listOf("\"조심히 가라고 챙김\"", "\"들어줘서 따뜻함\"", "\"미안 늦게 봄\"").forEach { bad -> assertTrue(seventh.contains(bad), bad) }
+        assertTrue(seventh.contains("'~함', '~음', '~봄', '~됨', '~챙김'"))
+        assertTrue(seventh.contains("카드끼리 같은 낱말을 되풀이하지 않는다"))
+        assertTrue(seventh.contains("말풍선 글자를 그대로 옮긴 라벨은 떨어진다"))
+    }
+
     companion object {
+        private const val SEVENTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0007','roast',7,'"
+
+        /** 6판이 준 글자 수 범위(판정 한 줄, 라벨, 근거 한 줄, 칭호, 마지막 한 줄). 그때 서버 검증과 같았다. */
+        private val V6_RANGES = listOf("6자 이상 18자 이하", "3자 이상 8자 이하", "6자 이상 20자 이하", "2자 이상 8자 이하", "8자 이상 22자 이하")
         private const val SIXTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0006','roast',6,'"
 
         /** 5판이 준 글자 수 범위(판정 한 줄, 라벨, 근거 한 줄, 칭호, 마지막 한 줄). 그때 서버 검증과 같았다. */

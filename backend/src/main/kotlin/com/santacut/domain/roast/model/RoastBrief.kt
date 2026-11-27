@@ -5,6 +5,7 @@ import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoringMessage
 import com.santacut.domain.dossier.model.DossierCatalog
 import com.santacut.domain.dossier.model.DossierStats
+import com.santacut.domain.dossier.model.KindWords
 import com.santacut.domain.dossier.model.PhraseEntries
 import tools.jackson.databind.ObjectMapper
 
@@ -15,6 +16,10 @@ import tools.jackson.databind.ObjectMapper
  * @property slots 서버가 정한 근거 카드 수(항목 점수로 정하고 재료로 줄인 것)
  * @property statSlots 칩 통계 카드로 채울 때의 근거 카드 수. 말풍선이 필요 없어 칩 후보 수로만 줄인다.
  * @property phrases 입버릇 사전. 입버릇 칩을 고른 말풍선에 그 입버릇이 있는지 셀 때 쓴다(집계와 같은 표면형으로 센다).
+ * @property kinds 따뜻한 말 사전. 따뜻한 말 칩을 고른 말풍선에 따뜻한 말이 있는지 볼 때 쓴다([QuoteRule.KIND]).
+ * @property peakHour 본인 말풍선이 가장 많이 몰린 시. 피크타임 칩의 말풍선 조건([QuoteRule.PEAK_HOUR])이다. 모르면 null이다.
+ * @property punches 결론 마지막 한 줄 펀치 틀 후보(시드 순서). 앞 [suggestedPunches]가 작가 추천이고, 나머지는 대체 문장 예비다.
+ * @property suggestedPunches 작가에게 추천하는 펀치 틀. 마지막 한 줄은 이 가운데 하나를 써야 한다. 비었으면 따지지 않는다.
  */
 class RoastBrief(
     val verdict: GiftVerdict,
@@ -28,12 +33,16 @@ class RoastBrief(
     private val lineQuotes: LineQuotes = LineQuotes.EMPTY,
     private val statSlots: RoastSlots = slots,
     private val phrases: PhraseEntries = PhraseEntries.EMPTY,
+    private val kinds: KindWords? = null,
+    private val peakHour: Int? = null,
+    private val punches: PunchTemplates = PunchTemplates.EMPTY,
+    val suggestedPunches: PunchTemplates = PunchTemplates.EMPTY,
 ) {
     /** 작가 입력. 다시 쓰기면 [rewrite]를 싣는다. */
     fun input(rewrite: RoastRewrite? = null): RoastInput =
         RoastInput(
-            verdict.key(), verdict.margin().word, verdict.grade().name, verdict.grade().temperature, facts, facts.chipHints(), slots,
-            quotes, topics, lines.toActs(), slang.hints(), rewrite,
+            verdict.key(), verdict.margin().word, verdict.grade().name, verdict.grade().temperature, facts, facts.chipHints(peakHour), slots,
+            quotes, topics, lines.toActs(), slang.hints(), rewrite, suggestedPunches.hints(),
         )
 
     /** 작가 사용자 메시지 본문(JSON 한 줄). 테스트·실측 도구에서도 이 함수로 입력을 만든다. */
@@ -56,6 +65,25 @@ class RoastBrief(
         val entry = phrases.find(key.removePrefix(PhraseFactSpec.KEY_PREFIX)) ?: return display in quote
         return entry.countIn(quote) > 0
     }
+
+    /** [key] 칩 후보의 말풍선 조건. 칩 후보가 아니면 말풍선 없이 쓰는 [QuoteRule.NONE]이다. */
+    fun quoteRuleOf(key: String): QuoteRule = facts.find(key)?.quoteRule ?: QuoteRule.NONE
+
+    /**
+     * [lineId]번 말풍선이 [key] 칩의 말풍선 조건([QuoteRule])에 맞는지. 입버릇 칩은 [quoteHasPhrase]로 본다.
+     * 보낸 본인 줄이 아니면 거짓이다. 칩과 말풍선이 다른 이야기를 하지 않게 한다('언제 가능?'에 피크타임 칩).
+     */
+    fun quoteFits(key: String, lineId: Int): Boolean {
+        val quote = lineQuotes.lineOf(lineId) ?: return false
+        val rule = quoteRuleOf(key)
+        return if (rule == QuoteRule.PHRASE) quoteHasPhrase(key, quote.text) else rule.accepts(quote, peakHour, kinds)
+    }
+
+    /** 근거로 고를 수 있는(말풍선이 넉넉한) 본인 줄 수. */
+    fun usableLineCount(): Int = lineQuotes.usableCount()
+
+    /** 판정 한 줄 [verdictLine]과 펀치가 겹치지 않는 대체 마지막 한 줄. [plain]이면 유행어 없는 문장만 고른다. 후보가 없으면 null이다. */
+    fun punchFallback(verdictLine: String, plain: Boolean, rules: RoastRules): String? = punches.fallbackFor(verdictLine, plain, rules)
 
     /** [key] 칩 후보의 서버 칩 값. 없으면 null이다. */
     fun chipOf(key: String): RoastChip? = facts.find(key)?.chip
@@ -98,7 +126,8 @@ class RoastBrief(
          * 입버릇은 지금 사전으로 다시 읽은 집계를 쓴다. 테스트·실측 도구에서도 이 함수로 입력을 만든다.
          * 대화 참여자 이름 [participants](원본 파일 제출만 있음)는 모든 줄에서 가리고 차단 목록에 넣는다.
          * 근거 카드 슬롯 수는 항목 점수로 정하고, 말풍선 표시가 남는 본인 줄 수와 칩 후보 수로 줄인다([RoastSlots.limitedTo]).
-         * [seed]는 사실 고르기 시드다([RoastFacts.of]). 같은 참가자·같은 해면 같은 값을 넘겨 재시도에도 같은 사실이 나오게 한다.
+         * [seed]는 사실 고르기와 펀치 틀 추천의 시드다([RoastFacts.of], [RoastPunch.candidatesFor]). 같은 참가자·같은 해면 같은 값을 넘겨
+         * 재시도에도 같은 사실·같은 추천 펀치가 나오게 하고, 다른 사람에게는 다른 펀치를 추천한다.
          */
         fun compose(
             messages: List<ScoringMessage>,
@@ -116,6 +145,7 @@ class RoastBrief(
             val refreshed = stats?.refreshedBy(dossier.phrases)
             val facts = refreshed?.let { counted -> RoastFacts.of(counted, dossier, catalog, seed) } ?: RoastFacts.EMPTY
             val slots = RoastSlots.of(verdict, dimensions)
+            val punches = catalog.punch.candidatesFor(verdict, seed)
             return RoastBrief(
                 verdict,
                 facts,
@@ -128,6 +158,10 @@ class RoastBrief(
                 lineQuotes,
                 slots.limitedTo(Int.MAX_VALUE, facts.size()),
                 dossier.phrases,
+                dossier.kinds,
+                refreshed?.let { counted -> counted.clock.peakHour },
+                punches,
+                punches.take(catalog.punch.suggestions),
             )
         }
     }

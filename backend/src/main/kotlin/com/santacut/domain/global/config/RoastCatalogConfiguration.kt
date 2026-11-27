@@ -4,6 +4,7 @@ import com.santacut.domain.roast.model.PhraseFactSpec
 import com.santacut.domain.roast.model.RoastCatalog
 import com.santacut.domain.roast.model.RoastFactSpecs
 import com.santacut.domain.roast.model.RoastFallback
+import com.santacut.domain.roast.model.RoastPunch
 import com.santacut.domain.roast.model.RoastRules
 import com.santacut.domain.roast.model.RoastSlang
 import com.santacut.domain.roast.model.ThanksFactSpec
@@ -30,7 +31,7 @@ class RoastCatalogConfiguration {
         private const val VERSION = "version"
         private const val INVALID_MESSAGE = "팩폭 작가 리소스가 규칙에 맞지 않아 앱을 띄우지 않는다: "
 
-        /** 파일 이름으로 내용을 주는 [read]로 네 리소스를 읽고 검사한다. 위반이 있으면 [IllegalStateException]이다. 테스트·실측 도구도 이 함수를 쓴다. */
+        /** 파일 이름으로 내용을 주는 [read]로 다섯 리소스를 읽고 검사한다. 위반이 있으면 [IllegalStateException]이다. 테스트·실측 도구도 이 함수를 쓴다. */
         fun readCatalog(objectMapper: ObjectMapper, read: (String) -> String): RoastCatalog {
             fun node(name: String): JsonNode = objectMapper.readTree(read(name)).also { root -> verifyVersion(name, root) }
             val facts = node("facts.json")
@@ -41,6 +42,7 @@ class RoastCatalogConfiguration {
                 objectMapper.treeToValue(facts.path("phrase"), PhraseFactSpec::class.java),
                 objectMapper.treeToValue(facts.path("thanks"), ThanksFactSpec::class.java),
                 objectMapper.treeToValue(node("fallback.json"), RoastFallback::class.java),
+                objectMapper.treeToValue(node("punch.json"), RoastPunch::class.java),
             )
             val violations = catalog.violations()
             if (violations.isNotEmpty()) throw IllegalStateException(INVALID_MESSAGE + violations.joinToString("; "))

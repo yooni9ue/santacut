@@ -7,6 +7,9 @@ class LineQuotes(private val values: List<LineQuote>) {
     /** [lineId]번 본인 줄의 말풍선 표시. 보낸 본인 줄이 아니거나 지우고 나서 빈 줄이면 null이다. */
     fun find(lineId: Int): String? = values.find { quote -> quote.lineId == lineId }?.text?.takeIf(String::isNotBlank)
 
+    /** [lineId]번 본인 줄의 말풍선 표시와 보낸 시각. 보낸 본인 줄이 아니거나 지우고 나서 빈 줄이면 null이다. */
+    fun lineOf(lineId: Int): LineQuote? = values.find { quote -> quote.lineId == lineId }?.takeIf { quote -> quote.text.isNotBlank() }
+
     /** 근거로 쓸 만한 말풍선 표시([QuoteText.isSubstantial])가 남은 줄 수. 근거 카드 슬롯 수의 상한이다. */
     fun usableCount(): Int = values.count { quote -> QuoteText.isSubstantial(quote.text) }
 

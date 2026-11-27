@@ -25,7 +25,7 @@ class RoastBriefTest {
 
         assertFalse(input.contains("상대만 아는 비밀"))
         assertTrue(input.contains("정산 끝나고 연락함"))
-        assertTrue(input.contains("|07-14 20시|서울역에서 (숫자)시 ㄱ?"))
+        assertTrue(input.contains("|07-14 화 20시|서울역에서 (숫자)시 ㄱ?"))
         assertTrue(input.contains("\"act\":2,\"months\":\"5~8월\""))
     }
 

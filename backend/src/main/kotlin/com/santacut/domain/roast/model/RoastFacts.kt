@@ -29,10 +29,12 @@ class RoastFacts(private val values: List<RoastFact>) {
     /** 근거 카드 칩 후보. 순서는 사실 순서다. */
     fun chipFacts(): RoastChipFacts = RoastChipFacts(values.map { fact -> RoastChipFact(fact.key, fact.chip) })
 
-    /** 작가 입력의 칩 후보. 고마워 칩은 점수 깎인 말 후보로만 낸다. */
-    fun chipHints(): RoastChipHints = RoastChipHints(
+    /** 작가 입력의 칩 후보와 말풍선 조건. 고마워 칩은 점수 깎인 말 후보로만 낸다. [peakHour]는 피크타임 칩 조건에 넣는 가장 바쁜 시다. */
+    fun chipHints(peakHour: Int? = null): RoastChipHints = RoastChipHints(
         values.map { fact ->
-            RoastChipHint(fact.key, fact.chip.label, fact.chip.value, CUT_ONLY.takeIf { fact.key == ThanksFactSpec.KEY })
+            RoastChipHint(
+                fact.key, fact.chip.label, fact.chip.value, fact.quoteRule.hintWith(peakHour), CUT_ONLY.takeIf { fact.key == ThanksFactSpec.KEY },
+            )
         },
     )
 

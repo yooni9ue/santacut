@@ -150,10 +150,23 @@ data class RoastRules(
     }
 
     /**
-     * 결론 마지막 한 줄 [text]가 밈 펀치인지. 허용 유행어([RoastSlang.allowed])나 구간 펀치 틀 표지([RoastSlang.punchMarkers])가 하나 이상 있어야 한다.
+     * 결론 마지막 한 줄 [text]가 밈 펀치인지. 따옴표 인용 밖에 허용 유행어([RoastSlang.allowed])나 구간 펀치 틀 표지([RoastSlang.punchMarkers])가 하나 이상 있어야 한다.
+     * 본인 입버릇을 따옴표로 든 것('딸깍')은 작가 펀치가 아니라 세지 않는다.
      * 조언·설명·덕담으로 끝나는 밋밋한 한 줄("'빨리'를 적게 써라.")을 막는다.
      */
-    fun isPunch(text: String): Boolean = slangStems.containsMatchIn(text) || punchMarkers.containsMatchIn(text)
+    fun isPunch(text: String): Boolean = punchMarksIn(text).isNotEmpty()
+
+    /**
+     * [text]에 쓴 펀치 표지: 허용 유행어 줄기와 구간 펀치 틀 표지([RoastSlang.punchMarkers]). 유행어 세기처럼 따옴표로 든 본인 말('딸깍')은 보지 않는다.
+     * 펀치 틀([PunchTemplate.marker])을 가려내고, 판정 한 줄과 마지막 한 줄이 같은 틀·같은 유행어를 되풀이하는지 볼 때 쓴다.
+     */
+    fun punchMarksIn(text: String): Set<String> {
+        val bare = TextProblems.QUOTE.replace(text, "")
+        return (slangStems.findAll(bare) + punchMarkers.findAll(bare)).map { match -> match.value }.toSet()
+    }
+
+    /** [first]와 [second]가 함께 쓴 펀치 표지(같은 유행어나 같은 펀치 틀). 없으면 null이다. */
+    fun punchClashIn(first: String, second: String): String? = punchMarksIn(first).intersect(punchMarksIn(second)).firstOrNull()
 
     /**
      * [text]에 쓴 허용 유행어 수. 덱 전체 상한([RoastSlang.maxPerDeck])을 셀 때 쓴다.

@@ -10,6 +10,7 @@ import com.santacut.domain.dossier.model.MetricReading
  * @property levels 백분위 수준 말 네 개. 순서는 훨씬 낮음, 낮음, 높음, 훨씬 높음이다.
  * @property chipLabel 카드 칩 이름
  * @property weight 편집 무게(기본 1). 메시지 양에 따라 늘 튀는 지표(말풍선 수, 운행 일수, 최대 연타 등)는 낮춰 덜 뽑히게 한다.
+ * @property quoteRule 이 칩 근거 카드에 붙여도 되는 말풍선 조건. 말풍선으로 보여 줄 수 없는 지표는 [QuoteRule.NONE]이다.
  */
 data class RoastFactSpec(
     val key: String,
@@ -17,6 +18,7 @@ data class RoastFactSpec(
     val group: String,
     @JsonProperty("chip_label") val chipLabel: String,
     val levels: List<String>,
+    @JsonProperty("quote_rule") val quoteRule: QuoteRule,
     val weight: Double = DEFAULT_WEIGHT,
 ) {
     fun violations(): List<String> = listOfNotNull(
@@ -24,12 +26,13 @@ data class RoastFactSpec(
         "facts.$key: levels는 ${LEVEL_COUNT}개다".takeUnless { levels.size == LEVEL_COUNT },
         "facts.$key: meaning·group·chip_label이 비었다".takeIf { meaning.isBlank() || group.isBlank() || chipLabel.isBlank() },
         "facts.$key: weight는 0보다 크고 ${MAX_WEIGHT} 이하다".takeUnless { weight > 0.0 && weight <= MAX_WEIGHT },
+        "facts.$key: 지표 칩에는 입버릇 말풍선 조건(phrase)을 쓰지 않는다".takeIf { quoteRule == QuoteRule.PHRASE },
     )
 
     /** [reading]을 사실로 바꾼다. 백분위가 가운데([BLAND_LOW]~[BLAND_HIGH])라 밋밋하면 null이다. 점수는 튀는 정도 × [weight]다. */
     fun factOf(reading: MetricReading): RoastFact? = levelOf(reading.percentileRank())?.let { level ->
         val chip = RoastChip(chipLabel, reading.formattedValue())
-        RoastFact(key, meaning, level, group, chip, extremenessOf(reading.percentileRank()) * weight)
+        RoastFact(key, meaning, level, group, chip, extremenessOf(reading.percentileRank()) * weight, quoteRule)
     }
 
     private fun levelOf(percentile: Double): String? = when {

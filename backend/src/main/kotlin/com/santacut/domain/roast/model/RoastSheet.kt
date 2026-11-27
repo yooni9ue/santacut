@@ -3,7 +3,8 @@ package com.santacut.domain.roast.model
 /**
  * 작가 호출을 거듭하며 모은, 검증을 통과한 덱 문장. 판정 한 줄과 결론은 묶음 단위로 처음 통과한 것을 지키고 빠진 묶음만 다음 응답에서 채운다.
  * 근거 카드는 카드 단위로 지킨다. 통과한 카드는 남기고 kind별 슬롯이 다 찰 때까지 다음 응답에서 떨어진 자리만 채운다.
- * 무언가를 더할 때 덱 전체 허용 유행어가 상한([RoastSlang.maxPerDeck])을 넘으면 그것은 받지 않는다.
+ * 무언가를 더할 때 덱 전체 허용 유행어가 상한([RoastSlang.maxPerDeck])을 넘거나, 판정 한 줄과 결론 마지막 한 줄이 같은 펀치 표지(유행어·펀치 틀)를 쓰게 되면
+ * 그것은 받지 않는다. 판정 한 줄과 결론이 다른 응답에서 와도 펀치가 되풀이되지 않게 한다.
  *
  * @property evidence 지금까지 통과한 근거 카드
  * @property evidenceFilled 근거 카드가 kind별 슬롯 수만큼 다 찼는지
@@ -19,10 +20,10 @@ class RoastSheet(
         val output = review.output ?: return this
         val checks = review.checks
         val withVerdict = copy(verdictLine = verdictLine ?: output.verdictLine.takeIf { checks.passed(RoastChecks.VERDICT_LINE_FIELD) })
-            .orIfOverflow(this, rules)
-        val withEvidence = withVerdict.withEvidenceFrom(output.evidence, checks, brief.slots).orIfOverflow(withVerdict, rules)
+            .orIfRejected(this, rules)
+        val withEvidence = withVerdict.withEvidenceFrom(output.evidence, checks, brief, rules).orIfRejected(withVerdict, rules)
         return withEvidence.copy(conclusion = conclusion ?: output.conclusion.takeIf { checks.passed(ConclusionDraft.FIELD) })
-            .orIfOverflow(withEvidence, rules)
+            .orIfRejected(withEvidence, rules)
     }
 
     /** 아직 채우지 못한 묶음 이름(다시 쓰기 대상). 근거 카드는 한 장이라도 비면 빈 묶음이다. */
@@ -44,7 +45,8 @@ class RoastSheet(
      * 빈칸을 서버 대체 문장으로 채워 저장할 내용을 만든다. 판정 한 줄과 결론은 [brief] 판정 구간의 고정 문장이다.
      * 근거 카드는 통과한 작가 카드를 쓰고, 빈 슬롯은 칩 후보로 만든 통계 카드(입버릇·튀는 지표 칩)로 채운다.
      * 슬롯이 다 찼어도 근거 카드가 [RoastEvidences.MIN_CARDS]장 아래면 같은 통계 카드로 그 수까지 채운다. 항목 점수 카드는 덱에 실을 때([RoastContent.forDeck])만 쓴다.
-     * 작가 문장과 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 고정 문장을 쓴다.
+     * 작가 문장과 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 고정 문장을 쓴다. 대체 마지막 한 줄은 이 사람의 펀치 틀 후보(시드 순서)에서
+     * 판정 한 줄과 펀치가 겹치지 않는 첫 문장이라 사람마다 다르다([RoastBrief.punchFallback]). 후보가 없으면 구간 고정 문장이다.
      */
     fun toContent(brief: RoastBrief, fallback: RoastFallback, rules: RoastRules): RoastContent {
         val grade = brief.verdict.grade()
@@ -52,22 +54,38 @@ class RoastSheet(
         val kept = evidence.toEvidences(brief)
         val stats = brief.fallbackEvidence(fallback, kept)
         val cards = kept.plus(stats, if (evidenceFilled) RoastEvidences.MIN_CARDS - kept.size() else stats.size())
-        val fallbackSlang = (if (verdictLine == null) rules.slangCountIn(band.verdictLine) else 0) +
-            (if (conclusion == null) rules.slangCountIn(band.finalLine) else 0)
-        val plain = slangCount(rules) + fallbackSlang > rules.slang.maxPerDeck
+        val plain = isPlain(brief, band, rules)
+        val verdictText = verdictLine ?: fallbackVerdict(band, plain, rules)
+        val finalText = conclusion?.finalLine ?: brief.punchFallback(verdictText, plain, rules) ?: band.finalLine(plain)
         return RoastContent(
             brief.verdict.key(),
-            RoastText.of(verdictLine, band.verdictLine(plain)),
+            RoastText.of(verdictLine, verdictText),
             cards,
-            conclusion?.toConclusion(brief) ?: fallback.conclusionOf(grade, cards.hero(), plain),
+            conclusion?.toConclusion(brief) ?: fallback.conclusionOf(grade, cards.hero(), finalText),
         )
     }
 
+    /** 작가 문장과 대체 문장을 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 대체 문장을 쓴다. */
+    private fun isPlain(brief: RoastBrief, band: RoastBandCopy, rules: RoastRules): Boolean {
+        val verdictText = verdictLine ?: band.verdictLine
+        val finalText = conclusion?.finalLine ?: brief.punchFallback(verdictText, false, rules) ?: band.finalLine
+        val fallbackSlang = (if (verdictLine == null) rules.slangCountIn(band.verdictLine) else 0) +
+            (if (conclusion == null) rules.slangCountIn(finalText) else 0)
+        return slangCount(rules) + fallbackSlang > rules.slang.maxPerDeck
+    }
+
+    /** 대체 판정 한 줄. 작가 결론 마지막 한 줄과 펀치 표지가 겹치면 유행어 없는 판정 한 줄을 쓴다. */
+    private fun fallbackVerdict(band: RoastBandCopy, plain: Boolean, rules: RoastRules): String {
+        val text = band.verdictLine(plain)
+        val clashes = conclusion != null && rules.punchClashIn(text, conclusion.finalLine) != null
+        return if (clashes) band.plainVerdictLine else text
+    }
+
     /** 응답 근거 카드 [drafts] 가운데 통과한 카드로 빈 슬롯을 채운 시트. 이미 다 찼으면 그대로다. */
-    private fun withEvidenceFrom(drafts: EvidenceDrafts, checks: RoastChecks, slots: RoastSlots): RoastSheet {
+    private fun withEvidenceFrom(drafts: EvidenceDrafts, checks: RoastChecks, brief: RoastBrief, rules: RoastRules): RoastSheet {
         if (evidenceFilled) return this
-        val merged = evidence.absorbed(drafts, checks, slots)
-        return copy(evidence = merged, evidenceFilled = merged.fills(slots))
+        val merged = evidence.absorbed(drafts, checks, brief, rules)
+        return copy(evidence = merged, evidenceFilled = merged.fills(brief.slots))
     }
 
     private fun copy(
@@ -80,9 +98,11 @@ class RoastSheet(
     private fun slangCount(rules: RoastRules): Int =
         (verdictLine?.let(rules::slangCountIn) ?: 0) + evidence.slangCount(rules) + (conclusion?.slangCount(rules) ?: 0)
 
-    /** 덱 전체 유행어가 상한을 넘으면 [previous]를 돌려준다. */
-    private fun orIfOverflow(previous: RoastSheet, rules: RoastRules): RoastSheet =
-        if (slangCount(rules) > rules.slang.maxPerDeck) previous else this
+    /** 덱 전체 유행어가 상한을 넘거나 판정 한 줄과 결론 마지막 한 줄의 펀치가 겹치면 [previous]를 돌려준다. */
+    private fun orIfRejected(previous: RoastSheet, rules: RoastRules): RoastSheet {
+        val clashes = verdictLine != null && conclusion != null && rules.punchClashIn(verdictLine, conclusion.finalLine) != null
+        return if (clashes || slangCount(rules) > rules.slang.maxPerDeck) previous else this
+    }
 
     companion object {
         /** 아무것도 통과하지 못한 처음 상태. 작가를 부르지 않으면 이대로 대체 문장만 쓴다. */
