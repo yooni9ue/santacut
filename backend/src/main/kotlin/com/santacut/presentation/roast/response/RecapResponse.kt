@@ -19,8 +19,8 @@ data class RecapResponse(
     val scoreText: String,
     @field:JsonProperty("share_text")
     @field:Schema(
-        description = "서버가 고정한 공유 문구. 등급마다 다르고 총점 표시(score_text)가 들어갑니다.",
-        example = "산타가 내 단톡방 다 읽음. 73.73점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐?",
+        description = "서버가 고정한 공유 문구. 등급마다 다르고 총점 표시(score_text)가 들어가며, 끝에 #산타컷 #구간 태그 해시태그가 붙습니다.",
+        example = "산타가 내 단톡방 다 읽음. 73.73점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐? #산타컷 #걸쳐서통과",
     )
     val shareText: String,
     @field:Schema(description = "전국 순위. 카드마다 같은 값이 있습니다. 순위 계산이 끝나면 참가자 수와 상관없이 늘 있고, 최신 결과가 아직 순위에 반영되지 않았으면 null입니다.", nullable = true)

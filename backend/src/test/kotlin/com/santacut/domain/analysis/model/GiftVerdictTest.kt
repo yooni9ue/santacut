@@ -90,12 +90,12 @@ class GiftVerdictTest {
     fun `스킨은 판정을, 공유 문구는 등급을 따르고 총점 표시를 넣는다`() {
         assertEquals("GIFT", GiftVerdict(7373).skin())
         assertEquals("COAL", GiftVerdict(4000).skin())
-        assertEquals("산타가 내 단톡방 다 읽고도 92.10점 줌. 이게 인성이다. 너도 까봐.", GiftVerdict(9210).shareText())
-        assertEquals("산타가 내 단톡방 다 읽음. 80.00점, 선물 실림. 넌 읽히면 석탄 각.", GiftVerdict(8000).shareText())
-        assertEquals("산타가 내 단톡방 다 읽음. 70.55점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐?", GiftVerdict(7055).shareText())
-        assertEquals("60.00점. 굴뚝 앞에서 썰매가 유턴함. 억울해서 올린다. 너는 넘나 보자.", GiftVerdict(6000).shareText())
-        assertEquals("산타한테 읽씹당함. 52.00점. 나만 당할 수 없다. 너도 까봐.", GiftVerdict(5200).shareText())
-        assertEquals("산타가 내 단톡방 읽고 석탄 보냄. 반품도 안 된대. 혼자 받긴 억울하다. 너도 까봐.", GiftVerdict(4000).shareText())
+        assertEquals("산타가 내 단톡방 다 읽고도 92.10점 줌. 이게 인성이다. 너도 까봐. #산타컷 #굴뚝프리패스", GiftVerdict(9210).shareText())
+        assertEquals("산타가 내 단톡방 다 읽음. 80.00점, 선물 실림. 넌 읽히면 석탄 각. #산타컷 #썰매탑승완료", GiftVerdict(8000).shareText())
+        assertEquals("산타가 내 단톡방 다 읽음. 70.55점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐? #산타컷 #걸쳐서통과", GiftVerdict(7055).shareText())
+        assertEquals("60.00점. 굴뚝 앞에서 썰매가 유턴함. 억울해서 올린다. 너는 넘나 보자. #산타컷 #굴뚝앞유턴", GiftVerdict(6000).shareText())
+        assertEquals("산타한테 읽씹당함. 52.00점. 나만 당할 수 없다. 너도 읽혀 봐. #산타컷 #명단에없음", GiftVerdict(5200).shareText())
+        assertEquals("산타가 내 단톡방 읽고 석탄 보냄. 반품도 안 된대. 혼자 받긴 억울하다. 석탄 동기 구함. #산타컷 #석탄당첨", GiftVerdict(4000).shareText())
     }
 
     @Test

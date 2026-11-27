@@ -5,7 +5,7 @@ package com.santacut.domain.analysis.model
  *
  * @property label 카드에 찍는 등급 이름
  * @property stamp 도장 문구. 등급의 온도를 말한다.
- * @property shareText 서버가 고정한 공유 문구 틀. [SCORE_SLOT]에 총점 표시가 들어간다(없는 등급도 있다).
+ * @property shareText 서버가 고정한 공유 문구 틀. [SCORE_SLOT]에 총점 표시가 들어간다(없는 등급도 있다). 끝에 해시태그(#산타컷 #[tag])가 붙는다.
  * @property temperature 팩폭 작가에게 보내는 등급 온도(넉넉한 통과, 아슬아슬 통과, 아깝게 탈락, 석탄)
  * @property range 리캡 컷 표에 찍는 점수 구간 표시("90+", "≤49")
  * @property detail 리캡 컷 표에 붙는 구간 고정 문구. 서버 상수다.
@@ -24,16 +24,19 @@ enum class GiftGrade(
     GIFT_DEPARTED("썰매 탑승 완료", "선물 실었다", "산타가 내 단톡방 다 읽음. {점수}점, 선물 실림. 넌 읽히면 석탄 각.", "넉넉한 통과", "75~89", "썰매 앞자리 예약됨", "썰매탑승완료"),
     SCRAPED_THROUGH("굴뚝에 걸쳐서 통과", "겨우 실었다", "산타가 내 단톡방 다 읽음. {점수}점, 굴뚝에 걸쳐서 겨우 통과. 넌 넘냐?", "아슬아슬 통과", "65~74", "바지 걸렸는데 통과", "걸쳐서통과"),
     ONE_STEP_SHORT("굴뚝 앞 유턴", "아깝다 진짜", "{점수}점. 굴뚝 앞에서 썰매가 유턴함. 억울해서 올린다. 너는 넘나 보자.", "아깝게 탈락", "55~64", "굴뚝 코앞에서 핸들 꺾음", "굴뚝앞유턴"),
-    OFF_LIST("명단에 없음", "산타 읽씹", "산타한테 읽씹당함. {점수}점. 나만 당할 수 없다. 너도 까봐.", "석탄", "50~54", "엄… 이름이 안 보임", "명단에없음"),
-    COAL("석탄 당첨", "반품 불가", "산타가 내 단톡방 읽고 석탄 보냄. 반품도 안 된대. 혼자 받긴 억울하다. 너도 까봐.", "석탄", "≤49", "석탄 특송 출발", "석탄당첨"),
+    OFF_LIST("명단에 없음", "산타 읽씹", "산타한테 읽씹당함. {점수}점. 나만 당할 수 없다. 너도 읽혀 봐.", "석탄", "50~54", "엄… 이름이 안 보임", "명단에없음"),
+    COAL("석탄 당첨", "반품 불가", "산타가 내 단톡방 읽고 석탄 보냄. 반품도 안 된대. 혼자 받긴 억울하다. 석탄 동기 구함.", "석탄", "≤49", "석탄 특송 출발", "석탄당첨"),
     ;
 
-    /** 총점 표시 [scoreText]를 넣은 공유 문구. */
-    fun shareTextWith(scoreText: String): String = shareText.replace(SCORE_SLOT, scoreText)
+    /** 총점 표시 [scoreText]를 넣고 해시태그(#산타컷 #구간 태그)를 붙인 공유 문구. 결론 카드의 해시태그와 같다. */
+    fun shareTextWith(scoreText: String): String = shareText.replace(SCORE_SLOT, scoreText) + HASHTAG_SEPARATOR + BRAND_TAG + HASHTAG_SEPARATOR + HASH + tag
 
     companion object {
         /** 공유 문구 틀에서 총점 표시가 들어갈 자리. */
         const val SCORE_SLOT = "{점수}"
+        private const val HASHTAG_SEPARATOR = " "
+        private const val HASH = "#"
+        private const val BRAND_TAG = "#산타컷"
         private const val PREMIUM_FROM = 9000
         private const val GIFT_DEPARTED_FROM = 7500
         private const val SCRAPED_THROUGH_FROM = GiftVerdict.CUT_HUNDREDTHS
