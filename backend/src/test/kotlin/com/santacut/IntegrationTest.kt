@@ -8,6 +8,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
  *
  * 시즌을 먼 미래로 미뤄 실행 날짜와 상관없이 분석을 받을 수 있게 하고,
  * 분석 작업자가 테스트 도중 AI를 부르지 않도록 대기 시간을 길게 잡는다. dev처럼 프롬프트 관리 API를 켠다.
+ * 예약 폴링 자체는 테스트 설정(`classpath:/config/application.yml`의 `santacut.scheduling.enabled=false`)이 끈다. 대기 시간만 길게 잡으면
+ * fixedDelay의 첫 실행(지연 없음)이 남은 작업을 잡아 테스트와 경쟁한다.
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
