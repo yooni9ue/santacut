@@ -18,11 +18,10 @@ class CopyTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
 
     /**
      * [index]번째(0부터, 돌려 씀) 문장. 입버릇 [phrase]로 채운 틀이 [maxLength]자 안이면 그 틀들 가운데서, 아니면 고정 문장 가운데서 고른다.
-     * [syllablesOnly]면 입버릇이 한글 음절로만 이뤄져야 틀을 쓴다(라벨에 ㄱ?·ㅋㅋ 같은 표기가 박히지 않게).
+     * 틀은 입버릇을 작은따옴표로 감싸 든다. 칩에 찍힌 표기를 그대로 옮긴 것이라 말투·인용 검사에서 문장 낱말로 치지 않는다.
      */
-    fun pick(index: Int, phrase: String?, maxLength: Int, syllablesOnly: Boolean): String {
-        val usable = phrase?.takeUnless { syllablesOnly && !SYLLABLES.matches(it) }
-        val filled = usable?.let { value ->
+    fun pick(index: Int, phrase: String?, maxLength: Int): String {
+        val filled = phrase?.let { value ->
             values.filter { template -> PHRASE in template }.map { template -> template.replace(PHRASE, value) }
                 .filter { text -> text.codePointCount(0, text.length) <= maxLength }
         }.orEmpty()
@@ -33,6 +32,5 @@ class CopyTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
     companion object {
         /** 입버릇 표기를 넣을 자리. */
         const val PHRASE = "{phrase}"
-        private val SYLLABLES = Regex("[가-힣]+")
     }
 }

@@ -7,9 +7,9 @@ package com.santacut.domain.roast.model
 data class EvidenceCopy(val labels: CopyTemplates, val lines: CopyTemplates) {
     fun isMalformed(): Boolean = labels.lacksPlain() || lines.lacksPlain()
 
-    /** [index]번째 라벨. 입버릇 [phrase]가 한글 음절로만 이뤄지고 라벨 상한 안이면 입버릇을 넣은 상 이름을 쓴다. */
-    fun labelAt(index: Int, phrase: String?): String = labels.pick(index, phrase, RoastTextKind.LABEL.maxLength, syllablesOnly = true)
+    /** [index]번째 라벨. 입버릇 [phrase]를 넣어도 라벨 상한 안이면 입버릇을 넣은 상 이름('수고'장인상)을 쓴다. */
+    fun labelAt(index: Int, phrase: String?): String = labels.pick(index, phrase, RoastTextKind.LABEL.maxLength)
 
     /** [index]번째 한 줄. 입버릇 [phrase]를 넣고 한 줄 상한 안이면 그 문장을 쓴다. */
-    fun lineAt(index: Int, phrase: String?): String = lines.pick(index, phrase, RoastTextKind.EVIDENCE_LINE.maxLength, syllablesOnly = false)
+    fun lineAt(index: Int, phrase: String?): String = lines.pick(index, phrase, RoastTextKind.EVIDENCE_LINE.maxLength)
 }

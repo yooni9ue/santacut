@@ -31,9 +31,10 @@ data class RoastFallback(
     /**
      * [kind] 근거 카드 가운데 [index]번째(0부터) 통계 카드. 칩은 [fact]이고 말풍선은 없다.
      * 문구는 그 칩의 칩별 문구를 쓰고, 입버릇 칩이면 칩 이름의 입버릇 표기를 틀에 넣는다. 칩별 문구가 없으면 종류별 기본 문구다.
+     * [mild]면 깎인 말에 순한 문구([ChipCopy.mildCut])를 쓴다. 높은 점수 가운데 가장 낮아 억지로 깎인 말이 된 칩이 그렇다.
      */
-    fun evidenceOf(kind: EvidenceKind, index: Int, fact: RoastChipFact): RoastEvidence {
-        val copy = chips.find(fact.key)?.copyOf(kind) ?: evidence.getValue(kind.key)
+    fun evidenceOf(kind: EvidenceKind, index: Int, fact: RoastChipFact, mild: Boolean = false): RoastEvidence {
+        val copy = chips.find(fact.key)?.copyOf(kind, mild) ?: evidence.getValue(kind.key)
         val phrase = fact.chip.quotedPhrase()
         return RoastEvidence(kind, null, fact.key, fact.chip, null, copy.labelAt(index, phrase), copy.lineAt(index, phrase), RoastSource.FALLBACK)
     }

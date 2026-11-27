@@ -65,7 +65,20 @@ class RoastContentTest {
         val deck = content.forDeck(GiftVerdict(GIFT), ScoreComponents.fromColumn("[90,85,80,70]"), fallback)
 
         assertEquals(List(3) { EvidenceKind.REASON } + EvidenceKind.CUT, deck.evidence.toList().map(RoastEvidence::kind))
-        assertEquals("협력 점수", deck.evidence.toList().last().chip?.label)
+        val cut = deck.evidence.toList().last()
+        assertEquals("협력 점수", cut.chip?.label)
+        assertEquals("협력막내상", cut.label)
+        assertFalse(cut.line.contains("발목"))
+    }
+
+    @Test
+    fun `컷 아래 항목으로 채운 깎인 말은 원래 깎인 말 문구를 쓴다`() {
+        val reasons = List(3) { index -> evidence(EvidenceKind.REASON, "r$index") }
+        val content = RoastContent.fallbackOf(GiftVerdict(GIFT), fallback).copy(evidence = RoastEvidences(reasons))
+
+        val deck = content.forDeck(GiftVerdict(GIFT), ScoreComponents.fromColumn("[90,85,80,50]"), fallback)
+
+        assertEquals("협력실종상", deck.evidence.toList().last().label)
     }
 
     @Test

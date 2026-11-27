@@ -2,9 +2,11 @@ package com.santacut.domain.roast.model
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
+import com.santacut.domain.analysis.model.GiftVerdict
 import com.santacut.domain.analysis.model.ScoreComponents
 import com.santacut.domain.analysis.model.ScoreDimension
 import com.santacut.domain.dossier.model.DossierFormat
+import java.math.BigDecimal
 import java.math.RoundingMode
 
 /**
@@ -57,12 +59,16 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
         return next.filledTo(kind, dimensions, fallback)
     }
 
-    /** [kind] 통계 카드 한 장을 더한다. 쓸 항목이 남지 않았으면 그대로다. */
+    /**
+     * [kind] 통계 카드 한 장을 더한다. 쓸 항목이 남지 않았으면 그대로다.
+     * 깎인 말인데 그 항목이 컷 이상이면(모든 항목이 컷 이상인 선물 덱) 순한 깎인 말 문구를 쓴다.
+     */
     private fun withDimension(kind: EvidenceKind, dimensions: ScoreComponents, fallback: RoastFallback): RoastEvidences {
         val index = countOf(kind)
         val ranked = dimensions.rankedDimensions().let { order -> if (kind == EvidenceKind.CUT) order.reversed() else order }
         val dimension = ranked.getOrNull(index) ?: return this
-        return RoastEvidences(values + fallback.evidenceOf(kind, index, dimensionFact(dimension, dimensions)))
+        val mild = kind == EvidenceKind.CUT && dimensions.scoreOf(dimension) >= CUT_POINTS
+        return RoastEvidences(values + fallback.evidenceOf(kind, index, dimensionFact(dimension, dimensions), mild))
     }
 
     private fun inDeckOrder(): RoastEvidences = RoastEvidences(values.sortedBy { evidence -> evidence.kind.ordinal })
@@ -81,6 +87,7 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
         private const val MAX_COAL_KEEPS = 1
         private const val DIMENSION_CHIP_SUFFIX = " 점수"
         private const val POINT_UNIT = "점"
+        private val CUT_POINTS: BigDecimal = BigDecimal(GiftVerdict.CUT_POINTS)
 
         /** 모든 항목 점수 칩 key. */
         fun dimensionKeys(): List<String> = ScoreDimension.entries.map { dimension -> DIMENSION_KEY_PREFIX + dimension.key }
