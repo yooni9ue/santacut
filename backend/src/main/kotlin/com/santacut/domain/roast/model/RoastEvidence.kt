@@ -1,6 +1,7 @@
 package com.santacut.domain.roast.model
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
 
 /**
@@ -13,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property label 상 이름 꼴 라벨(8자 이하)
  * @property line 한 줄(20자 이하, 숫자 없음)
  * @property source 라벨과 한 줄의 출처
+ * @property dimension 칩 방향이 가리키는 항목 점수 key([com.santacut.domain.analysis.model.ScoreDimension.key]). 근거 카드 영역 태그에 쓴다.
+ * 이어 볼 항목이 없는 칩(중립·어느 쪽으로도 읽히는 입버릇)이나 이 필드 전에 저장한 결과면 null이다.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class RoastEvidence(
@@ -24,6 +27,7 @@ data class RoastEvidence(
     val label: String,
     val line: String,
     val source: RoastSource,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL) val dimension: String? = null,
 ) {
     /** 대체 문장이면 1, 작가 문장이면 0. */
     fun fallbackCount(): Int = if (source == RoastSource.FALLBACK) 1 else 0

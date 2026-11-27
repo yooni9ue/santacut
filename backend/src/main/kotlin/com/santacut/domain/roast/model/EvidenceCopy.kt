@@ -5,6 +5,9 @@ package com.santacut.domain.roast.model
  * 같은 종류의 카드가 여러 장이면 순서대로 돌려 쓰고, 입버릇 틀([CopyTemplates.PHRASE])은 칩의 입버릇 표기로 채운다.
  */
 data class EvidenceCopy(val labels: CopyTemplates, val lines: CopyTemplates) {
+    /** 고정 라벨과 한 줄. */
+    fun plainTexts(): List<String> = labels.plainTexts() + lines.plainTexts()
+
     fun isMalformed(): Boolean = labels.lacksPlain() || lines.lacksPlain()
 
     /** [index]번째 라벨. 입버릇 [phrase]를 넣어도 라벨 상한 안이면 입버릇을 넣은 상 이름('수고'장인상)을 쓴다. */

@@ -26,7 +26,7 @@ data class RecapResponse(
     @field:Schema(description = "전국 순위. 카드마다 같은 값이 있습니다. 순위 계산이 끝나면 참가자 수와 상관없이 늘 있고, 최신 결과가 아직 순위에 반영되지 않았으면 null입니다.", nullable = true)
     val rank: Int?,
     @field:JsonProperty("top_percent")
-    @field:Schema(description = "상위 비율(%, 1~100). 순위와 그 순위 계산의 참가자 수로 냅니다. 순위가 없으면 null입니다.", nullable = true)
+    @field:Schema(description = "상위 비율(%, 1~100). 순위와 그 순위 계산의 참가자 수로 냅니다. 순위가 없거나 참가자가 100명 아래면 null입니다.", nullable = true)
     val topPercent: Int?,
     @field:JsonProperty("ranking_pending")
     @field:Schema(description = "최신 결과가 아직 순위에 반영되지 않았으면 true입니다. 이때는 이 API를 다시 불러 순위가 들어올 때까지 기다립니다.")

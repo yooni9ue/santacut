@@ -20,6 +20,9 @@ class PunchPools @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
     /** 풀이 없는 등급 이름([GiftGrade.name]). 구간 풀(bands)은 모든 등급에 있어야 한다. */
     fun missingGrades(): List<String> = missing(GiftGrade.entries.map(GiftGrade::name))
 
+    /** 모든 풀의 대체 문장. */
+    fun fallbacks(): List<String> = values.values.flatMap(PunchTemplates::fallbacks)
+
     /** 모든 풀. */
     fun pools(): List<PunchTemplates> = values.values.toList()
 
@@ -32,6 +35,12 @@ class PunchPools @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
             "$field.$name: 서로 다른 펀치 표지가 ${minStructures}개 이상이어야 한다".takeIf { pool.markerCount() < minStructures },
             "$field.$name: 유행어 없는 대체 문장이 하나 이상 있어야 한다".takeUnless { pool.hasPlain(rules) },
         ) + pool.violations("$field.$name", rules)
+    }
+
+    /** 풀마다 표지가 [minStructures]개 이상인지와 틀마다의 위반. 유행어 없는 대체 문장은 요구하지 않는다(판정 한 줄 풀). */
+    fun templateViolations(field: String, minStructures: Int, rules: RoastRules): List<String> = values.flatMap { (name, pool) ->
+        listOfNotNull("$field.$name: 서로 다른 펀치 표지가 ${minStructures}개 이상이어야 한다".takeIf { pool.markerCount() < minStructures }) +
+            pool.violations("$field.$name", rules)
     }
 
     companion object {

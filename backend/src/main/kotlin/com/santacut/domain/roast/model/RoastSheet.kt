@@ -39,6 +39,9 @@ class RoastSheet(
 
     fun isComplete(): Boolean = missingFields().isEmpty()
 
+    /** 지금까지 받아 둔 근거 카드. 다시 쓰기 응답의 결론 검사가 대표 사실 칩을 이미 쓴 카드로 볼 때 쓴다. */
+    fun keptEvidence(): EvidenceDrafts = evidence
+
     /**
      * 빠진 묶음과 직전 응답 [review]의 사유로 다시 쓰기 요청을 만든다. 검증은 통과했지만 받아 둔 문장과 겹쳐 받지 않은 사유([rejections])도 싣고,
      * 받아 둔 판정 한 줄·근거 카드·마지막 한 줄([RoastKept])을 함께 보내 작가가 그것과 겹치지 않게 쓰게 한다.
@@ -50,7 +53,7 @@ class RoastSheet(
     }
 
     /**
-     * 빈칸을 서버 대체 문장으로 채워 저장할 내용을 만든다. 판정 한 줄과 결론은 [brief] 판정 구간의 고정 문장이다.
+     * 빈칸을 서버 대체 문장으로 채워 저장할 내용을 만든다. 판정 한 줄은 이 사람에게 정해 준 판정 틀의 대체 문장, 결론 칭호는 [brief] 판정 구간의 고정 문장이다.
      * 근거 카드는 통과한 작가 카드를 쓰고, 빈 슬롯은 칩 후보로 만든 통계 카드(입버릇·튀는 지표 칩)로 채운다.
      * 슬롯이 다 찼어도 근거 카드가 [RoastEvidences.MIN_CARDS]장 아래면 같은 통계 카드로 그 수까지 채운다. 항목 점수 카드는 덱에 실을 때([RoastContent.forDeck])만 쓴다.
      * 작가 문장과 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 고정 문장을 쓴다. 대체 마지막 한 줄은 이 사람의 펀치 틀 후보(시드 순서)에서
@@ -63,7 +66,7 @@ class RoastSheet(
         val stats = brief.fallbackEvidence(fallback, kept)
         val cards = kept.plus(stats, if (evidenceFilled) RoastEvidences.MIN_CARDS - kept.size() else stats.size())
         val plain = isPlain(brief, band, rules)
-        val verdictText = verdictLine ?: fallbackVerdict(band, plain, rules)
+        val verdictText = verdictLine ?: fallbackVerdict(brief, band, plain, rules)
         val finalText = conclusion?.finalLine ?: brief.punchFallback(verdictText, plain, rules) ?: band.finalLine(plain)
         return RoastContent(
             brief.verdict.key(),
@@ -75,16 +78,19 @@ class RoastSheet(
 
     /** 작가 문장과 대체 문장을 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 대체 문장을 쓴다. */
     private fun isPlain(brief: RoastBrief, band: RoastBandCopy, rules: RoastRules): Boolean {
-        val verdictText = verdictLine ?: band.verdictLine
+        val verdictText = verdictLine ?: assignedVerdict(brief, band)
         val finalText = conclusion?.finalLine ?: brief.punchFallback(verdictText, false, rules) ?: band.finalLine
-        val fallbackSlang = (if (verdictLine == null) rules.slangCountIn(band.verdictLine) else 0) +
+        val fallbackSlang = (if (verdictLine == null) rules.slangCountIn(verdictText) else 0) +
             (if (conclusion == null) rules.slangCountIn(finalText) else 0)
         return slangCount(rules) + fallbackSlang > rules.slang.maxPerDeck
     }
 
-    /** 대체 판정 한 줄. 작가 결론 마지막 한 줄과 펀치 표지가 겹치면 유행어 없는 판정 한 줄을 쓴다. */
-    private fun fallbackVerdict(band: RoastBandCopy, plain: Boolean, rules: RoastRules): String {
-        val text = band.verdictLine(plain)
+    /** 이 사람에게 정해 준 판정 틀의 대체 문장. 정해 준 틀이 없으면 구간 고정 문장이다. 판정 한 줄도 사람마다 다른 유행어 가족을 쓴다. */
+    private fun assignedVerdict(brief: RoastBrief, band: RoastBandCopy): String = brief.verdictPunch?.fallback ?: band.verdictLine
+
+    /** 대체 판정 한 줄. [plain]이면 유행어 없는 구간 문장, 아니면 정해 준 판정 틀의 대체 문장이다. 작가 결론 마지막 한 줄과 펀치 표지가 겹치면 유행어 없는 판정 한 줄을 쓴다. */
+    private fun fallbackVerdict(brief: RoastBrief, band: RoastBandCopy, plain: Boolean, rules: RoastRules): String {
+        val text = if (plain) band.plainVerdictLine else assignedVerdict(brief, band)
         val clashes = conclusion != null && rules.punchClashIn(text, conclusion.finalLine) != null
         return if (clashes) band.plainVerdictLine else text
     }

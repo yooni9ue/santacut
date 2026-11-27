@@ -3,6 +3,7 @@ package com.santacut.domain.roast.model
 import com.santacut.TestRoastAnswers.chipWordOf
 import com.santacut.TestRoastAnswers.evidenceOf
 import com.santacut.TestRoastAnswers.habitMessages
+import com.santacut.TestRoastAnswers.lineFor
 import com.santacut.TestRoastAnswers.review
 import com.santacut.TestRoastAnswers.substantialLineIds
 import com.santacut.TestRoastAnswers.validJson
@@ -101,10 +102,14 @@ class DeckWordingTest {
     fun `다섯 장 덱이면 대표 말을 근거 카드와 다른 줄로 골라야 한다`() {
         val short = TestRoasts.briefWithoutPunches(habitMessages(), TestRoasts.COAL_SCORE, ONE_WEAK)
         assertTrue(short.slots.total() <= RoastEvidences.MIN_CARDS, short.slots.toString())
-        val cards = evidenceOf(short)
-        val usedLine = cards.first { card -> card["line_id"] != null }["line_id"] as Int
-        val usedChip = cards.first { card -> card["line_id"] == usedLine }["chip_key"] as String
-        val freshLine = substantialLineIds(short).last { id -> id !in cards.map { card -> card["line_id"] } && short.quoteFits(usedChip, id) }
+        val usedChip = QUESTION
+        val asked = substantialLineIds(short).filter { id -> short.quoteFits(usedChip, id) }
+        val usedLine = asked.first()
+        val freshLine = asked.last()
+        assertTrue(usedLine != freshLine, asked.toString())
+        val cards = evidenceOf(short).map { card ->
+            if (card["kind"] == "keep") card + ("chip_key" to usedChip) + ("line_id" to usedLine) + ("line" to lineFor(short, usedChip, index = 1)) else card
+        }
 
         val repeated = review(short, validJson(short, evidence = cards, heroLineId = usedLine, heroChipKey = usedChip, finalLine = "${chipWord(short, usedChip)} 장부 결산, 요이~")).checks
         val fresh = review(short, validJson(short, evidence = cards, heroLineId = freshLine, heroChipKey = usedChip, finalLine = "${chipWord(short, usedChip)} 장부 결산, 요이~")).checks
@@ -135,5 +140,6 @@ class DeckWordingTest {
     companion object {
         /** 컷 아래 항목이 하나뿐인 항목 점수. 석탄 덱이 깎인 말 한 장·살아남은 말 한 장의 다섯 장 덱이 된다. */
         private val ONE_WEAK: ScoreComponents = ScoreComponents.fromColumn("[90,90,90,50]")
+        private const val QUESTION = "question_ratio"
     }
 }

@@ -24,7 +24,7 @@ data class ConclusionCardResponse(
     @field:Schema(description = "상단 바의 전국 순위. 순위 반영 전이면 null입니다.", nullable = true)
     override val rank: Int?,
     @field:JsonProperty("top_percent")
-    @field:Schema(description = "상단 바와 칩의 상위 비율(%). 순위가 없으면 null입니다.", nullable = true)
+    @field:Schema(description = "상단 바와 칩의 상위 비율(%). 순위가 없거나 참가자가 100명 아래면 null이고, 그때 상단 바는 순위(전국 N등)만 씁니다.", nullable = true)
     override val topPercent: Int?,
     @field:Schema(description = "판정 큰 글자(배지)", example = "착한 아이")
     val verdict: String,

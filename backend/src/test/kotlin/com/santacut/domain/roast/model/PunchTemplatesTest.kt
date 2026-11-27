@@ -36,16 +36,16 @@ class PunchTemplatesTest {
     @Test
     fun `서로 다른 세 시드는 서로 다른 첫 추천 틀을 받고 같은 시드는 늘 같은 추천을 받는다`() {
         listOf(TestRoasts.GIFT_SCORE, TestRoasts.COAL_SCORE).forEach { hundredths ->
-            val firsts = SEEDS.map { seed -> punch.candidatesFor(GiftVerdict(hundredths), seed, rules).take(1).hints().single() }
+            val firsts = SEEDS.map { seed -> punch.candidatesFor(GiftVerdict(hundredths), seed).take(1).hints().single() }
             assertEquals(SEEDS.size, firsts.toSet().size, firsts.toString())
             SEEDS.forEach { seed ->
-                assertEquals(punch.candidatesFor(GiftVerdict(hundredths), seed, rules).hints(), punch.candidatesFor(GiftVerdict(hundredths), seed, rules).hints())
+                assertEquals(punch.candidatesFor(GiftVerdict(hundredths), seed).hints(), punch.candidatesFor(GiftVerdict(hundredths), seed).hints())
             }
         }
     }
 
     @Test
-    fun `작가에게 표지가 겹치지 않는 추천 틀 세 개를 보낸다`() {
+    fun `작가에게 정해 준 마지막 한 줄 틀 하나를 보낸다`() {
         val brief = TestRoasts.brief(habitMessages(), seed = SEEDS.first())
         val sent = TestRoasts.mapper.readTree(brief.inputText(TestRoasts.mapper)).path("punch_templates").values().map { node -> node.asString() }
 
@@ -93,13 +93,13 @@ class PunchTemplatesTest {
 
     @Test
     fun `다른 응답에서 온 결론도 이미 받은 판정 한 줄과 펀치가 겹치면 받지 않는다`() {
-        val brief = TestRoasts.brief(habitMessages())
+        val brief = TestRoasts.briefWithoutPunches(habitMessages())
         val verdict = "올해 장부 결산, 딸깍."
-        assertEquals("딸깍", brief.suggestedPunches.markers().first())
         val first = review(brief, validJson(brief, verdictLine = verdict, title = "두 배 장인"))
         val sheet = RoastSheet.EMPTY.absorb(first, brief, rules)
         assertEquals(listOf(ConclusionDraft.FIELD), sheet.missingFields())
-        val clashing = validJson(brief, verdictLine = "다른 판정 한 줄이다.", finalLine = finalLineFor(brief, heroOf(brief).second, ""))
+        val clashingFinal = finalLineFor(brief, heroOf(brief).second, "").replace("요이~", "딸깍.")
+        val clashing = validJson(brief, verdictLine = "다른 판정 한 줄이다.", finalLine = clashingFinal)
 
         val after = sheet.absorb(review(brief, clashing), brief, rules)
 
@@ -147,12 +147,12 @@ class PunchTemplatesTest {
     }
 
     @Test
-    fun `추천 틀 세 개 안에는 늘 유행어 없는 틀이 하나 이상 든다`() {
+    fun `시드를 돌면 구간 풀의 모든 마지막 한 줄 틀이 고르게 정해진다`() {
         HUNDREDTHS.values.forEach { hundredths ->
-            (0 until SEED_SWEEP).forEach { seed ->
-                val suggested = punch.candidatesFor(GiftVerdict(hundredths), seed, rules).take(punch.suggestions)
-                assertTrue(suggested.toList().any { template -> template.isPlain(rules) }, "$hundredths $seed ${suggested.hints()}")
-            }
+            val pool = punch.poolOf(GiftVerdict(hundredths)).distinctMarkers().markers()
+            val assigned = (0 until SEED_SWEEP).map { seed -> punch.candidatesFor(GiftVerdict(hundredths), seed).take(punch.suggestions).markers().single() }
+            assertEquals(pool.toSet(), assigned.toSet(), "$hundredths")
+            assertTrue(assigned.groupingBy { marker -> marker }.eachCount().values.max() - assigned.groupingBy { marker -> marker }.eachCount().values.min() <= 1)
         }
     }
 
@@ -197,8 +197,8 @@ class PunchTemplatesTest {
         /** 서로 다른 첫 추천 틀을 받는 참가자·해 시드 셋. */
         private val SEEDS = listOf(1, 2, 3)
 
-        /** 추천 안의 유행어 없는 틀을 확인할 시드 수. */
-        private const val SEED_SWEEP = 50
+        /** 정해 준 틀이 풀을 고르게 도는지 확인할 시드 수. */
+        private const val SEED_SWEEP = 42
         private const val PLAIN_VERDICT = "장부 결산이 끝났다."
 
         /** 등급마다 그 구간에 드는 총점(100분의 1점). */

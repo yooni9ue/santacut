@@ -28,6 +28,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property titleBannedWords 결론 칭호에만 막는 말(요정, 천사, 분위기 메이커). 누구에게나 붙는 칭호라 이 사람의 자리를 말하지 못한다.
  * @property flipWords 칭찬 뒤집기로 읽히는 말(근데, 덕분에, 그래도). 리캡 덱은 칭찬 뒤집기를 쓰지 않는다.
  * @property labelSuffix 근거 카드 라벨이 끝나야 하는 글자("상"). 답장독촉상처럼 상 이름 꼴로만 쓴다.
+ * @property timeWords 시간대·요일을 말하는 낱말(새벽, 점심, 근무, 주말 등). 칩이나 말풍선이 그 시간대를 말하지 않는데 근거 한 줄이 쓰면 떨어진다.
+ * @property repeatStems 덱 안에서 두 번 쓰면 틀에 찍은 말로 읽히는 라벨·칭호 줄기(발사, 품절, 가뭄 등). 라벨이나 칭호 둘이 같은 줄기를 쓰면 뒤의 것이 떨어진다.
+ * @property promptExamples 작가 프롬프트(옛 판 포함)와 명세에 실린 예시 문장. 작가 문장이 이것과 같으면 베낀 것으로 보고 떨어뜨린다.
  * @property slang 유행어 목록(roast/slang.json). 금지 목록은 [bannedWords]와 함께 막고, 허용 목록은 필드마다 [RoastSlang.maxPerField]개까지만 쓰게 한다.
  * 허용 유행어 안의 알파벳('L을 가져가')은 알파벳 검사에서 뺀다. 느낌표는 허용 목록에 필요한 말이 없어 그대로 막는다.
  */
@@ -52,6 +55,9 @@ data class RoastRules(
     @JsonProperty("title_banned_words") val titleBannedWords: List<String>,
     @JsonProperty("flip_words") val flipWords: List<String>,
     @JsonProperty("label_suffix") val labelSuffix: String,
+    @JsonProperty("time_words") val timeWords: List<String> = emptyList(),
+    @JsonProperty("repeat_stems") val repeatStems: List<String> = emptyList(),
+    @JsonProperty("prompt_examples") val promptExamples: List<String> = emptyList(),
     val slang: RoastSlang = RoastSlang.EMPTY,
 ) {
     private val particleGroup = alternation(particles)
@@ -70,6 +76,7 @@ data class RoastRules(
     private val tone = Regex(alternationOfPatterns(tonePatterns))
     private val titleBanned = Regex(alternation(titleBannedWords))
     private val flips = Regex(alternation(flipWords))
+    private val times = Regex(alternation(timeWords))
 
     /**
      * 작가 입력용으로 가린 본문. 호칭·부르는 말에서 떼어 낸 이름 줄기('현규형'의 '현규')는
@@ -137,6 +144,12 @@ data class RoastRules(
 
     /** 처음 나온 칭찬 뒤집기 말([flipWords]). 없으면 null이다. */
     fun flipIn(text: String): String? = flips.find(text)?.value
+
+    /** [text]에 나온 시간대·요일 낱말([timeWords]). 따옴표 인용 안은 보지 않는다. */
+    fun timeWordsIn(text: String): List<String> = times.findAll(TextProblems.QUOTE.replace(text, "")).map { match -> match.value }.distinct().toList()
+
+    /** [text]에 든 덱 되풀이 금지 줄기([repeatStems]). */
+    fun repeatStemsIn(text: String): Set<String> = repeatStems.filter { stem -> stem in text }.toSet()
 
     /**
      * 근거 카드 라벨이 상 이름 꼴인지. [MIN_AWARD_LABEL]자 이상이고 [labelSuffix]로 끝나야 한다.

@@ -11,7 +11,10 @@ class LineQuotes(private val values: List<LineQuote>) {
     fun lineOf(lineId: Int): LineQuote? = values.find { quote -> quote.lineId == lineId }?.takeIf { quote -> quote.text.isNotBlank() }
 
     /** 근거로 쓸 만한 말풍선 표시([QuoteText.isSubstantial])가 남은 줄 수. 근거 카드 슬롯 수의 상한이다. */
-    fun usableCount(): Int = values.count { quote -> QuoteText.isSubstantial(quote.text) }
+    fun usableCount(): Int = usableIds().size
+
+    /** 근거로 쓸 만한 말풍선 표시가 남은 줄 번호. 대표 사실 칩을 붙일 줄이 있는지 볼 때 쓴다. */
+    fun usableIds(): List<Int> = values.filter { quote -> QuoteText.isSubstantial(quote.text) }.map(LineQuote::lineId)
 
     companion object {
         val EMPTY = LineQuotes(emptyList())

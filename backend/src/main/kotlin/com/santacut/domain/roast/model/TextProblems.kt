@@ -16,6 +16,9 @@ class TextProblems(private val values: List<String>) {
         private const val PARENTHESES = "()"
         private val HANGUL_RUN = Regex("[가-힣]{2,}")
 
+        /** 다른 구간의 표현을 보는 문장 종류. 구간을 말하는 판정 한 줄, 칭호, 마지막 한 줄이다. */
+        private val BAND_KINDS = setOf(RoastTextKind.VERDICT_LINE, RoastTextKind.TITLE, RoastTextKind.FINAL_LINE)
+
         /** 어느 덱에나 붙는 낱말의 앞 두 글자. 이 낱말만으로는 근거와 겹친 것으로 치지 않는다(칩 뜻 풀이의 말풍선·보낸도 여기 든다). */
         private val GENERIC_STEMS = setOf("산타", "올해", "이건", "그건", "이거", "그거", "인정", "장부", "말풍", "보낸", "보냈")
         private const val GENERIC_STEM_LENGTH = 2
@@ -23,6 +26,12 @@ class TextProblems(private val values: List<String>) {
         private const val NOT_PUNCH = "밈 펀치가 아니다(slang 표기나 펀치 틀 표지가 없다)"
         private const val FLAT_ENDING = "끝이 밋밋하다(~함·~음·~봄 같은 요약이나 명사로 끝내지 말고 완결된 문장으로 찌른다)"
         private const val DESCRIPTIVE_TITLE = "칭호가 서술형이다(밈형 명사구로 쓴다)"
+        private const val COPIED_EXAMPLE = "예시 문장을 그대로 옮겼다(이 사람의 말풍선과 칩으로 새로 쓴다)"
+        private const val EMPTY_VERDICT_SLOT = "판정 자리가 비었거나 입버릇만 넣었다(판정을 말하는 낱말로 채운다)"
+        private const val RESTATED_CHIP = "칩 이름을 그대로 옮겼다(칩이 센 버릇의 뜻을 말한다)"
+
+        /** 판정 자리의 낱말이 입버릇 뒤에 붙여도 되는 조사 길이. '출발이'도 입버릇 '출발'로 본다. */
+        private const val PARTICLE_LENGTH = 1
         private const val SPACE = " "
 
         /** 라벨 안에서 이만큼 이어진 음절이 말풍선에 그대로 있으면 베낀 라벨로 본다. */
@@ -80,6 +89,41 @@ class TextProblems(private val values: List<String>) {
                 sourceWords.any { word -> word.first() == initial } || quoteWords.any { word -> initial in word }
             } || phrases.any(text::contains)
             return TextProblems(listOfNotNull(GENERIC.takeUnless { shared }))
+        }
+
+        /**
+         * 작가 문장 [text]가 예시 문장(프롬프트 예시, 서버 대체 문장, 유행어 예문, [RoastBrief.isExample])을 그대로 옮겼는지.
+         * 대체 문장 자체는 서버가 쓰는 문장이라 이 검사를 하지 않고, 작가 응답 필드에만 쓴다.
+         */
+        fun copiedExample(text: String, brief: RoastBrief): TextProblems = TextProblems(listOfNotNull(COPIED_EXAMPLE.takeIf { brief.isExample(text) }))
+
+        /**
+         * 문장 [text]가 칩이 말하지 않는 시간대·요일을 말하는지. 시간대 낱말([RoastRules.timeWords])은 칩 글([sources]: 칩 이름, 칩 값, 버릇 낱말)이나
+         * 고른 말풍선 [quote]에 있을 때만 쓴다. 공유 말풍선에 피크타임 칩을 붙이고 '점심마다 공유 폭격'이라 쓰는 것처럼 칩에 없는 시간 버릇을 지어내지 않게 한다.
+         */
+        fun timeClaims(text: String, rules: RoastRules, sources: List<String>, quote: String?): TextProblems {
+            val stated = sources + listOfNotNull(quote)
+            val claimed = rules.timeWordsIn(text).firstOrNull { word -> stated.none { source -> word in source } }
+            return TextProblems(listOfNotNull(claimed?.let { word -> "칩이 말하지 않는 시간대($word)" }))
+        }
+
+        /**
+         * 문장 [text]가 지표 칩 이름 [chipLabel]을 띄어쓰기만 바꿔 그대로 옮겼는지. '평균 길이 6.9자' 칩에 '평균 길이 짧게 툭 던진다'처럼
+         * 칩을 되읽는 한 줄은 버릇을 찌르지 못한다. 칩 이름이 버릇 낱말인 칩('따뜻한 말')은 [RoastBrief.isRestatable]이 빼고 넘긴다.
+         */
+        fun restated(text: String, chipLabel: String?): TextProblems {
+            val label = chipLabel?.replace(SPACE, "")?.takeIf(String::isNotEmpty) ?: return TextProblems(emptyList())
+            return TextProblems(listOfNotNull(RESTATED_CHIP.takeIf { label in text.replace(SPACE, "") }))
+        }
+
+        /**
+         * 라벨·칭호 [text]가 앞 라벨·칭호 [earlier]와 덱 되풀이 금지 줄기([RoastRules.repeatStems]: 발사, 품절, 가뭄 등)를 함께 쓰는지.
+         * '감사발사상', '약속발사상', '뭐임발사대'처럼 한 덱에 같은 줄기가 거듭 찍히지 않게 한다.
+         */
+        fun repeatedStem(text: String, earlier: List<String>, rules: RoastRules): TextProblems {
+            val used = earlier.flatMap(rules::repeatStemsIn).toSet()
+            val stem = rules.repeatStemsIn(text).firstOrNull(used::contains)
+            return TextProblems(listOfNotNull(stem?.let { found -> "덱 안에서 같은 줄기를 되풀이했다($found)" }))
         }
 
         /**
@@ -159,6 +203,8 @@ class TextProblems(private val values: List<String>) {
          * 필드마다 하나를 넘은 유행어, 판정 방향, 칭찬 뒤집기 말(근데·덕분에·그래도, 따옴표로 든 본인 입버릇 '근데'는 제외), 상 이름 꼴이 아닌 라벨, 밈 펀치가 아닌 결론 한 줄([RoastRules.isPunch]),
          * 추천 펀치 틀을 쓰지 않은 결론 한 줄, 끝이 밋밋한 근거 한 줄([isFlatEnding]), 서술형 칭호([isDescriptiveTitle]),
          * 금지어(영포티 말투 포함), 가린 낱말(이름 등), 알파벳(허용 유행어 안 제외), 괄호 표기, 이름·사는 곳 의심, 목록 밖 인용, 본인 말풍선을 길게 베낀 말을 본다.
+         * 다른 구간의 표현([RoastBrief.foreignMarkIn])은 판정 한 줄·칭호·마지막 한 줄에서 떨어진다. 예시 베끼기는 작가 문장에만 [copiedExample]로 본다.
+         * 판정 한 줄은 정해 준 판정 틀, 빈 판정 자리, 고마워 칩 말도 본다([verdictProblems]).
          */
         fun of(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): TextProblems =
             TextProblems(wordingProblems(text, kind, brief, rules) + safetyProblems(text, brief, rules) + quoteProblems(text, brief))
@@ -176,7 +222,31 @@ class TextProblems(private val values: List<String>) {
             punchTemplateProblem(text, kind, brief, rules),
             FLAT_ENDING.takeIf { kind == RoastTextKind.EVIDENCE_LINE && isFlatEnding(text, rules) },
             DESCRIPTIVE_TITLE.takeIf { kind == RoastTextKind.TITLE && isDescriptiveTitle(text) },
-        )
+            brief.foreignMarkIn(text)?.takeIf { kind in BAND_KINDS }?.let { mark -> "다른 구간의 표현($mark)" },
+        ) + verdictProblems(text, kind, brief, rules)
+
+        /**
+         * 판정 한 줄만의 검사. 정해 준 판정 틀([RoastBrief.verdictPunch])의 표지를 써야 하고, 판정 자리를 입버릇 하나로 채우거나('출발 줴줴이야~') 비우면 안 되며,
+         * 고마워 칩이 있을 때 고맙다는 말로 판정을 이끌지 않는다('감사 품절. L을 가져가.').
+         */
+        private fun verdictProblems(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): List<String> {
+            if (kind != RoastTextKind.VERDICT_LINE) return emptyList()
+            val punch = brief.verdictPunch
+            return listOfNotNull(
+                punch?.takeUnless { template -> template.isUsedIn(text, rules) }?.let { template -> "정해 준 판정 틀(verdict_template)을 쓰지 않았다(표지 ${template.marker})" },
+                EMPTY_VERDICT_SLOT.takeIf { hasEmptySlot(text, brief, rules) },
+                brief.thanksWordIn(text)?.let { word -> "판정 한 줄은 고마워 칩으로 이끌지 않는다($word)" },
+            )
+        }
+
+        /** 펀치 표지와 따옴표 인용을 뺀 판정 한 줄에 입버릇이 아닌 두 글자 이상 낱말이 하나도 없는지. */
+        private fun hasEmptySlot(text: String, brief: RoastBrief, rules: RoastRules): Boolean {
+            val bare = rules.punchMarksIn(text).fold(QUOTE.replace(text, "")) { rest, mark -> rest.replace(mark, SPACE) }
+            val tokens = brief.phraseTokens()
+            return HANGUL_RUN.findAll(bare).map { match -> match.value }.none { word ->
+                tokens.none { token -> word.startsWith(token) && word.length - token.length <= PARTICLE_LENGTH }
+            }
+        }
 
         /** 마지막 한 줄이 이 사람에게 추천한 펀치 틀([RoastBrief.suggestedPunches]) 가운데 하나를 썼는지. 추천이 없으면 보지 않는다. */
         private fun punchTemplateProblem(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): String? {

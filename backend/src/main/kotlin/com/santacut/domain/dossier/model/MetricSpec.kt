@@ -45,6 +45,16 @@ data class MetricSpec(
         else -> DossierFormat.decimal(value, PIECES)
     }
 
+    /**
+     * 카드 칩에 찍는 [value]. 100개당 값은 '따뜻한 말 100개당 26.6개'처럼 읽기 어려워, [EVERY_LIMIT] 아래면 'N번에 1번'(100 ÷ 값을 반올림, 2 이상),
+     * 그 이상이면 '한 번에 N개'(값 ÷ 100, 소수 첫째 자리: 0.7개, 2개)로 바꾼다. 67~99를 '1번에 1번'으로 뭉개지 않으려는 것이다. 다른 단위는 [format]과 같다.
+     */
+    fun chipFormat(value: Double): String {
+        if (unit != PER_HUNDRED || value <= 0.0) return format(value)
+        if (value >= EVERY_LIMIT) return ONCE_PREFIX + DossierFormat.decimal(value / PER_HUNDRED_BASE, PIECES)
+        return DossierFormat.amount(PER_HUNDRED_BASE / value, EVERY_SUFFIX)
+    }
+
     /** [value]의 백분위(0~100). p10 아래와 p90 위는 가까운 구간의 기울기로 늘린 뒤 자른다. [lowRemarkable]이 거짓이면 중앙값 아래는 50이다. */
     fun percentileOf(value: Double): Double {
         if (!lowRemarkable && value < p50) return MIDDLE
@@ -80,6 +90,12 @@ data class MetricSpec(
         private const val TIMES = "times"
         private val UNITS = setOf(PER_HUNDRED, RATIO, COUNT, CHARACTERS, MINUTES, HOUR, DAYS, TIMES)
         private const val PER_HUNDRED_PREFIX = "100개당 "
+        private const val PER_HUNDRED_BASE = 100.0
+
+        /** 100개당 값이 이 아래면 'N번에 1번'으로 찍는다. 이상이면 N이 2보다 작아져 '한 번에 0.N개'로 찍는다. */
+        private const val EVERY_LIMIT = 50.0
+        private const val ONCE_PREFIX = "한 번에 "
+        private const val EVERY_SUFFIX = "번에 1번"
         private const val PIECES = "개"
         private const val CHARACTERS_UNIT = "자"
         private const val DAYS_UNIT = "일"

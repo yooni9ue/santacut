@@ -17,6 +17,8 @@ import kotlin.test.assertTrue
  * 5판은 리캡 덱 스키마(판정 한 줄, 근거 카드, 결론)로 새로 쓰고, 그때 서버 검증과 같은 글자 수 범위를 준다.
  * 6판은 5판에 밈 펀치 마지막 한 줄, 찌르는 관찰형 판정·근거 한 줄, 근거 말풍선 규칙(짧은 반응 금지, 입버릇 칩은 그 입버릇이 든 말풍선)을 더한다.
  * 7판은 6판에 추천 펀치 틀(punch_templates), 판정 한 줄과 마지막 한 줄의 펀치 되풀이 금지, 칩별 말풍선 조건, 완결된 근거 한 줄 끝을 더한다.
+ * 8판은 구간별 판정 틀을 모두 싣지 않고 정해 준 틀(verdict_template) 하나만 받게 하고, 칩 방향(kinds), 시간대 칩 말풍선 금지, 대표 사실,
+ * 다른 구간 표현·예시 베끼기 금지를 더한다. 베낄 수 있는 구체 예문은 싣지 않는다.
  */
 class RoastPromptSeedTest {
     private val sql: String by lazy { Files.readString(Path.of("src/main/resources/prompts.sql")) }
@@ -27,6 +29,7 @@ class RoastPromptSeedTest {
     private val fifth: String by lazy { contentOf(FIFTH_HEAD) }
     private val sixth: String by lazy { contentOf(SIXTH_HEAD) }
     private val seventh: String by lazy { contentOf(SEVENTH_HEAD) }
+    private val eighth: String by lazy { contentOf(EIGHTH_HEAD) }
 
     private fun contentOf(head: String): String {
         val start = sql.indexOf(head).also { index -> check(index >= 0) { "시드 없음: $head" } } + head.length
@@ -232,7 +235,34 @@ class RoastPromptSeedTest {
         assertTrue(seventh.contains("말풍선 글자를 그대로 옮긴 라벨은 떨어진다"))
     }
 
+    @Test
+    fun `8판은 리캡 덱 필드와 지금 서버 검증의 글자 수 범위, 새 입력 필드를 지닌다`() {
+        RoastTextKind.entries.forEach { kind -> assertTrue(eighth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        listOf(
+            "verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips",
+            "punch_templates", "verdict_template", "near_miss", "signature_chip_key", "kinds", "topics", "banned_marks",
+        ).forEach { field -> assertTrue(eighth.contains(field), field) }
+    }
+
+    @Test
+    fun `회귀 - 8판은 다른 구간의 판정 틀을 늘어놓지 않고 베낄 수 있는 예문을 싣지 않는다`() {
+        listOf("(혐의) 혐의로 체포하겠어.", "(판정). 아 줴줴이야~", "PREMIUM(굴뚝 프리패스)", "약속발사대", "'ㄱ?'", "약속발사상", "답장독촉상", "감사품절상")
+            .forEach { copied -> assertFalse(eighth.contains(copied), copied) }
+        TestRoasts.catalog.rules.promptExamples.forEach { example -> assertFalse(eighth.contains(example), example) }
+    }
+
+    @Test
+    fun `8판은 칩 방향·시간대·칭찬 뒤집기 말풍선·대표 사실·라벨 꼬리말 규칙을 알린다`() {
+        assertTrue(eighth.contains("kinds가 빈 칩은 좋다 나쁘다 할 수 없는 칩이라 근거 카드에 쓰지 않고"))
+        assertTrue(eighth.contains("그 시간에 보낸 말이라고 아무 말풍선이나 붙이지 않는다"))
+        assertTrue(eighth.contains("reason·keep에는 칭찬을 뒤집는 말"))
+        assertTrue(eighth.contains("signature_chip_key"))
+        assertTrue(eighth.contains("지어낸 한자어"))
+        TestRoasts.catalog.rules.repeatStems.forEach { stem -> assertTrue(eighth.contains(stem), stem) }
+    }
+
     companion object {
+        private const val EIGHTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0008','roast',8,'"
         private const val SEVENTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0007','roast',7,'"
 
         /** 6판이 준 글자 수 범위(판정 한 줄, 라벨, 근거 한 줄, 칭호, 마지막 한 줄). 그때 서버 검증과 같았다. */

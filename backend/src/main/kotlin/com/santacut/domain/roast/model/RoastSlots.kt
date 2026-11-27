@@ -9,6 +9,7 @@ import java.math.BigDecimal
  * 서버가 정한 근거 카드 수. 작가 입력에 실어 그만큼만 쓰게 하고, 검증은 kind별 개수가 이 수와 같은지 본다.
  * 선물 덱은 선물 받는 이유([reason]) 최대 세 장과 점수 깎인 말([cut]) 한두 장, 석탄 덱은 점수 깎인 말 최대 세 장과 살아남은 말([keep]) 한 장이다.
  * 선물 덱도 놀림이 빠지지 않게 깎인 말을 늘 한 장 이상 둔다. 근거 카드는 [MAX_CARDS]장을 넘지 않아 덱이 여덟 장을 넘지 않는다.
+ * 작가에게 보내기 전에 본인 말 줄 수와 방향별 칩 수로 줄인다([limitedTo]). 방향이 맞는 칩이 없는 자리는 만들지 않는다.
  */
 data class RoastSlots(val reason: Int, val cut: Int, val keep: Int) {
     fun countOf(kind: EvidenceKind): Int = when (kind) {
@@ -27,20 +28,31 @@ data class RoastSlots(val reason: Int, val cut: Int, val keep: Int) {
     )
 
     /**
-     * 쓸 수 있는 재료로 줄인 수. 선물 받는 이유와 살아남은 말은 본인 말 [lineCount]줄 안에서만, 모든 카드는 칩 후보 [chipCount]개 안에서만 쓴다.
-     * 빈자리를 일반론으로 채우지 않으려는 것이다. 칩이 모자라면 덱의 주 카드(선물은 이유, 석탄은 깎인 말)를 먼저 남긴다.
-     * 선물 덱은 칩이 두 개 이상이면 깎인 말 몫으로 칩 하나를 남겨, 이유가 칩을 다 가져가 놀림이 사라지지 않게 한다.
+     * 쓸 수 있는 재료로 줄인 수. 선물 받는 이유와 살아남은 말은 본인 말 [lineCount]줄 안에서만 쓰고, 칩은 방향별 수 [supply] 안에서 나눈다.
+     * 종류마다 방향이 맞는 칩(이유·살아남은 말은 좋은 쪽, 깎인 말은 나쁜 쪽)을 먼저 배정하고, 어느 쪽으로도 쓰는 칩은 모자란 자리에 나눠 준다.
+     * 선물 덱은 이유, 석탄 덱은 깎인 말(주 카드)에 먼저 나눈다. 선물 덱은 칩이 둘 이상이면 깎인 말 몫으로 한 장을 먼저 남겨 놀림이 사라지지 않게 한다.
+     * 나쁜 쪽 칩 셋에 깎인 말 자리가 둘이면 둘 다 남고, 석탄 덱에 좋은 쪽 칩이 하나라도 있으면 살아남은 말 자리가 남는다.
      */
-    fun limitedTo(lineCount: Int, chipCount: Int): RoastSlots {
-        val reasonByLines = minOf(reason, lineCount)
-        val keepByLines = minOf(keep, (lineCount - reasonByLines).coerceAtLeast(0))
-        if (reason > 0) {
-            val reservedForCut = if (cut > 0 && chipCount > 1) 1 else 0
-            val reasons = minOf(reasonByLines, chipCount - reservedForCut)
-            return RoastSlots(reasons, minOf(cut, chipCount - reasons), 0)
-        }
-        val cuts = minOf(cut, chipCount)
-        return RoastSlots(0, cuts, minOf(keepByLines, chipCount - cuts))
+    fun limitedTo(lineCount: Int, supply: ChipSupply): RoastSlots =
+        if (reason > 0) giftLimitedTo(minOf(reason, lineCount), supply) else coalLimitedTo(minOf(keep, lineCount), supply)
+
+    private fun giftLimitedTo(reasonByLines: Int, supply: ChipSupply): RoastSlots {
+        val reasons = minOf(reasonByLines, supply.good)
+        val cuts = minOf(cut, supply.bad)
+        val total = supply.good + supply.bad + supply.either
+        val reserved = if (cuts == 0 && cut > 0 && supply.either > 0 && (total > 1 || reasonByLines == 0)) 1 else 0
+        val spare = supply.either - reserved
+        val moreReasons = minOf(reasonByLines - reasons, spare)
+        val moreCuts = minOf(cut - cuts - reserved, spare - moreReasons)
+        return RoastSlots(reasons + moreReasons, cuts + reserved + moreCuts, 0)
+    }
+
+    private fun coalLimitedTo(keepByLines: Int, supply: ChipSupply): RoastSlots {
+        val cuts = minOf(cut, supply.bad)
+        val keeps = minOf(keepByLines, supply.good)
+        val moreCuts = minOf(cut - cuts, supply.either)
+        val moreKeeps = minOf(keepByLines - keeps, supply.either - moreCuts)
+        return RoastSlots(0, cuts + moreCuts, keeps + moreKeeps)
     }
 
     companion object {

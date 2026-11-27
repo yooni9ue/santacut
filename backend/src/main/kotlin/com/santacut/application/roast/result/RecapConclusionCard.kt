@@ -1,5 +1,6 @@
 package com.santacut.application.roast.result
 
+import com.santacut.domain.analysis.model.Archetype
 import com.santacut.domain.analysis.model.GiftVerdict
 import com.santacut.domain.ranking.model.ResultProfile
 import com.santacut.domain.roast.model.RoastConclusion
@@ -54,12 +55,17 @@ data class RecapConclusionCard(
     )
 
     companion object {
-        /** 판정 [gift]와 꾸밈 값 [profile](산타 유형), 저장한 결론 문장 [conclusion]으로 만든다. */
+        /**
+         * 판정 [gift]와 꾸밈 값 [profile](산타 유형), 저장한 결론 문장 [conclusion]으로 만든다. 석탄 덱은 유형을 석탄 덱용([Archetype.forCoal])으로 바꾸고,
+         * 바뀌었으면 같은 유형 비율은 원래 유형의 것이라 싣지 않는다.
+         */
         fun of(gift: GiftVerdict, profile: ResultProfile, conclusion: RoastConclusion): RecapConclusionCard {
             val grade = gift.grade()
+            val archetype = if (gift.passed) profile.archetype else profile.archetype.forCoal()
+            val sharePercent = profile.archetypeSharePercent.takeIf { archetype == profile.archetype }
             return RecapConclusionCard(
                 0, gift.childLabel(), gift.passed, grade.label, grade.name, grade.tag, grade.ordinal, conclusion.title.text,
-                profile.archetype.name, profile.archetype.koreanName, profile.archetypeSharePercent, conclusion.heroQuote,
+                archetype.name, archetype.koreanName, sharePercent, conclusion.heroQuote,
                 conclusion.heroChip?.text(), conclusion.finalLine.text, gift.cutDistanceText(), gift.friendCall(),
             )
         }

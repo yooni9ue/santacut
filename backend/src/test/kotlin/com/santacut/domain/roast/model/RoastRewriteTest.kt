@@ -7,6 +7,7 @@ import com.santacut.TestRoastAnswers.habitMessages
 import com.santacut.TestRoastAnswers.heroOf
 import com.santacut.TestRoastAnswers.review
 import com.santacut.TestRoastAnswers.validJson
+import com.santacut.TestRoastAnswers.verdictLineFor
 import com.santacut.TestRoasts
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -21,6 +22,7 @@ import kotlin.test.assertTrue
 class RoastRewriteTest {
     private val brief = TestRoasts.brief(habitMessages())
     private val rules = TestRoasts.catalog.rules
+    private val verdict = verdictLineFor(brief)
 
     @Test
     fun `다시 쓰기 요청은 받아 둔 판정 한 줄과 근거 카드를 kept로 싣는다`() {
@@ -30,23 +32,24 @@ class RoastRewriteTest {
         val rewrite = sheet.rewriteFor(first)
         val kept = assertNotNull(rewrite.kept)
 
-        assertEquals(VERDICT, kept.verdictLine)
+        assertEquals(verdict, kept.verdictLine)
         assertNull(kept.finalLine)
         val cards = evidenceOf(brief)
         assertEquals(cards.map { card -> card["chip_key"] }, kept.evidence.map(KeptCard::chipKey))
         assertEquals(cards.map { card -> card["line_id"] }, kept.evidence.map(KeptCard::lineId))
         assertEquals(cards.map { card -> card["label"] }, kept.evidence.map(KeptCard::label))
         val input = brief.inputText(TestRoasts.mapper, rewrite)
-        assertTrue(input.contains("\"kept\":{\"verdict_line\":\"$VERDICT\",\"evidence\":[{\"kind\":\"reason\""), input)
+        assertTrue(input.contains("\"kept\":{\"verdict_line\":\"$verdict\",\"evidence\":[{\"kind\":\"reason\""), input)
     }
 
     @Test
     fun `받아 둔 판정 한 줄과 펀치가 겹쳐 버린 결론은 사유를 다시 쓰기 요청에 싣는다`() {
-        assertEquals("딸깍", brief.suggestedPunches.markers().first())
-        val sheet = RoastSheet.EMPTY.absorb(review(brief, validJson(brief, title = "두 배 장인")), brief, rules)
-        val second = review(brief, validJson(brief, verdictLine = "다른 판정 한 줄이다.", finalLine = finalLineFor(brief, heroOf(brief).second, "")))
+        val loose = TestRoasts.briefWithoutPunches(habitMessages())
+        val sheet = RoastSheet.EMPTY.absorb(review(loose, validJson(loose, verdictLine = "올해 장부 결산, 딸깍.", title = "두 배 장인")), loose, rules)
+        val clashing = finalLineFor(loose, heroOf(loose).second, "").replace("요이~", "딸깍.")
+        val second = review(loose, validJson(loose, verdictLine = "다른 판정 한 줄이다.", finalLine = clashing))
 
-        val after = sheet.absorb(second, brief, rules)
+        val after = sheet.absorb(second, loose, rules)
 
         assertEquals(listOf(ConclusionDraft.FIELD), after.missingFields())
         val reasons = after.rewriteFor(second).reasons
@@ -90,10 +93,5 @@ class RoastRewriteTest {
 
         assertTrue(!checks.passed(EvidenceDrafts.fieldOf(0)))
         assertTrue(checks.passed(EvidenceDrafts.fieldOf(1)), checks.reasonsFor(listOf(EvidenceDrafts.FIELD)).toString())
-    }
-
-    companion object {
-        /** 합성 응답의 기본 판정 한 줄([com.santacut.TestRoastAnswers.validJson]). */
-        private const val VERDICT = "올해 장부 결산, 딸깍."
     }
 }

@@ -33,9 +33,9 @@ class RoastSlotsTest {
 
     @Test
     fun `선물 덱은 칩이 둘 이상이면 깎인 말 몫 칩 하나를 남긴다`() {
-        assertEquals(RoastSlots(2, 1, 0), RoastSlots(3, 1, 0).limitedTo(lineCount = 9, chipCount = 3))
-        assertEquals(RoastSlots(3, 1, 0), RoastSlots(3, 2, 0).limitedTo(lineCount = 9, chipCount = 4))
-        assertEquals(RoastSlots(1, 1, 0), RoastSlots(3, 1, 0).limitedTo(lineCount = 1, chipCount = 2))
+        assertEquals(RoastSlots(2, 1, 0), RoastSlots(3, 1, 0).limitedTo(lineCount = 9, supply = ChipSupply.either(3)))
+        assertEquals(RoastSlots(3, 1, 0), RoastSlots(3, 2, 0).limitedTo(lineCount = 9, supply = ChipSupply.either(4)))
+        assertEquals(RoastSlots(1, 1, 0), RoastSlots(3, 1, 0).limitedTo(lineCount = 1, supply = ChipSupply.either(2)))
     }
 
     @Test
@@ -46,10 +46,27 @@ class RoastSlotsTest {
 
     @Test
     fun `본인 줄과 칩이 모자라면 덱의 주 카드를 먼저 남기고 줄인다`() {
-        assertEquals(RoastSlots(1, 0, 0), RoastSlots(3, 2, 0).limitedTo(lineCount = 1, chipCount = 1))
-        assertEquals(RoastSlots(0, 2, 0), RoastSlots(3, 2, 0).limitedTo(lineCount = 0, chipCount = 5))
-        assertEquals(RoastSlots(0, 2, 0), RoastSlots(0, 3, 1).limitedTo(lineCount = 0, chipCount = 2))
-        assertEquals(RoastSlots(0, 3, 1), RoastSlots(0, 3, 1).limitedTo(lineCount = 4, chipCount = 9))
+        assertEquals(RoastSlots(1, 0, 0), RoastSlots(3, 2, 0).limitedTo(lineCount = 1, supply = ChipSupply.either(1)))
+        assertEquals(RoastSlots(0, 2, 0), RoastSlots(3, 2, 0).limitedTo(lineCount = 0, supply = ChipSupply.either(5)))
+        assertEquals(RoastSlots(0, 2, 0), RoastSlots(0, 3, 1).limitedTo(lineCount = 0, supply = ChipSupply.either(2)))
+        assertEquals(RoastSlots(0, 3, 1), RoastSlots(0, 3, 1).limitedTo(lineCount = 4, supply = ChipSupply.either(9)))
+    }
+
+    @Test
+    fun `회귀 - 나쁜 쪽 칩이 셋이면 선물 덱 깎인 말 자리 둘이 모두 남는다`() {
+        assertEquals(RoastSlots(2, 2, 0), RoastSlots(2, 2, 0).limitedTo(lineCount = 9, supply = ChipSupply(good = 2, bad = 3, either = 0)))
+    }
+
+    @Test
+    fun `회귀 - 좋은 쪽 칩 하나와 나쁜 쪽 칩 둘이면 석탄 덱 살아남은 말 자리가 남는다`() {
+        assertEquals(RoastSlots(0, 2, 1), RoastSlots(0, 2, 1).limitedTo(lineCount = 9, supply = ChipSupply(good = 1, bad = 2, either = 0)))
+    }
+
+    @Test
+    fun `방향이 맞는 칩이 없는 자리는 어느 쪽으로도 쓰는 칩으로 채우고 그마저 없으면 만들지 않는다`() {
+        assertEquals(RoastSlots(2, 1, 0), RoastSlots(3, 2, 0).limitedTo(lineCount = 9, supply = ChipSupply(good = 0, bad = 1, either = 2)))
+        assertEquals(RoastSlots(0, 1, 0), RoastSlots(0, 3, 1).limitedTo(lineCount = 9, supply = ChipSupply(good = 0, bad = 1, either = 0)))
+        assertEquals(RoastSlots(2, 0, 0), RoastSlots(2, 1, 0).limitedTo(lineCount = 9, supply = ChipSupply(good = 2, bad = 0, either = 0)))
     }
 
     companion object {

@@ -13,9 +13,9 @@ class RoastReview(val output: RoastOutput?, val checks: RoastChecks) {
 
         /**
          * 작가 응답 본문 [rawJson]을 입력 [brief] 기준으로 필드마다 검증한다. 테스트·실측 도구에서도 이 함수 하나로 검증을 돌린다.
-         * 비었거나 너무 길거나 JSON 객체가 아니면 읽을 수 없는 응답이다.
+         * 비었거나 너무 길거나 JSON 객체가 아니면 읽을 수 없는 응답이다. [kept]는 다시 쓰기 때 앞 응답에서 받아 둔 근거 카드다.
          */
-        fun of(rawJson: String?, brief: RoastBrief, rules: RoastRules, objectMapper: ObjectMapper): RoastReview {
+        fun of(rawJson: String?, brief: RoastBrief, rules: RoastRules, objectMapper: ObjectMapper, kept: EvidenceDrafts = EvidenceDrafts.EMPTY): RoastReview {
             if (rawJson.isNullOrBlank() || rawJson.length > MAX_RESPONSE_LENGTH) return RoastReview(null, RoastChecks.unreadable())
             val node = try {
                 objectMapper.readTree(rawJson)
@@ -24,7 +24,7 @@ class RoastReview(val output: RoastOutput?, val checks: RoastChecks) {
             }
             if (node == null || !node.isObject) return RoastReview(null, RoastChecks.unreadable())
             val output = RoastOutput.from(node)
-            return RoastReview(output, RoastChecks.of(output, brief, rules))
+            return RoastReview(output, RoastChecks.of(output, brief, rules, kept))
         }
     }
 }

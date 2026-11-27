@@ -124,16 +124,16 @@ class QuoteRuleTest {
 
     @Test
     fun `낮음 수준 지표 칩은 버릇이 드물다는 칩이라 말풍선 없이 쓴다`() {
-        val spec = assertNotNull(TestRoasts.catalog.facts.find("night_ratio"))
-        val metric = TestRoasts.dossier.metrics.toList().first { candidate -> candidate.key == "night_ratio" }
+        val spec = assertNotNull(TestRoasts.catalog.facts.find("question_ratio"))
+        val metric = TestRoasts.dossier.metrics.toList().first { candidate -> candidate.key == "question_ratio" }
 
-        val rare = spec.factOf(MetricReading(DossierMetric.NIGHT_RATIO, metric, RARE_VALUE, VERY_LOW_PERCENTILE))
-        val low = spec.factOf(MetricReading(DossierMetric.NIGHT_RATIO, metric, RARE_VALUE, LOW_PERCENTILE))
-        val frequent = spec.factOf(MetricReading(DossierMetric.NIGHT_RATIO, metric, FREQUENT_VALUE, HIGH_PERCENTILE))
+        val rare = spec.factOf(MetricReading(DossierMetric.QUESTION_RATIO, metric, RARE_VALUE, VERY_LOW_PERCENTILE))
+        val low = spec.factOf(MetricReading(DossierMetric.QUESTION_RATIO, metric, RARE_VALUE, LOW_PERCENTILE))
+        val frequent = spec.factOf(MetricReading(DossierMetric.QUESTION_RATIO, metric, FREQUENT_VALUE, HIGH_PERCENTILE))
 
         assertEquals(QuoteRule.NONE, rare?.quoteRule)
         assertEquals(QuoteRule.NONE, low?.quoteRule)
-        assertEquals(QuoteRule.NIGHT, frequent?.quoteRule)
+        assertEquals(QuoteRule.QUESTION, frequent?.quoteRule)
     }
 
     @Test

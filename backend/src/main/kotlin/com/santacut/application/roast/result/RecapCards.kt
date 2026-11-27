@@ -27,8 +27,9 @@ data class RecapCards(val values: List<RecapCard>) {
 
         /**
          * 판정 [gift], 덱에 맞춘 팩폭 내용 [content], 꾸밈 값 [profile], 선물 도착 예정 시각 [eta]로 덱을 만든다.
-         * 근거 카드의 영역 태그는 그 카드의 칩이 항목 점수 칩(dimension_으로 시작)일 때만 단다. 선물 받는 이유면 "+", 점수 깎인 말이면 "−"이고,
-         * 살아남은 말이나 작가 카드·입버릇 칩 카드처럼 어느 항목의 근거인지 서버가 모르는 카드는 null이다. 카드 순서로 항목을 짐작하지 않는다.
+         * 근거 카드의 영역 태그는 그 카드의 칩 방향이 가리키는 항목([RoastEvidence.dimension])으로 단다. 항목 점수 칩은 그 항목, 지표 칩은
+         * facts.json이 이어 둔 항목(고마워 칩은 존중, 물음표는 협력 등)이다. 선물 받는 이유·살아남은 말이면 "+", 점수 깎인 말이면 "−"이고,
+         * 이어 둔 항목이 없는 칩(어느 쪽으로도 읽히는 입버릇 등)이나 옛 결과는 null이다. 카드 순서로 항목을 짐작하지 않는다.
          */
         fun of(gift: GiftVerdict, content: RoastContent, profile: ResultProfile, eta: Instant?): RecapCards {
             val evidence = content.evidence.toList()
@@ -44,15 +45,13 @@ data class RecapCards(val values: List<RecapCard>) {
         }
 
         private fun dimTagOf(evidence: RoastEvidence): String? {
-            val sign = when (evidence.kind) {
-                EvidenceKind.REASON -> PLUS
-                EvidenceKind.CUT -> MINUS
-                EvidenceKind.KEEP -> return null
-            }
-            val dimension = ScoreDimension.ofKey(evidence.chipKey.removePrefix(RoastEvidences.DIMENSION_KEY_PREFIX).takeIf {
-                evidence.chipKey.startsWith(RoastEvidences.DIMENSION_KEY_PREFIX)
-            })
+            val sign = if (evidence.kind == EvidenceKind.CUT) MINUS else PLUS
+            val dimension = ScoreDimension.ofKey(evidence.dimension) ?: dimensionOfChip(evidence.chipKey)
             return dimension?.let { found -> found.label + sign }
         }
+
+        /** 항목 점수 칩(dimension_으로 시작)의 항목. 영역 키를 싣기 전에 저장한 항목 점수 카드도 태그를 달게 한다. */
+        private fun dimensionOfChip(chipKey: String): ScoreDimension? =
+            ScoreDimension.ofKey(chipKey.removePrefix(RoastEvidences.DIMENSION_KEY_PREFIX).takeIf { chipKey.startsWith(RoastEvidences.DIMENSION_KEY_PREFIX) })
     }
 }

@@ -718,31 +718,39 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     /**
-     * 작가 입력 [input]의 슬롯 수·본인 줄·칩 후보·추천 펀치 틀로 채운, 결론 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답(프롬프트 7판).
-     * 근거 카드는 서로 다른 칩을 쓰고, 말풍선 없이 쓰는 칩은 line_id 없이, 입버릇·따뜻한 말 칩은 그 말이 든 본인 줄로 쓴다.
-     * 대표 칩은 마지막 본인 줄에 맞는 칩이고, 없으면 말풍선 없이 쓰는 칩을 대표 말 없이 쓴다.
-     * 마지막 한 줄은 첫 추천 펀치 틀의 빈칸을 채워 쓴다(판정 한 줄에는 펀치 표지를 쓰지 않는다).
+     * 작가 입력 [input]의 슬롯 수·본인 줄·칩 후보·정해 준 판정·펀치 틀로 채운, 결론 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답(프롬프트 8판).
+     * 근거 카드는 그 kind를 쓸 수 있는(kinds) 서로 다른 칩을 쓰고, 말풍선 없이 쓰는 칩을 먼저 써 line_id 없이 둔다(이 테스트의 말풍선에는
+     * 칭찬을 뒤집는 '덕분에'가 있어 이유·살아남은 말 근거가 못 된다). 말풍선이 필요한 칩은 그 말이 든 본인 줄로 쓴다.
+     * 대표 칩은 대표 사실 칩(signature_chip_key)이고, 대표 말은 그 칩에 맞는 마지막 본인 줄이다(말풍선 없이 쓰는 칩이면 없다).
+     * 판정 한 줄과 마지막 한 줄은 정해 준 틀의 빈칸을 채워 쓴다.
      */
     private fun roastJson(input: String, title: String): String {
         val root = objectMapper.readTree(input)
         val lines = root.path("transcript").values().flatMap { act -> act.path("lines").values().map { line -> line.asString() } }
-        val chips = root.path("chips").values().filter { chip -> chip.path("kinds").isMissingNode }
+        val chips = root.path("chips").values().sortedBy { chip -> chip.path("quote").asString() != QuoteRule.NONE.hint }
         val slots = root.path("slots")
         val kinds = listOf("reason", "cut", "keep").flatMap { kind -> List(slots.path(kind).asInt()) { kind } }
         val used = mutableSetOf<Int>()
-        val evidence = kinds.zip(chips).mapIndexed { index, (kind, chip) ->
+        val usedChips = mutableSetOf<String>()
+        val evidence = kinds.mapIndexedNotNull { index, kind ->
+            val chip = chips.firstOrNull { candidate -> candidate.path("chip_key").asString() !in usedChips && allows(candidate, kind) } ?: return@mapIndexedNotNull null
+            usedChips += chip.path("chip_key").asString()
             val lineId = lineFor(chip, lines, used)?.also(used::add)
-            val word = HANGUL_WORD.find(chip.path("label").asString())?.value ?: "장부"
+            val word = topicOf(root, chip.path("chip_key").asString()) ?: HANGUL_WORD.find(chip.path("label").asString())?.value ?: "장부"
             mapOf("kind" to kind, "line_id" to lineId, "chip_key" to chip.path("chip_key").asString(), "label" to EVIDENCE_LABELS[index],
                 "line" to EVIDENCE_LINES[index].replace(WORD_SLOT, word))
         }
-        val fitted = lines.lastOrNull()?.let { line -> chips.firstOrNull { chip -> fits(chip, line) }?.let { chip -> line to chip } }
-        val hero = fitted?.second ?: chips.firstOrNull { chip -> chip.path("quote").asString() == QuoteRule.NONE.hint }
-        val heroLine = fitted?.first ?: lines.lastOrNull().takeIf { hero == null }
-        val punch = root.path("punch_templates").values().firstOrNull()?.asString()?.replace(PUNCH_BLANK, HERO_WORD) ?: "고마움 장부 결산, 딸깍."
+        val signature = root.path("signature_chip_key").asString()
+        val hero = chips.firstOrNull { chip -> chip.path("chip_key").asString() == signature }
+        val heroLine = if (hero == null) lines.lastOrNull() else lines.lastOrNull { line -> fits(hero, line) }
+        val heroWord = topicOf(root, signature) ?: HERO_WORD
+        val punch = root.path("punch_templates").values().firstOrNull()?.asString()?.let { template ->
+            template.replace(PUNCH_BLANK, heroWord).takeIf { line -> line.length >= MIN_FINAL_LENGTH } ?: template.replace(PUNCH_BLANK, "$heroWord $LEDGER")
+        } ?: "고마움 장부 결산, 딸깍."
+        val verdictLine = root.path("verdict_template").asString().ifEmpty { "(판정), 딸깍." }.replace(PUNCH_BLANK, VERDICT_WORD)
         return objectMapper.writeValueAsString(
             mapOf(
-                "verdict_line" to "올해 장부가 마감됐다.",
+                "verdict_line" to verdictLine,
                 "evidence" to evidence,
                 "conclusion" to mapOf(
                     "title" to title, "hero_line_id" to heroLine?.let(::lineIdOf), "hero_chip_key" to hero?.path("chip_key")?.asString().orEmpty(),
@@ -751,6 +759,14 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
             ),
         )
     }
+
+    /** 작가 입력 [root]의 [key] 사실이 실은 첫 버릇 낱말(topics). 한 줄이 칩과 뜻을 나누게(일반론 검사) 쓴다. 없으면 null이다. */
+    private fun topicOf(root: JsonNode, key: String): String? =
+        root.path("facts").values().firstOrNull { fact -> fact.path("key").asString() == key }?.path("topics")?.values()?.firstOrNull()?.asString()
+
+    /** 칩 [chip]을 [kind] 근거 카드에 쓸 수 있는지(작가 입력의 kinds). kinds가 없으면 모든 종류에 쓴다. */
+    private fun allows(chip: JsonNode, kind: String): Boolean =
+        chip.path("kinds").isMissingNode || chip.path("kinds").values().any { allowed -> allowed.asString() == kind }
 
     /** 칩 [chip] 카드에 붙일 본인 줄 번호. 말풍선 없이 쓰는 칩이면 null, 아니면 조건에 맞는 아직 안 쓴 줄이다. */
     private fun lineFor(chip: JsonNode, lines: List<String>, used: Set<Int>): Int? {
@@ -865,6 +881,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         /** 추천 펀치 틀의 빈칸(따옴표로 감싼 것 포함). 대표 말풍선(SAMPLE_TEXT)의 '고마웠어'와 첫 글자가 같은 낱말로 채운다. */
         private val PUNCH_BLANK = Regex("'?\\([^)]*\\)'?")
         private const val HERO_WORD = "고마움"
+        private const val VERDICT_WORD = "결산"
+        private const val LEDGER = "장부"
+        private const val MIN_FINAL_LENGTH = 8
         private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
         private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"

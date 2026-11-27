@@ -37,11 +37,12 @@ data class RecapResult(
          * 최신 평가 [latest]와 그 평가의 순위 스냅숏 [snapshot](아직 순위에 오르지 않았으면 null), 꾸밈 값 [profile],
          * 덱에 맞춘 팩폭 내용 [content]([com.santacut.domain.roast.model.RoastContent.forDeck])로 만든다.
          * 순위는 순위 계산이 끝나면 참가자 수와 상관없이 늘 싣고, 최신 평가가 아직 순위에 반영되지 않았을 때만 null이다.
+         * 상위 비율은 참가자가 [ResultProfile.MIN_PARTICIPANTS_FOR_TOP_PERCENT]명 아래면 null이다(작은 모집단의 '상위 100%'는 꼴찌로 읽힌다).
          */
         fun of(latest: Assessment, snapshot: ResultSnapshot?, profile: ResultProfile, content: RoastContent): RecapResult {
             val gift = GiftVerdict(latest.scoreHundredths)
             val rank = snapshot?.rank
-            val top = RecapTopResult(rank, profile.rankedTopPercent, profile.participantCount.takeIf { rank != null }, snapshot == null)
+            val top = RecapTopResult(rank, profile.topPercent, profile.participantCount.takeIf { rank != null }, snapshot == null)
             return RecapResult(
                 latest.id, gift.skin(), BigDecimal.valueOf(latest.scoreHundredths.toLong(), HUNDREDTHS_SCALE), gift.scoreText(), gift.shareText(),
                 top, RecapCards.of(gift, content, profile, snapshot?.eta),
