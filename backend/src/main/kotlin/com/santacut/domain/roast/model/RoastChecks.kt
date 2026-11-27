@@ -9,9 +9,6 @@ class RoastChecks(private val values: List<RoastCheck>) {
     /** [field]의 검증이 있고 통과했는지. */
     fun passed(field: String): Boolean = values.any { check -> check.field == field && check.passed }
 
-    /** [field]와 그 아래 항목(`evidence[0]` 같은 것)의 검증이 있고 모두 통과했는지. */
-    fun passedGroup(field: String): Boolean = passed(field) && values.filter { check -> isIn(check, field) }.all(RoastCheck::passed)
-
     /** 떨어진 필드 이름. 로그에는 이 이름과 수만 남긴다. */
     fun failedFields(): List<String> = values.filterNot(RoastCheck::passed).map(RoastCheck::field)
 

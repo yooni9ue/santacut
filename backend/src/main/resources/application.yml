@@ -91,7 +91,7 @@ santacut:
     max-output-tokens: 8192
     thinking-level: LOW
     call-timeout: 60s
-    max-rewrites: 1
+    max-rewrites: 2
     # 호출 전 비용 예약에 쓰는 호출 한 번의 어림 출력 토큰 수(스키마 글자 수 상한 합 + 여유). 실제 사용량은 응답 메타데이터로 기록한다.
     estimated-output-tokens: 1500
     # 작가 호출 비용은 채점 단가(santacut.ai.budget.*)가 아니라 이 단가로 센다. Gemini 3.5 Flash 표준 등급 정가(2026-11-20 확인)다.

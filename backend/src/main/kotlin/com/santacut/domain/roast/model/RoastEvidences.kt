@@ -20,6 +20,13 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     fun countOf(kind: EvidenceKind): Int = values.count { evidence -> evidence.kind == kind }
 
+    /** 쓴 칩 key. */
+    fun chipKeys(): Set<String> = values.map(RoastEvidence::chipKey).toSet()
+
+    /** 이 카드에 [other]의 앞 [limit]장을 더해 덱 순서로 줄 세운다. [limit]가 0 이하면 더하지 않는다. */
+    fun plus(other: RoastEvidences, limit: Int): RoastEvidences =
+        RoastEvidences(values + other.values.take(limit.coerceAtLeast(0))).inDeckOrder()
+
     /** 대체 문장으로 채운 근거 카드 수. */
     fun fallbackCount(): Int = values.sumOf(RoastEvidence::fallbackCount)
 

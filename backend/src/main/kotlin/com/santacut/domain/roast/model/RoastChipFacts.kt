@@ -9,14 +9,20 @@ class RoastChipFacts(private val values: List<RoastChipFact>) {
     /**
      * 슬롯 수 [slots]만큼 덱 순서(이유, 깎인 말, 살아남은 말)로 통계 카드를 만든다. 칩은 덱 안에서 한 번만 쓴다.
      * 점수 깎인 말은 [preferredCutKey] 칩(고마워 0번)을 먼저 쓴다. 칩이 모자라면 있는 만큼만 만든다.
+     * 이미 덱에 있는 근거 [taken]의 칩은 쓰지 않고, 대체 문구는 [taken]의 같은 종류 카드 다음 순번부터 돌려 쓴다.
      */
-    fun fallbackEvidence(slots: RoastSlots, fallback: RoastFallback, preferredCutKey: String? = null): RoastEvidences {
-        val used = mutableSetOf<String>()
+    fun fallbackEvidence(
+        slots: RoastSlots,
+        fallback: RoastFallback,
+        preferredCutKey: String? = null,
+        taken: RoastEvidences = RoastEvidences.EMPTY,
+    ): RoastEvidences {
+        val used = taken.chipKeys().toMutableSet()
         val cards = EvidenceKind.entries.flatMap { kind ->
             (0 until slots.countOf(kind)).mapNotNull { index ->
                 pickFor(kind, used, preferredCutKey)?.let { fact ->
                     used += fact.key
-                    fallback.evidenceOf(kind, index, fact)
+                    fallback.evidenceOf(kind, taken.countOf(kind) + index, fact)
                 }
             }
         }

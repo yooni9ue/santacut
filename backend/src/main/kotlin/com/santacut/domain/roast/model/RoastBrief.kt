@@ -44,8 +44,12 @@ class RoastBrief(
     /** [lineId]번 본인 줄의 말풍선 표시. 작가에게 보낸 본인 줄이 아니면 null이다. 상대 줄은 보내지 않으므로 늘 null이다. */
     fun quoteOf(lineId: Int): String? = lineQuotes.find(lineId)
 
-    /** 슬롯 수만큼 칩 후보로 만든 통계 카드. 작가 근거가 검증을 끝내 통과하지 못했을 때 쓴다. */
-    fun fallbackEvidence(fallback: RoastFallback): RoastEvidences = facts.chipFacts().fallbackEvidence(statSlots, fallback, ThanksFactSpec.KEY)
+    /**
+     * 칩 후보로 만든 통계 카드. 작가 근거가 검증을 끝내 통과하지 못한 자리에 쓴다. 이미 받은 근거 [kept]가 있으면
+     * 통계 카드 슬롯 수에서 그 수를 뺀 만큼만, [kept]가 쓰지 않은 칩으로 만든다. 점수 깎인 말은 고마워 칩을 먼저 쓴다.
+     */
+    fun fallbackEvidence(fallback: RoastFallback, kept: RoastEvidences = RoastEvidences.EMPTY): RoastEvidences =
+        facts.chipFacts().fallbackEvidence(statSlots.remainingAfter(kept), fallback, ThanksFactSpec.KEY, kept)
 
     /**
      * 작은따옴표로 인용해도 되는지. 인용 후보 목록에 있거나, 목록 밖이라도 웃음·울음 자모 표기([RoastQuotes.isLaughOrCry])가

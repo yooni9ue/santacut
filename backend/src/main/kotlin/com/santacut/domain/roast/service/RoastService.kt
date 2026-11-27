@@ -184,7 +184,7 @@ class RoastService(
         }
         backoff.recordSuccess()
         val review = RoastReview.of(answer.text, brief, catalog.rules, objectMapper)
-        val next = sheet.absorb(review, catalog.rules)
+        val next = sheet.absorb(review, brief, catalog.rules)
         logCall(call, answer.usage, review, next)
         if (next.isComplete() || call >= properties.maxCalls()) return next
         return refine(brief, prompt, recordUsage, next, next.rewriteFor(review), call + 1)

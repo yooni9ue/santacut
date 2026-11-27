@@ -18,6 +18,13 @@ data class RoastSlots(val reason: Int, val cut: Int, val keep: Int) {
 
     fun total(): Int = reason + cut + keep
 
+    /** 이미 채운 근거 [taken]을 kind별로 뺀 남은 수. 0 아래로 내려가지 않는다. */
+    fun remainingAfter(taken: RoastEvidences): RoastSlots = RoastSlots(
+        (reason - taken.countOf(EvidenceKind.REASON)).coerceAtLeast(0),
+        (cut - taken.countOf(EvidenceKind.CUT)).coerceAtLeast(0),
+        (keep - taken.countOf(EvidenceKind.KEEP)).coerceAtLeast(0),
+    )
+
     /**
      * 쓸 수 있는 재료로 줄인 수. 선물 받는 이유와 살아남은 말은 본인 말 [lineCount]줄 안에서만, 모든 카드는 칩 후보 [chipCount]개 안에서만 쓴다.
      * 빈자리를 일반론으로 채우지 않으려는 것이다. 칩이 모자라면 덱의 주 카드(선물은 이유, 석탄은 깎인 말)를 먼저 남긴다.
