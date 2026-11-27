@@ -46,8 +46,6 @@
 .flow-extra-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; }
 .flow-extra-heading h2 { font-size: 22px; }
 .flow-extra-heading span { color: #666; font-size: 13px; }
-.flow-extra-toggle { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 12px; font-size: 14px; }
-.flow-extra-toggle input { width: 18px; height: 18px; }
 .flow-extra-deck { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; }
 .flow-extra-item { flex: 0 0 100%; scroll-snap-align: start; min-width: 0; }
 .flow-extra-card { display: flex; flex-direction: column; gap: 18px; min-height: 0; aspect-ratio: 9 / 16; padding: 24px; border: 1px solid #ddd7c9; border-radius: 18px; background: #f8f5eb; color: #242424; overflow-wrap: anywhere; }
@@ -85,30 +83,58 @@
 .flow-recap-contents button[aria-current=step] { border-color: #d9362b; }
 .flow-recap-contents span { color: #d9362b; font-size: 11px; }
 .flow-recap-card { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 340px; margin-inline: auto; aspect-ratio: 9 / 16; padding: 22px 22px 0; border: 1px solid #dcdcd5; border-radius: 16px 13px 17px 12px; background: #f8f8f5; color: #242424; overflow: hidden; overflow-wrap: anywhere; touch-action: pan-y; }
-.flow-recap-card.is-letter { background: #fff; }
-.flow-recap-card.is-roast { background: #f8f6f4; }
+/* Paper colour changes by card kind so a swipe always lands on a visibly new card. */
+.flow-recap-card.is-cutline, .flow-recap-card.is-conclusion { background: #fff; }
+.flow-recap-card.is-reason { background: #fbf7ef; }
+.flow-recap-card.is-cut { background: #f5f4f1; }
+.flow-recap-card.is-keep { background: #f4f7f2; }
 .flow-recap-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 10px; font-weight: 700; }
 .flow-recap-card-top span:first-child { font-size: 13px; font-weight: 900; letter-spacing: -.5px; }
-.flow-recap-card-top span:last-child { color: #87877e; font-weight: 500; }
-.flow-recap-score { display: block; margin: 12px 0 10px; color: #d9362b; font-size: clamp(42px, 15vw, 62px); line-height: 1; letter-spacing: -.07em; font-weight: 900; font-variant-numeric: tabular-nums; }
-.flow-recap-score small { margin-left: 5px; color: #242424; font-size: 16px; letter-spacing: 0; font-weight: 500; }
+.flow-recap-card-top span:last-child { color: #3c3c37; font-size: 12px; font-variant-numeric: tabular-nums; }
+.flow-recap-card-top span.is-pending { color: #55554f; font-weight: 500; }
+.flow-recap-kicker { margin: 14px 0 0 !important; color: #d9362b; font-size: 13px; font-weight: 800; }
 .flow-recap-copy { position: relative; display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 10px; padding-bottom: 10px; }
 .flow-recap-copy h3 { font-family: 'Santa Headline', sans-serif; font-weight: 700; font-size: clamp(28px, 8vw, 35px); line-height: 1.25; letter-spacing: 0; word-break: keep-all; }
 .flow-recap-copy p { font-size: 15px; line-height: 1.65; word-break: keep-all; }
-.flow-recap-verdict { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.flow-recap-verdict > span { font-size: 12px; color: #62625b; }
-.flow-recap-copy .flow-extra-stamp { align-self: flex-start; padding: 5px 9px; border: 2px solid #d9362b; border-radius: 5px; color: #d9362b; font-family: 'Santa Headline', sans-serif; font-size: 22px; line-height: 1.2; transform: rotate(-3deg); }
-.flow-recap-cut { font-size: 12px; color: #62625b; }
-.flow-recap-facts { display: flex; gap: 16px; padding-top: 8px; border-top: 1px dashed #d9d9d1; }
-.flow-recap-facts p { font-size: 13px; font-weight: 700; }
-.flow-recap-facts small { display: block; font-size: 11px; font-weight: 400; color: #62625b; margin-bottom: 3px; }
-.flow-recap-copy .flow-extra-chip { display: flex; align-items: baseline; gap: 10px; align-self: flex-start; padding: 0; border: 0; font-size: 12px; }
-.flow-extra-chip strong { color: #d9362b; font-size: 29px; font-weight: 900; }
-.flow-recap-copy .flow-recap-message { font-family: inherit; font-size: 15px; line-height: 1.75; letter-spacing: 0; }
-.flow-recap-copy > small { font-size: 12px; line-height: 1.5; color: #62625b; }
+.flow-recap-badge { align-self: flex-start; padding: 3px 8px; border: 1.5px solid currentColor; border-radius: 5px; color: #d9362b; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.flow-recap-card.is-coal .flow-recap-badge { color: #3a3835; }
+.flow-recap-copy .flow-recap-hero { font-size: clamp(48px, 16vw, 64px); line-height: 1.05; }
+.flow-recap-copy .flow-recap-grade { font-size: 17px; font-weight: 800; }
+.flow-recap-copy .flow-recap-line { font-size: 15px; line-height: 1.6; color: #3c3c37; }
+.flow-recap-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.flow-recap-chips span { padding: 4px 9px; border: 1px solid #d9d9d1; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.flow-recap-bands { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.flow-recap-bands li { position: relative; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-height: 40px; padding: 7px 10px; border: 1px solid #e3e3dc; border-radius: 9px; background: #fafaf8; color: #62625b; font-size: 13px; }
+.flow-recap-bands li span { flex: 1; font-weight: 700; }
+.flow-recap-bands li b { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.flow-recap-bands li em { flex-basis: 100%; color: #d9362b; font-style: normal; font-size: 12px; font-weight: 800; }
+.flow-recap-bands li em i { margin-right: 5px; font-style: normal; }
+.flow-recap-copy .flow-recap-cut-title { font-size: 22px; }
+.flow-recap-bands li.is-current { border: 2px solid #d9362b; background: #fff; color: #242424; }
+.flow-recap-bands li.is-below-cut { margin-top: 18px; }
+.flow-recap-cutline { position: absolute; left: 0; right: 0; top: -17px; border-top: 2px dashed #d9362b; padding-top: 1px; color: #d9362b; font-size: 10px; font-weight: 800; text-align: right; }
+.flow-recap-tag { align-self: flex-start; padding: 2px 8px; border-radius: 5px; background: #242424; color: #fff; font-size: 11px; font-weight: 700; }
+.flow-recap-copy .flow-recap-bubble { position: relative; align-self: flex-start; max-width: 100%; padding: 12px 16px; border: 2px solid #242424; border-radius: 18px 18px 18px 4px; background: #fff; font-size: 20px; font-weight: 800; line-height: 1.4; }
+.flow-recap-copy .flow-recap-chip { align-self: flex-start; color: #d9362b; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.flow-recap-copy .flow-recap-chip.is-giant { align-self: stretch; color: #d9362b; font-size: clamp(30px, 10vw, 40px); line-height: 1.2; font-weight: 900; letter-spacing: -.03em; }
+.flow-recap-copy .flow-recap-label { font-size: clamp(30px, 9vw, 36px); }
+.flow-recap-copy .flow-recap-band { color: #9a6b12; font-size: clamp(34px, 11vw, 44px); line-height: 1.1; }
+.flow-recap-card.is-coal .flow-recap-copy .flow-recap-band { color: #3a3835; }
+.flow-recap-copy .flow-recap-title { font-size: 14px; font-weight: 800; }
+.flow-recap-card.is-conclusion .flow-recap-copy { justify-content: flex-start; gap: 7px; padding-top: 6px; }
+.flow-recap-card.is-conclusion .flow-recap-bubble { padding: 8px 12px; font-size: 16px; }
+.flow-recap-card.is-conclusion .flow-recap-chip.is-giant { font-size: 24px; }
+.flow-recap-card.is-conclusion .flow-recap-line { font-size: 14px; line-height: 1.5; }
+.flow-recap-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; }
+.flow-recap-strip i { height: 10px; border-radius: 3px; background: #e5e5df; }
+.flow-recap-strip i.is-below-cut { box-shadow: -3px 0 0 #fff, -5px 0 0 #d9362b; }
+.flow-recap-strip i.is-current { background: #d9362b; }
+.flow-recap-card.is-coal .flow-recap-strip i.is-current { background: #3a3835; }
+.flow-recap-copy .flow-recap-friend { font-size: 14px; font-weight: 800; }
+.flow-recap-copy .flow-recap-hashtags { color: #62625b; font-size: 12px; }
 .flow-recap-art { display: flex; justify-content: center; flex: 0 0 150px; height: 150px; margin: 0 -8px; }
 .flow-recap-art svg { display: block; width: 100%; height: 100%; }
-.flow-recap-card.is-letter .flow-recap-art, .flow-recap-card.is-story .flow-recap-art { flex-basis: 105px; height: 105px; }
+.flow-recap-card.is-cutline .flow-recap-copy { padding-top: 10px; }
 .flow-recap-card-bottom { margin: 0 -22px !important; padding: 9px; border-top: 1px solid #e1e1db; background: #fff; color: #8b8b80; text-align: center; font-size: 8px; letter-spacing: .13em; }
 .flow-recap-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 12px 0; }
 .flow-recap-nav button { min-width: 82px; min-height: 44px; border: 1px solid #deded9; border-radius: 9px; background: #fff; color: #242424; font-weight: 700; }
@@ -117,7 +143,6 @@
 .flow-recap .flow-extra-actions button { min-height: 48px; border-radius: 10px; }
 .flow-recap .flow-extra-actions button:first-child { background: #d9362b; border-color: #d9362b; color: #fff; }
 .flow-recap .flow-extra-actions button:last-child { background: #fff; border-color: #deded9; color: #242424; }
-.flow-recap .flow-extra-toggle { font-size: 14px; color: #62625b; }
 .flow-recap .flow-extra-share-text { color: #62625b; font-size: 13px; line-height: 1.6; }
 .flow-legacy-result, .flow-dossier { margin: 18px 0; }
 .flow-legacy-result > summary, .flow-dossier > summary { display: flex; justify-content: space-between; align-items: center; min-height: 52px; padding: 0 16px; border: 1px solid #deded9; border-radius: 12px; background: #fafaf8; color: #242424; cursor: pointer; font-size: 13px; list-style: none; }
@@ -128,8 +153,14 @@
  .flow-recap-card { padding: 16px 18px 0; }
  .flow-recap-card-bottom { margin-inline: -18px !important; }
  .flow-recap-copy { gap: 7px; }
- .flow-recap-copy h3 { font-size: 28px; }
- .flow-recap-copy .flow-recap-message { font-size: 14px; line-height: 1.65; }
+ .flow-recap-copy .flow-recap-label { font-size: 28px; }
+ .flow-recap-copy .flow-recap-bubble { font-size: 18px; }
+ .flow-recap-bands li { min-height: 36px; padding: 5px 9px; }
+ .flow-recap-card.is-conclusion .flow-recap-copy { gap: 5px; padding-top: 2px; }
+ .flow-recap-card.is-conclusion .flow-recap-copy .flow-recap-band { font-size: 28px; }
+ .flow-recap-card.is-conclusion .flow-recap-chips span { padding: 3px 7px; font-size: 11px; }
+ .flow-recap-card.is-conclusion .flow-recap-bubble { padding: 6px 10px; font-size: 15px; }
+ .flow-recap-card.is-conclusion .flow-recap-line { font-size: 13px; line-height: 1.45; }
  .flow-recap-art { flex-basis: 130px; height: 130px; }
 }
 
