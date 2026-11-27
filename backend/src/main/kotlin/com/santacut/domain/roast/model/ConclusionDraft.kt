@@ -9,19 +9,16 @@ import tools.jackson.databind.JsonNode
 data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChipKey: String?, val finalLine: String) {
     /**
      * 결론 검증(필드 conclusion). 대표 줄은 보낸 본인 줄이어야 하고 대표 칩은 고마워 칩이 아닌 칩 후보여야 한다. 보낸 줄·후보가 없을 때만 비워도 된다.
-     * 마지막 한 줄은 대표 말풍선이나 대표 칩 이름과 낱말이 겹쳐야 한다([TextProblems.grounding]).
+     * 마지막 한 줄은 대표 말풍선이나 대표 칩(이름, 뜻 풀이)과 낱말이 겹쳐야 한다([TextProblems.grounding]).
      */
     fun check(brief: RoastBrief, rules: RoastRules): RoastCheck = RoastCheck(
         FIELD,
         listOfNotNull(heroLineProblem(brief), heroChipProblem(brief)) +
             TextProblems.of(title, RoastTextKind.TITLE, brief, rules).labeled(TITLE) +
             TextProblems.of(finalLine, RoastTextKind.FINAL_LINE, brief, rules).labeled(FINAL_LINE) +
-            TextProblems.grounding(finalLine, heroSources(brief)).labeled(FINAL_LINE),
+            TextProblems.grounding(finalLine, heroLineId?.let(brief::quoteOf), heroChipKey?.let(brief::chipTextsOf).orEmpty())
+                .labeled(FINAL_LINE),
     )
-
-    /** 마지막 한 줄이 낱말을 받아 써야 하는 근거(대표 말풍선 표시, 대표 칩 이름). */
-    private fun heroSources(brief: RoastBrief): List<String> =
-        listOfNotNull(heroLineId?.let(brief::quoteOf), heroChipKey?.let(brief::chipOf)?.label)
 
     fun slangCount(rules: RoastRules): Int = rules.slangCountIn(title) + rules.slangCountIn(finalLine)
 

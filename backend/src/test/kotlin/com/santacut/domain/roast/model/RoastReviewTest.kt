@@ -154,8 +154,8 @@ class RoastReviewTest {
 
     @Test
     fun `근거 한 줄과 마지막 한 줄이 말풍선·칩과 낱말을 나누지 않으면 일반론으로 떨어진다`() {
-        val cards = evidenceOf(gift).mapIndexed { index, card -> if (index == 0) card + ("line" to "산타도 웃고 넘어갔다.") else card }
-        val json = validJson(gift, evidence = cards, finalLine = "산타도 웃고 넘어갔다.")
+        val cards = evidenceOf(gift).mapIndexed { index, card -> if (index == 0) card + ("line" to "이건 산타도 인정한다.") else card }
+        val json = validJson(gift, evidence = cards, finalLine = "이건 산타도 인정한다.")
 
         val checks = review(gift, json).checks
 

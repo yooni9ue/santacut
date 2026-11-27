@@ -38,6 +38,9 @@ class RoastBrief(
 
     fun hasFact(key: String): Boolean = facts.find(key) != null
 
+    /** [key] 칩 후보의 칩 이름과 뜻 풀이. 일반론 검사의 근거로 쓴다(고마워 칩 뜻 풀이는 고맙다·감사 같은 변형을 든다). 없으면 빈 목록이다. */
+    fun chipTextsOf(key: String): List<String> = facts.find(key)?.let { fact -> listOf(fact.chip.label, fact.meaning) }.orEmpty()
+
     /** [key] 칩 후보의 서버 칩 값. 없으면 null이다. */
     fun chipOf(key: String): RoastChip? = facts.find(key)?.chip
 

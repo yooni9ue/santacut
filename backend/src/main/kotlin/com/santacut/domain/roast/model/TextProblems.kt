@@ -16,24 +16,30 @@ class TextProblems(private val values: List<String>) {
         private const val PARENTHESES = "()"
         private val HANGUL_RUN = Regex("[가-힣]{2,}")
 
-        /** 내용 낱말 줄기 길이. 두 글자 이상 한글 낱말의 앞 두 글자로 견줘 조사·어미가 달라도 같은 낱말로 본다. */
-        private const val STEM_LENGTH = 2
+        /** 어느 덱에나 붙는 낱말의 앞 두 글자. 이 낱말만으로는 근거와 겹친 것으로 치지 않는다(칩 뜻 풀이의 말풍선·보낸도 여기 든다). */
+        private val GENERIC_STEMS = setOf("산타", "올해", "이건", "그건", "이거", "그거", "인정", "장부", "말풍", "보낸", "보냈")
+        private const val GENERIC_STEM_LENGTH = 2
         private const val GENERIC = "일반론(말풍선·칩과 겹치는 낱말이 없다)"
 
         /**
-         * 일반론 검사. 문장 [text]가 근거 [sources](고른 말풍선 표시, 칩 이름) 가운데 하나와 내용 낱말을 하나 이상 나눠야 한다.
-         * 내용 낱말은 두 글자 이상 한글 낱말의 줄기(앞 두 글자)이거나 근거에 따옴표로 든 입버릇('ㄱ?')이다.
-         * 근거에 내용 낱말이 하나도 없으면(ㅋㅋ만 있는 말풍선 등) 겹칠 수 없으니 보지 않는다.
+         * 일반론 검사. 문장 [text]가 고른 말풍선 표시 [quote]나 칩 글([chipTexts]: 칩 이름, 칩 뜻 풀이)과 내용 낱말을 하나 이상 나눠야 한다.
+         * 내용 낱말은 [GENERIC_STEMS]로 시작하지 않는 두 글자 이상 한글 낱말이다. 활용으로 둘째 글자가 바뀌어도(고마워·고맙다) 맞게
+         * 첫 글자가 같은 근거 낱말이 있으면 겹친 것으로 본다. 말풍선 낱말은 첫 글자가 그 안 어디에 있어도 된다(대답좀·답장).
+         * 근거에 따옴표로 든 입버릇('ㄱ?')을 그대로 써도 겹친 것이다. 근거에 내용 낱말이 하나도 없으면(ㅋㅋ만 있는 말풍선 등) 보지 않는다.
          */
-        fun grounding(text: String, sources: List<String>): TextProblems {
-            val stems = sources.flatMap(::stemsOf).toSet()
-            val phrases = sources.flatMap(::quotedIn).filter(String::isNotBlank)
-            if (stems.isEmpty() && phrases.isEmpty()) return TextProblems(emptyList())
-            val shared = stemsOf(text).any(stems::contains) || phrases.any(text::contains)
+        fun grounding(text: String, quote: String?, chipTexts: List<String>): TextProblems {
+            val quoteWords = quote?.let(::contentWordsOf).orEmpty()
+            val sourceWords = quoteWords + chipTexts.flatMap(::contentWordsOf)
+            val phrases = (listOfNotNull(quote) + chipTexts).flatMap(::quotedIn).filter(String::isNotBlank)
+            if (sourceWords.isEmpty() && phrases.isEmpty()) return TextProblems(emptyList())
+            val shared = contentWordsOf(text).map(String::first).any { initial ->
+                sourceWords.any { word -> word.first() == initial } || quoteWords.any { word -> initial in word }
+            } || phrases.any(text::contains)
             return TextProblems(listOfNotNull(GENERIC.takeUnless { shared }))
         }
 
-        private fun stemsOf(text: String): List<String> = HANGUL_RUN.findAll(text).map { match -> match.value.take(STEM_LENGTH) }.toList()
+        private fun contentWordsOf(text: String): List<String> =
+            HANGUL_RUN.findAll(text).map { match -> match.value }.filterNot { word -> word.take(GENERIC_STEM_LENGTH) in GENERIC_STEMS }.toList()
 
         private fun quotedIn(text: String): List<String> =
             QUOTE.findAll(text).map { match -> match.groupValues.drop(1).firstOrNull(String::isNotEmpty).orEmpty() }.toList()
