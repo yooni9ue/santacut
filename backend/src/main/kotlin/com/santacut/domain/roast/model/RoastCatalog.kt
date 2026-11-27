@@ -15,6 +15,11 @@ class RoastCatalog(
     val thanks: ThanksFactSpec,
     val fallback: RoastFallback,
 ) {
-    /** 모든 리소스의 규칙 위반 설명. 비어 있어야 앱을 띄운다. */
-    fun violations(): List<String> = facts.violations() + phrase.violations() + thanks.violations() + fallback.violations() + rules.slang.violations()
+    /** 모든 리소스의 규칙 위반 설명. 비어 있어야 앱을 띄운다. 칩 후보가 될 수 있는 모든 칩에 칩별 대체 문구가 있어야 한다. */
+    fun violations(): List<String> =
+        facts.violations() + phrase.violations() + thanks.violations() + fallback.violations(chipKeys()) + rules.slang.violations()
+
+    /** 칩 후보가 될 수 있는 칩 key. 지표 칩, 고마워 칩, 입버릇 칩(머리말), 항목 점수 칩이다. */
+    private fun chipKeys(): List<String> =
+        facts.keys() + ThanksFactSpec.KEY + PhraseFactSpec.KEY_PREFIX + RoastEvidences.dimensionKeys()
 }

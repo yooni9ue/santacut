@@ -82,6 +82,9 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
         private const val DIMENSION_CHIP_SUFFIX = " 점수"
         private const val POINT_UNIT = "점"
 
+        /** 모든 항목 점수 칩 key. */
+        fun dimensionKeys(): List<String> = ScoreDimension.entries.map { dimension -> DIMENSION_KEY_PREFIX + dimension.key }
+
         /** 판정([passed])마다 [kind] 근거 카드 상한. 선물 덱은 이유 셋·깎인 말 둘, 석탄 덱은 깎인 말 셋·살아남은 말 하나다. */
         fun limitOf(kind: EvidenceKind, passed: Boolean): Int = when (kind) {
             EvidenceKind.REASON -> if (passed) MAX_GIFT_REASONS else 0

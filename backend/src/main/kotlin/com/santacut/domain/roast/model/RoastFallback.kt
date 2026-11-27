@@ -4,28 +4,38 @@ import com.santacut.domain.analysis.model.GiftGrade
 
 /**
  * 작가 문장이 검증을 끝내 통과하지 못했을 때 쓰는 서버 대체 문장(roast/fallback.json).
- * 판정 한 줄과 결론 칭호·마지막 한 줄은 구간(등급)별 고정 문장이고, 근거 카드 라벨과 한 줄은 종류별이다.
+ * 판정 한 줄과 결론 칭호·마지막 한 줄은 구간(등급)별 고정 문장이다. 근거 카드 라벨과 한 줄은 칩마다·근거 종류마다 따로 두어([chips])
+ * 통계 카드가 그 칩을 말하게 하고, 칩별 문구가 없는 칩(옛 결과의 칩 등)만 종류별 기본 문구([evidence])를 쓴다.
  *
  * @property bands 등급 이름([GiftGrade.name])별 고정 문장
- * @property evidence 근거 카드 종류 key([EvidenceKind.key])별 대체 라벨과 한 줄
+ * @property evidence 근거 카드 종류 key([EvidenceKind.key])별 기본 대체 라벨과 한 줄
+ * @property chips 칩 key(또는 머리말)별·근거 종류별 대체 라벨과 한 줄
  */
 data class RoastFallback(
     val bands: Map<String, RoastBandCopy>,
     val evidence: Map<String, EvidenceCopy>,
+    val chips: ChipCopies = ChipCopies.EMPTY,
 ) {
-    fun violations(): List<String> = listOfNotNull(
+    /** 문구 위반. 칩 후보가 될 수 있는 칩 key [chipKeys]마다 칩별 문구가 있어야 한다. */
+    fun violations(chipKeys: List<String> = emptyList()): List<String> = listOfNotNull(
         "fallback.bands: 등급마다 문장이 있어야 한다".takeUnless { bands.keys.containsAll(GiftGrade.entries.map(GiftGrade::name)) },
         "fallback.evidence: 근거 종류마다 라벨과 한 줄이 있어야 한다".takeUnless {
             EvidenceKind.entries.all { kind -> evidence[kind.key]?.isMalformed() == false }
         },
+        "fallback.chips: 칩별 문구마다 key나 머리말, 종류별 고정 라벨·한 줄이 있어야 한다".takeIf { chips.hasMalformed() },
+        chips.missing(chipKeys).takeIf(List<String>::isNotEmpty)?.let { keys -> "fallback.chips: 문구가 없는 칩 $keys" },
     )
 
     fun bandOf(grade: GiftGrade): RoastBandCopy = bands.getValue(grade.name)
 
-    /** [kind] 근거 카드 가운데 [index]번째(0부터) 통계 카드. 칩은 [fact]이고 말풍선은 없다. */
+    /**
+     * [kind] 근거 카드 가운데 [index]번째(0부터) 통계 카드. 칩은 [fact]이고 말풍선은 없다.
+     * 문구는 그 칩의 칩별 문구를 쓰고, 입버릇 칩이면 칩 이름의 입버릇 표기를 틀에 넣는다. 칩별 문구가 없으면 종류별 기본 문구다.
+     */
     fun evidenceOf(kind: EvidenceKind, index: Int, fact: RoastChipFact): RoastEvidence {
-        val copy = evidence.getValue(kind.key)
-        return RoastEvidence(kind, null, fact.key, fact.chip, null, copy.labelAt(index), copy.lineAt(index), RoastSource.FALLBACK)
+        val copy = chips.find(fact.key)?.copyOf(kind) ?: evidence.getValue(kind.key)
+        val phrase = fact.chip.quotedPhrase()
+        return RoastEvidence(kind, null, fact.key, fact.chip, null, copy.labelAt(index, phrase), copy.lineAt(index, phrase), RoastSource.FALLBACK)
     }
 
     /**
