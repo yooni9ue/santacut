@@ -526,7 +526,7 @@ type RecapResponse = {
 | --- | --- | --- |
 | 맞장구(공감) | 헐 먼저 치는 애 (`HOT_COCOA_COURIER`) | 읽씹 안 하는 애 (`FIREPLACE_KEEPER`) |
 | 기 살려주기(응원) | 호들갑 원탑 (`CAROL_LEADER`) | 하트 먼저 누르는 애 (`TREE_TOP_STAR`) |
-| 선 지키기(존중) | 웃긴데 무해한 애 (`MANNER_SNOWMAN`) | 캡처 프리패스 (`GIFT_WRAPPER`) |
+| 선 지키기(존중) | 웃긴데 무해한 애 (`MANNER_SNOWMAN`) | 선 안 넘는 애 (`GIFT_WRAPPER`) |
 | 판 깔기(협력) | 갑자기 약속 잡는 애 (`RUDOLPH_DRIVER`) | 총대 메는 애 (`WORKSHOP_ELF`) |
 
 균형형(네 항목 점수가 고르게 나온 사람): 평균이 높으면 육각형 인간(`SANTA_CANDIDATE`), 낮으면 ㅇㅇ만 치는 애(`GRINCH_APPRENTICE`).

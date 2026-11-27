@@ -14,7 +14,7 @@ class ArchetypeTest {
             mapOf(
                 "HOT_COCOA_COURIER" to "헐 먼저 치는 애", "FIREPLACE_KEEPER" to "읽씹 안 하는 애",
                 "CAROL_LEADER" to "호들갑 원탑", "TREE_TOP_STAR" to "하트 먼저 누르는 애",
-                "MANNER_SNOWMAN" to "웃긴데 무해한 애", "GIFT_WRAPPER" to "캡처 프리패스",
+                "MANNER_SNOWMAN" to "웃긴데 무해한 애", "GIFT_WRAPPER" to "선 안 넘는 애",
                 "RUDOLPH_DRIVER" to "갑자기 약속 잡는 애", "WORKSHOP_ELF" to "총대 메는 애",
                 "SANTA_CANDIDATE" to "육각형 인간", "GRINCH_APPRENTICE" to "ㅇㅇ만 치는 애",
             ),
@@ -26,7 +26,7 @@ class ArchetypeTest {
     fun `석탄 덱은 같은 항목의 차분한 이름을 싣는다`() {
         assertEquals("읽씹 안 하는 애", Archetype.HOT_COCOA_COURIER.forCoal().koreanName)
         assertEquals("하트 먼저 누르는 애", Archetype.CAROL_LEADER.forCoal().koreanName)
-        assertEquals("캡처 프리패스", Archetype.MANNER_SNOWMAN.forCoal().koreanName)
+        assertEquals("선 안 넘는 애", Archetype.MANNER_SNOWMAN.forCoal().koreanName)
         assertEquals("총대 메는 애", Archetype.RUDOLPH_DRIVER.forCoal().koreanName)
         assertEquals("ㅇㅇ만 치는 애", Archetype.SANTA_CANDIDATE.forCoal().koreanName)
         assertEquals(Archetype.FIREPLACE_KEEPER, Archetype.FIREPLACE_KEEPER.forCoal())

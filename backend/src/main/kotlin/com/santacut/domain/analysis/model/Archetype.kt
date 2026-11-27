@@ -31,7 +31,7 @@ enum class Archetype(val koreanName: String) {
     MANNER_SNOWMAN("웃긴데 무해한 애"),
 
     /** 선 지키기 × 장난기 낮음. */
-    GIFT_WRAPPER("캡처 프리패스"),
+    GIFT_WRAPPER("선 안 넘는 애"),
 
     /** 판 깔기 × 장난기 높음. */
     RUDOLPH_DRIVER("갑자기 약속 잡는 애"),
