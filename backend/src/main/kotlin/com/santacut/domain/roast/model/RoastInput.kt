@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property nearMiss 컷과 1점 안일 때의 말("컷 바로 위 0.13점 차"). 아니면 싣지 않는다.
  * @property signatureChipKey 이 사람을 가장 잘 말하는 대표 사실 칩. 근거 카드나 hero_chip_key 가운데 한 곳에 꼭 쓴다. 작가가 놓을 수 없는 칩이면 싣지 않는다.
  * @property bannedMarks 이 사람의 구간이 쓸 수 없는 다른 구간의 이름·밈. 판정 한 줄, title, final_line에 쓰면 떨어진다.
+ * @property quoteCutChipKey 본인 말풍선을 붙여 깎인 말 한 장에 꼭 쓸 입버릇 칩([RoastBrief.quoteCutKey]). 없으면 싣지 않는다.
  */
 data class RoastInput(
     val verdict: String,
@@ -42,4 +43,5 @@ data class RoastInput(
     @field:JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty("near_miss") val nearMiss: String? = null,
     @field:JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty("signature_chip_key") val signatureChipKey: String? = null,
     @JsonProperty("banned_marks") val bannedMarks: List<String> = emptyList(),
+    @field:JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty("quote_cut_chip_key") val quoteCutChipKey: String? = null,
 )

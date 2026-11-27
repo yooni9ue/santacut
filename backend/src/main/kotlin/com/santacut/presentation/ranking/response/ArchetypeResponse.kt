@@ -12,6 +12,6 @@ data class ArchetypeResponse(
         example = "HOT_COCOA_COURIER",
     )
     val code: String,
-    @field:Schema(description = "산타 유형 한국어 이름", example = "핫초코 배달부")
+    @field:Schema(description = "산타 유형 한국어 이름", example = "헐 먼저 치는 애")
     val name: String,
 )

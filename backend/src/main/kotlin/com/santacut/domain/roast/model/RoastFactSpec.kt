@@ -17,6 +17,8 @@ import com.santacut.domain.dossier.model.MetricReading
  * @property dimension 좋은 쪽·나쁜 쪽 방향이 가리키는 항목 점수 key([ScoreDimension.key]). 근거 카드 영역 태그에 쓴다. 이어 볼 항목이 없으면 null이다.
  * @property topics 칩이 말하는 버릇의 낱말. 근거 한 줄이 칩 글자를 그대로 옮기지 않고 뜻으로 말해도 근거와 겹친 것으로 친다([TextProblems.grounding]).
  * @property minValue 칩 값이 이보다 작으면 뜻이 없어(연달아 보내기 한 개 등) 사실로 쓰지 않는다. 없으면 null이다.
+ * @property cutMaxValue 나쁜 쪽(−) 방향을 쓰는 값의 상한. 값이 이보다 크면 그 수준이 −여도 중립으로 본다. ㅋ 밀도가 열 번에 한 번보다 잦으면
+ * 웃음이 적다고 깎지 않는다('3번에 1번'에 노웃음상이 붙던 뒤집힘). 없으면 null이다.
  */
 data class RoastFactSpec(
     val key: String,
@@ -30,6 +32,7 @@ data class RoastFactSpec(
     val dimension: String? = null,
     val topics: List<String> = emptyList(),
     @JsonProperty("min_value") val minValue: Double? = null,
+    @JsonProperty("cut_max_value") val cutMaxValue: Double? = null,
 ) {
     fun violations(): List<String> = listOfNotNull(
         "facts.$key: 엔진이 계산하지 않는 지표다".takeIf { DossierMetric.ofKey(key) == null },
@@ -41,11 +44,13 @@ data class RoastFactSpec(
         "facts.$key: directions는 ${LEVEL_COUNT}개다".takeUnless { directions.size == LEVEL_COUNT },
         "facts.$key: directions에 ±는 쓰지 않는다".takeIf { ChipDirection.EITHER in directions },
         "facts.$key: 모르는 dimension $dimension".takeIf { dimension != null && ScoreDimension.ofKey(dimension) == null },
+        "facts.$key: cut_max_value는 − 방향이 있을 때만 쓴다".takeIf { cutMaxValue != null && ChipDirection.BAD !in directions },
     )
 
     /**
      * [reading]을 사실로 바꾼다. 백분위가 가운데([BLAND_LOW]~[BLAND_HIGH])라 밋밋하거나 값이 [minValue]보다 작으면 null이다.
-     * 점수는 튀는 정도 × [weight]이고, 방향은 그 수준의 [directions]다. 칩 값은 읽기 쉬운 꼴([MetricReading.chipValue])로 찍는다.
+     * 점수는 튀는 정도 × [weight]이고, 방향은 그 수준의 [directions]다. 나쁜 쪽인데 값이 [cutMaxValue]보다 크면 중립이다.
+     * 칩 값은 읽기 쉬운 꼴([MetricReading.chipValue])로 찍는다.
      */
     fun factOf(reading: MetricReading): RoastFact? {
         if (minValue != null && reading.rawValue() < minValue) return null
@@ -53,8 +58,15 @@ data class RoastFactSpec(
         val chip = RoastChip(chipLabel, reading.chipValue())
         return RoastFact(
             key, meaning, levels[index], group, chip, extremenessOf(reading.percentileRank()) * weight, quoteRuleAt(reading.percentileRank()),
-            directions.getOrElse(index) { ChipDirection.NEUTRAL }, dimension, topics,
+            directionAt(index, reading.rawValue()), dimension, topics,
         )
+    }
+
+    /** [index] 수준에서 값 [value]의 방향. 나쁜 쪽인데 값이 [cutMaxValue]보다 크면 깎을 만큼 튀지 않아 중립이다. */
+    private fun directionAt(index: Int, value: Double): ChipDirection {
+        val direction = directions.getOrElse(index) { ChipDirection.NEUTRAL }
+        val mild = direction == ChipDirection.BAD && cutMaxValue != null && value > cutMaxValue
+        return if (mild) ChipDirection.NEUTRAL else direction
     }
 
     /**

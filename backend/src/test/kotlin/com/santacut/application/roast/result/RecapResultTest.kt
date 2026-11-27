@@ -90,7 +90,7 @@ class RecapResultTest {
     }
 
     @Test
-    fun `회귀 - 석탄 덱은 캐럴 떼창 리더 같은 신나는 유형 대신 같은 항목의 차분한 유형을 싣는다`() {
+    fun `회귀 - 석탄 덱은 호들갑 원탑 같은 신나는 유형 대신 같은 항목의 차분한 유형을 싣는다`() {
         assertEquals(Archetype.TREE_TOP_STAR, Archetype.CAROL_LEADER.forCoal())
         assertEquals(Archetype.GRINCH_APPRENTICE, Archetype.SANTA_CANDIDATE.forCoal())
         assertEquals(Archetype.FIREPLACE_KEEPER, Archetype.FIREPLACE_KEEPER.forCoal())

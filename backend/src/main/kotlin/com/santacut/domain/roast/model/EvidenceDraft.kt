@@ -10,6 +10,12 @@ package com.santacut.domain.roast.model
 data class EvidenceDraft(val kindKey: String, val lineId: Int?, val chipKey: String, val label: String, val line: String) {
     fun kind(): EvidenceKind? = EvidenceKind.ofKey(kindKey)
 
+    /** 본인 말풍선을 붙인 입버릇 칩 깎인 말 카드인지. 깎인 말 가운데 한 장은 이런 카드여야 한다([RoastBrief.quoteCutKey]). */
+    fun isQuotedPhraseCut(): Boolean = kind() == EvidenceKind.CUT && lineId != null && chipKey.startsWith(PhraseFactSpec.KEY_PREFIX)
+
+    /** 깎인 말이면 참, 이유·살아남은 말이면 거짓. 모르는 종류면 null이다. 같은 버릇을 반대편 카드에 함께 쓰는지 견줄 때 쓴다. */
+    fun isCut(): Boolean? = kind()?.let { kind -> kind == EvidenceKind.CUT }
+
     /**
      * 문장 검증과 본인 줄·칩 후보 확인. 칩은 방향이 맞는 종류에만 쓴다([ChipDirection.allows]): 이유·살아남은 말은 좋은 쪽, 깎인 말은 나쁜 쪽(고마워 칩 포함),
      * 중립 칩(달별 기복, 근무시간 비율 등)은 어느 근거에도 못 쓴다. 한 줄은 고른 말풍선이나 칩(이름, 뜻 풀이, 버릇 낱말)과 낱말이 겹쳐야 하고([TextProblems.grounding]),
@@ -72,7 +78,8 @@ data class EvidenceDraft(val kindKey: String, val lineId: Int?, val chipKey: Str
     fun toEvidence(brief: RoastBrief): RoastEvidence? {
         val kind = kind() ?: return null
         return RoastEvidence(
-            kind, lineId, chipKey, brief.chipOf(chipKey), lineId?.let(brief::quoteOf), label, line, RoastSource.AI, brief.dimensionOf(chipKey),
+            kind, lineId, chipKey, brief.chipOf(chipKey), lineId?.let(brief::quoteOf), RoastEvidence.labelOf(label), line, RoastSource.AI,
+            brief.dimensionOf(chipKey),
         )
     }
 

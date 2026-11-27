@@ -22,12 +22,14 @@ class PunchTemplatesTest {
     private val punch = TestRoasts.catalog.punch
 
     @Test
-    fun `구간·판정 풀마다 서로 다른 펀치 구조가 여섯 개 이상이고 리소스 위반이 없다`() {
+    fun `등급마다 마지막 한 줄 후보의 서로 다른 펀치 구조가 다섯 개 이상이고 리소스 위반이 없다`() {
         assertEquals(emptyList(), punch.violations(rules))
-        (punch.bands.pools() + punch.skins.pools()).forEach { pool ->
+        HUNDREDTHS.values.forEach { hundredths ->
+            val pool = punch.poolOf(GiftVerdict(hundredths))
             assertTrue(pool.markerCount() >= RoastPunch.MIN_STRUCTURES, pool.markers().toString())
             assertTrue(pool.hasPlain(rules))
         }
+        (punch.bands.pools() + punch.skins.pools() + punch.verdicts.pools()).forEach { pool -> assertEquals(pool.size(), pool.markerCount(), pool.markers().toString()) }
         val markers = (punch.bands.pools() + punch.skins.pools()).flatMap(PunchTemplates::markers).toSet()
         listOf("체포하겠", "L을 가져가", "딸깍", "요이~", "아뇨아뇨아뇨", "줴줴이야", "엄…", "예?", "넌 나가", "넌 남아", "티~원", "퇴사할게여", "프리패스", "야~")
             .forEach { marker -> assertTrue(marker in markers, marker) }

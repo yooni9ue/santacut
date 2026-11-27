@@ -104,7 +104,7 @@ class ResultShareFlowTest @Autowired constructor(
         assertEquals(link.token, shareFacade.createShare(CreateShareCommand(participantId)).token)
         val page = shareFacade.getPublicPage(PublicShareCommand(link.token)).html
         assertTrue(page.contains(nickname) && page.contains("공유 당시 결과") && page.contains("미리보기"))
-        assertTrue(page.contains("트리 꼭대기 별") && page.contains("감사 자판기") && page.contains("공감 80"))
+        assertTrue(page.contains("하트 먼저 누르는 애") && page.contains("감사 자판기") && page.contains("공감 80"))
         assertFalse(page.contains(QUOTE))
         assertTrue(shareFacade.getPublicImage(PublicShareCommand(link.token)).png.isNotEmpty())
 
@@ -135,7 +135,7 @@ class ResultShareFlowTest @Autowired constructor(
         storeRetiredArchetype(link.token)
 
         val page = shareFacade.getPublicPage(PublicShareCommand(link.token)).html
-        assertTrue(page.contains(nickname) && !page.contains("트리 꼭대기 별"))
+        assertTrue(page.contains(nickname) && !page.contains("하트 먼저 누르는 애"))
         assertTrue(shareFacade.getPublicImage(PublicShareCommand(link.token)).png.isNotEmpty())
         participantFacade.deleteMyData(DeleteParticipantCommand(participantId))
     }

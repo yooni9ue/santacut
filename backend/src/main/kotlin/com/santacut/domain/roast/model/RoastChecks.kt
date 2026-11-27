@@ -40,7 +40,7 @@ class RoastChecks(private val values: List<RoastCheck>) {
                     TextProblems.of(output.verdictLine, RoastTextKind.VERDICT_LINE, brief, rules).toList() +
                         TextProblems.copiedExample(output.verdictLine, brief).toList(),
                 ),
-                output.evidence.countCheck(brief.slots),
+                output.evidence.countCheck(brief),
                 output.conclusion.check(brief, rules, output.verdictLine, output.evidence, kept),
                 deckCheck(output, rules),
             ) + output.evidence.checks(brief, rules, output.verdictLine),

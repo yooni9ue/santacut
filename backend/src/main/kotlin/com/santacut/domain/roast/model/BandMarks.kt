@@ -16,11 +16,13 @@ class BandMarks @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
         listOfNotNull(
             "punch.band_marks: 빈 표현이 있다".takeIf { owned.mark.isBlank() || owned.bands.isEmpty() },
             (owned.bands - GRADES).takeIf(List<String>::isNotEmpty)?.let { unknown -> "punch.band_marks.${owned.mark}: 모르는 등급 $unknown" },
+            "punch.band_marks.${owned.mark}: 표현이 자기 pattern에 맞지 않는다".takeUnless { owned.isIn(owned.mark) },
         )
     }
 
-    /** [grade] 구간이 쓸 수 없는 다른 구간의 표현. */
-    fun foreignTo(grade: GiftGrade): ForeignMarks = ForeignMarks(values.filterNot { owned -> grade.name in owned.bands }.map(BandMark::mark))
+    /** [grade] 구간이 쓸 수 없는 다른 구간의 표현과 그 구간 이름 낱말 [ownNames]. */
+    fun foreignTo(grade: GiftGrade, ownNames: List<String> = emptyList()): ForeignMarks =
+        ForeignMarks(values.filterNot { owned -> grade.name in owned.bands }, ownNames)
 
     companion object {
         val EMPTY = BandMarks(emptyList())

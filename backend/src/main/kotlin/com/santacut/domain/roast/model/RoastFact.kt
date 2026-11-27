@@ -25,4 +25,10 @@ data class RoastFact(
     @get:JsonIgnore val direction: ChipDirection = ChipDirection.EITHER,
     @get:JsonIgnore val dimension: String? = null,
     @field:JsonInclude(JsonInclude.Include.NON_EMPTY) val topics: List<String> = emptyList(),
-)
+) {
+    /**
+     * 이 사실이 말하는 버릇 하나. 지표는 계열([group]: ㅋ 밀도와 ㅋ 최대 길이는 같은 웃음 버릇), 입버릇은 입버릇마다 다른 버릇이라 key다.
+     * 한 덱이 같은 버릇을 깎인 말과 살아남은 말에 함께 쓰지 않게 할 때 견준다.
+     */
+    fun topic(): String = if (key.startsWith(PhraseFactSpec.KEY_PREFIX)) key else group
+}

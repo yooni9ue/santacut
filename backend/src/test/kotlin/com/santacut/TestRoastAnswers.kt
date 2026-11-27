@@ -31,9 +31,14 @@ object TestRoastAnswers {
         TestRoasts.mapper.readTree(brief.inputText(TestRoasts.mapper)).path("transcript").values()
             .flatMap { act -> act.path("lines").values().map { line -> line.asString().substringBefore("|").toInt() } }
 
-    /** 칩 [chipKey] 이름의 첫 두 글자 이상 한글 낱말. 한 줄이 칩과 낱말을 나누게(일반론 검사) 문장에 넣는다. */
-    fun chipWordOf(brief: RoastBrief, chipKey: String): String =
-        brief.chipOf(chipKey)?.label?.let { label -> HANGUL_WORD.find(label)?.value }.orEmpty()
+    /**
+     * 칩 [chipKey] 이름의 첫 두 글자 이상 한글 낱말. 한 줄이 칩과 낱말을 나누게(일반론 검사) 문장에 넣는다.
+     * 'ㄱ?'처럼 한글 낱말이 없는 입버릇 칩이면 따옴표로 든 칩 이름 그대로다.
+     */
+    fun chipWordOf(brief: RoastBrief, chipKey: String): String {
+        val label = brief.chipOf(chipKey)?.label.orEmpty()
+        return HANGUL_WORD.find(label)?.value ?: label
+    }
 
     /**
      * 칩 [chipKey] 낱말을 받아 쓴 근거 카드 한 줄. [index]번째 카드마다 다른 틀을 써 카드끼리 낱말이 겹치지 않고,

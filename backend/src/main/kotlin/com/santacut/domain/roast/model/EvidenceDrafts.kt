@@ -9,14 +9,24 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
     /** 고른 본인 줄 번호(말풍선 없는 카드는 뺀다). */
     fun lineIds(): Set<Int> = values.mapNotNull(EvidenceDraft::lineId).toSet()
 
-    /** kind별 개수가 서버 슬롯 수 [slots]와 같은지 본 검증(필드 evidence). */
-    fun countCheck(slots: RoastSlots): RoastCheck = RoastCheck(
+    /**
+     * kind별 개수가 서버 슬롯 수([RoastBrief.slots])와 같은지, 본인 말 입버릇 칩([RoastBrief.quoteCutKey])이 있으면 깎인 말 한 장이
+     * 그 칩에 본인 말풍선을 붙였는지 본 검증(필드 evidence). 본인 말 깎인 말이 없으면 첫 응답부터 다시 쓰기 사유로 알린다.
+     */
+    fun countCheck(brief: RoastBrief): RoastCheck = RoastCheck(
         FIELD,
         EvidenceKind.entries.mapNotNull { kind ->
             val actual = values.count { draft -> draft.kind() == kind }
-            "${kind.key} ${actual}개(${slots.countOf(kind)}개여야 한다)".takeUnless { actual == slots.countOf(kind) }
-        } + listOfNotNull("모르는 kind가 있다".takeIf { values.any { draft -> draft.kind() == null } }),
+            "${kind.key} ${actual}개(${brief.slots.countOf(kind)}개여야 한다)".takeUnless { actual == brief.slots.countOf(kind) }
+        } + listOfNotNull("모르는 kind가 있다".takeIf { values.any { draft -> draft.kind() == null } }, quoteCutMissing(brief)),
     )
+
+    /** 본인 말 입버릇 칩이 있는데 그 칩을 쓴 카드도, 본인 말을 붙인 입버릇 깎인 말도 없을 때의 사유. 없으면 null이다. */
+    private fun quoteCutMissing(brief: RoastBrief): String? {
+        val key = brief.quoteCutKey() ?: return null
+        if (key in chipKeys() || values.any(EvidenceDraft::isQuotedPhraseCut)) return null
+        return "cut 한 장은 본인 말풍선을 붙인 입버릇 칩($key, line_id 필수)으로 쓴다"
+    }
 
     /**
      * 카드마다의 검증(필드 evidence[0]~). 앞 카드와 같은 line_id·chip_key를 다시 쓰거나, 앞 카드 한 줄의 낱말을 되풀이하거나,
@@ -67,23 +77,49 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
     fun toEvidences(brief: RoastBrief): RoastEvidences =
         RoastEvidences(values.mapNotNull { draft -> draft.toEvidence(brief) }.sortedBy { evidence -> evidence.kind.ordinal })
 
-    /** [draft]를 받지 않는 사유. 슬롯이 찼거나 이미 받은 카드와 line_id·chip_key·문장이 겹치면 그 사유이고, 받을 수 있으면 빈 목록이다. */
+    /**
+     * [draft]를 받지 않는 사유. 슬롯이 찼거나, 이미 받은 카드와 line_id·chip_key·문장이 겹치거나, 본인 말 입버릇 카드 몫으로 남긴 마지막 깎인 말 자리를
+     * 다른 카드로 채우려 하면 그 사유이고, 받을 수 있으면 빈 목록이다.
+     */
     private fun rejectionsOf(draft: EvidenceDraft, brief: RoastBrief, rules: RoastRules): List<String> {
         val kind = draft.kind() ?: return listOf("모르는 kind(${draft.kindKey})")
         val full = "${kind.key} 슬롯이 이미 찼다".takeUnless { countOf(kind) < brief.slots.countOf(kind) }
-        return listOfNotNull(full) + duplicatesOf(draft, brief, rules, "")
+        return listOfNotNull(full, quoteCutProblem(draft, kind, brief)) + duplicatesOf(draft, brief, rules, "")
     }
 
-    /** [draft]가 이 카드들과 겹치는 사유(같은 line_id·chip_key, 낱말 되풀이, 라벨 첫머리, 라벨 되풀이 줄기, 판정 한 줄을 옮긴 라벨). 없으면 빈 목록이다. */
+    /**
+     * 마지막 깎인 말 자리를 본인 말 입버릇 카드([RoastBrief.quoteCutKey])가 아닌 카드로 채우려 하는 사유. 받아 둔 깎인 말에 그런 카드가 이미 있거나,
+     * 그 입버릇 칩을 다른 카드가 이미 썼거나, 깎인 말이 아니면 보지 않는다. 석탄 덱 깎인 말 세 장이 모두 말풍선 없는 지표 칩으로 차던 문제를 막는다.
+     */
+    private fun quoteCutProblem(draft: EvidenceDraft, kind: EvidenceKind, brief: RoastBrief): String? {
+        if (kind != EvidenceKind.CUT || draft.isQuotedPhraseCut() || values.any(EvidenceDraft::isQuotedPhraseCut)) return null
+        if (countOf(EvidenceKind.CUT) + 1 < brief.slots.cut) return null
+        val key = brief.quoteCutKey()?.takeIf { key -> key !in chipKeys() } ?: return null
+        return "마지막 cut 자리는 본인 말풍선을 붙인 입버릇 칩($key, line_id 필수)으로 채운다"
+    }
+
+    /**
+     * [draft]가 이 카드들과 겹치는 사유(같은 line_id·chip_key, 깎인 말과 이유·살아남은 말이 같은 버릇, 낱말 되풀이, 라벨 첫머리, 라벨 되풀이 줄기,
+     * 판정 한 줄을 옮긴 라벨). 없으면 빈 목록이다.
+     */
     private fun duplicatesOf(draft: EvidenceDraft, brief: RoastBrief, rules: RoastRules, verdictLine: String): List<String> =
         listOfNotNull(
             "앞 근거와 같은 line_id(${draft.lineId})".takeIf { draft.lineId != null && values.any { kept -> kept.lineId == draft.lineId } },
             "앞 근거와 같은 chip_key(${draft.chipKey})".takeIf { values.any { kept -> kept.chipKey == draft.chipKey } },
+            oppositeTopicProblem(draft, brief),
         ) + TextProblems.repeated(draft.line, values.map(EvidenceDraft::line), brief.chipTextsOf(draft.chipKey)).labeled(LINE) +
             TextProblems.sharedLabel(draft.label, values.map(EvidenceDraft::label), verdictLine, rules.labelSuffix).labeled(LABEL) +
             TextProblems.repeatedStem(draft.label, values.map(EvidenceDraft::label), rules).labeled(LABEL)
 
     private fun countOf(kind: EvidenceKind): Int = values.count { draft -> draft.kind() == kind }
+
+    /** [draft]가 반대편 카드(깎인 말 ↔ 이유·살아남은 말)와 같은 버릇([RoastBrief.topicOf])을 말하는 사유. 깎은 버릇을 살아남은 말로 다시 띄우지 않게 한다. */
+    private fun oppositeTopicProblem(draft: EvidenceDraft, brief: RoastBrief): String? {
+        val cut = draft.isCut() ?: return null
+        val topic = brief.topicOf(draft.chipKey)
+        val clash = values.any { kept -> kept.isCut()?.let { keptCut -> keptCut != cut } == true && brief.topicOf(kept.chipKey) == topic }
+        return "깎인 말과 이유·살아남은 말이 같은 버릇($topic)을 쓴다".takeIf { clash }
+    }
 
     companion object {
         val EMPTY = EvidenceDrafts(emptyList())

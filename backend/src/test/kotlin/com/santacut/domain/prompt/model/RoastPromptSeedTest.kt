@@ -19,6 +19,7 @@ import kotlin.test.assertTrue
  * 7판은 6판에 추천 펀치 틀(punch_templates), 판정 한 줄과 마지막 한 줄의 펀치 되풀이 금지, 칩별 말풍선 조건, 완결된 근거 한 줄 끝을 더한다.
  * 8판은 구간별 판정 틀을 모두 싣지 않고 정해 준 틀(verdict_template) 하나만 받게 하고, 칩 방향(kinds), 시간대 칩 말풍선 금지, 대표 사실,
  * 다른 구간 표현·예시 베끼기 금지를 더한다. 베낄 수 있는 구체 예문은 싣지 않는다.
+ * 9판은 본인 말 깎인 말(quote_cut_chip_key), 고마워 칩 순서, 살아남은 말 버릇, 라벨 꼴, 칭호 끝말·구간 이름·점수 어긋남, 인격 단정어 규칙을 더한다.
  */
 class RoastPromptSeedTest {
     private val sql: String by lazy { Files.readString(Path.of("src/main/resources/prompts.sql")) }
@@ -30,6 +31,7 @@ class RoastPromptSeedTest {
     private val sixth: String by lazy { contentOf(SIXTH_HEAD) }
     private val seventh: String by lazy { contentOf(SEVENTH_HEAD) }
     private val eighth: String by lazy { contentOf(EIGHTH_HEAD) }
+    private val ninth: String by lazy { contentOf(NINTH_HEAD) }
 
     private fun contentOf(head: String): String {
         val start = sql.indexOf(head).also { index -> check(index >= 0) { "시드 없음: $head" } } + head.length
@@ -261,7 +263,29 @@ class RoastPromptSeedTest {
         TestRoasts.catalog.rules.repeatStems.forEach { stem -> assertTrue(eighth.contains(stem), stem) }
     }
 
+    @Test
+    fun `9판은 8판의 필드와 지금 서버 검증의 글자 수 범위, 본인 말 깎인 말 입력을 지닌다`() {
+        RoastTextKind.entries.forEach { kind -> assertTrue(ninth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        listOf(
+            "verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips",
+            "punch_templates", "verdict_template", "near_miss", "signature_chip_key", "kinds", "topics", "banned_marks", "quote_cut_chip_key",
+        ).forEach { field -> assertTrue(ninth.contains(field), field) }
+        assertTrue(sql.indexOf(NINTH_HEAD) > sql.indexOf(EIGHTH_HEAD))
+    }
+
+    @Test
+    fun `9판은 본인 말 깎인 말, 고마워 칩 순서, 살아남은 말 버릇, 라벨 꼴, 칭호 끝말·구간 이름·점수 어긋남, 인격 단정어를 알린다`() {
+        listOf(
+            "cut 가운데 한 장은 반드시 이 칩에", "구체적인 나쁜 버릇 칩이 모자랄 때만 cut에", "cut에서 깎은 버릇을 keep으로 다시 띄우지 않는다",
+            "따옴표, 물음표, 띄어쓰기를 넣지 않는다", "꾸밈말만 붙인 라벨은 떨어진다", "'왕'이나 '장인'으로 끝내지 않는다",
+            "구간 이름(명단, 유턴, 프리패스 같은 말)을 되풀이하지 않는다", "컷에 바짝 붙은 사람", "사람됨을 단정하는 말", "구간마다 주인이 정해져 있다",
+        ).forEach { rule -> assertTrue(ninth.contains(rule), rule) }
+        TestRoasts.catalog.rules.promptExamples.forEach { example -> assertFalse(ninth.contains(example), example) }
+        assertFalse(ninth.contains("이건 산타도 인정한다는 온도"))
+    }
+
     companion object {
+        private const val NINTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0009','roast',9,'"
         private const val EIGHTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0008','roast',8,'"
         private const val SEVENTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0007','roast',7,'"
 

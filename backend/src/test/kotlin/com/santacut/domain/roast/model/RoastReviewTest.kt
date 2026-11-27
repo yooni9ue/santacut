@@ -7,6 +7,7 @@ import com.santacut.TestRoastAnswers.evidenceOf
 import com.santacut.TestRoastAnswers.habitMessages
 import com.santacut.TestRoastAnswers.review
 import com.santacut.TestRoastAnswers.slangFor
+import com.santacut.TestRoastAnswers.substantialLineIds
 import com.santacut.TestRoastAnswers.validJson
 import com.santacut.TestRoasts
 import com.santacut.domain.analysis.model.GiftGrade
@@ -24,6 +25,9 @@ class RoastReviewTest {
     /** 펀치 틀 추천이 없는 입력. 구간 고정 마지막 한 줄(옛 결과·읽을 수 없는 결과용)은 추천 틀과 상관없이 검사한다. */
     private val plainGift = TestRoasts.briefWithoutPunches(habitMessages())
     private val plainCoal = TestRoasts.briefWithoutPunches(habitMessages(), TestRoasts.COAL_SCORE)
+
+    /** 깎인 말에 쓸 나쁜 쪽 칩이 없어 고마워 칩이 남는 입력(같은 말만 되풀이한 본인 말풍선). */
+    private val thankless = TestRoasts.brief(TestDossiers.selves(List(THANKLESS_MESSAGES) { "다음 주말에 같이 놀러 가자" }))
 
     @Test
     fun `규칙을 지킨 응답은 선물·석탄 모두 모든 필드가 통과한다`() {
@@ -77,30 +81,44 @@ class RoastReviewTest {
 
     @Test
     fun `고마워 칩은 점수 깎인 말에만 쓰고 이유·살아남은 말·결론 대표 칩에는 쓰지 않는다`() {
-        assertTrue(gift.hasFact(ThanksFactSpec.KEY))
-        val asReason = evidenceOf(gift).mapIndexed { index, card -> if (index == 0) card + ("chip_key" to ThanksFactSpec.KEY) else card }
-        val asCut = evidenceOf(gift).mapIndexed { index, card ->
-            if (index == gift.slots.reason) card + ("chip_key" to ThanksFactSpec.KEY) + ("line_id" to null) + ("line" to lineFor(gift, ThanksFactSpec.KEY, index = index)) else card
-        }
-        val keep = evidenceOf(coal).map { card -> if (card["kind"] == "keep") card + ("chip_key" to ThanksFactSpec.KEY) else card }
+        assertTrue(thankless.hasFact(ThanksFactSpec.KEY))
+        val phrase = thankless.facts.keys().first { key -> key.startsWith(PhraseFactSpec.KEY_PREFIX) }
+        val lineId = substantialLineIds(thankless).first { id -> thankless.quoteFits(phrase, id) }
+        val reasonCard = thanklessCard("reason", lineId, phrase, 0)
+        val thanksCut = thanklessCard("cut", null, ThanksFactSpec.KEY, 1)
 
-        val reason = review(gift, validJson(gift, evidence = asReason)).checks
-        assertEquals(listOf("evidence[0]"), reason.failedFields())
+        val reason = review(thankless, validJson(thankless, evidence = listOf(thanklessCard("reason", null, ThanksFactSpec.KEY, 0), thanksCut))).checks
+        assertTrue("evidence[0]" in reason.failedFields(), reason.failedFields().toString())
         assertTrue(reason.reasonsFor(listOf("evidence")).any { text -> text.contains("이 칩(${ThanksFactSpec.KEY})은 reason에 쓰지 않는다") })
-        assertEquals(emptyList(), review(gift, validJson(gift, evidence = asCut)).checks.failedFields())
+        val asCut = review(thankless, validJson(thankless, evidence = listOf(reasonCard, thanksCut), heroLineId = lineId, heroChipKey = phrase)).checks
+        assertEquals(emptyList(), asCut.failedFields(), asCut.reasonsFor(listOf("evidence", ConclusionDraft.FIELD)).toString())
+        val keep = evidenceOf(coal).map { card -> if (card["kind"] == "keep") card + ("chip_key" to ThanksFactSpec.KEY) else card }
         assertTrue(review(coal, validJson(coal, evidence = keep)).checks.failedFields().any { field -> field.startsWith("evidence[") })
-        val hero = review(gift, validJson(gift, heroChipKey = ThanksFactSpec.KEY)).checks
-        assertEquals(listOf(ConclusionDraft.FIELD), hero.failedFields())
+        val hero = review(thankless, validJson(thankless, evidence = listOf(reasonCard, thanksCut), heroChipKey = ThanksFactSpec.KEY)).checks
+        assertTrue(ConclusionDraft.FIELD in hero.failedFields(), hero.failedFields().toString())
     }
 
     @Test
+    fun `회귀 - 다른 깎인 말 칩만으로 자리가 차면 고마워 0번은 칩 후보에서 빠지고 판정 한 줄에도 쓰지 못한다`() {
+        assertFalse(coal.hasFact(ThanksFactSpec.KEY), coal.facts.keys().toString())
+        assertTrue(coal.thanksWordIn("감사 품절. L을 가져가.") != null)
+        assertTrue(TextProblems.of("감사 품절. L을 가져가.", RoastTextKind.VERDICT_LINE, coal, TestRoasts.catalog.rules).toList()
+            .contains("판정 한 줄은 고마워 칩으로 이끌지 않는다(감사)"))
+    }
+
+    private fun thanklessCard(kind: String, lineId: Int?, chipKey: String, index: Int): Map<String, Any?> = mapOf(
+        "kind" to kind, "line_id" to lineId, "chip_key" to chipKey, "label" to listOf("주말모집상", "감사품귀상")[index],
+        "line" to lineFor(thankless, chipKey, index = index),
+    )
+
+    @Test
     fun `작가 입력의 칩 후보는 방향대로 쓸 수 있는 kind를 싣고 고마워 칩은 cut 전용이다`() {
-        val chips = TestRoasts.mapper.readTree(gift.inputText(TestRoasts.mapper)).path("chips").values()
+        val chips = TestRoasts.mapper.readTree(thankless.inputText(TestRoasts.mapper)).path("chips").values()
         val thanks = chips.single { chip -> chip.path("chip_key").asString() == ThanksFactSpec.KEY }
 
         assertEquals(listOf("cut"), thanks.path("kinds").values().map { kind -> kind.asString() })
         chips.forEach { chip ->
-            val expected = gift.directionOf(chip.path("chip_key").asString())?.kindKeys()
+            val expected = thankless.directionOf(chip.path("chip_key").asString())?.kindKeys()
             val sent = chip.path("kinds").takeUnless { node -> node.isMissingNode }?.values()?.map { kind -> kind.asString() }
             assertEquals(expected, sent, chip.toString())
         }
@@ -151,7 +169,7 @@ class RoastReviewTest {
     @Test
     fun `덱 전체에 허용 유행어를 세 개 넘게 쓰면 deck이 떨어진다`() {
         val cards = evidenceOf(gift).mapIndexed { index, card ->
-            if (index < 2) card + ("line" to lineFor(gift, card["chip_key"] as String, slang = slangFor(index), index = index)) else card
+            card + ("line" to lineFor(gift, card["chip_key"] as String, slang = slangFor(index), index = index))
         }
         val json = validJson(gift, evidence = cards)
 
@@ -204,5 +222,6 @@ class RoastReviewTest {
     companion object {
         /** 본인 줄 둘 다음에 온 상대 말풍선의 대화 속 자리. 본인 줄 번호에는 없는 수다. */
         private const val PARTNER_POSITION = 3
+        private const val THANKLESS_MESSAGES = 120
     }
 }

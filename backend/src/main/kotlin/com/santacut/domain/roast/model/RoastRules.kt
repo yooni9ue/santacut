@@ -31,6 +31,10 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property timeWords 시간대·요일을 말하는 낱말(새벽, 점심, 근무, 주말 등). 칩이나 말풍선이 그 시간대를 말하지 않는데 근거 한 줄이 쓰면 떨어진다.
  * @property repeatStems 덱 안에서 두 번 쓰면 틀에 찍은 말로 읽히는 라벨·칭호 줄기(발사, 품절, 가뭄 등). 라벨이나 칭호 둘이 같은 줄기를 쓰면 뒤의 것이 떨어진다.
  * @property promptExamples 작가 프롬프트(옛 판 포함)와 명세에 실린 예시 문장. 작가 문장이 이것과 같으면 베낀 것으로 보고 떨어뜨린다.
+ * @property titleBannedEndings 칭호 끝에 쓰지 못하는 말(왕, 장인). '재촉 왕', '턱걸이 장인'처럼 아무 버릇에나 붙여 찍어 낸 칭호가 된다.
+ * @property nearMissWords 컷에 바짝 붙었다는 말(턱걸이, 간신히 등). 컷과 붙지 않은 사람의 칭호에 쓰면 점수와 어긋난다([RoastBrief.farNearMissIn]).
+ * @property personalityWords 인격을 단정하는 말(냉정함, 인성 등). 놀림은 행동에만 한다(명세 검증 규칙 8).
+ * @property stockPhrases 명세·프롬프트 예시에 실려 덱마다 그대로 찍혀 나오던 문구('산타도 인정'). 판정 한 줄·근거·결론 어디에도 쓰지 않는다.
  * @property slang 유행어 목록(roast/slang.json). 금지 목록은 [bannedWords]와 함께 막고, 허용 목록은 필드마다 [RoastSlang.maxPerField]개까지만 쓰게 한다.
  * 허용 유행어 안의 알파벳('L을 가져가')은 알파벳 검사에서 뺀다. 느낌표는 허용 목록에 필요한 말이 없어 그대로 막는다.
  */
@@ -58,6 +62,10 @@ data class RoastRules(
     @JsonProperty("time_words") val timeWords: List<String> = emptyList(),
     @JsonProperty("repeat_stems") val repeatStems: List<String> = emptyList(),
     @JsonProperty("prompt_examples") val promptExamples: List<String> = emptyList(),
+    @JsonProperty("title_banned_endings") val titleBannedEndings: List<String> = emptyList(),
+    @JsonProperty("near_miss_words") val nearMissWords: List<String> = emptyList(),
+    @JsonProperty("personality_words") val personalityWords: List<String> = emptyList(),
+    @JsonProperty("stock_phrases") val stockPhrases: List<String> = emptyList(),
     val slang: RoastSlang = RoastSlang.EMPTY,
 ) {
     private val particleGroup = alternation(particles)
@@ -77,6 +85,9 @@ data class RoastRules(
     private val titleBanned = Regex(alternation(titleBannedWords))
     private val flips = Regex(alternation(flipWords))
     private val times = Regex(alternation(timeWords))
+    private val nearMisses = Regex(alternation(nearMissWords))
+    private val personalities = Regex(alternation(personalityWords))
+    private val stocks = Regex(alternation(stockPhrases))
 
     /**
      * 작가 입력용으로 가린 본문. 호칭·부르는 말에서 떼어 낸 이름 줄기('현규형'의 '현규')는
@@ -141,6 +152,32 @@ data class RoastRules(
 
     /** 칭호에 처음 나온 칭호 금지어([titleBannedWords]). 없으면 null이다. */
     fun titleBannedIn(text: String): String? = titleBanned.find(text)?.value
+
+    /** 칭호 [text] 끝의 금지 끝말([titleBannedEndings]). 없으면 null이다. */
+    fun titleEndingIn(text: String): String? = titleBannedEndings.firstOrNull { ending -> text.trim().endsWith(ending) }
+
+    /** 따옴표 인용 밖에 처음 나온 컷에 바짝 붙었다는 말([nearMissWords]). 없으면 null이다. */
+    fun nearMissWordIn(text: String): String? = nearMisses.find(TextProblems.QUOTE.replace(text, ""))?.value
+
+    /** 따옴표 인용 밖에 처음 나온 인격 단정어([personalityWords]). 없으면 null이다. */
+    fun personalityIn(text: String): String? = personalities.find(TextProblems.QUOTE.replace(text, ""))?.value
+
+    /** 띄어쓰기를 무시하고 처음 나온 예시 상투 문구([stockPhrases]). 없으면 null이다. */
+    fun stockPhraseIn(text: String): String? =
+        stockPhrases.firstOrNull { phrase -> phrase.replace(SPACE, "") in text.replace(SPACE, "") }
+
+    /**
+     * 근거 카드 라벨의 모양 문제. 따옴표를 쓰면('했어?'생존상) 상 이름이 아니라 인용이고, 상 앞이 꾸밈말로 끝나면(따뜻한 상) 행동 이름이 없다.
+     * 라벨은 {행동 명사}{상} 꼴이어야 한다. 문제가 없으면 null이다.
+     */
+    fun labelShapeProblemIn(text: String): String? {
+        val stem = text.replace(WHITESPACE, "").removeSuffix(labelSuffix)
+        return when {
+            LABEL_QUOTES.containsMatchIn(text) -> "라벨에 따옴표를 쓰지 않는다(행동 이름 + 상으로 쓴다)"
+            ADNOMINAL_STEM.containsMatchIn(stem) -> "라벨이 꾸밈말로 끝난다(따뜻한 상이 아니라 행동 이름 + 상으로 쓴다)"
+            else -> null
+        }
+    }
 
     /** 처음 나온 칭찬 뒤집기 말([flipWords]). 없으면 null이다. */
     fun flipIn(text: String): String? = flips.find(text)?.value
@@ -246,6 +283,13 @@ data class RoastRules(
         /** 상으로 끝나지만 상 이름이 아닌 흔한 낱말. 라벨이 이것으로 끝나면 떨어진다. */
         private val WHITESPACE = Regex("\\s+")
         private val COMMON_SANG_WORDS = setOf("일상", "밥상", "이상", "정상", "세상", "화상", "영상", "인상", "대상", "현상")
+        private const val SPACE = " "
+
+        /** 라벨에 쓰면 안 되는 따옴표·낫표. */
+        private val LABEL_QUOTES = Regex("['\"‘’“”「」『』]")
+
+        /** 상 앞이 꾸밈말(관형형)로 끝나는 꼴. 따뜻한·웃기는·빛나던·소중한·귀여운. */
+        private val ADNOMINAL_STEM = Regex("(?:[한는던된쁜픈]|스러운|여운)$")
         private const val ALTERNATION = "|"
         private const val NOTHING = "(?!)"
         private const val CORE = 1

@@ -77,8 +77,8 @@ class RoastFactsTest {
     private fun firstHabit(facts: List<RoastFact>): RoastFact? = facts.firstOrNull { fact -> fact.group == HABIT }
 
     companion object {
-        /** 뽑은 사실 뒤에 덧붙는 사실 수(둘째 입버릇, 고맙다는 말 없음). */
-        private const val TRAILING_FACTS = 2
+        /** 뽑은 사실 뒤에 덧붙는 사실 수(뽑기에 들지 못한 입버릇 둘, 고맙다는 말 없음). */
+        private const val TRAILING_FACTS = 3
         private val SEEDS = 1..200
         private const val SHOWN = 3
         private const val HABIT = "habit"
