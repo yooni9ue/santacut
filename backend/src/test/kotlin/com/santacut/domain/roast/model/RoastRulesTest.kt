@@ -208,11 +208,12 @@ class RoastRulesTest {
     }
 
     @Test
-    fun `상으로 끝나도 두 글자이거나 흔한 낱말로 끝나면 상 이름이 아니다`() {
-        listOf("대상", "새벽일상", "카톡영상", "아침밥상", "답장이상", "말풍선세상", "연말정상", "첫인상").forEach { label ->
+    fun `상으로 끝나도 두 글자이거나 마지막 낱말이 흔한 낱말이면 상 이름이 아니다`() {
+        listOf("대상", "일상", "새벽 일상", "카톡 영상", "아침 밥상", "답장 이상", "말풍선 세상", "연말 정상", "첫 인상").forEach { label ->
             assertFalse(rules.isAwardLabel(label), label)
         }
         assertTrue(rules.isAwardLabel("감사품절상"))
+        assertTrue(rules.isAwardLabel("산타인정상"))
     }
 
     @Test
