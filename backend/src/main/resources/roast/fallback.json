@@ -5,42 +5,42 @@
    "verdict_line": "올해 산타 최애는 너다. 요이~",
    "plain_verdict_line": "올해 산타 최애는 너다.",
    "title": "굴뚝 단골",
-   "final_line": "굴뚝 문이 활짝 열렸다. 딸깍.",
-   "plain_final_line": "굴뚝 문이 활짝 열렸다."
+   "final_line": "올해 굴뚝 프리패스는 너야. 요이~",
+   "plain_final_line": "올해 굴뚝 프리패스는 너야."
   },
   "GIFT_DEPARTED": {
    "verdict_line": "썰매 앞자리 확정, 딸깍.",
    "plain_verdict_line": "썰매 앞자리 확정이다.",
    "title": "썰매 앞자리",
-   "final_line": "선물은 이미 썰매에 탔다. 요이~",
-   "plain_final_line": "선물은 이미 썰매에 탔다."
+   "final_line": "썰매 앞자리 예약 완료, 딸깍.",
+   "plain_final_line": "썰매 앞자리는 너야."
   },
   "SCRAPED_THROUGH": {
    "verdict_line": "나쁜 아이냐고? 아뇨아뇨아뇨.",
    "plain_verdict_line": "겨우 굴뚝을 넘었다.",
    "title": "턱걸이 장인",
    "final_line": "바지 걸렸는데 통과다. 요이~",
-   "plain_final_line": "바지 걸렸는데 통과다."
+   "plain_final_line": "바지 걸린 채 굴뚝 프리패스."
   },
   "ONE_STEP_SHORT": {
    "verdict_line": "굴뚝 앞 유턴. 아 줴줴이야~",
    "plain_verdict_line": "굴뚝 앞에서 썰매가 돌았다.",
    "title": "유턴 기사",
    "final_line": "굴뚝 코앞에서 핸들 꺾었다. 엄…",
-   "plain_final_line": "굴뚝 코앞에서 핸들 꺾었다."
+   "plain_final_line": "올해 너는 굴뚝 앞 유턴이야~"
   },
   "OFF_LIST": {
    "verdict_line": "명단에 이름이 없다고요? 예?",
    "plain_verdict_line": "산타 명단에서 이름이 빠졌다.",
    "title": "명단 실종자",
    "final_line": "산타 명단에서 증발했다. L을 가져가.",
-   "plain_final_line": "산타 명단에서 증발했다."
+   "plain_final_line": "올해 너는 명단 밖이야~"
   },
   "COAL": {
    "verdict_line": "석탄 특송 출발. 체포하겠어.",
    "plain_verdict_line": "석탄 특송이 출발했다.",
    "title": "석탄 수집가",
-   "final_line": "착한 아이 명단에서 퇴사할게여.",
+   "final_line": "석탄 수집 혐의로 체포하겠어.",
    "plain_final_line": "착한 아이 명단에서 퇴사할게여."
   }
  },

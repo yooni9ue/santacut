@@ -64,6 +64,7 @@ data class RoastRules(
     private val allowedNumbers = Regex(alternation(allowedNumberPhrases))
     private val banned = Regex(alternationOfPatterns(listOf(alternation(bannedWords + slang.banned)) + slang.bannedPatterns))
     private val slangStems = Regex(alternation(slang.allowed.stems()))
+    private val punchMarkers = Regex(alternation(slang.punchMarkers))
     private val coalWrong = Regex(alternation(coalForbidden))
     private val giftWrong = Regex(alternation(giftForbidden))
     private val tone = Regex(alternationOfPatterns(tonePatterns))
@@ -147,6 +148,12 @@ data class RoastRules(
         return label.codePointCount(0, label.length) >= MIN_AWARD_LABEL && label.endsWith(labelSuffix) &&
             label.split(WHITESPACE).last() !in COMMON_SANG_WORDS
     }
+
+    /**
+     * 결론 마지막 한 줄 [text]가 밈 펀치인지. 허용 유행어([RoastSlang.allowed])나 구간 펀치 틀 표지([RoastSlang.punchMarkers])가 하나 이상 있어야 한다.
+     * 조언·설명·덕담으로 끝나는 밋밋한 한 줄("'빨리'를 적게 써라.")을 막는다.
+     */
+    fun isPunch(text: String): Boolean = slangStems.containsMatchIn(text) || punchMarkers.containsMatchIn(text)
 
     /** [text]에 쓴 허용 유행어 수. 덱 전체 상한([RoastSlang.maxPerDeck])을 셀 때 쓴다. */
     fun slangCountIn(text: String): Int = slangStems.findAll(text).count()

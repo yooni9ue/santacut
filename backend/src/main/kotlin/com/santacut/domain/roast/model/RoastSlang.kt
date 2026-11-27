@@ -12,6 +12,7 @@ import java.time.format.DateTimeParseException
  * @property maxPerField 한 필드에 쓸 수 있는 허용 유행어 수
  * @property maxPerDeck 리캡 덱 전체(판정 한 줄, 근거 카드, 결론)에 쓸 수 있는 허용 유행어 수
  * @property bannedPatterns 낱말 경계가 필요한 금지 말 정규식(테토·에겐처럼 흔한 말에 섞이는 것)
+ * @property punchMarkers 구간 펀치 틀 표지(이야~, 혐의로, 프리패스 등). 결론 마지막 한 줄은 허용 유행어나 이 표지 하나가 있어야 한다. 유행어로 세지 않는다.
  */
 data class RoastSlang(
     val updated: String,
@@ -22,11 +23,13 @@ data class RoastSlang(
     val banned: List<String>,
     @JsonProperty("banned_patterns") val bannedPatterns: List<String>,
     val notes: List<String> = emptyList(),
+    @JsonProperty("punch_markers") val punchMarkers: List<String> = emptyList(),
 ) {
     fun violations(): List<String> = listOfNotNull(
         "slang.updated: YYYY-MM-DD 날짜여야 한다".takeUnless { isDate(updated) },
         "slang.max_per_field: 1 이상이다".takeIf { maxPerField < 1 },
         "slang.max_per_deck: max_per_field 이상이다".takeIf { maxPerDeck < maxPerField },
+        "slang.punch_markers: 비어 있거나 빈 표지가 있다".takeIf { punchMarkers.isEmpty() || punchMarkers.contains("") },
     ) + allowed.violations(banned)
 
     private fun isDate(text: String): Boolean = try {

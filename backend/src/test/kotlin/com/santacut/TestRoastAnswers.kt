@@ -56,7 +56,7 @@ object TestRoastAnswers {
         title: String = "약속 발사대",
         heroLineId: Int = sentLineIds(brief).last(),
         heroChipKey: String = brief.facts.keys().first(),
-        finalLine: String = "${chipWordOf(brief, heroChipKey)} 장부는 올해도 바빴다.",
+        finalLine: String = "${chipWordOf(brief, heroChipKey)} 장부는 올해도 딸깍.",
     ): String = TestRoasts.mapper.writeValueAsString(
         mapOf(
             "verdict_line" to verdictLine,

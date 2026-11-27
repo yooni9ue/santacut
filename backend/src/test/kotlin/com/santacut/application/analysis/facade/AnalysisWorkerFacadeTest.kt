@@ -732,7 +732,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
             mapOf(
                 "verdict_line" to "올해 감사 연타, 딸깍.",
                 "evidence" to evidence,
-                "conclusion" to mapOf("title" to title, "hero_line_id" to lineIds.lastOrNull(), "hero_chip_key" to chips.firstOrNull().orEmpty(), "final_line" to "고마운 말은 올해도 이어졌다."),
+                "conclusion" to mapOf("title" to title, "hero_line_id" to lineIds.lastOrNull(), "hero_chip_key" to chips.firstOrNull().orEmpty(), "final_line" to "고마운 말은 올해도 이어졌다, 딸깍."),
             ),
         )
     }

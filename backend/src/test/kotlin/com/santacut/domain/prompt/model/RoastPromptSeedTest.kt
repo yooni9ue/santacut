@@ -1,5 +1,6 @@
 package com.santacut.domain.prompt.model
 
+import com.santacut.TestRoasts
 import com.santacut.domain.roast.model.RoastTextKind
 import com.santacut.infrastructure.roast.client.RoastResponseSchema
 import org.junit.jupiter.api.Test
@@ -13,7 +14,8 @@ import kotlin.test.assertTrue
  * 팩폭 작가 프롬프트 시드. 1판은 사람 이름만 가리는 입력 규칙과 연말 장부·다양성 지시를 담는다.
  * 2판은 1판을 그대로 두고 첫 응답이 떨어지던 까닭(글자 수, 수 세는 말, 목록 밖 인용)과 문장부호·사건 단정·오타 지시를 더한다.
  * 3판은 2판에 v3 말투 규칙(짧은 반말, "근데 "로 여는 뒤집기, 등급 온도)을 더하고, 서버 검증과 같은 글자 수 범위를 준다.
- * 5판은 리캡 덱 스키마(판정 한 줄, 근거 카드, 결론)로 새로 쓰고, 지금 서버 검증과 같은 글자 수 범위를 준다.
+ * 5판은 리캡 덱 스키마(판정 한 줄, 근거 카드, 결론)로 새로 쓰고, 그때 서버 검증과 같은 글자 수 범위를 준다.
+ * 6판은 5판에 밈 펀치 마지막 한 줄, 찌르는 관찰형 판정·근거 한 줄, 근거 말풍선 규칙(짧은 반응 금지, 입버릇 칩은 그 입버릇이 든 말풍선)을 더한다.
  */
 class RoastPromptSeedTest {
     private val sql: String by lazy { Files.readString(Path.of("src/main/resources/prompts.sql")) }
@@ -22,6 +24,7 @@ class RoastPromptSeedTest {
     private val third: String by lazy { contentOf(THIRD_HEAD) }
     private val fourth: String by lazy { contentOf(FOURTH_HEAD) }
     private val fifth: String by lazy { contentOf(FIFTH_HEAD) }
+    private val sixth: String by lazy { contentOf(SIXTH_HEAD) }
 
     private fun contentOf(head: String): String {
         val start = sql.indexOf(head).also { index -> check(index >= 0) { "시드 없음: $head" } } + head.length
@@ -134,8 +137,8 @@ class RoastPromptSeedTest {
     }
 
     @Test
-    fun `5판은 리캡 덱 필드만 쓰게 하고 글자 수 범위가 지금 서버 검증과 같다`() {
-        RoastTextKind.entries.forEach { kind -> assertTrue(fifth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+    fun `5판은 리캡 덱 필드만 쓰게 하고 글자 수 범위가 그때 서버 검증과 같다`() {
+        V5_RANGES.forEach { range -> assertTrue(fifth.contains(range), range) }
         listOf("verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips")
             .forEach { field -> assertTrue(fifth.contains(field), field) }
         assertFalse(fifth.contains("verdict_mild"))
@@ -162,7 +165,41 @@ class RoastPromptSeedTest {
         assertTrue(fifth.contains("겹치는 낱말이 없으면 일반론으로 보고 서버 검사에서 떨어진다"))
     }
 
+    @Test
+    fun `6판은 리캡 덱 필드를 지니고 글자 수 범위가 지금 서버 검증과 같다`() {
+        RoastTextKind.entries.forEach { kind -> assertTrue(sixth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        listOf("verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips")
+            .forEach { field -> assertTrue(sixth.contains(field), field) }
+        assertTrue(sixth.contains("반드시 '상'으로 끝낸다"))
+        assertTrue(sixth.contains("숫자와 셈말을 쓰지 않는다"))
+        assertTrue(sixth.contains("겹치는 낱말이 없으면 일반론으로 보고 서버 검사에서 떨어진다"))
+    }
+
+    @Test
+    fun `6판의 마지막 한 줄은 slang 표기나 펀치 틀을 쓰는 선언형 펀치이고 실제 실패 예를 나쁜 예로 든다`() {
+        assertTrue(sixth.contains("반드시 slang 표기 하나를 쓰거나 아래 펀치 틀 하나를 빌린다"))
+        listOf("\"올해 너는 '(입버릇)'이야~\"", "\"(혐의) 혐의로 체포하겠어.\"", "\"(판정). L을 가져가.\"", "\"(본인 말)로 굴뚝 프리패스. 요이~\"", "\"(습관), 딸깍.\"")
+            .forEach { template -> assertTrue(sixth.contains(template), template) }
+        listOf("\"'빨리'를 적게 써라.\"", "\"고마워 넘치는 따뜻한 말.\"", "\"강릉 약속 잘 잡으니 선물 챙겨 가.\"")
+            .forEach { bad -> assertTrue(sixth.contains(bad), bad) }
+        TestRoasts.catalog.rules.slang.punchMarkers.forEach { marker -> assertTrue(sixth.contains(marker), marker) }
+    }
+
+    @Test
+    fun `6판은 판정·근거 한 줄을 찌르는 관찰로 쓰게 하고 근거 말풍선 규칙을 알린다`() {
+        assertTrue(sixth.contains("설명하지 말고 찌른다"))
+        assertTrue(sixth.contains("판정을 풀어 설명하지 말고 선언한다"))
+        assertTrue(sixth.contains("한글이 세 음절 이하인 줄은 고르지 않는다"))
+        assertTrue(sixth.contains("'ㅇㅇ', 'ㅋㅋ', 'ㄴㄴ'"))
+        assertTrue(sixth.contains("그 입버릇이 글자 그대로 든 말풍선만 고른다"))
+        assertTrue(sixth.contains("'푹 자 내일 보자'에 '수고' 칩"))
+    }
+
     companion object {
+        private const val SIXTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0006','roast',6,'"
+
+        /** 5판이 준 글자 수 범위(판정 한 줄, 라벨, 근거 한 줄, 칭호, 마지막 한 줄). 그때 서버 검증과 같았다. */
+        private val V5_RANGES = listOf("6자 이상 18자 이하", "3자 이상 8자 이하", "6자 이상 20자 이하", "2자 이상 8자 이하", "6자 이상 22자 이하")
         private const val FIFTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0005','roast',5,'"
 
         /** 3·4판이 준 글자 수 범위(칭호, 판결, 놀림, 뒤집기, 쪽지, 줄거리). 그때 서버 검증과 같았다. */
