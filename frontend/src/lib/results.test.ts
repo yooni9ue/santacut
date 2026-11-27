@@ -1,7 +1,7 @@
 import { AxiosError, AxiosHeaders, type AxiosAdapter } from "axios";
 import { afterEach, expect, test, vi } from "vitest";
 import { api } from "./api";
-import { getMyRecap, RECAP_POLL_MS, recapRefetchInterval, type RecapResponse } from "./results";
+import { getMyRecap, RECAP_POLL_LIMIT, RECAP_POLL_MS, recapRefetchInterval, type RecapResponse } from "./results";
 
 const original = api.defaults.adapter;
 afterEach(() => { api.defaults.adapter = original; });
@@ -28,8 +28,15 @@ test("recap treats 404 as no deck, but does not swallow other failures", async (
 });
 
 test("recap polls only while ranking is pending", () => {
-  expect(recapRefetchInterval(recap)).toBe(RECAP_POLL_MS);
-  expect(recapRefetchInterval({ ...recap, ranking_pending: false, rank: 3, top_percent: 1 })).toBe(false);
-  expect(recapRefetchInterval(null)).toBe(false);
-  expect(recapRefetchInterval(undefined)).toBe(false);
+  const state = (data: RecapResponse | null | undefined, dataUpdateCount = 1) => ({ status: "success" as const, data, dataUpdateCount });
+  expect(recapRefetchInterval(state(recap))).toBe(RECAP_POLL_MS);
+  expect(recapRefetchInterval(state({ ...recap, ranking_pending: false, rank: 3, top_percent: 1 }))).toBe(false);
+  expect(recapRefetchInterval(state(null))).toBe(false);
+  expect(recapRefetchInterval({ status: "pending", data: undefined, dataUpdateCount: 0 })).toBe(false);
+});
+
+test("recap polling stops on errors even with stale pending data, and after the poll cap", () => {
+  expect(recapRefetchInterval({ status: "error", data: recap, dataUpdateCount: 2 })).toBe(false);
+  expect(recapRefetchInterval({ status: "success", data: recap, dataUpdateCount: RECAP_POLL_LIMIT - 1 })).toBe(RECAP_POLL_MS);
+  expect(recapRefetchInterval({ status: "success", data: recap, dataUpdateCount: RECAP_POLL_LIMIT })).toBe(false);
 });

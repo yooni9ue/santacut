@@ -124,15 +124,18 @@ test("순위 계산 중에는 리캡을 먼저 보여 주고 순위가 나올 �
     recapRequests++;
     return route.fulfill({ json: recapDeck("pending", recapRequests < 2 ? { rank: null, top_percent: null } : ranked) });
   });
+  await page.clock.install();
   await page.goto("/analysis");
   const deck = page.getByRole("region", { name: "팩폭 산타 카드" });
   await expect(deck.getByRole("heading", { name: "착한 아이" })).toBeVisible();
   await expect(deck.getByText("순위 계산 중", { exact: true })).toBeVisible();
   await expect(page.getByText("순위 집계 전")).toHaveCount(0);
-  await expect(deck.getByText("전국 48213등 · 상위 38%")).toBeVisible({ timeout: 10_000 });
-  const settled = recapRequests;
-  await page.waitForTimeout(3_500);
-  expect(recapRequests).toBe(settled);
+  await page.clock.runFor(3_100);
+  await expect(deck.getByText("전국 48213등 · 상위 38%")).toBeVisible();
+  await expect.poll(() => recapRequests).toBe(2);
+  // Advance well past several poll intervals; a settled rank must not trigger more requests.
+  await page.clock.runFor(10_000);
+  await expect.poll(() => recapRequests).toBe(2);
 });
 
 test("여덟 장 리캡의 마지막 카드까지 이동할 수 있다", async ({ page }) => {
@@ -164,7 +167,13 @@ test("좁은 화면에서도 결론과 근거 카드가 카드 안에 들어간�
   await page.route("**/v1/me/result", route => route.fulfill({ json: {
     score_hundredths: 7240, verdict: "판정", rank: 1, recap_available: true, dossier_available: false,
   } }));
-  await page.route("**/v1/me/recap", route => route.fulfill({ json: recapDeck("narrow") }));
+  // Worst case from the contract limits: 20-char quotes (+ "…"), 22-char final line, 8-char title, longest grade.
+  const longQuote = "○○이는 언제 가능한지 빨리 말해 줘…";
+  const deck = recapDeck("narrow");
+  const cards = deck.cards.map(card => card.kind === "CONCLUSION"
+    ? { ...card, title: "약속발사대장님아", archetype_name: "갑자기 약속 잡는 애 원탑", hero_quote: longQuote, final_line: "약속은 네가 쏘고 선물은 산타가 들고 가" }
+    : card.kind === "REASON" ? { ...card, quote: longQuote, line: "판은 늘 여기서 열렸고 너는 늘 먼저 왔다" } : card);
+  await page.route("**/v1/me/recap", route => route.fulfill({ json: { ...deck, cards } }));
   await page.goto("/result");
   await page.evaluate(() => document.fonts.ready);
   const fits = () => page.locator(".flow-recap-card").evaluate(card => {
@@ -178,6 +187,12 @@ test("좁은 화면에서도 결론과 근거 카드가 카드 안에 들어간�
     expect(measurements.contentHeight).toBeLessThanOrEqual(measurements.height + 1);
     expect(measurements.textBottom).toBeLessThanOrEqual(measurements.artworkTop + 1);
   }
+  const conclusion = await page.locator(".flow-recap-card").evaluate(card => {
+    const footer = card.querySelector(".flow-recap-card-bottom")!.getBoundingClientRect().top;
+    return ["flow-recap-friend", "flow-recap-hashtags"].map(name => card.querySelector(`.${name}`)!.getBoundingClientRect().bottom <= footer + 1);
+  });
+  expect(conclusion).toEqual([true, true]);
+  await expect(page.getByText("#산타컷 #걸쳐서통과")).toBeVisible();
 });
 
 test("리캡 링크는 클릭할 때 생성하고 복사 실패 시 직접 복사할 수 있다", async ({ page }) => {

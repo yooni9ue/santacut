@@ -17,8 +17,8 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey, ran
     enabled: Boolean(recapAvailable),
     staleTime: 0,
     placeholderData: keepPreviousData,
-    // Keep asking while the latest result waits for its rank, then stop.
-    refetchInterval: query => recapRefetchInterval(query.state.data),
+    // Keep asking while the latest result waits for its rank; stop on errors or after the poll cap.
+    refetchInterval: query => recapRefetchInterval(query.state),
   });
   const recap = recapAvailable ? recapQuery.data ?? undefined : undefined;
   const [dossier, setDossier] = useState<DossierResponse>();
@@ -39,6 +39,8 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey, ran
   if (recap && recap.assessment_id !== assessmentId) {
     setAssessmentId(recap.assessment_id);
     setActiveIndex(0);
+  } else if (recap && recap.cards.length > 0 && activeIndex > recap.cards.length - 1) {
+    setActiveIndex(recap.cards.length - 1);
   }
 
   useEffect(() => {
@@ -50,8 +52,8 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey, ran
     });
     return () => controller.abort();
   }, [dossierAvailable, refreshKey]);
-  const error = dossierError || (recapQuery.isError && !recapQuery.data ? resultError(recapQuery.error) : "");
-  const activeCard = recap?.cards[Math.min(activeIndex, recap.cards.length - 1)];
+  const error = dossierError || (recapQuery.isError ? resultError(recapQuery.error) : "");
+  const activeCard = recap?.cards[activeIndex];
 
   async function exportCard(id: string, name: string, text: string, share: boolean) {
     const node = cardRefs.current[id];
@@ -174,7 +176,11 @@ function recapCardName(card: RecapCard) {
   }
 }
 
-// The six bands are fixed; the fourth band (55~64) is the first one below the gift cut of 65.
+// Gift cut and band order come from backend GiftVerdict.CUT_HUNDREDTHS (6500) and GiftGrade.
+// Only VERDICT carries `cut`; CUTLINE finds the line from the first failing band code, and
+// CONCLUSION (no bands) falls back to that band's fixed position.
+const GIFT_CUT = 65;
+const BELOW_CUT_CODES = new Set(["ONE_STEP_SHORT", "OFF_LIST", "COAL"]);
 const CUT_BAND_POSITION = 3;
 const formatKoreanDay = (value: string) => new Date(value).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" });
 
@@ -192,13 +198,17 @@ function RecapContent({ card }: { card: RecapCard }) {
       <p className="flow-recap-line">{card.verdict_line}</p>
       <div className="flow-recap-chips"><span>{card.score_text}점</span><span>컷 {card.cut_distance}</span>{card.delivery_eta && <span>선물 도착 {formatKoreanDay(card.delivery_eta)}</span>}</div>
     </>;
-    case "CUTLINE": return <>
-      <ol className="flow-recap-bands" aria-label="산타컷 구간표">{card.bands.map((band, index) => <li key={band.code} className={`${band.current ? "is-current" : ""} ${index === CUT_BAND_POSITION ? "is-below-cut" : ""}`} aria-current={band.current ? "true" : undefined}>
-        {index === CUT_BAND_POSITION && <small className="flow-recap-cutline">선물 컷 65</small>}
-        <span>{band.label}</span><b>{band.range}</b>{band.current && <em>나 {card.score_text}점</em>}
-      </li>)}</ol>
-      <p className="flow-recap-line">{card.band_detail}</p>
-    </>;
+    case "CUTLINE": {
+      const cutPosition = card.bands.findIndex(band => BELOW_CUT_CODES.has(band.code));
+      return <>
+        <h3 className="flow-recap-cut-title">{card.grade}</h3>
+        <ol className="flow-recap-bands" aria-label="산타컷 구간표">{card.bands.map((band, index) => <li key={band.code} className={`${band.current ? "is-current" : ""} ${index === cutPosition ? "is-below-cut" : ""}`} aria-current={band.current ? "true" : undefined}>
+          {index === cutPosition && <small className="flow-recap-cutline">선물 컷 {GIFT_CUT}</small>}
+          <span>{band.label}</span><b>{band.range}</b>{band.current && <em><i aria-hidden="true">●</i><span>나 {card.score_text}점</span></em>}
+        </li>)}</ol>
+        <p className="flow-recap-line">{card.band_detail}</p>
+      </>;
+    }
     case "REASON":
     case "CUT":
     case "KEEP": return <>
@@ -214,7 +224,7 @@ function RecapContent({ card }: { card: RecapCard }) {
       <RecapQuote quote={card.hero_quote} chip={card.hero_chip_text} />
       <p className="flow-recap-line">{card.final_line}</p>
       <div className="flow-recap-chips"><span>{card.score_text}점</span><span>컷 {card.cut_distance}</span>{card.top_percent != null && <span>상위 {card.top_percent}%</span>}{card.type_percent != null && <span>이 유형 {card.type_percent}%</span>}</div>
-      <div className="flow-recap-strip" aria-label="내 구간 위치">{Array.from({ length: 6 }, (_, index) => <i key={index} className={`${index === card.band_position ? "is-current" : ""} ${index === CUT_BAND_POSITION ? "is-below-cut" : ""}`} />)}</div>
+      <div className="flow-recap-strip" role="img" aria-label={`여섯 구간 중 내 구간: ${card.grade}`}>{Array.from({ length: 6 }, (_, index) => <i key={index} className={`${index === card.band_position ? "is-current" : ""} ${index === CUT_BAND_POSITION ? "is-below-cut" : ""}`} />)}</div>
       <p className="flow-recap-friend">{card.friend_call}</p>
       <p className="flow-recap-hashtags">#산타컷 #{card.band_tag}</p>
     </>;

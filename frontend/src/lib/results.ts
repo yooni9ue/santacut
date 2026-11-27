@@ -74,7 +74,12 @@ export async function getMyRecap(signal?: AbortSignal) {
   }
 }
 export const RECAP_POLL_MS = 3_000;
-export const recapRefetchInterval = (recap: RecapResponse | null | undefined) => recap?.ranking_pending ? RECAP_POLL_MS : false;
+/** Stops after about two minutes of pending polls (40 × 3s). */
+export const RECAP_POLL_LIMIT = 40;
+export function recapRefetchInterval(state: { status: "pending" | "error" | "success"; data?: RecapResponse | null; dataUpdateCount: number }) {
+  if (state.status === "error" || state.dataUpdateCount >= RECAP_POLL_LIMIT) return false;
+  return state.data?.ranking_pending ? RECAP_POLL_MS : false;
+}
 export async function getMyDossier(signal?: AbortSignal) {
   return (await api.get<DossierResponse>("/me/dossier", { signal })).data;
 }

@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import type { AxiosAdapter } from "axios";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { AxiosError, AxiosHeaders, type AxiosAdapter } from "axios";
 import { afterEach, expect, test, vi } from "vitest";
 import { api } from "@/lib/api";
-import type { RecapCard, RecapResponse } from "@/lib/results";
+import { RECAP_POLL_MS, recapRefetchInterval, type RecapCard, type RecapResponse } from "@/lib/results";
 import { ResultExtras } from "./result-extras";
 
 const original = api.defaults.adapter;
@@ -58,6 +58,24 @@ test("the cutline lights only the current band and evidence without a quote show
   fireEvent.click(screen.getByRole("button", { name: "4번째 카드 점수 깎인 말 1" }));
   expect(screen.getByText("'고마워' 0번")).toHaveClass("is-giant");
   expect(screen.getByText("존중 −")).toBeInTheDocument();
+});
+
+test("a failed rank refresh stops polling and shows the error next to the last deck", async () => {
+  const pending = { ...recap, rank: null, top_percent: null, ranking_pending: true, cards: cards.map(card => ({ ...card, rank: null, top_percent: null })) };
+  const config = { headers: new AxiosHeaders() };
+  const failure = new AxiosError("failed", undefined, config, undefined, { status: 500, statusText: "", headers: {}, data: {}, config });
+  api.defaults.adapter = vi.fn<AxiosAdapter>()
+    .mockImplementationOnce(async request => ({ config: request, status: 200, statusText: "OK", headers: {}, data: pending }))
+    .mockRejectedValue(failure);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><ResultExtras recapAvailable /></QueryClientProvider>);
+  expect(await screen.findByText("순위 계산 중")).toBeInTheDocument();
+  const query = client.getQueryCache().find<RecapResponse | null>({ queryKey: ["me", "recap", ""] })!;
+  expect(recapRefetchInterval(query.state)).toBe(RECAP_POLL_MS);
+  await act(() => client.refetchQueries({ queryKey: ["me", "recap"] }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("새 결과 카드를 불러오지 못했어요.");
+  expect(screen.getByRole("region", { name: "팩폭 산타 카드" })).toBeInTheDocument();
+  expect(recapRefetchInterval(query.state)).toBe(false);
 });
 
 test("a pending rank shows 순위 계산 중 and never 순위 집계 전", async () => {

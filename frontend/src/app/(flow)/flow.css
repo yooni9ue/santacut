@@ -91,7 +91,7 @@
 .flow-recap-card-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 10px; font-weight: 700; }
 .flow-recap-card-top span:first-child { font-size: 13px; font-weight: 900; letter-spacing: -.5px; }
 .flow-recap-card-top span:last-child { color: #3c3c37; font-size: 12px; font-variant-numeric: tabular-nums; }
-.flow-recap-card-top span.is-pending { color: #87877e; font-weight: 500; }
+.flow-recap-card-top span.is-pending { color: #55554f; font-weight: 500; }
 .flow-recap-kicker { margin: 14px 0 0 !important; color: #d9362b; font-size: 13px; font-weight: 800; }
 .flow-recap-copy { position: relative; display: flex; flex: 1; flex-direction: column; justify-content: center; gap: 10px; padding-bottom: 10px; }
 .flow-recap-copy h3 { font-family: 'Santa Headline', sans-serif; font-weight: 700; font-size: clamp(28px, 8vw, 35px); line-height: 1.25; letter-spacing: 0; word-break: keep-all; }
@@ -108,7 +108,8 @@
 .flow-recap-bands li span { flex: 1; font-weight: 700; }
 .flow-recap-bands li b { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .flow-recap-bands li em { flex-basis: 100%; color: #d9362b; font-style: normal; font-size: 12px; font-weight: 800; }
-.flow-recap-bands li em::before { content: '●'; margin-right: 5px; }
+.flow-recap-bands li em i { margin-right: 5px; font-style: normal; }
+.flow-recap-copy .flow-recap-cut-title { font-size: 22px; }
 .flow-recap-bands li.is-current { border: 2px solid #d9362b; background: #fff; color: #242424; }
 .flow-recap-bands li.is-below-cut { margin-top: 18px; }
 .flow-recap-cutline { position: absolute; left: 0; right: 0; top: -17px; border-top: 2px dashed #d9362b; padding-top: 1px; color: #d9362b; font-size: 10px; font-weight: 800; text-align: right; }
@@ -155,6 +156,11 @@
  .flow-recap-copy .flow-recap-label { font-size: 28px; }
  .flow-recap-copy .flow-recap-bubble { font-size: 18px; }
  .flow-recap-bands li { min-height: 36px; padding: 5px 9px; }
+ .flow-recap-card.is-conclusion .flow-recap-copy { gap: 5px; padding-top: 2px; }
+ .flow-recap-card.is-conclusion .flow-recap-copy .flow-recap-band { font-size: 28px; }
+ .flow-recap-card.is-conclusion .flow-recap-chips span { padding: 3px 7px; font-size: 11px; }
+ .flow-recap-card.is-conclusion .flow-recap-bubble { padding: 6px 10px; font-size: 15px; }
+ .flow-recap-card.is-conclusion .flow-recap-line { font-size: 13px; line-height: 1.45; }
  .flow-recap-art { flex-basis: 130px; height: 130px; }
 }
 
