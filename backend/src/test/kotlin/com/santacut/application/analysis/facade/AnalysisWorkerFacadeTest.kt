@@ -555,7 +555,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `검증에 떨어진 묶음은 사유를 붙여 한 번 다시 부르고 끝까지 떨어지면 대체 문장으로 채운다`() {
+    fun `검증에 떨어진 묶음은 사유를 붙여 두 번까지 다시 부르고 끝까지 떨어지면 대체 문장으로 채운다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()
         val inputs = mutableListOf<String>()
@@ -567,7 +567,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         analysisWorkerFacade.processNextJob()
 
-        assertEquals(2, inputs.size)
+        assertEquals(3, inputs.size)
         assertFalse(inputs[0].contains("\"rewrite\""))
         assertTrue(inputs[1].contains("\"rewrite\"") && inputs[1].contains("conclusion title: 숫자 표현(세 번)"))
         val roast = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
@@ -732,7 +732,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
             mapOf(
                 "verdict_line" to "올해 감사 연타, 딸깍.",
                 "evidence" to evidence,
-                "conclusion" to mapOf("title" to title, "hero_line_id" to lineIds.lastOrNull(), "hero_chip_key" to chips.firstOrNull().orEmpty(), "final_line" to "감사 연타는 올해도 이어졌다."),
+                "conclusion" to mapOf("title" to title, "hero_line_id" to lineIds.lastOrNull(), "hero_chip_key" to chips.firstOrNull().orEmpty(), "final_line" to "고마운 말은 올해도 이어졌다."),
             ),
         )
     }
@@ -819,7 +819,8 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val ROAST_MODEL = "gemini-3.5-flash"
         private const val VALID_TITLE = "감사 연타왕"
         private val EVIDENCE_LABELS = listOf("감사연타상", "힘보탬상", "인사발사상", "고마움상", "말풍선상")
-        private val EVIDENCE_LINES = listOf("고마움이 늘 먼저 나왔다.", "힘 나는 말을 아끼지 않았다.", "인사는 늘 빨랐다.", "산타 장부에 적혔다.", "이건 산타도 봤다.")
+        /** 본인 말풍선(SAMPLE_TEXT)과 낱말을 나눠 일반론 검사를 통과하는 근거 한 줄. */
+        private val EVIDENCE_LINES = listOf("고마움이 늘 먼저 나왔다.", "힘이 나는 말을 아끼지 않았다.", "인사는 오늘도 빨랐다.", "정말 산타 장부에 적혔다.", "오늘도 산타가 봤다.")
         private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
         private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
