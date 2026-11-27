@@ -88,16 +88,17 @@ class RecapApiTest @Autowired constructor(
     }
 
     @Test
-    fun `순위 계산이 끝나면 참가자가 적어도 모든 카드에 순위와 상위 비율이 있다`() {
+    fun `회귀 - 참가자가 100명보다 적으면 모든 카드에 순위만 있고 상위 비율은 싣지 않는다`() {
         val session = participantWithResult(GIFT_SCORES, withRoast = true)
 
         mockMvc.perform(get(RECAP_PATH).cookie(session))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.ranking_pending").value(false))
             .andExpect(jsonPath("$.rank").isNumber)
-            .andExpect(jsonPath("$.top_percent").isNumber)
+            .andExpect(jsonPath("$.top_percent").doesNotExist())
             .andExpect(jsonPath("$.cards[*].rank", everyItem(notNullValue())))
-            .andExpect(jsonPath("$.cards[*].top_percent", everyItem(notNullValue())))
+            .andExpect(jsonPath("$.cards[0].top_percent").doesNotExist())
+            .andExpect(jsonPath("$.cards[-1:].top_percent", everyItem(nullValue())))
     }
 
     @Test

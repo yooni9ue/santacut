@@ -22,6 +22,19 @@ enum class Archetype(val koreanName: String) {
     GRINCH_APPRENTICE("그린치 견습생"),
     ;
 
+    /**
+     * 석탄 덱에 실을 유형. 장난기 높은 유형(캐럴 떼창 리더 등)은 같은 항목의 장난기 낮은 유형으로, 산타 후보생은 그린치 견습생으로 바꾼다.
+     * 석탄을 받은 사람에게 신나는 유형 이름이 붙어 판정과 어긋나지 않게 한다. 그 밖의 유형은 그대로다.
+     */
+    fun forCoal(): Archetype = when (this) {
+        HOT_COCOA_COURIER -> FIREPLACE_KEEPER
+        CAROL_LEADER -> TREE_TOP_STAR
+        MANNER_SNOWMAN -> GIFT_WRAPPER
+        RUDOLPH_DRIVER -> WORKSHOP_ELF
+        SANTA_CANDIDATE -> GRINCH_APPRENTICE
+        else -> this
+    }
+
     companion object {
         /** 위 두 항목 점수 차이가 이보다 작으면 수축 노이즈와 상관없이 균형형이다. */
         val CLEAR_BALANCED_GAP = BigDecimal(3)

@@ -30,7 +30,8 @@ object ShareDeckConverter {
     private const val QUOTE_CLOSE = "”"
     private const val HASH = "#산타컷 #"
     private const val RANK_PREFIX = "전국 "
-    private const val RANK_SUFFIX = "등 · 상위 "
+    private const val RANK_SUFFIX = "등"
+    private const val TOP_SEPARATOR = " · 상위 "
     private const val PERCENT = "%"
 
     fun of(deck: RecapDeck): ShareDeck = ShareDeck(deck.isGift(), ShareSlides(deck.cards.convertEach(::slideOf)))
@@ -46,11 +47,11 @@ object ShareDeckConverter {
     private fun slide(card: RecapDeckCard, headline: String): ShareSlide =
         ShareSlide(card.kind.name, card.kind.label, card.scoreText, headline, topBar = topBarOf(card))
 
-    /** `전국 N등 · 상위 P%`. 공유할 때 순위가 없었으면 null이다. */
+    /** `전국 N등 · 상위 P%`. 상위 비율이 없으면(참가자 100명 미만) `전국 N등`만 쓰고, 공유할 때 순위가 없었으면 null이다. */
     private fun topBarOf(card: RecapDeckCard): String? {
         val rank = card.rank ?: return null
-        val percent = card.topPercent ?: return null
-        return "$RANK_PREFIX$rank$RANK_SUFFIX$percent$PERCENT"
+        val percent = card.topPercent?.let { value -> "$TOP_SEPARATOR$value$PERCENT" }.orEmpty()
+        return "$RANK_PREFIX$rank$RANK_SUFFIX$percent"
     }
 
     private fun verdictRows(card: RecapDeckCard): ShareSlideRows = ShareSlideRows(

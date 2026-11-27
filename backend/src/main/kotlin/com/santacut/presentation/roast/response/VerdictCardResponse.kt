@@ -22,7 +22,7 @@ data class VerdictCardResponse(
     @field:Schema(description = "상단 바의 전국 순위. 순위 계산이 끝나면 늘 있고, 최신 결과가 아직 순위에 반영되지 않았으면 null입니다.", nullable = true)
     override val rank: Int?,
     @field:JsonProperty("top_percent")
-    @field:Schema(description = "상단 바의 상위 비율(%, 1~100). 순위가 없으면 null입니다.", nullable = true, example = "38")
+    @field:Schema(description = "상단 바의 상위 비율(%, 1~100). 순위가 없거나 참가자가 100명 아래면 null이고, 그때 상단 바는 순위(전국 N등)만 씁니다.", nullable = true, example = "38")
     override val topPercent: Int?,
     @field:Schema(description = "큰 글자. 선물이면 '착한 아이', 석탄이면 '나쁜 아이'입니다.", example = "착한 아이")
     val verdict: String,

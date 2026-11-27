@@ -1,10 +1,12 @@
 package com.santacut.application.roast.result
 
 import com.santacut.TestRoasts
+import com.santacut.domain.analysis.model.Archetype
 import com.santacut.domain.analysis.model.Assessment
 import com.santacut.domain.analysis.model.Assessments
 import com.santacut.domain.analysis.model.DataSource
 import com.santacut.domain.analysis.model.GiftVerdict
+import com.santacut.domain.analysis.model.ScoreDimension
 import com.santacut.domain.ranking.model.ResultPopulation
 import com.santacut.domain.ranking.model.ResultProfile
 import com.santacut.domain.ranking.model.ResultSnapshot
@@ -60,14 +62,41 @@ class RecapResultTest {
     }
 
     @Test
-    fun `참가자가 셋뿐이어도 순위가 있으면 모든 공유 카드에 순위와 상위 비율을 싣는다`() {
-        val result = resultOf(GIFT, "[90,80,70,50]", emptyList(), snapshot = snapshot(2), participants = 3)
+    fun `회귀 - 참가자가 넷뿐인 4등은 상위 100퍼센트 대신 순위만 모든 공유 카드에 싣는다`() {
+        val result = resultOf(GIFT, "[90,80,70,50]", emptyList(), snapshot = snapshot(4), participants = 4)
 
-        assertEquals(RecapTopResult(2, 67, 3, false), result.top)
+        assertEquals(RecapTopResult(4, null, 4, false), result.top)
         result.cards.toDeckCards(result.top, result.scoreText).convertEach { card ->
-            assertEquals(2, card.rank)
-            assertEquals(67, card.topPercent)
+            assertEquals(4, card.rank)
+            assertNull(card.topPercent)
         }
+    }
+
+    @Test
+    fun `참가자가 백 명 이상이면 상위 비율을 싣는다`() {
+        val result = resultOf(GIFT, "[90,80,70,50]", emptyList(), snapshot = snapshot(2), participants = 200)
+
+        assertEquals(RecapTopResult(2, 1, 200, false), result.top)
+    }
+
+    @Test
+    fun `근거 카드 영역 태그는 칩 방향이 가리키는 항목으로 단다`() {
+        val thanks = RoastEvidence(EvidenceKind.CUT, null, "thanks_count", RoastChip("'고마워'", "0번"), null, "고마움실종상", "고맙다는 말이 실종됐다.",
+            RoastSource.AI, ScoreDimension.RESPECTFUL_COMMUNICATION.key)
+        val result = resultOf(COAL, "[40,50,60,70]", listOf(thanks) + cards(EvidenceKind.KEEP, 1))
+        val evidence = result.cards.values.filterIsInstance<RecapEvidenceCard>()
+
+        assertEquals("존중 −", evidence.first().dimTag)
+    }
+
+    @Test
+    fun `회귀 - 석탄 덱은 캐럴 떼창 리더 같은 신나는 유형 대신 같은 항목의 차분한 유형을 싣는다`() {
+        assertEquals(Archetype.TREE_TOP_STAR, Archetype.CAROL_LEADER.forCoal())
+        assertEquals(Archetype.GRINCH_APPRENTICE, Archetype.SANTA_CANDIDATE.forCoal())
+        assertEquals(Archetype.FIREPLACE_KEEPER, Archetype.FIREPLACE_KEEPER.forCoal())
+        val conclusion = resultOf(COAL, "[40,50,60,70]", emptyList()).cards.values.filterIsInstance<RecapConclusionCard>().single()
+
+        assertEquals(Archetype.ofName(conclusion.archetypeCode)?.forCoal(), Archetype.ofName(conclusion.archetypeCode))
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.santacut.infrastructure.share.render.ShareCard
 import com.santacut.infrastructure.share.render.ShareDeck
 import com.santacut.infrastructure.share.render.SharePageRenderer
 import org.junit.jupiter.api.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -30,6 +31,14 @@ class ShareDeckReaderTest {
         assertTrue(html.contains("공유 당시 리캡 카드 <strong>3장</strong>"), html)
         listOf("판정", "선물 받는 이유 1", "올해의 결론", "<span class=\"card-rank\">전국 3등 · 상위 50%</span>", "“내일 몇 시에 볼까”", "#산타컷 #걸쳐서통과")
             .forEach { fragment -> assertTrue(html.contains(fragment), fragment) }
+    }
+
+    @Test
+    fun `회귀 - 참가자가 적어 상위 비율이 없는 2판 덱은 상단 바에 순위만 그린다`() {
+        val html = render(read(V2_JSON.replace(",\"topPercent\":50", "")))
+
+        assertTrue(html.contains("<span class=\"card-rank\">전국 3등</span>"), html)
+        assertFalse(html.contains("· 상위"), html)
     }
 
     @Test

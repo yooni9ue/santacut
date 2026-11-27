@@ -21,7 +21,7 @@ data class KeepCardResponse(
     @field:Schema(description = "상단 바의 전국 순위. 순위 반영 전이면 null입니다.", nullable = true)
     override val rank: Int?,
     @field:JsonProperty("top_percent")
-    @field:Schema(description = "상단 바의 상위 비율(%). 순위가 없으면 null입니다.", nullable = true)
+    @field:Schema(description = "상단 바의 상위 비율(%). 순위가 없거나 참가자가 100명 아래면 null이고, 그때 상단 바는 순위(전국 N등)만 씁니다.", nullable = true)
     override val topPercent: Int?,
     @field:Schema(description = "같은 종류 안 순번(1부터). 살아남은 말은 늘 1입니다.", example = "1")
     val ordinal: Int,
@@ -35,7 +35,7 @@ data class KeepCardResponse(
     @field:Schema(description = "한 줄(20자 이하, 숫자 없음)")
     val line: String,
     @field:JsonProperty("dim_tag")
-    @field:Schema(description = "영역 태그. 살아남은 말은 늘 null입니다.", nullable = true)
+    @field:Schema(description = "영역 태그. 칩이 가리키는 항목에 '+'를 붙여 싣고, 이어 둔 항목이 없는 칩은 null입니다.", nullable = true, example = "공감 +")
     val dimTag: String?,
 ) : RecapCardResponse {
     companion object {

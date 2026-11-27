@@ -29,7 +29,7 @@ PR #81(문구 v3)과 PR #82(사실 다양화, 새 지표, `slang.json`, 임시 �
 - [ ] **산타 조서 화면** `GET /v1/me/dossier`(2026-11-20 추가): 결과 화면을 `scenes` 배열 순서대로 한 장씩 넘기는 세로 스냅 스크롤로 그린다. 장면마다 저장(공유 카드) 버튼을 두되 `shareable`이 true인 장면에만 둔다. 카드에는 `shareable`이 true인 줄만 싣는다(삐 처리·하위 판정·느린 답장 줄은 화면에만). `404 DOSSIER_NOT_FOUND`(또는 결과의 `dossier_available`이 false)면 조서 대신, 시즌 마감 전(`stage`가 마감 전)이면 "대화를 다시 올리면 새 조서를 받는다"는 재업로드 안내를, 마감 뒤에는 "이 결과에는 조서가 없다"는 안내만 띄운다(마감 뒤에는 재업로드할 수 없다). `tone` 값은 화면 문구에만 쓰고 분석 이벤트·로그·에러 리포트에 싣지 않는다. 기존 점수·유형 화면은 "자세히 보기"로 접어 남긴다(7절 산타 조서).
 - [x] **리캡 v9 덱 새 카드 그리기**(2026-11-27 바뀜, 프론트 작업) `GET /v1/me/recap`: 카드 종류가 `VERDICT`, `CUTLINE`, `REASON`, `CUT`, `KEEP`, `CONCLUSION`으로 바뀌었다. 선물 덱은 판정 → 산타컷 표 → 선물 받는 이유(1~3) → 점수 깎인 말(0~2) → 결론, 석탄 덱은 판정 → 산타컷 표 → 점수 깎인 말(1~3) → 살아남은 말(1) → 결론이고 5~8장이다. 지난 `ROAST`·`LETTER`·`STORY`·`ARCHETYPE`·`DIMENSIONS` 카드와 `flip` 필드는 없어졌으니 그 화면을 지운다. 근거 카드의 `quote`가 `null`이면 말풍선 없이 `chip_text`를 크게 찍는다. 결론 카드가 공유 기본 이미지다([7절 리캡 카드 덱](#리캡-카드-덱-get-v1merecap)).
 - [x] **"농담 빼고 보기" 토글 지우기**(2026-11-27 바뀜, 프론트 작업): `share_text_mild`, `stamp_mild`, `verdict_mild`가 응답에서 빠졌다. 담백 보기 토글과 그 분기를 화면·공유 미리보기에서 모두 지운다. 공유 문구는 `share_text` 하나다.
-- [x] **순위 대기 중 리캡 다시 부르기**(2026-11-27 바뀜, 프론트 작업): 리캡 응답의 `ranking_pending`이 `true`면 `GET /v1/me/recap`을 몇 초 간격으로 다시 불러 `false`가 되면 상단 바(`전국 {rank}등 · 상위 {top_percent}%`)를 채운다. 순위는 이제 참가자 수와 상관없이 늘 오고 모든 카드에 `rank`, `top_percent`가 있다.
+- [x] **순위 대기 중 리캡 다시 부르기**(2026-11-27 바뀜, 프론트 작업): 리캡 응답의 `ranking_pending`이 `true`면 `GET /v1/me/recap`을 몇 초 간격으로 다시 불러 `false`가 되면 상단 바(`전국 {rank}등 · 상위 {top_percent}%`)를 채운다. 순위는 이제 참가자 수와 상관없이 늘 오고 모든 카드에 `rank`가 있다. `top_percent`는 순위 계산 참가자가 100명보다 적으면 `null`이고(2026-11-27 바뀜, 작은 방의 '상위 100%'가 꼴찌처럼 읽혀서다), 그때 상단 바는 `전국 {rank}등`만 찍는다.
 - [x] **"순위 집계 전" 문구 지우기**(2026-11-27 바뀜, 프론트 작업): 참가자가 100명보다 적어 순위를 숨기던 때의 "순위 집계 전" 문구를 리캡 화면에서 지운다. 순위를 기다리는 몇 초 동안은 상단 바 자리를 비워 두거나 스켈레톤으로 둔다.
 - [ ] **리캡이 없는 사용자에게 재업로드 안내**(프론트 작업, 지금 동작함 API 기준): `GET /v1/me/result`의 `recap_available`이 `false`이거나 `GET /v1/me/recap`이 `404 RECAP_NOT_FOUND`면 덱 대신 기존 결과 화면을 보여 준다. 시즌 마감(12월 25일 0시 KST) 전이면 "대화를 다시 올리면 팩폭 산타 카드를 받을 수 있다"는 재업로드 버튼을 함께 둔다. 마감 뒤에는 안내 없이 결과 화면만 둔다. 재업로드도 하루 3번 한도(9절)에 들어간다.
 - [ ] **인스타 스토리 이미지 저장·공유**(프론트 작업): 화면에 그린 리캡 카드 DOM을 9:16(1080×1920) PNG로 떠서 Web Share API 파일 공유로 넘긴다. 파일 공유를 못 하면 이미지 내려받기로 대신한다. 서버는 이 이미지를 만들지 않는다(7절 [공유 방식 나누기](#공유-방식-나누기)).
@@ -383,7 +383,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
                {"code": "OFF_LIST", "label": "명단에 없음", "range": "50~54", "current": false},
                {"code": "COAL", "label": "석탄 당첨", "range": "≤49", "current": false}]},
     {"index": 2, "kind": "REASON", "width": 1080, "height": 1920, "score_text": "72.40", "rank": 48213, "top_percent": 38,
-     "ordinal": 1, "quote": "○○이는 언제 가능?", "chip_text": "'ㄱ?' 발사 횟수 19번", "label": "약속발사상",
+     "ordinal": 1, "quote": "○○이는 언제 가능?", "chip_text": "'ㄱ?' 19번", "label": "약속발사상",
      "line": "판은 늘 여기서 열렸다.", "dim_tag": null},
     {"index": 3, "kind": "CUT", "width": 1080, "height": 1920, "score_text": "72.40", "rank": 48213, "top_percent": 38,
      "ordinal": 1, "quote": null, "chip_text": "'고마워' 0번", "label": "감사품절상",
@@ -392,7 +392,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
      "verdict": "착한 아이", "passed": true, "grade": "굴뚝에 걸쳐서 통과", "grade_code": "SCRAPED_THROUGH",
      "band_tag": "걸쳐서통과", "band_position": 2, "title": "약속 발사대", "archetype_code": "CAROL_LEADER",
      "archetype_name": "캐럴 떼창 리더", "type_percent": 12, "hero_quote": "○○이는 언제 가능?",
-     "hero_chip_text": "'ㄱ?' 발사 횟수 19번", "final_line": "약속은 네가 쏘고 선물은 산타가.", "cut_distance": "+7.40",
+     "hero_chip_text": "'ㄱ?' 19번", "final_line": "약속은 네가 쏘고 선물은 산타가.", "cut_distance": "+7.40",
      "friend_call": "우리 방에서 나보다 착한 애 나와"}
   ]
 }
@@ -408,7 +408,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | `score_text` | string | 아님 | 총점 표시(`"72.40"`) |
 | `share_text` | string | 아님 | 서버가 고정한 공유 문구. 등급마다 다르고 총점이 들어 있으며, 끝에 `#산타컷 #구간 태그` 해시태그가 붙는다 |
 | `rank` | number | 가능 | 전국 순위. `ranking_pending`일 때만 `null` |
-| `top_percent` | number | 가능 | 상위 비율(%, 1~100). 순위와 그 계산의 참가자 수로 낸다. 순위가 없으면 `null` |
+| `top_percent` | number | 가능 | 상위 비율(%, 1~100). 순위와 그 계산의 참가자 수로 낸다. 순위가 없거나 참가자가 100명보다 적으면 `null` |
 | `ranking_pending` | boolean | 아님 | 최신 결과가 아직 순위에 반영되지 않았으면 `true`. 이때 이 API를 다시 불러 기다린다 |
 | `cards` | array | 아님 | 카드 목록(위 순서) |
 
@@ -420,7 +420,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | `kind` | string | `VERDICT`, `CUTLINE`, `REASON`, `CUT`, `KEEP`, `CONCLUSION` |
 | `width`, `height` | number | 1080, 1920 |
 | `score_text` | string | 총점 표시 |
-| `rank`, `top_percent` | number 또는 null | 상단 바 값. 모든 카드에 같은 값이 있다. 상단 바는 `전국 {rank}등 · 상위 {top_percent}%`로 찍는다 |
+| `rank`, `top_percent` | number 또는 null | 상단 바 값. 모든 카드에 같은 값이 있다. 상단 바는 `전국 {rank}등 · 상위 {top_percent}%`로 찍고 `top_percent`가 `null`이면 `전국 {rank}등`만 찍는다 |
 
 #### `VERDICT` 판정 카드
 
@@ -454,7 +454,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
 | `chip_text` | string | 서버 칩 글자(예: `'고마워' 0번`, `물음표 살포율 34%`, `공감 점수 82점`) |
 | `label` | string | 상 이름 꼴 라벨(8자 이하, 예: 답장독촉상). 상장 테두리나 양식은 그리지 않고 글자로만 둔다 |
 | `line` | string | 한 줄(20자 이하) |
-| `dim_tag` | string 또는 null | 영역 태그. 항목 점수 통계 카드(칩이 `"공감 점수 82점"` 꼴)에만 있다. 선물 받는 이유는 `"공감 +"`, 점수 깎인 말은 `"존중 −"`처럼 그 칩의 항목이다. 작가 카드, 입버릇·지표 칩 카드, 살아남은 말은 `null`이라 태그 자리를 비운다 |
+| `dim_tag` | string 또는 null | 영역 태그. 칩이 가리키는 항목에 부호를 붙인다. 선물 받는 이유·살아남은 말은 `"공감 +"`, 점수 깎인 말은 `"존중 −"` 꼴이다. 항목 점수 칩은 그 항목, 지표·고마워·칭찬 입버릇 칩은 서버가 이어 둔 항목(물음표는 협력, 고마워는 존중 등)이다. 이어 둔 항목이 없는 칩은 `null`이라 태그 자리를 비운다 |
 
 #### `CONCLUSION` 결론 카드
 
