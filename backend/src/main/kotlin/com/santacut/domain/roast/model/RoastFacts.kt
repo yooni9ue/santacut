@@ -29,8 +29,12 @@ class RoastFacts(private val values: List<RoastFact>) {
     /** 근거 카드 칩 후보. 순서는 사실 순서다. */
     fun chipFacts(): RoastChipFacts = RoastChipFacts(values.map { fact -> RoastChipFact(fact.key, fact.chip) })
 
-    /** 작가 입력의 칩 후보. */
-    fun chipHints(): RoastChipHints = RoastChipHints(values.map { fact -> RoastChipHint(fact.key, fact.chip.label, fact.chip.value) })
+    /** 작가 입력의 칩 후보. 고마워 칩은 점수 깎인 말 후보로만 낸다. */
+    fun chipHints(): RoastChipHints = RoastChipHints(
+        values.map { fact ->
+            RoastChipHint(fact.key, fact.chip.label, fact.chip.value, CUT_ONLY.takeIf { fact.key == ThanksFactSpec.KEY })
+        },
+    )
 
     /** 이 후보들에 [other]를 덧붙인다. */
     operator fun plus(other: RoastFacts): RoastFacts = RoastFacts(values + other.values)
@@ -80,6 +84,7 @@ class RoastFacts(private val values: List<RoastFact>) {
 
     companion object {
         val EMPTY = RoastFacts(emptyList())
+        private val CUT_ONLY = listOf(EvidenceKind.CUT.key)
 
         /** 계열이 겹치지 않게 뽑는 사실 수 상한(입버릇 하나 포함). 덧붙는 입버릇까지 최대 [MAX_DRAWN_FACTS] + 1개다. */
         const val MAX_DRAWN_FACTS = 8

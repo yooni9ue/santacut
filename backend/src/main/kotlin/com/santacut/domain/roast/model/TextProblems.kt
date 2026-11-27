@@ -14,6 +14,29 @@ class TextProblems(private val values: List<String>) {
         /** 따옴표·낫표 인용. 곧은·둥근 작은따옴표와 큰따옴표, 홑·겹낫표를 본다. */
         private val QUOTE = Regex("'([^'\\n]*)'|‘([^’\\n]*)’|\"([^\"\\n]*)\"|“([^”\\n]*)”|「([^」\\n]*)」|『([^』\\n]*)』")
         private const val PARENTHESES = "()"
+        private val HANGUL_RUN = Regex("[가-힣]{2,}")
+
+        /** 내용 낱말 줄기 길이. 두 글자 이상 한글 낱말의 앞 두 글자로 견줘 조사·어미가 달라도 같은 낱말로 본다. */
+        private const val STEM_LENGTH = 2
+        private const val GENERIC = "일반론(말풍선·칩과 겹치는 낱말이 없다)"
+
+        /**
+         * 일반론 검사. 문장 [text]가 근거 [sources](고른 말풍선 표시, 칩 이름) 가운데 하나와 내용 낱말을 하나 이상 나눠야 한다.
+         * 내용 낱말은 두 글자 이상 한글 낱말의 줄기(앞 두 글자)이거나 근거에 따옴표로 든 입버릇('ㄱ?')이다.
+         * 근거에 내용 낱말이 하나도 없으면(ㅋㅋ만 있는 말풍선 등) 겹칠 수 없으니 보지 않는다.
+         */
+        fun grounding(text: String, sources: List<String>): TextProblems {
+            val stems = sources.flatMap(::stemsOf).toSet()
+            val phrases = sources.flatMap(::quotedIn).filter(String::isNotBlank)
+            if (stems.isEmpty() && phrases.isEmpty()) return TextProblems(emptyList())
+            val shared = stemsOf(text).any(stems::contains) || phrases.any(text::contains)
+            return TextProblems(listOfNotNull(GENERIC.takeUnless { shared }))
+        }
+
+        private fun stemsOf(text: String): List<String> = HANGUL_RUN.findAll(text).map { match -> match.value.take(STEM_LENGTH) }.toList()
+
+        private fun quotedIn(text: String): List<String> =
+            QUOTE.findAll(text).map { match -> match.groupValues.drop(1).firstOrNull(String::isNotEmpty).orEmpty() }.toList()
 
         /**
          * [kind] 문장 [text]를 검사한다. 글자 수, 숫자·셈말 표현, 금지 말투(옛말투·유행어·이모지·느낌표·ㅋㅋ, 따옴표 인용 밖만), 칭호 금지어,
@@ -42,8 +65,7 @@ class TextProblems(private val values: List<String>) {
             rules.suspectsIn(text).firstOrNull()?.let { found -> "이름 의심($found)" },
         )
 
-        private fun quoteProblems(text: String, brief: RoastBrief): List<String> = QUOTE.findAll(text)
-            .map { match -> match.groupValues.drop(1).firstOrNull(String::isNotEmpty).orEmpty() }
+        private fun quoteProblems(text: String, brief: RoastBrief): List<String> = quotedIn(text)
             .filterNot { quote -> brief.isQuotable(quote) }
             .map { quote -> "목록 밖 인용($quote)" }
             .toList() + listOfNotNull(brief.copiedIn(text)?.let { copied -> "말풍선 베낌($copied)" })

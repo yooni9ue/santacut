@@ -1,6 +1,8 @@
 package com.santacut.domain.roast.model
 
 import com.santacut.TestDossiers
+import com.santacut.TestRoastAnswers.chipWordOf
+import com.santacut.TestRoastAnswers.lineFor
 import com.santacut.TestRoastAnswers.evidenceOf
 import com.santacut.TestRoastAnswers.habitMessages
 import com.santacut.TestRoastAnswers.review
@@ -69,6 +71,33 @@ class RoastReviewTest {
     }
 
     @Test
+    fun `고마워 칩은 점수 깎인 말에만 쓰고 이유·살아남은 말·결론 대표 칩에는 쓰지 않는다`() {
+        assertTrue(gift.hasFact(ThanksFactSpec.KEY))
+        val asReason = evidenceOf(gift).mapIndexed { index, card -> if (index == 0) card + ("chip_key" to ThanksFactSpec.KEY) else card }
+        val asCut = evidenceOf(gift).mapIndexed { index, card ->
+            if (index == gift.slots.reason) card + ("chip_key" to ThanksFactSpec.KEY) + ("line" to lineFor(gift, ThanksFactSpec.KEY)) else card
+        }
+        val keep = evidenceOf(coal).map { card -> if (card["kind"] == "keep") card + ("chip_key" to ThanksFactSpec.KEY) else card }
+
+        val reason = review(gift, validJson(gift, evidence = asReason)).checks
+        assertEquals(listOf("evidence[0]"), reason.failedFields())
+        assertTrue(reason.reasonsFor(listOf("evidence")).any { text -> text.contains("고마워 칩") })
+        assertEquals(emptyList(), review(gift, validJson(gift, evidence = asCut)).checks.failedFields())
+        assertTrue(review(coal, validJson(coal, evidence = keep)).checks.failedFields().any { field -> field.startsWith("evidence[") })
+        val hero = review(gift, validJson(gift, heroChipKey = ThanksFactSpec.KEY)).checks
+        assertEquals(listOf(ConclusionDraft.FIELD), hero.failedFields())
+    }
+
+    @Test
+    fun `작가 입력의 고마워 칩 후보는 cut 전용으로 표시한다`() {
+        val chips = TestRoasts.mapper.readTree(gift.inputText(TestRoasts.mapper)).path("chips").values()
+        val thanks = chips.single { chip -> chip.path("chip_key").asString() == ThanksFactSpec.KEY }
+
+        assertEquals(listOf("cut"), thanks.path("kinds").values().map { kind -> kind.asString() })
+        assertTrue(chips.filterNot { chip -> chip === thanks }.all { chip -> chip.path("kinds").isMissingNode })
+    }
+
+    @Test
     fun `결론의 대표 말과 칩은 근거 카드와 같아도 된다`() {
         val first = evidenceOf(gift)[0]
         val json = validJson(gift, heroLineId = first["line_id"] as Int, heroChipKey = first["chip_key"] as String)
@@ -112,12 +141,27 @@ class RoastReviewTest {
 
     @Test
     fun `덱 전체에 허용 유행어를 세 개 넘게 쓰면 deck이 떨어진다`() {
-        val cards = evidenceOf(gift).mapIndexed { index, card -> if (index < 2) card + ("line" to "판은 늘 여기서 열렸다, 딸깍.") else card }
-        val json = validJson(gift, verdictLine = "올해 약속 발사대, 딸깍.", finalLine = "약속 발사대는 바빴다. 요이~", evidence = cards)
+        val cards = evidenceOf(gift).mapIndexed { index, card ->
+            if (index < 2) card + ("line" to lineFor(gift, card["chip_key"] as String, slang = true)) else card
+        }
+        val finalLine = "${chipWordOf(gift, gift.facts.keys().first())} 장부는 바빴다. 요이~"
+        val json = validJson(gift, verdictLine = "올해 약속 발사대, 딸깍.", finalLine = finalLine, evidence = cards)
 
         val checks = review(gift, json).checks
 
         assertEquals(listOf(RoastChecks.DECK_FIELD), checks.failedFields())
+    }
+
+    @Test
+    fun `근거 한 줄과 마지막 한 줄이 말풍선·칩과 낱말을 나누지 않으면 일반론으로 떨어진다`() {
+        val cards = evidenceOf(gift).mapIndexed { index, card -> if (index == 0) card + ("line" to "산타도 웃고 넘어갔다.") else card }
+        val json = validJson(gift, evidence = cards, finalLine = "산타도 웃고 넘어갔다.")
+
+        val checks = review(gift, json).checks
+
+        assertEquals(listOf(ConclusionDraft.FIELD, "evidence[0]"), checks.failedFields())
+        assertTrue(checks.reasonsFor(listOf("evidence")).any { reason -> reason.contains("line: 일반론") })
+        assertTrue(checks.reasonsFor(listOf(ConclusionDraft.FIELD)).any { reason -> reason.contains("final_line: 일반론") })
     }
 
     @Test

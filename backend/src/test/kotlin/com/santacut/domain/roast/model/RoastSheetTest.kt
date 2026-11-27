@@ -2,6 +2,7 @@ package com.santacut.domain.roast.model
 
 import com.santacut.TestRoastAnswers.evidenceOf
 import com.santacut.TestRoastAnswers.habitMessages
+import com.santacut.TestRoastAnswers.lineFor
 import com.santacut.TestRoastAnswers.review
 import com.santacut.TestRoastAnswers.validJson
 import com.santacut.TestRoasts
@@ -69,7 +70,9 @@ class RoastSheetTest {
 
     @Test
     fun `작가 문장과 합쳐 덱 전체 유행어가 상한을 넘으면 유행어 없는 고정 문장을 쓴다`() {
-        val slangy = evidenceOf(brief).mapIndexed { index, card -> if (index < SLANG_CARDS) card + ("line" to "판은 늘 여기서 열렸다, 딸깍.") else card }
+        val slangy = evidenceOf(brief).mapIndexed { index, card ->
+            if (index < SLANG_CARDS) card + ("line" to lineFor(brief, card["chip_key"] as String, slang = true)) else card
+        }
         val sheet = RoastSheet.EMPTY.absorb(review(brief, validJson(brief, verdictLine = "숫자 7 넣은 줄.", evidence = slangy)), rules)
 
         val content = sheet.toContent(brief, fallback, rules)

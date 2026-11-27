@@ -152,6 +152,16 @@ class RoastPromptSeedTest {
         assertTrue(fifth.contains("숫자와 셈말을 쓰지 않는다"))
     }
 
+    @Test
+    fun `5판의 판정 틀은 모두 빈칸을 두고 고마워 칩은 cut 전용이며 일반론은 떨어진다고 알린다`() {
+        assertFalse(fifth.contains("\"나쁜 아이냐고? 아뇨아뇨아뇨.\""))
+        assertFalse(fifth.contains("\"착한 아이 명단에서 퇴사할게여.\""))
+        assertTrue(fifth.contains("\"(버릇)이 나쁘냐고? 아뇨아뇨아뇨.\""))
+        assertTrue(fifth.contains("\"(버릇) 때문에 명단 퇴사할게여.\""))
+        assertTrue(fifth.contains("kinds가 있는 칩은 그 kind 카드에만 쓰고"))
+        assertTrue(fifth.contains("겹치는 낱말이 없으면 일반론으로 보고 서버 검사에서 떨어진다"))
+    }
+
     companion object {
         private const val FIFTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0005','roast',5,'"
 

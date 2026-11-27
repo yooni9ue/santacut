@@ -10,21 +10,29 @@ import com.santacut.domain.roast.model.ThanksFactSpec
  */
 object TestRoastAnswers {
     private val LABELS = listOf("약속발사상", "질문폭격상", "출발신호상", "웃음폭주상", "답장독촉상")
-    private val LINES = listOf("판은 늘 여기서 열렸다.", "물음표로 방을 깨웠다.", "출발 신호는 늘 빨랐다.", "웃음 연타는 감점이다.", "재촉은 산타도 봤다.")
+    private val HANGUL_WORD = Regex("[가-힣]{2,}")
 
     /** 작가에게 보낸 본인 줄 번호(line_id). */
     fun sentLineIds(brief: RoastBrief): List<Int> =
         TestRoasts.mapper.readTree(brief.inputText(TestRoasts.mapper)).path("transcript").values()
             .flatMap { act -> act.path("lines").values().map { line -> line.asString().substringBefore("|").toInt() } }
 
-    /** [brief] 슬롯 수만큼 서로 다른 본인 줄과 칩으로 채운 근거 카드. 점수 깎인 말도 본인 줄을 쓴다. */
+    /** 칩 [chipKey] 이름의 첫 두 글자 이상 한글 낱말. 한 줄이 칩과 낱말을 나누게(일반론 검사) 문장에 넣는다. */
+    fun chipWordOf(brief: RoastBrief, chipKey: String): String =
+        brief.chipOf(chipKey)?.label?.let { label -> HANGUL_WORD.find(label)?.value }.orEmpty()
+
+    /** 칩 [chipKey] 낱말을 받아 쓴 근거 카드 한 줄. [slang]이면 유행어 하나를 붙인다. */
+    fun lineFor(brief: RoastBrief, chipKey: String, slang: Boolean = false): String =
+        "장부에 적힌 ${chipWordOf(brief, chipKey)} 버릇" + (if (slang) ", 딸깍." else ".")
+
+    /** [brief] 슬롯 수만큼 서로 다른 본인 줄과 칩으로 채운 근거 카드. 점수 깎인 말도 본인 줄을 쓴다. 한 줄은 칩 낱말을 받아 쓴다. */
     fun evidenceOf(brief: RoastBrief): List<Map<String, Any?>> {
         val lineIds = sentLineIds(brief)
         val chips = brief.facts.keys().filterNot { key -> key == ThanksFactSpec.KEY }
         val kinds = List(brief.slots.reason) { EvidenceKind.REASON } + List(brief.slots.cut) { EvidenceKind.CUT } +
             List(brief.slots.keep) { EvidenceKind.KEEP }
         return kinds.mapIndexed { index, kind ->
-            mapOf("kind" to kind.key, "line_id" to lineIds[index], "chip_key" to chips[index], "label" to LABELS[index], "line" to LINES[index])
+            mapOf("kind" to kind.key, "line_id" to lineIds[index], "chip_key" to chips[index], "label" to LABELS[index], "line" to lineFor(brief, chips[index]))
         }
     }
 
@@ -36,7 +44,7 @@ object TestRoastAnswers {
         title: String = "약속 발사대",
         heroLineId: Int = sentLineIds(brief).last(),
         heroChipKey: String = brief.facts.keys().first(),
-        finalLine: String = "약속 발사대는 올해도 바빴다.",
+        finalLine: String = "${chipWordOf(brief, heroChipKey)} 장부는 올해도 바빴다.",
     ): String = TestRoasts.mapper.writeValueAsString(
         mapOf(
             "verdict_line" to verdictLine,

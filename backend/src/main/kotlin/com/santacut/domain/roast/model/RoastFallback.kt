@@ -28,11 +28,15 @@ data class RoastFallback(
         return RoastEvidence(kind, null, fact.key, fact.chip, null, copy.labelAt(index), copy.lineAt(index), RoastSource.FALLBACK)
     }
 
-    /** [grade] 구간의 대체 결론. 대표 말풍선과 칩은 [hero] 근거 카드 것이고, 없으면 비운다. [plain]이면 유행어 없는 마지막 한 줄을 쓴다. */
+    /**
+     * [grade] 구간의 대체 결론. 대표 말풍선과 칩은 [hero] 근거 카드 것이고, 없으면 비운다. 고마워 칩은 대표 칩으로 쓰지 않는다.
+     * [plain]이면 유행어 없는 마지막 한 줄을 쓴다.
+     */
     fun conclusionOf(grade: GiftGrade, hero: RoastEvidence?, plain: Boolean): RoastConclusion {
         val band = bandOf(grade)
+        val chip = hero?.takeUnless { evidence -> evidence.chipKey == ThanksFactSpec.KEY }
         return RoastConclusion(
-            RoastText(band.title, RoastSource.FALLBACK), hero?.lineId, hero?.chipKey, hero?.quote, hero?.chip,
+            RoastText(band.title, RoastSource.FALLBACK), hero?.lineId, chip?.chipKey, hero?.quote, chip?.chip,
             RoastText(band.finalLine(plain), RoastSource.FALLBACK),
         )
     }

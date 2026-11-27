@@ -23,8 +23,10 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     /** 대체 문장으로 채운 근거 카드 수. */
     fun fallbackCount(): Int = values.sumOf(RoastEvidence::fallbackCount)
 
-    /** 결론 카드의 대표 근거로 쓸 첫 카드. 말풍선이 있는 카드를 먼저 고른다. 없으면 null이다. */
-    fun hero(): RoastEvidence? = values.firstOrNull { evidence -> evidence.quote != null } ?: values.firstOrNull()
+    /** 결론 카드의 대표 근거로 쓸 첫 카드. 말풍선이 있는 카드, 고마워 칩이 아닌 카드 순으로 고른다. 없으면 null이다. */
+    fun hero(): RoastEvidence? = values.firstOrNull { evidence -> evidence.quote != null }
+        ?: values.firstOrNull { evidence -> evidence.chipKey != ThanksFactSpec.KEY }
+        ?: values.firstOrNull()
 
     /**
      * 덱에 실을 근거 카드. 판정([passed])마다 종류별 상한으로 자르고, 덱이 다섯 장 아래로 내려가지 않게 항목 점수 통계 카드로 채운다.
