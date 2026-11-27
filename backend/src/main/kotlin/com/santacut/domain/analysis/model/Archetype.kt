@@ -7,23 +7,47 @@ import java.math.BigDecimal
  * 위 두 항목 차이가 경계 근처면 수축 전 평균으로 가른다([of]).
  * 순위에는 쓰지 않는다.
  *
+ * 화면 이름([koreanName])은 2026-11-27에 단톡 말투 이름으로 바꿨다(오너: 옛 이름이 낡게 들린다). 항목은 공감=맞장구, 응원=기 살려주기, 존중=선 지키기,
+ * 협력=판 깔기로 읽는다. 상수 이름(코드)은 저장된 결과·공유 카드·프론트 그림 선택이 쓰는 값이라 그대로 둔다. 그래서 상수 이름이 화면 이름과 뜻이 어긋난다:
+ * [HOT_COCOA_COURIER]·[FIREPLACE_KEEPER]·[CAROL_LEADER]·[TREE_TOP_STAR]·[MANNER_SNOWMAN]·[GIFT_WRAPPER]·[RUDOLPH_DRIVER]·[WORKSHOP_ELF]·[SANTA_CANDIDATE]·[GRINCH_APPRENTICE]는
+ * 옛 크리스마스 이름에서 온 코드일 뿐이고, 특히 [WORKSHOP_ELF]의 '엘프'는 금지 말투지만 코드라 화면에 나가지 않는다.
+ *
  * @property koreanName 화면에 보여 줄 이름
  */
 enum class Archetype(val koreanName: String) {
-    HOT_COCOA_COURIER("핫초코 배달부"),
-    FIREPLACE_KEEPER("벽난로 담당"),
-    CAROL_LEADER("캐럴 떼창 리더"),
-    TREE_TOP_STAR("트리 꼭대기 별"),
-    MANNER_SNOWMAN("매너 눈사람"),
-    GIFT_WRAPPER("선물 포장 장인"),
-    RUDOLPH_DRIVER("맨 앞에서 끄는 루돌프"),
-    WORKSHOP_ELF("일 벌이는 공방 엘프"),
-    SANTA_CANDIDATE("산타 후보생"),
-    GRINCH_APPRENTICE("그린치 견습생"),
+    /** 맞장구 × 장난기 높음. */
+    HOT_COCOA_COURIER("헐 먼저 치는 애"),
+
+    /** 맞장구 × 장난기 낮음. */
+    FIREPLACE_KEEPER("읽씹 안 하는 애"),
+
+    /** 기 살려주기 × 장난기 높음. */
+    CAROL_LEADER("호들갑 원탑"),
+
+    /** 기 살려주기 × 장난기 낮음. */
+    TREE_TOP_STAR("하트 먼저 누르는 애"),
+
+    /** 선 지키기 × 장난기 높음. */
+    MANNER_SNOWMAN("웃긴데 무해한 애"),
+
+    /** 선 지키기 × 장난기 낮음. */
+    GIFT_WRAPPER("캡처 프리패스"),
+
+    /** 판 깔기 × 장난기 높음. */
+    RUDOLPH_DRIVER("갑자기 약속 잡는 애"),
+
+    /** 판 깔기 × 장난기 낮음. 코드의 엘프는 옛 이름의 흔적이다. */
+    WORKSHOP_ELF("총대 메는 애"),
+
+    /** 균형형, 항목 평균 높음. */
+    SANTA_CANDIDATE("육각형 인간"),
+
+    /** 균형형, 항목 평균 낮음. */
+    GRINCH_APPRENTICE("ㅇㅇ만 치는 애"),
     ;
 
     /**
-     * 석탄 덱에 실을 유형. 장난기 높은 유형(캐럴 떼창 리더 등)은 같은 항목의 장난기 낮은 유형으로, 산타 후보생은 그린치 견습생으로 바꾼다.
+     * 석탄 덱에 실을 유형. 장난기 높은 유형(호들갑 원탑 등)은 같은 항목의 장난기 낮은(차분한) 유형으로, 육각형 인간은 ㅇㅇ만 치는 애로 바꾼다.
      * 석탄을 받은 사람에게 신나는 유형 이름이 붙어 판정과 어긋나지 않게 한다. 그 밖의 유형은 그대로다.
      */
     fun forCoal(): Archetype = when (this) {
@@ -52,7 +76,7 @@ enum class Archetype(val koreanName: String) {
          */
         val RAW_BALANCED_GAP = BigDecimal(6)
 
-        /** 균형형에서 항목 평균이 이 이상이면 산타 후보생, 아래면 그린치 견습생이다. */
+        /** 균형형에서 항목 평균이 이 이상이면 육각형 인간, 아래면 ㅇㅇ만 치는 애다. */
         val BALANCED_HIGH_AVERAGE = BigDecimal(60)
 
         /**

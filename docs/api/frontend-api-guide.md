@@ -391,7 +391,7 @@ function watchAnalysis(id: string, onStatus: (status: AnalysisStatus) => void, o
     {"index": 4, "kind": "CONCLUSION", "width": 1080, "height": 1920, "score_text": "72.40", "rank": 48213, "top_percent": 38,
      "verdict": "착한 아이", "passed": true, "grade": "굴뚝에 걸쳐서 통과", "grade_code": "SCRAPED_THROUGH",
      "band_tag": "걸쳐서통과", "band_position": 2, "title": "약속 발사대", "archetype_code": "CAROL_LEADER",
-     "archetype_name": "캐럴 떼창 리더", "type_percent": 12, "hero_quote": "○○이는 언제 가능?",
+     "archetype_name": "호들갑 원탑", "type_percent": 12, "hero_quote": "○○이는 언제 가능?",
      "hero_chip_text": "'ㄱ?' 19번", "final_line": "약속은 네가 쏘고 선물은 산타가.", "cut_distance": "+7.40",
      "friend_call": "우리 방에서 나보다 착한 애 나와"}
   ]
@@ -518,18 +518,20 @@ type RecapResponse = {
 - **공유 문구는 서버 것**: `share_text`를 그대로 쓴다. 화면에서 숫자나 닉네임을 덧붙인 문구를 만들지 않는다.
 - **이름 가림은 서버가 한다**: 말풍선에는 이미 `○○`가 들어 있다. 화면에서 따로 지울 것은 없다.
 
-#### 유형 이름 바꾸기(예정)
+#### 유형 이름 바꾸기(완료)
 
-**예정(서버 작업 전), 최종 이름은 오너가 고르는 중.** 아래는 새 후보다. 지금 유형 이름은 결론 카드의 `archetype_name` 값이다.
+**서버 반영 완료(2026-11-27).** 유형 이름(`archetype_name`)이 아래 이름으로 바뀌었다. `archetype_code`는 그대로다. 옛 크리스마스 이름에서 온 코드라 이름과 뜻이 어긋나도 코드로만 쓴다.
 
-| 항목 후보 | 장난기 높음 | 장난기 낮음 |
+| 항목 | 장난기 높음 | 장난기 낮음 |
 | --- | --- | --- |
-| 맞장구 | 헐 먼저 치는 애 | 읽씹 안 하는 애 |
-| 기 살려주기 | 호들갑 원탑 | 하트 먼저 누르는 애 |
-| 선 지키기 | 웃긴데 무해한 애 | 캡처 프리패스 |
-| 판 깔기 | 갑자기 약속 잡는 애 | 총대 메는 애 / 정산 먼저 하는 애(미정) |
+| 맞장구(공감) | 헐 먼저 치는 애 (`HOT_COCOA_COURIER`) | 읽씹 안 하는 애 (`FIREPLACE_KEEPER`) |
+| 기 살려주기(응원) | 호들갑 원탑 (`CAROL_LEADER`) | 하트 먼저 누르는 애 (`TREE_TOP_STAR`) |
+| 선 지키기(존중) | 웃긴데 무해한 애 (`MANNER_SNOWMAN`) | 캡처 프리패스 (`GIFT_WRAPPER`) |
+| 판 깔기(협력) | 갑자기 약속 잡는 애 (`RUDOLPH_DRIVER`) | 총대 메는 애 (`WORKSHOP_ELF`) |
 
-균형형 후보(네 항목 점수가 고르게 나온 사람): 육각형 인간(또는 걍 사기캐), ㅇㅇ만 치는 애.
+균형형(네 항목 점수가 고르게 나온 사람): 평균이 높으면 육각형 인간(`SANTA_CANDIDATE`), 낮으면 ㅇㅇ만 치는 애(`GRINCH_APPRENTICE`).
+
+석탄 덱 결론 카드는 차분한 쪽 이름을 싣는다. 장난기 높음 유형은 같은 항목의 장난기 낮음 이름으로, 육각형 인간은 ㅇㅇ만 치는 애로 바뀐다. 이미 만든 공유 링크는 만든 순간의 이름을 그대로 보여 줄 수 있다.
 
 **프론트는 유형 이름을 하드코딩하지 않는다.** 화면은 늘 API의 `archetype_name`을 찍는다. 일러스트처럼 코드로 고르는 것은 `archetype_code`로 고르되, 모르는 코드면 기본 그림을 쓴다.
 
