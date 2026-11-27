@@ -31,22 +31,26 @@ export async function getMyResult(signal?: AbortSignal) {
   }
 }
 export interface ShareResponse { token: string; url: string; imageUrl: string }
-export type RecapCard = ({ index: number; score_text: string; width: number; height: number } & (
-  | { kind: "VERDICT"; cut_distance: string; passed: boolean; stamp: string; stamp_mild: string; grade: string; rank: number | null; ranking_pending: boolean; delivery_eta: string | null; title: string; verdict: string; verdict_mild: string }
-  | { kind: "ROAST"; chip: { label: string; value: string } | null; roast: string; flip: string }
-  | { kind: "LETTER"; letter: string }
-  | { kind: "STORY"; acts: Array<{ act: number; months: string; line: string }> }
-  | { kind: "ARCHETYPE"; archetype: { code: string; name: string } }
-  | { kind: "DIMENSIONS"; bars: Array<{ key: string; label: string; score: number }> }
+export interface RecapBand { code: string; label: string; range: string; current: boolean }
+export type RecapEvidenceKind = "REASON" | "CUT" | "KEEP";
+export type RecapCard = ({ index: number; score_text: string; width: number; height: number; rank: number | null; top_percent: number | null } & (
+  | { kind: "VERDICT"; verdict: string; passed: boolean; score: number; cut: number; cut_distance: string; cut_distance_value: number; grade: string; grade_code: string; verdict_line: string; delivery_eta: string | null }
+  | { kind: "CUTLINE"; total: number | null; grade: string; grade_code: string; band_detail: string; band_position: number; bands: RecapBand[] }
+  | { kind: RecapEvidenceKind; ordinal: number; quote: string | null; chip_text: string; label: string; line: string; dim_tag: string | null }
+  | { kind: "CONCLUSION"; verdict: string; passed: boolean; grade: string; grade_code: string; band_tag: string; band_position: number; title: string; archetype_code: string; archetype_name: string; type_percent: number | null; hero_quote: string | null; hero_chip_text: string | null; final_line: string; cut_distance: string; friend_call: string }
 ));
 export interface RecapResponse {
   assessment_id: string;
   skin: "GIFT" | "COAL";
+  score: number;
   score_text: string;
   share_text: string;
-  share_text_mild: string;
+  rank: number | null;
+  top_percent: number | null;
+  ranking_pending: boolean;
   cards: RecapCard[];
 }
+const recapKinds = new Set<string>(["VERDICT", "CUTLINE", "REASON", "CUT", "KEEP", "CONCLUSION"]);
 export interface DossierScene {
   id: string;
   kind: string;
@@ -60,8 +64,17 @@ export interface DossierScene {
 }
 export interface DossierResponse { title: string; tone: "normal" | "mild"; scenes: DossierScene[] }
 export async function getMyRecap(signal?: AbortSignal) {
-  return (await api.get<RecapResponse>("/me/recap", { signal })).data;
+  try {
+    const recap = (await api.get<RecapResponse>("/me/recap", { signal })).data;
+    // Skip card kinds this build does not know so a newer server deck still renders.
+    return { ...recap, cards: recap.cards.filter(card => recapKinds.has(card.kind)) };
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 404) return null;
+    throw error;
+  }
 }
+export const RECAP_POLL_MS = 3_000;
+export const recapRefetchInterval = (recap: RecapResponse | null | undefined) => recap?.ranking_pending ? RECAP_POLL_MS : false;
 export async function getMyDossier(signal?: AbortSignal) {
   return (await api.get<DossierResponse>("/me/dossier", { signal })).data;
 }

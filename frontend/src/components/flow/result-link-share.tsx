@@ -46,7 +46,7 @@ export function ResultLinkShare({ ranked }: { ranked: boolean }) {
     <button type="button" className="flow-secondary" disabled={!ranked || pending} onClick={() => void shareLink()}>
       {pending ? "링크 만드는 중…" : "링크 공유하기"}<span aria-hidden="true">↗</span>
     </button>
-    <p className="flow-share-note">{ranked ? "링크를 가진 사람은 공개 결과 요약을 볼 수 있어요." : "순위가 나오면 링크를 공유할 수 있어요."}</p>
+    <p className="flow-share-note">{ranked ? "링크를 받은 사람은 누구나 리캡 카드를 모두 볼 수 있어요." : "순위가 나오면 링크를 공유할 수 있어요."}</p>
     {url && <input ref={input} aria-label="공유할 결과 링크" value={url} readOnly onFocus={() => input.current?.select()} />}
     {message && <p className="flow-share-note" role="status">{message}</p>}
     {error && <p className="flow-error" role="alert">{error}</p>}
