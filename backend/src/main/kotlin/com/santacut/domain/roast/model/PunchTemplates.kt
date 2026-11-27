@@ -15,7 +15,7 @@ class PunchTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     fun size(): Int = values.size
 
-    /** 서로 다른 표지 수. 풀마다 [RoastPunch.MIN_STRUCTURES]개 이상이어야 한다. */
+    /** 서로 다른 표지 수. 한 등급의 마지막 한 줄 후보(구간 풀 + 판정 풀)는 [RoastPunch.MIN_STRUCTURES]개 이상이어야 한다. */
     fun markerCount(): Int = values.map(PunchTemplate::marker).distinct().size
 
     /** 대체 문장에 허용 유행어가 없는 틀이 있는지. 덱 전체 유행어 상한을 넘을 때 쓸 펀치가 있어야 한다. */

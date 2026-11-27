@@ -25,6 +25,7 @@ import kotlin.math.abs
  * @property foreignMarks 이 사람의 구간이 쓸 수 없는 다른 구간의 표현(구간 이름, 구간 밈)
  * @property examples 그대로 베끼면 떨어지는 예시 문장(프롬프트 예시, 대체 문장)
  * @property thanksWords 고맙다는 말의 줄기. 고마워 칩이 있으면 판정 한 줄에 쓰지 못한다.
+ * @property thanksZero 고맙다는 말이 올해 한 번도 없는지. 다른 깎인 말 칩이 넉넉해 고마워 칩을 빼도([RoastFacts.withoutSpareThanks]) 판정 한 줄은 고맙다는 말로 이끌지 못한다.
  */
 class RoastBrief(
     val verdict: GiftVerdict,
@@ -46,13 +47,14 @@ class RoastBrief(
     private val foreignMarks: ForeignMarks = ForeignMarks.EMPTY,
     private val examples: ExampleLines = ExampleLines.EMPTY,
     private val thanksWords: List<String> = emptyList(),
+    private val thanksZero: Boolean = false,
 ) {
     /** 작가 입력. 다시 쓰기면 [rewrite]를 싣는다. */
     fun input(rewrite: RoastRewrite? = null): RoastInput =
         RoastInput(
             verdict.key(), verdict.margin().word, verdict.grade().name, verdict.grade().temperature, facts, facts.chipHints(peakHour), slots,
             quotes, topics, lines.toActs(), slang.hints(), rewrite, suggestedPunches.hints(), verdictPunch?.template, nearMiss(),
-            signatureKey(), foreignMarks.toList(),
+            signatureKey(), foreignMarks.toList(), quoteCutKey(),
         )
 
     /**
@@ -71,9 +73,16 @@ class RoastBrief(
     /** [text]가 그대로 베낀 예시 문장인지. */
     fun isExample(text: String): Boolean = text in examples
 
-    /** 고마워 칩이 있을 때 [text]에 쓴 고맙다는 말. 고마워 0번이 판정 한 줄을 이끌지 못하게 한다. 칩이 없거나 말이 없으면 null이다. */
+    /** [text]가 컷과 [CLOSE_HUNDREDTHS] 안으로 붙은 사람만 쓸 수 있는 아슬아슬하다는 말(턱걸이 등)을 썼는데 점수가 그만큼 붙지 않았을 때 그 말. 없으면 null이다. */
+    fun farNearMissIn(text: String, rules: RoastRules): String? =
+        rules.nearMissWordIn(text)?.takeIf { abs(verdict.cutDistanceHundredths()) >= CLOSE_HUNDREDTHS }
+
+    /** 칭호 [title]에 쓴 이 사람 구간의 이름('명단 실종자'의 명단 실종). 없으면 null이다. */
+    fun bandNameIn(title: String): String? = foreignMarks.ownNameIn(title)
+
+    /** 고마워 칩이 있거나 고맙다는 말이 한 번도 없을 때 [text]에 쓴 고맙다는 말. 고마워 0번이 판정 한 줄을 이끌지 못하게 한다. 그렇지 않거나 말이 없으면 null이다. */
     fun thanksWordIn(text: String): String? {
-        if (!hasFact(ThanksFactSpec.KEY)) return null
+        if (!hasFact(ThanksFactSpec.KEY) && !thanksZero) return null
         val bare = TextProblems.QUOTE.replace(text, "")
         return thanksWords.firstOrNull { word -> word in bare }
     }
@@ -86,6 +95,21 @@ class RoastBrief(
 
     /** [key] 칩 후보의 영역 태그용 항목 점수 key. 없으면 null이다. */
     fun dimensionOf(key: String): String? = facts.find(key)?.dimension
+
+    /** [key] 칩이 말하는 버릇([RoastFact.topic]). 칩 후보가 아니면 key 그대로다. 깎인 말과 살아남은 말이 같은 버릇을 쓰는지 견줄 때 쓴다. */
+    fun topicOf(key: String): String = facts.find(key)?.topic() ?: key
+
+    /**
+     * 본인 말풍선을 붙여 깎인 말로 써야 하는 입버릇 칩 key. 깎인 말 자리가 있을 때, 깎인 말에 쓸 수 있는 입버릇 칩(나쁜 쪽 먼저, 다음은 어느 쪽으로도 쓰는 것) 가운데
+     * 그 입버릇이 든 본인 줄이 있는 첫 칩이다. 깎인 말 가운데 한 장은 이 칩처럼 본인 말을 띄워야 한다('빨리 대답좀'에 '빨리' 칩). 없으면 null이다.
+     */
+    fun quoteCutKey(): String? {
+        if (slots.cut == 0) return null
+        return facts.toList()
+            .filter { fact -> fact.key.startsWith(PhraseFactSpec.KEY_PREFIX) && fact.direction.allows(EvidenceKind.CUT) }
+            .sortedBy { fact -> fact.direction != ChipDirection.BAD }
+            .firstOrNull { fact -> lineQuotes.usableIds().any { lineId -> quoteFits(fact.key, lineId) } }?.key
+    }
 
     /**
      * 대표 사실 칩 key. 근거 카드나 결론 대표 칩 가운데 한 곳에 써야 한다. 가장 튀는 근거용 사실([RoastFacts.signature])이 작가가 실제로 놓을 수 있는
@@ -171,8 +195,23 @@ class RoastBrief(
      * 칩 후보로 만든 통계 카드. 작가 근거가 검증을 끝내 통과하지 못한 자리에 쓴다. 이미 받은 근거 [kept]가 있으면
      * 통계 카드 슬롯 수에서 그 수를 뺀 만큼만, [kept]가 쓰지 않은 칩으로 만든다. 점수 깎인 말은 고마워 칩을 먼저 쓴다.
      */
-    fun fallbackEvidence(fallback: RoastFallback, kept: RoastEvidences = RoastEvidences.EMPTY): RoastEvidences =
-        facts.chipFacts().fallbackEvidence(statSlots.remainingAfter(kept), fallback, kept)
+    fun fallbackEvidence(fallback: RoastFallback, kept: RoastEvidences = RoastEvidences.EMPTY): RoastEvidences {
+        val quoted = quotedCutFallback(fallback, kept) ?: return facts.chipFacts().fallbackEvidence(statSlots.remainingAfter(kept), fallback, kept)
+        val taken = RoastEvidences(kept.toList() + quoted)
+        return facts.chipFacts().fallbackEvidence(statSlots.remainingAfter(taken), fallback, taken).withFirst(quoted)
+    }
+
+    /**
+     * 깎인 말 자리가 남았는데 받아 둔 카드 [kept]에 본인 말을 붙인 입버릇 깎인 말이 없으면 [quoteCutKey] 칩으로 만든 대체 카드.
+     * 말풍선은 그 입버릇이 든 본인 줄 가운데 아직 쓰지 않은 첫 줄이다. 만들 수 없으면 null이다.
+     */
+    private fun quotedCutFallback(fallback: RoastFallback, kept: RoastEvidences): RoastEvidence? {
+        if (statSlots.remainingAfter(kept).cut == 0 || kept.hasQuotedPhraseCut()) return null
+        val key = quoteCutKey()?.takeIf { key -> key !in kept.chipKeys() } ?: return null
+        val fact = facts.chipFacts().find(key) ?: return null
+        val lineId = lineQuotes.usableIds().firstOrNull { lineId -> lineId !in kept.lineIds() && quoteFits(key, lineId) } ?: return null
+        return fallback.evidenceOf(EvidenceKind.CUT, kept.countOf(EvidenceKind.CUT), fact).copy(lineId = lineId, quote = quoteOf(lineId))
+    }
 
     /**
      * 작은따옴표로 인용해도 되는지. 인용 후보 목록에 있거나, 목록 밖이라도 웃음·울음 자모 표기([RoastQuotes.isLaughOrCry])가
@@ -195,6 +234,9 @@ class RoastBrief(
 
         /** 이만큼 이어진 글자가 본인 말풍선과 같으면 베낀 것으로 본다. */
         const val COPIED_LENGTH = 8
+
+        /** 컷과 이만큼(100분의 1점) 안으로 붙어야 칭호에 턱걸이 같은 아슬아슬하다는 말을 쓸 수 있다. 컷 +8점에 턱걸이를 붙이지 않게 한다. */
+        const val CLOSE_HUNDREDTHS = 300
 
         /** 컷과 이만큼(100분의 1점) 안으로 붙으면 아슬아슬하다는 말을 작가에게 준다. */
         private const val NEAR_MISS_HUNDREDTHS = 100
@@ -226,8 +268,9 @@ class RoastBrief(
             val sent = all.trimmed(CHARS_PER_ACT)
             val lineQuotes = sent.quotes(catalog.rules.quotePattern(all.quoteWords() + participants.toList()))
             val refreshed = stats?.refreshedBy(dossier.phrases)
-            val facts = refreshed?.let { counted -> RoastFacts.of(counted, dossier, catalog, seed) } ?: RoastFacts.EMPTY
+            val drawnFacts = refreshed?.let { stats -> RoastFacts.of(stats, dossier, catalog, seed) } ?: RoastFacts.EMPTY
             val slots = RoastSlots.of(verdict, dimensions)
+            val facts = drawnFacts.withoutSpareThanks(slots, lineQuotes.usableCount())
             val punches = catalog.punch.candidatesFor(verdict, seed)
             val supply = facts.supply()
             return RoastBrief(
@@ -250,6 +293,7 @@ class RoastBrief(
                 catalog.punch.foreignMarksFor(verdict.grade()),
                 catalog.examples,
                 catalog.thanks.words,
+                drawnFacts.find(ThanksFactSpec.KEY) != null,
             )
         }
     }

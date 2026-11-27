@@ -84,16 +84,17 @@ class RoastFallbackTest {
     }
 
     @Test
-    fun `입버릇 칩은 따옴표로 감싼 입버릇 장인상을 쓰고 넣으면 너무 긴 입버릇이면 고정 라벨을 쓴다`() {
+    fun `입버릇 칩 라벨은 따옴표 없는 행동 이름 상이고 한 줄은 따옴표로 든 입버릇을 쓴다`() {
         val sugo = fallback.evidenceOf(EvidenceKind.REASON, 0, phraseFact("sugo", "수고"))
         val go = fallback.evidenceOf(EvidenceKind.REASON, 0, phraseFact("go_q", "ㄱ?"))
         val long = fallback.evidenceOf(EvidenceKind.REASON, 0, phraseFact("maldo_an_dwae", "말도 안 돼"))
 
-        assertEquals("'수고'장인상", sugo.label)
+        assertEquals("입버릇장인상", sugo.label)
         assertTrue(sugo.line.contains("'수고'"))
-        assertEquals("'ㄱ?'장인상", go.label)
+        assertEquals("입버릇장인상", go.label)
         assertTrue(go.line.contains("'ㄱ?'"))
         assertEquals("입버릇장인상", long.label)
+        assertEquals("말버릇명수상", fallback.evidenceOf(EvidenceKind.REASON, 1, phraseFact("sugo", "수고")).label)
         assertTrue(long.line.contains("'말도 안 돼'"))
     }
 

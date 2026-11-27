@@ -54,8 +54,9 @@ class RecapJudgeBandTest {
 
         assertTrue("프리패스" in banned, banned.toString())
         assertTrue("체포하겠" in banned, banned.toString())
-        assertFalse("넌 남아" in banned, banned.toString())
-        GiftGrade.entries.forEach { grade -> assertNull(punch.foreignMarksFor(grade).foundIn("이름이 명단에 없다고요? 예?"), grade.name) }
+        assertTrue("넌 남아" in banned, banned.toString())
+        assertFalse("딸깍" in banned, banned.toString())
+        GiftGrade.entries.forEach { grade -> assertNull(punch.foreignMarksFor(grade).foundIn("이름이 명단에 없다고요."), grade.name) }
     }
 
     @Test

@@ -217,13 +217,28 @@ class TextProblems(private val values: List<String>) {
             rules.slangOverflowIn(text)?.let { found -> "유행어는 필드마다 하나까지($found)" },
             rules.wrongDirectionIn(text, brief.verdict.passed)?.let { found -> "판정과 어긋남($found)" },
             rules.flipIn(QUOTE.replace(text, ""))?.let { found -> "칭찬 뒤집기 말($found)" },
-            "라벨은 '${rules.labelSuffix}'으로 끝나는 상 이름이어야 한다".takeIf { kind == RoastTextKind.LABEL && !rules.isAwardLabel(text) },
             NOT_PUNCH.takeIf { kind == RoastTextKind.FINAL_LINE && !rules.isPunch(text) },
             punchTemplateProblem(text, kind, brief, rules),
             FLAT_ENDING.takeIf { kind == RoastTextKind.EVIDENCE_LINE && isFlatEnding(text, rules) },
             DESCRIPTIVE_TITLE.takeIf { kind == RoastTextKind.TITLE && isDescriptiveTitle(text) },
             brief.foreignMarkIn(text)?.takeIf { kind in BAND_KINDS }?.let { mark -> "다른 구간의 표현($mark)" },
-        ) + verdictProblems(text, kind, brief, rules)
+            "라벨은 '${rules.labelSuffix}'으로 끝나는 상 이름이어야 한다".takeIf { kind == RoastTextKind.LABEL && !rules.isAwardLabel(text) },
+            rules.labelShapeProblemIn(text)?.takeIf { kind == RoastTextKind.LABEL },
+            rules.personalityIn(text)?.let { found -> "인격 단정어($found, 놀림은 행동에만 한다)" },
+            rules.stockPhraseIn(text)?.let { found -> "예시 상투 문구($found)" },
+        ) + titleProblems(text, kind, brief, rules) + verdictProblems(text, kind, brief, rules)
+
+        /**
+         * 칭호만의 검사. 금지 끝말(왕, 장인)로 끝나거나, 이 사람 구간 이름을 되풀이하거나('명단 실종자'), 컷과 붙지 않았는데 턱걸이 같은 아슬아슬하다는 말을 쓰면 떨어진다.
+         */
+        private fun titleProblems(text: String, kind: RoastTextKind, brief: RoastBrief, rules: RoastRules): List<String> {
+            if (kind != RoastTextKind.TITLE) return emptyList()
+            return listOfNotNull(
+                rules.titleEndingIn(text)?.let { found -> "칭호 끝말 금지($found)" },
+                brief.bandNameIn(text)?.let { found -> "구간 이름을 되풀이한 칭호($found)" },
+                brief.farNearMissIn(text, rules)?.let { found -> "점수와 어긋난 칭호($found, 컷과 붙지 않았다)" },
+            )
+        }
 
         /**
          * 판정 한 줄만의 검사. 정해 준 판정 틀([RoastBrief.verdictPunch])의 표지를 써야 하고, 판정 자리를 입버릇 하나로 채우거나('출발 줴줴이야~') 비우면 안 되며,

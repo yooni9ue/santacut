@@ -8,13 +8,15 @@ import com.santacut.domain.analysis.model.GiftVerdict
  * 판정 한 줄과 결론 마지막 한 줄의 펀치 틀 풀(roast/punch.json). 마지막 한 줄은 구간(등급) 풀과 판정(GIFT, COAL) 풀을 합친 후보에서,
  * 판정 한 줄은 구간별 판정 풀([verdicts])에서 고른다. 어느 쪽이든 참가자·해 시드로 풀을 돌려 한 사람에게 틀 하나씩만 정해 준다.
  * 시드가 하나 차이인 이웃끼리도 다른 틀을 받아, 같은 구간 덱이 '올해 너는 OO야~'처럼 한 틀로 몰리지 않게 한다.
- * 구간 이름과 구간 밈은 그 구간만 쓴다([bandMarks]).
+ * 구간 이름과 구간 밈은 그 구간만 쓴다([bandMarks]). 구간 밈은 명세 5절 구간 표를 따른다: 90+ 요이~·넌 남아라, 75~89 딸깍, 65~74 아뇨아뇨아뇨·○○이야~,
+ * 55~64 줴줴이야·엄…, 50~54 예?·영원할 건가 보다, 49 이하 체포하겠어·L을 가져가·퇴사할게여.
  *
  * @property bands 등급 이름([GiftGrade.name])별 마지막 한 줄 펀치 틀
  * @property skins 판정([GiftVerdict.skin])별 마지막 한 줄 펀치 틀
  * @property suggestions 작가에게 정해 주는 마지막 한 줄 틀 수
  * @property verdicts 등급 이름별 판정 한 줄 틀. 이 틀의 표지([PunchTemplate.marker])가 그 사람의 판정 한 줄 유행어 가족이다.
  * @property bandMarks 구간이 가진 표현. 다른 구간의 판정 한 줄·결론에 쓰지 못한다.
+ * @property bandNames 등급 이름별 구간 이름 낱말. 그 구간 칭호가 구간 이름을 되풀이하지 못하게 한다('명단 실종자').
  */
 data class RoastPunch(
     val bands: PunchPools,
@@ -22,9 +24,11 @@ data class RoastPunch(
     val suggestions: Int,
     val verdicts: PunchPools = PunchPools.EMPTY,
     @JsonProperty("band_marks") val bandMarks: BandMarks = BandMarks.EMPTY,
+    @JsonProperty("band_names") val bandNames: Map<String, List<String>> = emptyMap(),
 ) {
     /**
-     * 풀 위반. 등급·판정마다 풀이 있고, 마지막 한 줄 풀마다 표지가 [MIN_STRUCTURES]개 이상이며 유행어 없는 대체 문장이 하나 이상 있어야 한다.
+     * 풀 위반. 등급·판정마다 풀이 있고, 풀 하나 안에서는 같은 표지 틀이 둘 이상 없어야 한다('올해 너는 ○○이야~' 쏠림을 막는다).
+     * 한 등급이 쓰는 마지막 한 줄 후보(구간 풀 + 판정 풀)는 표지가 [MIN_STRUCTURES]개 이상이고 유행어 없는 대체 문장이 하나 이상 있어야 한다.
      * 판정 한 줄 풀은 등급마다 표지가 [MIN_VERDICTS]개 이상이다. 어느 등급이 쓰는 틀도 다른 구간의 표현을 품지 않아야 한다.
      */
     fun violations(rules: RoastRules): List<String> = listOfNotNull(
@@ -32,8 +36,17 @@ data class RoastPunch(
         skins.missing(SKINS).takeIf(List<String>::isNotEmpty)?.let { names -> "punch.skins: 풀이 없는 판정 $names" },
         verdicts.missingGrades().takeIf(List<String>::isNotEmpty)?.let { names -> "punch.verdicts: 풀이 없는 등급 $names" },
         "punch.suggestions: ${MIN_SUGGESTIONS}~${MAX_SUGGESTIONS}개다".takeUnless { suggestions in MIN_SUGGESTIONS..MAX_SUGGESTIONS },
-    ) + bands.violations(BANDS_FIELD, MIN_STRUCTURES, rules) + skins.violations(SKINS_FIELD, MIN_STRUCTURES, rules) +
-        verdicts.templateViolations(VERDICTS_FIELD, MIN_VERDICTS, rules) + bandMarks.violations() + foreignViolations()
+    ) + bands.templateViolations(BANDS_FIELD, 1, rules) + skins.templateViolations(SKINS_FIELD, 1, rules) +
+        verdicts.templateViolations(VERDICTS_FIELD, MIN_VERDICTS, rules) + bandMarks.violations() + gradePoolViolations(rules) + foreignViolations()
+
+    /** 등급마다 마지막 한 줄 후보(구간 풀 + 판정 풀)의 표지 수와 유행어 없는 대체 문장 위반. */
+    private fun gradePoolViolations(rules: RoastRules): List<String> = GiftGrade.entries.flatMap { grade ->
+        val pool = poolOf(GiftVerdict(gradeSample(grade)))
+        listOfNotNull(
+            "punch: ${grade.name} 마지막 한 줄 후보의 표지가 ${MIN_STRUCTURES}개 이상이어야 한다".takeIf { pool.markerCount() < MIN_STRUCTURES },
+            "punch: ${grade.name} 마지막 한 줄 후보에 유행어 없는 대체 문장이 있어야 한다".takeUnless { pool.hasPlain(rules) },
+        )
+    }
 
     /** 판정 [verdict] 구간이 마지막 한 줄에 쓸 수 있는 모든 틀(구간 풀과 판정 풀). 배포 전에 대체 문장이 검증 규칙을 통과하는지 테스트가 확인한다. */
     fun poolOf(verdict: GiftVerdict): PunchTemplates = bands.of(verdict.grade().name) + skins.of(verdict.skin())
@@ -55,7 +68,7 @@ data class RoastPunch(
     fun candidatesFor(verdict: GiftVerdict, seed: Int): PunchTemplates = poolOf(verdict).distinctMarkers().rotatedBy(seed)
 
     /** [grade] 구간이 쓸 수 없는 다른 구간의 표현. */
-    fun foreignMarksFor(grade: GiftGrade): ForeignMarks = bandMarks.foreignTo(grade)
+    fun foreignMarksFor(grade: GiftGrade): ForeignMarks = bandMarks.foreignTo(grade, bandNames[grade.name].orEmpty())
 
     private fun foreignViolations(): List<String> = GiftGrade.entries.flatMap { grade ->
         val foreign = foreignMarksFor(grade)
@@ -64,11 +77,11 @@ data class RoastPunch(
     }
 
     companion object {
-        /** 마지막 한 줄 풀 하나에 있어야 하는 서로 다른 펀치 구조(표지) 수. */
-        const val MIN_STRUCTURES = 6
+        /** 한 등급의 마지막 한 줄 후보(구간 풀 + 판정 풀)에 있어야 하는 서로 다른 펀치 구조(표지) 수. 구간 밈이 구간마다 하나둘로 줄어 판정 풀의 공용 표지와 합쳐 센다. */
+        const val MIN_STRUCTURES = 5
 
-        /** 판정 한 줄 풀 하나에 있어야 하는 서로 다른 표지 수. */
-        const val MIN_VERDICTS = 3
+        /** 판정 한 줄 풀 하나에 있어야 하는 서로 다른 표지 수. 마지막 한 줄 틀과 겹치지 않는 판정 틀이 늘 남게 둘 이상이다. */
+        const val MIN_VERDICTS = 2
         private const val MIN_SUGGESTIONS = 1
         private const val MAX_SUGGESTIONS = 3
         private const val BANDS_FIELD = "punch.bands"

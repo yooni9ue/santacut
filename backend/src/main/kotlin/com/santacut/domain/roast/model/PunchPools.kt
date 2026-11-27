@@ -27,20 +27,14 @@ class PunchPools @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
     fun pools(): List<PunchTemplates> = values.values.toList()
 
     /**
-     * 풀마다의 위반. 표지가 [minStructures]개 이상이고 유행어 없는 대체 문장이 하나 이상 있어야 하며, 틀마다 표지를 품어야 한다.
-     * [field]는 위반 설명 머리말(punch.bands 등)이다.
+     * 풀마다 표지가 [minStructures]개 이상인지, 같은 표지 틀이 둘 이상 없는지와 틀마다의 위반. [field]는 위반 설명 머리말(punch.bands 등)이다.
+     * 같은 표지 틀을 한 풀에 두 번 두지 않아 '올해 너는 ○○이야~' 같은 한 틀 가족이 풀마다 하나로 묶인다.
      */
-    fun violations(field: String, minStructures: Int, rules: RoastRules): List<String> = values.flatMap { (name, pool) ->
+    fun templateViolations(field: String, minStructures: Int, rules: RoastRules): List<String> = values.flatMap { (name, pool) ->
         listOfNotNull(
             "$field.$name: 서로 다른 펀치 표지가 ${minStructures}개 이상이어야 한다".takeIf { pool.markerCount() < minStructures },
-            "$field.$name: 유행어 없는 대체 문장이 하나 이상 있어야 한다".takeUnless { pool.hasPlain(rules) },
+            "$field.$name: 같은 표지 틀이 둘 이상 있다".takeIf { pool.markerCount() < pool.size() },
         ) + pool.violations("$field.$name", rules)
-    }
-
-    /** 풀마다 표지가 [minStructures]개 이상인지와 틀마다의 위반. 유행어 없는 대체 문장은 요구하지 않는다(판정 한 줄 풀). */
-    fun templateViolations(field: String, minStructures: Int, rules: RoastRules): List<String> = values.flatMap { (name, pool) ->
-        listOfNotNull("$field.$name: 서로 다른 펀치 표지가 ${minStructures}개 이상이어야 한다".takeIf { pool.markerCount() < minStructures }) +
-            pool.violations("$field.$name", rules)
     }
 
     companion object {

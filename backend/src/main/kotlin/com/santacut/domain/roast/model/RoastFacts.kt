@@ -28,7 +28,7 @@ class RoastFacts(private val values: List<RoastFact>) {
 
     /** 근거 카드 칩 후보. 순서는 사실 순서다. */
     fun chipFacts(): RoastChipFacts =
-        RoastChipFacts(values.map { fact -> RoastChipFact(fact.key, fact.chip, fact.direction, fact.dimension) })
+        RoastChipFacts(values.map { fact -> RoastChipFact(fact.key, fact.chip, fact.direction, fact.dimension, fact.topic()) })
 
     /**
      * 작가 입력의 칩 후보와 말풍선 조건. 칩마다 쓸 수 있는 근거 종류(kinds)를 방향([ChipDirection.kindKeys])으로 싣는다.
@@ -56,6 +56,17 @@ class RoastFacts(private val values: List<RoastFact>) {
     /** 칩 후보 가운데 입버릇 칩의 입버릇 표기. 판정 한 줄이 입버릇 하나만으로 판정 자리를 채웠는지 볼 때 쓴다. */
     fun phrases(): List<String> = values.mapNotNull { fact -> fact.chip.quotedPhrase()?.takeIf { fact.key.startsWith(PhraseFactSpec.KEY_PREFIX) } }
 
+    /**
+     * 다른 깎인 말 칩만으로 깎인 말 자리가 다 차면 고마워 칩을 뺀 후보. '고마워' 0번은 구체적인 나쁜 버릇 칩이 모자랄 때만 깎인 말로 쓴다.
+     * 자리 수는 서버 슬롯 [slots]를 본인 말 [lineCount]줄과 방향별 칩 수로 줄인 값([RoastSlots.limitedTo])으로 견준다. 고마워 칩이 없으면 그대로다.
+     */
+    fun withoutSpareThanks(slots: RoastSlots, lineCount: Int): RoastFacts {
+        val others = RoastFacts(values.filterNot { fact -> fact.key == ThanksFactSpec.KEY })
+        if (others.size() == size()) return this
+        val spare = slots.limitedTo(lineCount, others.supply()).cut >= slots.limitedTo(lineCount, supply()).cut
+        return if (spare) others else this
+    }
+
     /** 이 후보들에 [other]를 덧붙인다. */
     operator fun plus(other: RoastFacts): RoastFacts = RoastFacts(values + other.values)
 
@@ -80,8 +91,22 @@ class RoastFacts(private val values: List<RoastFact>) {
     /** 맨 앞 사실 하나만 든 목록. 비었으면 빈 목록이다. */
     fun head(): RoastFacts = RoastFacts(values.take(1))
 
-    /** 맨 앞을 뺀 나머지. */
-    fun tail(): RoastFacts = RoastFacts(values.drop(1))
+    /**
+     * 특이도 순으로 줄 세운 입버릇 후보에서 반드시 실을 입버릇. 가장 튀는 입버릇(대표 입버릇)과 깎인 말에 쓸 수 있는 가장 튀는 입버릇이다.
+     * 깎인 말 입버릇은 나쁜 쪽('빨리')을 먼저, 없으면 어느 쪽으로도 쓰는 것('뭐임', '했어?')을 고른다. 둘이 같으면 하나다.
+     * 시드 뽑기가 '빨리' 84번 같은 재촉 입버릇을 빼 석탄 덱이 본인 말 카드를 잃던 문제를 막는다.
+     */
+    fun requiredPhrases(): RoastFacts {
+        val top = values.firstOrNull() ?: return EMPTY
+        val cuttable = values.firstOrNull { fact -> fact.direction == ChipDirection.BAD } ?: values.firstOrNull { fact -> fact.direction == ChipDirection.EITHER }
+        return RoastFacts(listOfNotNull(top, cuttable).distinct())
+    }
+
+    /** 앞 [count]개. */
+    fun take(count: Int): RoastFacts = RoastFacts(values.take(count))
+
+    /** [other]에 든 사실을 뺀 나머지. */
+    fun without(other: RoastFacts): RoastFacts = RoastFacts(values.filterNot { fact -> fact in other.values })
 
     /**
      * 남은 계열에서 하나씩 더 뽑는다. 근거 카드에 쓸 수 있는 사실을 먼저 뽑고, 그런 사실이 남은 계열에 없을 때만 중립 사실(대표 칩 후보)을 뽑는다.
@@ -118,21 +143,26 @@ class RoastFacts(private val values: List<RoastFact>) {
         /** softmax 온도. 작을수록 점수 큰 사실만 나오고, 클수록 고르게 섞인다. */
         const val TEMPERATURE = 0.2
 
-        /** 입버릇은 점수가 큰 [PHRASE_POOL]개 가운데 [MAX_PHRASE_FACTS]개까지 시드로 고른다. */
+        /** 입버릇은 점수가 큰 [PHRASE_POOL]개 가운데 [MAX_PHRASE_FACTS]개까지 시드로 고른다. 반드시 실을 입버릇을 더해도 [MAX_PHRASES]개까지다. */
         private const val PHRASE_POOL = 5
         private const val MAX_PHRASE_FACTS = 2
+        private const val MAX_PHRASES = 3
 
         /**
          * 조서 집계 [stats](지금 사전으로 다시 읽은 것)에서 사실을 고른다. 지표는 놀릴 수 있고(mockable) 카드에 실을 수 있고 값이 0이 아니며
          * 백분위가 가운데가 아닌 것만 후보다. 입버릇은 인용해도 되는 말 가운데 보통보다 튀는 것만 후보다.
-         * 입버릇도 점수 무게로 뽑는다. 고르기는 [seed](같은 참가자·같은 해면 같은 값)와 이 방의 집계를 섞은 난수로 한다. 재시도에는 같은 사실이, 다른 사람·다른 방에는 다른 사실이 나온다.
-         * 고른 입버릇 가운데 앞의 것은 지표와 함께 앞자리를 다투고, 둘째 것은 맨 뒤에 덧붙는다. 고맙다는 말이 한 번도 없으면 그 사실을 맨 뒤에 덧붙인다.
+         * 입버릇은 점수 무게로 뽑고, 반드시 실을 것([requiredPhrases]: 가장 튀는 입버릇, 깎인 말에 쓸 가장 튀는 입버릇)을 [MAX_PHRASES]개 안에서 더한다.
+         * 고르기는 [seed](같은 참가자·같은 해면 같은 값)와 이 방의 집계를 섞은 난수로 한다. 재시도에는 같은 사실이, 다른 사람·다른 방에는 다른 사실이 나온다.
+         * 고른 입버릇 가운데 앞의 것은 지표와 함께 앞자리를 다투고, 뽑기에 들지 못한 입버릇은 모두 맨 뒤에 덧붙는다. 고맙다는 말이 한 번도 없으면 그 사실을 맨 뒤에 덧붙인다.
          */
         fun of(stats: DossierStats, dossier: DossierCatalog, catalog: RoastCatalog, seed: Int = 0): RoastFacts {
             val random = Random(Objects.hash(seed, stats.volume.messageCount, stats.volume.charCount, stats.volume.activeDays))
-            val phrases = phraseFacts(stats, dossier, catalog).sampled(random, PHRASE_POOL, MAX_PHRASE_FACTS)
-            val drawn = (metricFacts(dossier.metrics.readings(stats).toList(), catalog.facts) + phrases.head()).drawn(random, MAX_DRAWN_FACTS)
-            return drawn + phrases.tail() + RoastFacts(listOfNotNull(catalog.thanks.factOf(stats)))
+            val pool = phraseFacts(stats, dossier, catalog)
+            val required = pool.requiredPhrases()
+            val sampled = pool.sampled(random, PHRASE_POOL, MAX_PHRASE_FACTS)
+            val phrases = (required + sampled.without(required)).take(MAX_PHRASES)
+            val drawn = (metricFacts(dossier.metrics.readings(stats).toList(), catalog.facts) + sampled.head()).drawn(random, MAX_DRAWN_FACTS)
+            return drawn + phrases.without(drawn) + RoastFacts(listOfNotNull(catalog.thanks.factOf(stats)))
         }
 
         private fun metricFacts(readings: List<MetricReading>, specs: RoastFactSpecs): RoastFacts = RoastFacts(
@@ -141,11 +171,14 @@ class RoastFacts(private val values: List<RoastFact>) {
                 .mapNotNull { reading -> specs.find(reading.key)?.factOf(reading) },
         )
 
+        /** 입버릇 사실 후보. 특이도(보통 사람보다 몇 배 튀는지, 점수 상한 없이)가 큰 순서다. 같은 점수로 묶인 입버릇 가운데 대표 입버릇을 가린다. */
         private fun phraseFacts(stats: DossierStats, dossier: DossierCatalog, catalog: RoastCatalog): RoastFacts = RoastFacts(
             (stats.words.phrasesDistinct.toList() + stats.words.phrasesFrequent.toList())
                 .distinctBy(PhraseTally::key)
                 .filter { tally -> catalog.rules.isQuotable(tally.key, tally.display) }
-                .mapNotNull { tally -> dossier.phrases.find(tally.key)?.let { entry -> catalog.phrase.factOf(tally, entry, stats.textCount()) } },
+                .mapNotNull { tally -> dossier.phrases.find(tally.key)?.let { entry -> tally to entry } }
+                .sortedByDescending { (tally, entry) -> entry.specificity(tally.count, stats.textCount()) }
+                .mapNotNull { (tally, entry) -> catalog.phrase.factOf(tally, entry, stats.textCount()) },
         )
     }
 }

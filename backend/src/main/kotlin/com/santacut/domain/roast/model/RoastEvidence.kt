@@ -31,4 +31,15 @@ data class RoastEvidence(
 ) {
     /** 대체 문장이면 1, 작가 문장이면 0. */
     fun fallbackCount(): Int = if (source == RoastSource.FALLBACK) 1 else 0
+
+    /** 본인 말풍선을 붙인 입버릇 칩 깎인 말 카드인지. 석탄·선물 덱 모두 이런 카드가 하나는 있어야 한다([RoastBrief.quoteCutKey]). */
+    fun isQuotedPhraseCut(): Boolean = kind == EvidenceKind.CUT && quote != null && chipKey.startsWith(PhraseFactSpec.KEY_PREFIX)
+
+    companion object {
+        /** 저장 라벨에서 떼는 글자: 띄어쓰기, 따옴표·낫표, 문장 부호. */
+        private val LABEL_NOISE = Regex("[\\s'\"‘’“”「」『』?!~.,…]")
+
+        /** 저장할 라벨. 띄어쓰기와 따옴표·문장 부호를 뗀다('말수 미달상'은 '말수미달상', ''했어?'생존상'은 '했어생존상'). */
+        fun labelOf(text: String): String = LABEL_NOISE.replace(text, "")
+    }
 }

@@ -718,10 +718,11 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     /**
-     * 작가 입력 [input]의 슬롯 수·본인 줄·칩 후보·정해 준 판정·펀치 틀로 채운, 결론 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답(프롬프트 8판).
+     * 작가 입력 [input]의 슬롯 수·본인 줄·칩 후보·정해 준 판정·펀치 틀로 채운, 결론 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답(프롬프트 9판).
+     * 깎인 말 첫 장은 본인 말 입버릇 칩(quote_cut_chip_key)에 그 입버릇이 든 본인 줄을 붙인다.
      * 근거 카드는 그 kind를 쓸 수 있는(kinds) 서로 다른 칩을 쓰고, 말풍선 없이 쓰는 칩을 먼저 써 line_id 없이 둔다(이 테스트의 말풍선에는
      * 칭찬을 뒤집는 '덕분에'가 있어 이유·살아남은 말 근거가 못 된다). 말풍선이 필요한 칩은 그 말이 든 본인 줄로 쓴다.
-     * 대표 칩은 대표 사실 칩(signature_chip_key)이고, 대표 말은 그 칩에 맞는 마지막 본인 줄이다(말풍선 없이 쓰는 칩이면 없다).
+     * 대표 칩은 대표 사실 칩(signature_chip_key)이고(없으면 첫 칩 후보), 대표 말은 그 칩에 맞는 마지막 본인 줄이다(말풍선 없이 쓰는 칩이면 없다).
      * 판정 한 줄과 마지막 한 줄은 정해 준 틀의 빈칸을 채워 쓴다.
      */
     private fun roastJson(input: String, title: String): String {
@@ -732,8 +733,11 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val kinds = listOf("reason", "cut", "keep").flatMap { kind -> List(slots.path(kind).asInt()) { kind } }
         val used = mutableSetOf<Int>()
         val usedChips = mutableSetOf<String>()
+        val quoteCut = root.path("quote_cut_chip_key").asString()
         val evidence = kinds.mapIndexedNotNull { index, kind ->
-            val chip = chips.firstOrNull { candidate -> candidate.path("chip_key").asString() !in usedChips && allows(candidate, kind) } ?: return@mapIndexedNotNull null
+            val quoted = chips.firstOrNull { candidate -> kind == "cut" && candidate.path("chip_key").asString() == quoteCut && quoteCut !in usedChips }
+            val chip = quoted ?: chips.firstOrNull { candidate -> candidate.path("chip_key").asString() !in usedChips && allows(candidate, kind) }
+                ?: return@mapIndexedNotNull null
             usedChips += chip.path("chip_key").asString()
             val lineId = lineFor(chip, lines, used)?.also(used::add)
             val word = topicOf(root, chip.path("chip_key").asString()) ?: HANGUL_WORD.find(chip.path("label").asString())?.value ?: "장부"
@@ -741,9 +745,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
                 "line" to EVIDENCE_LINES[index].replace(WORD_SLOT, word))
         }
         val signature = root.path("signature_chip_key").asString()
-        val hero = chips.firstOrNull { chip -> chip.path("chip_key").asString() == signature }
+        val hero = chips.firstOrNull { chip -> chip.path("chip_key").asString() == signature } ?: chips.firstOrNull()
         val heroLine = if (hero == null) lines.lastOrNull() else lines.lastOrNull { line -> fits(hero, line) }
-        val heroWord = topicOf(root, signature) ?: HERO_WORD
+        val heroWord = hero?.let { chip -> topicOf(root, chip.path("chip_key").asString()) } ?: HERO_WORD
         val punch = root.path("punch_templates").values().firstOrNull()?.asString()?.let { template ->
             template.replace(PUNCH_BLANK, heroWord).takeIf { line -> line.length >= MIN_FINAL_LENGTH } ?: template.replace(PUNCH_BLANK, "$heroWord $LEDGER")
         } ?: "고마움 장부 결산, 딸깍."
@@ -867,7 +871,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
         private const val ROAST_PROMPT = "작가 프롬프트 1판"
         private const val ROAST_MODEL = "gemini-3.5-flash"
-        private const val VALID_TITLE = "감사 연타왕"
+        private const val VALID_TITLE = "감사 연타범"
         private val EVIDENCE_LABELS = listOf("감사연타상", "힘보탬상", "인사발사상", "고마움상", "말풍선상")
 
         /** 칩 낱말([WORD_SLOT])을 받아 일반론 검사를 통과하고 카드끼리 낱말이 겹치지 않는 근거 한 줄. 모두 완결된 문장 끝으로 맺는다. */

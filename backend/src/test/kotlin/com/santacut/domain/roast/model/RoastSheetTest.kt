@@ -113,9 +113,12 @@ class RoastSheetTest {
 
         assertEquals(RoastText(assertNotNull(brief.verdictPunch).fallback, RoastSource.FALLBACK), content.verdictLine)
         assertEquals(brief.slots.total(), content.evidence.size())
-        assertTrue(content.evidence.toList().all { card -> card.quote == null && card.chip != null && card.source == RoastSource.FALLBACK })
+        assertTrue(content.evidence.toList().all { card -> card.chip != null && card.source == RoastSource.FALLBACK })
+        val quoted = content.evidence.toList().filter { card -> card.quote != null }
+        assertEquals(listOfNotNull(brief.quoteCutKey()), quoted.map(RoastEvidence::chipKey))
+        assertTrue(quoted.all(RoastEvidence::isQuotedPhraseCut))
         assertEquals(band.title, content.conclusion?.title?.text)
-        assertEquals(content.evidence.toList().first().chip, content.conclusion?.heroChip)
+        assertEquals(content.evidence.hero()?.chip, content.conclusion?.heroChip)
     }
 
     @Test

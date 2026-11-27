@@ -25,6 +25,15 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
     /** 쓴 칩 key. */
     fun chipKeys(): Set<String> = values.map(RoastEvidence::chipKey).toSet()
 
+    /** 고른 본인 줄 번호(통계 카드는 뺀다). */
+    fun lineIds(): Set<Int> = values.mapNotNull(RoastEvidence::lineId).toSet()
+
+    /** 본인 말풍선을 붙인 입버릇 깎인 말 카드가 있는지([RoastEvidence.isQuotedPhraseCut]). */
+    fun hasQuotedPhraseCut(): Boolean = values.any(RoastEvidence::isQuotedPhraseCut)
+
+    /** 이 카드들 앞에 [first]를 더한다. */
+    fun withFirst(first: RoastEvidence): RoastEvidences = RoastEvidences(listOf(first) + values)
+
     /** 이 카드에 [other]의 앞 [limit]장을 더해 덱 순서로 줄 세운다. [limit]가 0 이하면 더하지 않는다. */
     fun plus(other: RoastEvidences, limit: Int): RoastEvidences =
         RoastEvidences(values + other.values.take(limit.coerceAtLeast(0))).inDeckOrder()

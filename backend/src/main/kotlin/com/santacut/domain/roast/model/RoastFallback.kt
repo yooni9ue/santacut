@@ -37,7 +37,8 @@ data class RoastFallback(
         val copy = chips.find(fact.key)?.copyOf(kind, mild) ?: evidence.getValue(kind.key)
         val phrase = fact.chip.quotedPhrase()
         return RoastEvidence(
-            kind, null, fact.key, fact.chip, null, copy.labelAt(index, phrase), copy.lineAt(index, phrase), RoastSource.FALLBACK, fact.dimension,
+            kind, null, fact.key, fact.chip, null, RoastEvidence.labelOf(copy.labelAt(index, phrase)), copy.lineAt(index, phrase), RoastSource.FALLBACK,
+            fact.dimension,
         )
     }
 
