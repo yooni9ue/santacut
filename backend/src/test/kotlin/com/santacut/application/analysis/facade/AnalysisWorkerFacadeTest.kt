@@ -744,7 +744,9 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val hero = chips.firstOrNull { chip -> chip.path("chip_key").asString() == signature }
         val heroLine = if (hero == null) lines.lastOrNull() else lines.lastOrNull { line -> fits(hero, line) }
         val heroWord = topicOf(root, signature) ?: HERO_WORD
-        val punch = root.path("punch_templates").values().firstOrNull()?.asString()?.replace(PUNCH_BLANK, "$heroWord $LEDGER") ?: "고마움 장부 결산, 딸깍."
+        val punch = root.path("punch_templates").values().firstOrNull()?.asString()?.let { template ->
+            template.replace(PUNCH_BLANK, heroWord).takeIf { line -> line.length >= MIN_FINAL_LENGTH } ?: template.replace(PUNCH_BLANK, "$heroWord $LEDGER")
+        } ?: "고마움 장부 결산, 딸깍."
         val verdictLine = root.path("verdict_template").asString().ifEmpty { "(판정), 딸깍." }.replace(PUNCH_BLANK, VERDICT_WORD)
         return objectMapper.writeValueAsString(
             mapOf(
@@ -881,6 +883,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val HERO_WORD = "고마움"
         private const val VERDICT_WORD = "결산"
         private const val LEDGER = "장부"
+        private const val MIN_FINAL_LENGTH = 8
         private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
         private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
