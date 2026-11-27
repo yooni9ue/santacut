@@ -50,6 +50,40 @@ class EvidenceDraftTest {
         assertFalse(draft.problems(brief, rules).any { reason -> reason.contains("말풍선") })
     }
 
+    @Test
+    fun `입버릇은 칩 횟수를 센 사전 표면형으로 찾아 미쳤어·ㅈㅉ·말도안돼도 그 입버릇으로 본다`() {
+        val formBrief = formBrief()
+
+        listOf(1 to "michyeotda", 2 to "jinjja", 3 to "maldo_an_dwae").forEach { (lineId, key) ->
+            val chipKey = PhraseFactSpec.KEY_PREFIX + key
+            assertTrue(formBrief.quoteHasPhrase(chipKey, formBrief.quoteOf(lineId).orEmpty()), key)
+            val problems = EvidenceDraft("reason", lineId, chipKey, "입버릇장인상", "입버릇 발사로 방을 굴렸다.").problems(formBrief, rules)
+            assertFalse(problems.any { reason -> reason.contains("입버릇(") }, "$key $problems")
+        }
+        assertFalse(formBrief.quoteHasPhrase(PhraseFactSpec.KEY_PREFIX + "michyeotda", formBrief.quoteOf(PLAIN_LINE).orEmpty()))
+        assertTrue(
+            EvidenceDraft("reason", PLAIN_LINE, PhraseFactSpec.KEY_PREFIX + "jinjja", "입버릇장인상", "입버릇 발사로 방을 굴렸다.")
+                .problems(formBrief, rules).contains("말풍선에 칩 입버릇('진짜')이 없다"),
+        )
+    }
+
+    /** 입버릇 칩 셋(미쳤다·진짜·말도 안 돼)과 표면형으로만 쓴 본인 줄을 쥔 작가 입력. 입버릇은 실제 사전으로 센다. */
+    private fun formBrief(): RoastBrief {
+        val displays = mapOf("michyeotda" to "미쳤다", "jinjja" to "진짜", "maldo_an_dwae" to "말도 안 돼")
+        val facts = RoastFacts(
+            displays.map { (key, display) ->
+                RoastFact(PhraseFactSpec.KEY_PREFIX + key, "'$display'라는 말을 쓴 횟수", "남들보다 많음", "habit", RoastChip("'$display' 발사 횟수", "9번"))
+            },
+        )
+        val quotes = LineQuotes(
+            listOf(LineQuote(1, "와 이거 완전 미쳤어"), LineQuote(2, "ㅈㅉ 오늘 너무 웃겼다"), LineQuote(3, "그게 말도안돼 진심이야"), LineQuote(PLAIN_LINE, "오늘 저녁 뭐 먹을까")),
+        )
+        return RoastBrief(
+            brief.verdict, facts, RoastQuotes.EMPTY, RoastTopics.EMPTY, RoastLines.EMPTY, BlockedWords.EMPTY,
+            lineQuotes = quotes, phrases = TestRoasts.dossier.phrases,
+        )
+    }
+
     private fun draft(lineId: Int, line: String) = EvidenceDraft("reason", lineId, brief.facts.keys().first(), "약속발사상", line)
 
     private fun lineIdOf(text: String): Int = (1..MESSAGES).first { lineId -> brief.quoteOf(lineId) == text }
@@ -58,6 +92,7 @@ class EvidenceDraftTest {
 
     companion object {
         private const val MESSAGES = 120
+        private const val PLAIN_LINE = 4
         private const val THANKS = "오늘도 수고 많았어"
         private const val GOOD_NIGHT = "푹 자 내일 보자"
         private const val REACTION = "ㅇㅇ"

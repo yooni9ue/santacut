@@ -29,14 +29,14 @@ data class EvidenceDraft(val kindKey: String, val lineId: Int?, val chipKey: Str
 
     /**
      * 고른 말풍선 검사. ㅇㅇ·ㅋㅋ 같은 반응이나 한글이 세 음절 이하인 단답([QuoteText.isSubstantial])은 버릇을 보여 주지 못해 떨어진다.
-     * 입버릇 칩을 골랐으면 말풍선에 그 입버릇이 글자 그대로 있어야 한다. 칩과 말풍선이 다른 이야기를 하지 않게 한다.
+     * 입버릇 칩을 골랐으면 말풍선에 그 입버릇이 있어야 한다([RoastBrief.quoteHasPhrase], 칩 횟수와 같은 표면형으로 센다). 칩과 말풍선이 다른 이야기를 하지 않게 한다.
      */
     private fun quoteProblems(brief: RoastBrief): List<String> {
         val quote = lineId?.let(brief::quoteOf) ?: return emptyList()
         val phrase = brief.phraseOf(chipKey)
         return listOfNotNull(
             "말풍선이 너무 짧다(한글 ${QuoteText.MIN_SYLLABLES}음절 이상인 줄만 고른다)".takeUnless { QuoteText.isSubstantial(quote) },
-            "말풍선에 칩 입버릇('$phrase')이 없다".takeIf { phrase != null && phrase !in quote },
+            "말풍선에 칩 입버릇('$phrase')이 없다".takeIf { phrase != null && !brief.quoteHasPhrase(chipKey, quote) },
         )
     }
 

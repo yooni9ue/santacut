@@ -41,8 +41,7 @@ object TestRoastAnswers {
             List(brief.slots.keep) { EvidenceKind.KEEP }
         val used = mutableSetOf<Int>()
         return kinds.mapIndexed { index, kind ->
-            val phrase = brief.phraseOf(chips[index])
-            val lineId = lineIds.first { id -> id !in used && (phrase == null || phrase in brief.quoteOf(id).orEmpty()) }
+            val lineId = lineIds.first { id -> id !in used && brief.quoteHasPhrase(chips[index], brief.quoteOf(id).orEmpty()) }
             used += lineId
             mapOf("kind" to kind.key, "line_id" to lineId, "chip_key" to chips[index], "label" to LABELS[index], "line" to lineFor(brief, chips[index]))
         }
