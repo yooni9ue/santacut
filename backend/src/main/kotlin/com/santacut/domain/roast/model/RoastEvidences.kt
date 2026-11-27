@@ -37,12 +37,13 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     /**
      * 덱에 실을 근거 카드. 판정([passed])마다 종류별 상한으로 자르고, 덱이 다섯 장 아래로 내려가지 않게 항목 점수 통계 카드로 채운다.
-     * 선물 덱은 이유가 적어도 한 장, 석탄 덱은 깎인 말과 살아남은 말이 적어도 한 장씩이고, 근거 카드는 모두 [MIN_CARDS]장 이상이다.
+     * 선물 덱은 이유와 깎인 말이 적어도 한 장씩(모든 항목이 컷 이상이어도 가장 낮은 항목으로 깎인 말을 채운다),
+     * 석탄 덱은 깎인 말과 살아남은 말이 적어도 한 장씩이고, 근거 카드는 모두 [MIN_CARDS]장 이상이다.
      * 항목 점수 칩은 이유·살아남은 말이면 높은 항목부터, 깎인 말이면 낮은 항목부터 쓴다. 문구는 대체 문장([fallback])이다.
      */
     fun completedFor(passed: Boolean, dimensions: ScoreComponents, fallback: RoastFallback): RoastEvidences {
         val capped = RoastEvidences(EvidenceKind.entries.flatMap { kind -> values.filter { it.kind == kind }.take(limitOf(kind, passed)) })
-        val required = if (passed) listOf(EvidenceKind.REASON) else listOf(EvidenceKind.CUT, EvidenceKind.KEEP)
+        val required = if (passed) listOf(EvidenceKind.REASON, EvidenceKind.CUT) else listOf(EvidenceKind.CUT, EvidenceKind.KEEP)
         val withRequired = required.fold(capped) { cards, kind ->
             if (cards.countOf(kind) == 0) cards.withDimension(kind, dimensions, fallback) else cards
         }
