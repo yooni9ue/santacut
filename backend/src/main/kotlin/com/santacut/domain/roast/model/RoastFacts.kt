@@ -27,26 +27,45 @@ class RoastFacts(private val values: List<RoastFact>) {
     fun find(key: String): RoastFact? = values.find { fact -> fact.key == key }
 
     /** 근거 카드 칩 후보. 순서는 사실 순서다. */
-    fun chipFacts(): RoastChipFacts = RoastChipFacts(values.map { fact -> RoastChipFact(fact.key, fact.chip) })
+    fun chipFacts(): RoastChipFacts =
+        RoastChipFacts(values.map { fact -> RoastChipFact(fact.key, fact.chip, fact.direction, fact.dimension) })
 
-    /** 작가 입력의 칩 후보와 말풍선 조건. 고마워 칩은 점수 깎인 말 후보로만 낸다. [peakHour]는 피크타임 칩 조건에 넣는 가장 바쁜 시다. */
+    /**
+     * 작가 입력의 칩 후보와 말풍선 조건. 칩마다 쓸 수 있는 근거 종류(kinds)를 방향([ChipDirection.kindKeys])으로 싣는다.
+     * 고마워 칩은 나쁜 쪽이라 점수 깎인 말 후보로만 나가고, 중립 칩은 kinds가 비어 결론 대표 칩으로만 쓴다. [peakHour]는 피크타임 칩 조건에 넣는 가장 바쁜 시다.
+     */
     fun chipHints(peakHour: Int? = null): RoastChipHints = RoastChipHints(
         values.map { fact ->
-            RoastChipHint(
-                fact.key, fact.chip.label, fact.chip.value, fact.quoteRule.hintWith(peakHour), CUT_ONLY.takeIf { fact.key == ThanksFactSpec.KEY },
-            )
+            RoastChipHint(fact.key, fact.chip.label, fact.chip.value, fact.quoteRule.hintWith(peakHour), fact.direction.kindKeys())
         },
     )
+
+    /**
+     * 이 사람을 가장 잘 말하는 대표 사실(signature). 근거 카드에 쓸 수 있는(중립이 아닌) 사실 가운데 맨 앞이다. [drawn]이 시드로 섞은 뒤
+     * 점수(튀는 정도)가 가장 큰 것을 맨 앞에 두므로 가장 튀는 버릇이다. 고마워 칩은 대표 사실이 아니다. 없으면 null이다.
+     */
+    fun signature(): RoastFact? = values.firstOrNull { fact -> fact.direction.isEvidence() && fact.key != ThanksFactSpec.KEY }
+
+    /** [kind] 근거 카드에 쓸 수 있는 칩 수. 근거 카드 슬롯 수를 재료로 줄일 때 쓴다. */
+    fun countFor(kind: EvidenceKind): Int = values.count { fact -> fact.direction.allows(kind) }
+
+    /** 근거 카드에 쓸 수 있는(중립이 아닌) 칩 수. */
+    fun evidenceCount(): Int = values.count { fact -> fact.direction.isEvidence() }
+
+    /** 칩 후보 가운데 입버릇 칩의 입버릇 표기. 판정 한 줄이 입버릇 하나만으로 판정 자리를 채웠는지 볼 때 쓴다. */
+    fun phrases(): List<String> = values.mapNotNull { fact -> fact.chip.quotedPhrase()?.takeIf { fact.key.startsWith(PhraseFactSpec.KEY_PREFIX) } }
 
     /** 이 후보들에 [other]를 덧붙인다. */
     operator fun plus(other: RoastFacts): RoastFacts = RoastFacts(values + other.values)
 
     /**
-     * 후보에서 계열이 겹치지 않게 [limit]개까지 뽑는다. 맨 앞은 점수가 가장 큰 사실(같은 점수끼리는 [random]이 섞은 순서)이고,
-     * 그 뒤는 남은 계열의 사실 가운데 softmax(점수 / [TEMPERATURE]) 무게로 하나씩 뽑는다.
+     * 후보에서 계열이 겹치지 않게 [limit]개까지 뽑는다. 맨 앞은 근거 카드에 쓸 수 있는 사실 가운데 점수가 가장 큰 것(대표 사실, 같은 점수끼리는
+     * [random]이 섞은 순서)이고, 그런 사실이 없을 때만 중립 사실 가운데 가장 큰 것이다. 그 뒤는 남은 계열의 사실 가운데 softmax(점수 / [TEMPERATURE]) 무게로 하나씩 뽑는다.
      */
     fun drawn(random: Random, limit: Int): RoastFacts {
-        val first = values.shuffled(random).maxByOrNull(RoastFact::score) ?: return EMPTY
+        val shuffled = values.shuffled(random)
+        val first = shuffled.filter { fact -> fact.direction.isEvidence() }.maxByOrNull(RoastFact::score)
+            ?: shuffled.maxByOrNull(RoastFact::score) ?: return EMPTY
         return RoastFacts(drawRest(listOf(first), random, limit))
     }
 
@@ -86,7 +105,6 @@ class RoastFacts(private val values: List<RoastFact>) {
 
     companion object {
         val EMPTY = RoastFacts(emptyList())
-        private val CUT_ONLY = listOf(EvidenceKind.CUT.key)
 
         /** 계열이 겹치지 않게 뽑는 사실 수 상한(입버릇 하나 포함). 덧붙는 입버릇까지 최대 [MAX_DRAWN_FACTS] + 1개다. */
         const val MAX_DRAWN_FACTS = 8

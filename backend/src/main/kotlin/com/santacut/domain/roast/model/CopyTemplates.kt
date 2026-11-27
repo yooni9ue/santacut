@@ -16,6 +16,9 @@ class CopyTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor
     /** 고정 문장이 하나도 없는지. 틀을 채우지 못할 때 쓸 문장이 있어야 한다. */
     fun lacksPlain(): Boolean = values.none { template -> PHRASE !in template }
 
+    /** 입버릇 자리 없는 고정 문장. 작가가 베끼면 안 되는 예시 문장([ExampleLines])에 넣는다. */
+    fun plainTexts(): List<String> = values.filterNot { template -> PHRASE in template }
+
     /**
      * [index]번째(0부터, 돌려 씀) 문장. 입버릇 [phrase]로 채운 틀이 [maxLength]자 안이면 그 틀들 가운데서, 아니면 고정 문장 가운데서 고른다.
      * 틀은 입버릇을 작은따옴표로 감싸 든다. 칩에 찍힌 표기를 그대로 옮긴 것이라 말투·인용 검사에서 문장 낱말로 치지 않는다.

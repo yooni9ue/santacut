@@ -18,7 +18,10 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property transcript 막별 본인 말풍선(가린 뒤). 줄 앞 번호가 line_id다. 상대 말풍선은 넣지 않는다.
  * @property slang 써도 되는 유행어 표기 → 뜻(roast/slang.json). 목록 밖 유행어는 쓰지 않게 한다.
  * @property rewrite 다시 쓰기 요청. 첫 호출이면 싣지 않는다.
- * @property punchTemplates 이 사람에게 추천하는 결론 마지막 한 줄 펀치 틀(참가자·해 시드로 고른 것). final_line은 이 가운데 하나를 쓴다.
+ * @property punchTemplates 이 사람에게 정해 준 결론 마지막 한 줄 펀치 틀(참가자·해 시드로 구간 풀을 돌린 자리). final_line은 이 틀을 쓴다.
+ * @property verdictTemplate 이 사람에게 정해 준 판정 한 줄 틀(이 구간 풀에서 시드로 고른 것). 다른 구간의 틀은 보내지 않는다.
+ * @property nearMiss 컷과 1점 안일 때의 말("컷 바로 위 0.13점 차"). 아니면 싣지 않는다.
+ * @property signatureChipKey 이 사람을 가장 잘 말하는 대표 사실 칩. 근거 카드나 hero_chip_key 가운데 한 곳에 꼭 쓴다.
  */
 data class RoastInput(
     val verdict: String,
@@ -34,4 +37,7 @@ data class RoastInput(
     val slang: Map<String, String> = emptyMap(),
     @field:JsonInclude(JsonInclude.Include.NON_NULL) val rewrite: RoastRewrite? = null,
     @JsonProperty("punch_templates") val punchTemplates: List<String> = emptyList(),
+    @field:JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty("verdict_template") val verdictTemplate: String? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty("near_miss") val nearMiss: String? = null,
+    @field:JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty("signature_chip_key") val signatureChipKey: String? = null,
 )

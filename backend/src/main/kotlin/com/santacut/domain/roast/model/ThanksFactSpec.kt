@@ -1,6 +1,7 @@
 package com.santacut.domain.roast.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.santacut.domain.analysis.model.ScoreDimension
 import com.santacut.domain.dossier.model.DossierFormat
 import com.santacut.domain.dossier.model.DossierStats
 
@@ -10,6 +11,8 @@ import com.santacut.domain.dossier.model.DossierStats
  *
  * @property chipLabel 칩 이름(`'고마워'`)
  * @property minMessages 사실로 쓰려면 필요한 본인 글 메시지 수
+ * @property words 고맙다는 말의 줄기. 고마워 칩이 있으면 판정 한 줄이 이 말로 덱을 이끌지 못하게 한다([RoastBrief.thanksWordIn]).
+ * @property dimension 고마워 칩이 가리키는 항목 점수 key. 근거 카드 영역 태그에 쓴다.
  */
 data class ThanksFactSpec(
     val group: String,
@@ -17,16 +20,20 @@ data class ThanksFactSpec(
     val level: String,
     @JsonProperty("chip_label") val chipLabel: String,
     @JsonProperty("min_messages") val minMessages: Int,
+    val words: List<String> = emptyList(),
+    val dimension: String? = null,
 ) {
     fun violations(): List<String> = listOfNotNull(
         "facts.thanks: group·meaning·level·chip_label이 비었다".takeIf { listOf(group, meaning, level, chipLabel).any(String::isBlank) },
         "facts.thanks: min_messages는 0 이상이다".takeIf { minMessages < 0 },
+        "facts.thanks: words가 비었다".takeIf { words.isEmpty() },
+        "facts.thanks: 모르는 dimension $dimension".takeIf { dimension != null && ScoreDimension.ofKey(dimension) == null },
     )
 
     /** [stats]의 고맙다는 말이 한 번도 없으면 그 사실. 횟수가 없는 옛 집계이거나 한 번이라도 있거나 말풍선이 적으면 null이다. */
     fun factOf(stats: DossierStats): RoastFact? {
         if (stats.words.thanksCount != NONE || stats.textCount() < minMessages) return null
-        return RoastFact(KEY, meaning, level, group, RoastChip(chipLabel, DossierFormat.times(NONE)))
+        return RoastFact(KEY, meaning, level, group, RoastChip(chipLabel, DossierFormat.times(NONE)), direction = ChipDirection.BAD, dimension = dimension)
     }
 
     companion object {

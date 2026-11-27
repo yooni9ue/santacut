@@ -12,7 +12,19 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "laugh"
+   "quote_rule": "laugh",
+   "directions": [
+    "-",
+    "-",
+    "+",
+    "+"
+   ],
+   "dimension": "positivity_support",
+   "topics": [
+    "웃음",
+    "웃기",
+    "빵터"
+   ]
   },
   {
    "key": "laugh_max_run",
@@ -26,7 +38,20 @@
     "남들보다 훨씬 김"
    ],
    "weight": 0.6,
-   "quote_rule": "laugh"
+   "quote_rule": "laugh",
+   "directions": [
+    "0",
+    "0",
+    "+",
+    "+"
+   ],
+   "dimension": "positivity_support",
+   "topics": [
+    "웃음",
+    "웃기",
+    "빵터"
+   ],
+   "min_value": 3
   },
   {
    "key": "emoji_density",
@@ -39,7 +64,18 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "+",
+    "+"
+   ],
+   "dimension": "positivity_support",
+   "topics": [
+    "이모지",
+    "표정"
+   ]
   },
   {
    "key": "night_ratio",
@@ -52,7 +88,19 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "night"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "-",
+    "-"
+   ],
+   "dimension": "respectful_communication",
+   "topics": [
+    "새벽",
+    "심야",
+    "밤샘"
+   ]
   },
   {
    "key": "peak_hour",
@@ -65,7 +113,16 @@
     "남들보다 늦은 시간",
     "남들보다 훨씬 늦은 시간"
    ],
-   "quote_rule": "peak_hour"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "시간대"
+   ]
   },
   {
    "key": "month_ratio",
@@ -78,7 +135,17 @@
     "남들보다 큼",
     "남들보다 훨씬 큼"
    ],
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "기복",
+    "들쭉"
+   ]
   },
   {
    "key": "message_count",
@@ -92,7 +159,18 @@
     "남들보다 훨씬 많음"
    ],
    "weight": 0.5,
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "-",
+    "-",
+    "+",
+    "+"
+   ],
+   "dimension": "cooperation_sharing",
+   "topics": [
+    "수다",
+    "말수"
+   ]
   },
   {
    "key": "active_days",
@@ -106,7 +184,19 @@
     "남들보다 훨씬 많음"
    ],
    "weight": 0.5,
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "-",
+    "-",
+    "+",
+    "+"
+   ],
+   "dimension": "cooperation_sharing",
+   "topics": [
+    "출석",
+    "개근"
+   ],
+   "min_value": 1
   },
   {
    "key": "avg_length",
@@ -119,7 +209,18 @@
     "남들보다 김",
     "남들보다 훨씬 김"
    ],
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "길이",
+    "짧게",
+    "길게"
+   ]
   },
   {
    "key": "short_ratio",
@@ -132,7 +233,18 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "-",
+    "-"
+   ],
+   "dimension": "respectful_communication",
+   "topics": [
+    "단답",
+    "짧은"
+   ]
   },
   {
    "key": "longest_message_length",
@@ -146,7 +258,18 @@
     "남들보다 훨씬 김"
    ],
    "weight": 0.6,
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "+",
+    "+"
+   ],
+   "dimension": "care_empathy",
+   "topics": [
+    "장문",
+    "긴글"
+   ]
   },
   {
    "key": "burst_avg",
@@ -159,7 +282,20 @@
     "남들보다 큼",
     "남들보다 훨씬 큼"
    ],
-   "quote_rule": "burst"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "-",
+    "-"
+   ],
+   "dimension": "respectful_communication",
+   "topics": [
+    "연타",
+    "연속",
+    "도배"
+   ],
+   "min_value": 3
   },
   {
    "key": "burst_max",
@@ -173,7 +309,20 @@
     "남들보다 훨씬 많음"
    ],
    "weight": 0.6,
-   "quote_rule": "burst"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "-",
+    "-"
+   ],
+   "dimension": "respectful_communication",
+   "topics": [
+    "연타",
+    "연속",
+    "도배"
+   ],
+   "min_value": 3
   },
   {
    "key": "question_ratio",
@@ -186,7 +335,19 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "question"
+   "quote_rule": "question",
+   "directions": [
+    "0",
+    "0",
+    "+",
+    "+"
+   ],
+   "dimension": "cooperation_sharing",
+   "topics": [
+    "질문",
+    "물음표",
+    "묻기"
+   ]
   },
   {
    "key": "exclaim_ratio",
@@ -199,7 +360,18 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "exclaim"
+   "quote_rule": "exclaim",
+   "directions": [
+    "0",
+    "0",
+    "+",
+    "+"
+   ],
+   "dimension": "positivity_support",
+   "topics": [
+    "느낌표",
+    "외침"
+   ]
   },
   {
    "key": "reply_median_minutes",
@@ -212,7 +384,18 @@
     "남들보다 느림",
     "남들보다 훨씬 느림"
    ],
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "+",
+    "+",
+    "-",
+    "-"
+   ],
+   "dimension": "care_empathy",
+   "topics": [
+    "답장",
+    "대답"
+   ]
   },
   {
    "key": "kind_words_density",
@@ -225,7 +408,20 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "kind"
+   "quote_rule": "kind",
+   "directions": [
+    "-",
+    "-",
+    "+",
+    "+"
+   ],
+   "dimension": "care_empathy",
+   "topics": [
+    "따뜻한 말",
+    "고맙",
+    "수고",
+    "다정"
+   ]
   },
   {
    "key": "weekend_ratio",
@@ -238,7 +434,16 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "weekend"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "주말"
+   ]
   },
   {
    "key": "morning_ratio",
@@ -251,7 +456,16 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "morning"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "아침"
+   ]
   },
   {
    "key": "office_hours_ratio",
@@ -264,7 +478,17 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "office"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "근무",
+    "업무"
+   ]
   },
   {
    "key": "peak_hour_share",
@@ -277,7 +501,18 @@
     "남들보다 한 시간대에 몰림",
     "남들보다 한 시간대에 훨씬 몰림"
    ],
-   "quote_rule": "peak_hour"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "피크",
+    "몰빵",
+    "시간대"
+   ]
   },
   {
    "key": "busiest_day_multiple",
@@ -290,7 +525,17 @@
     "남들보다 큼",
     "남들보다 훨씬 큼"
    ],
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "폭주",
+    "하루"
+   ]
   },
   {
    "key": "media_ratio",
@@ -303,7 +548,17 @@
     "남들보다 많음",
     "남들보다 훨씬 많음"
    ],
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "0",
+    "0",
+    "0",
+    "0"
+   ],
+   "topics": [
+    "사진",
+    "이모티콘"
+   ]
   },
   {
    "key": "messages_per_day",
@@ -317,24 +572,107 @@
     "남들보다 훨씬 많음"
    ],
    "weight": 0.6,
-   "quote_rule": "none"
+   "quote_rule": "none",
+   "directions": [
+    "-",
+    "-",
+    "+",
+    "+"
+   ],
+   "dimension": "cooperation_sharing",
+   "topics": [
+    "수다",
+    "말수"
+   ]
   }
  ],
  "phrase": {
   "group": "habit",
   "meaning": "'{quote}'라고 보낸 횟수",
-  "chip_label": "'{quote}' 발사 횟수",
+  "chip_label": "'{quote}'",
   "levels": [
    "남들보다 많음",
    "남들보다 훨씬 많음"
   ],
-  "weight": 0.8
+  "weight": 0.8,
+  "min_count": 3,
+  "praise": [
+   "wa",
+   "daebak",
+   "gut",
+   "choego",
+   "jjang",
+   "daedanhae",
+   "meotjida",
+   "naiseu",
+   "rejeondeu",
+   "chucheon",
+   "jotne",
+   "singihae",
+   "oye",
+   "yaho",
+   "kingwangjjang",
+   "gamsahapnida",
+   "gomawo",
+   "sugo",
+   "hwaiting",
+   "chukhahae",
+   "josimhi",
+   "jal_jinae",
+   "gidaedoenda",
+   "haengbok",
+   "gwiyeowo",
+   "yeppeuda",
+   "ttatteut",
+   "jaemitda",
+   "matitda",
+   "jota",
+   "gibun_jota",
+   "injeong",
+   "banbakbulga",
+   "paekteu",
+   "dahaeng",
+   "jotgetda",
+   "seolrenda",
+   "sinna",
+   "gamdong"
+  ],
+  "negative": [
+   "sileo",
+   "gwichana",
+   "jjajeung",
+   "hwananda",
+   "yeolbatne",
+   "kingbatne",
+   "byeolro",
+   "molra",
+   "eoieopne",
+   "jakku",
+   "ppalri",
+   "mworago",
+   "mwoim",
+   "wae_irae",
+   "simsimhae",
+   "manghaetda",
+   "euak",
+   "nn",
+   "anya"
+  ],
+  "praise_dimension": "positivity_support"
  },
  "thanks": {
   "group": "thanks",
   "meaning": "고맙다는 말(고마워, 고맙다, ㄱㅅ, 감사, 땡큐)을 보낸 말풍선 수",
   "level": "올해 전혀 없음",
   "chip_label": "'고마워'",
-  "min_messages": 50
+  "min_messages": 50,
+  "words": [
+   "고마",
+   "고맙",
+   "감사",
+   "땡큐",
+   "ㄱㅅ"
+  ],
+  "dimension": "respectful_communication"
  }
 }

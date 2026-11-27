@@ -51,6 +51,12 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
                 }
             }
 
+    /** 카드 라벨. 결론 칭호가 라벨과 같은 줄기를 되풀이하는지 볼 때 쓴다. */
+    fun labels(): List<String> = values.map(EvidenceDraft::label)
+
+    /** 쓴 칩 key. 대표 사실 칩을 썼는지 볼 때 쓴다. */
+    fun chipKeys(): Set<String> = values.map(EvidenceDraft::chipKey).toSet()
+
     /** 다시 쓰기 입력에 싣는 받아 둔 카드. */
     fun toKept(): List<KeptCard> = values.map(EvidenceDraft::toKept)
 
@@ -68,13 +74,14 @@ class EvidenceDrafts(private val values: List<EvidenceDraft>) {
         return listOfNotNull(full) + duplicatesOf(draft, brief, rules, "")
     }
 
-    /** [draft]가 이 카드들과 겹치는 사유(같은 line_id·chip_key, 낱말 되풀이, 라벨 첫머리, 판정 한 줄을 옮긴 라벨). 없으면 빈 목록이다. */
+    /** [draft]가 이 카드들과 겹치는 사유(같은 line_id·chip_key, 낱말 되풀이, 라벨 첫머리, 라벨 되풀이 줄기, 판정 한 줄을 옮긴 라벨). 없으면 빈 목록이다. */
     private fun duplicatesOf(draft: EvidenceDraft, brief: RoastBrief, rules: RoastRules, verdictLine: String): List<String> =
         listOfNotNull(
             "앞 근거와 같은 line_id(${draft.lineId})".takeIf { draft.lineId != null && values.any { kept -> kept.lineId == draft.lineId } },
             "앞 근거와 같은 chip_key(${draft.chipKey})".takeIf { values.any { kept -> kept.chipKey == draft.chipKey } },
         ) + TextProblems.repeated(draft.line, values.map(EvidenceDraft::line), brief.chipTextsOf(draft.chipKey)).labeled(LINE) +
-            TextProblems.sharedLabel(draft.label, values.map(EvidenceDraft::label), verdictLine, rules.labelSuffix).labeled(LABEL)
+            TextProblems.sharedLabel(draft.label, values.map(EvidenceDraft::label), verdictLine, rules.labelSuffix).labeled(LABEL) +
+            TextProblems.repeatedStem(draft.label, values.map(EvidenceDraft::label), rules).labeled(LABEL)
 
     private fun countOf(kind: EvidenceKind): Int = values.count { draft -> draft.kind() == kind }
 

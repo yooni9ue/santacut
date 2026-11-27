@@ -17,6 +17,9 @@ class ChipCopies @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
     /** [chipKeys] 가운데 문구가 없는 칩 key. */
     fun missing(chipKeys: List<String>): List<String> = chipKeys.filter { key -> find(key) == null }
 
+    /** 모든 칩 문구의 고정 라벨과 한 줄. */
+    fun plainTexts(): List<String> = values.flatMap(ChipCopy::plainTexts)
+
     /** 빈 key·머리말이거나 고정 문장이 없는 문구가 있는지. */
     fun hasMalformed(): Boolean = values.any(ChipCopy::isMalformed)
 

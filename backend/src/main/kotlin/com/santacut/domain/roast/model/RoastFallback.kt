@@ -30,13 +30,15 @@ data class RoastFallback(
 
     /**
      * [kind] 근거 카드 가운데 [index]번째(0부터) 통계 카드. 칩은 [fact]이고 말풍선은 없다.
-     * 문구는 그 칩의 칩별 문구를 쓰고, 입버릇 칩이면 칩 이름의 입버릇 표기를 틀에 넣는다. 칩별 문구가 없으면 종류별 기본 문구다.
+     * 영역 태그용 항목 점수 key는 칩의 것이다. 문구는 그 칩의 칩별 문구를 쓰고, 입버릇 칩이면 칩 이름의 입버릇 표기를 틀에 넣는다. 칩별 문구가 없으면 종류별 기본 문구다.
      * [mild]면 깎인 말에 순한 문구([ChipCopy.mildCut])를 쓴다. 높은 점수 가운데 가장 낮아 억지로 깎인 말이 된 칩이 그렇다.
      */
     fun evidenceOf(kind: EvidenceKind, index: Int, fact: RoastChipFact, mild: Boolean = false): RoastEvidence {
         val copy = chips.find(fact.key)?.copyOf(kind, mild) ?: evidence.getValue(kind.key)
         val phrase = fact.chip.quotedPhrase()
-        return RoastEvidence(kind, null, fact.key, fact.chip, null, copy.labelAt(index, phrase), copy.lineAt(index, phrase), RoastSource.FALLBACK)
+        return RoastEvidence(
+            kind, null, fact.key, fact.chip, null, copy.labelAt(index, phrase), copy.lineAt(index, phrase), RoastSource.FALLBACK, fact.dimension,
+        )
     }
 
     /**
@@ -57,4 +59,7 @@ data class RoastFallback(
 
     /** 모든 대체 문장. 배포 전에 검증 규칙을 통과하는지 테스트가 확인한다. */
     fun allBandTexts(): List<String> = bands.values.flatMap(RoastBandCopy::all)
+
+    /** 구간 문장과 근거 카드 고정 문구 전부. 작가가 베끼면 안 되는 예시 문장([ExampleLines])에 넣는다. */
+    fun allTexts(): List<String> = allBandTexts() + evidence.values.flatMap(EvidenceCopy::plainTexts) + chips.plainTexts()
 }

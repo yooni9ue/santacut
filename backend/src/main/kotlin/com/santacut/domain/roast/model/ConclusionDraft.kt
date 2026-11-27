@@ -13,7 +13,8 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
      * 판정 한 줄 [verdictLine]과 같은 유행어나 같은 펀치 틀을 쓰면 떨어진다. 대표 말풍선은 대표 칩의 말풍선 조건에 맞아야 하고,
      * 말풍선으로 보여 줄 수 없는 칩([QuoteRule.NONE])을 대표 칩으로 고르면 대표 말 없이(hero_line_id null) 칩만 크게 띄운다.
      * 근거 카드 [evidence]가 [RoastEvidences.MIN_CARDS]장뿐인 다섯 장 덱이면 대표 말을 근거 카드 말과 다른 줄로 골라야 한다(다른 줄이 남아 있을 때).
-     * 짧은 덱에서 같은 말풍선이 두 번 뜨지 않게 한다.
+     * 짧은 덱에서 같은 말풍선이 두 번 뜨지 않게 한다. 대표 사실 칩([RoastBrief.signatureKey])은 근거 카드나 대표 칩 가운데 한 곳에 써야 하고,
+     * 칭호는 근거 카드 라벨과 덱 되풀이 금지 줄기를 함께 쓰지 않으며, 마지막 한 줄은 대표 칩·대표 말풍선에 없는 시간대를 말하지 않는다.
      */
     fun check(brief: RoastBrief, rules: RoastRules, verdictLine: String = "", evidence: EvidenceDrafts = EvidenceDrafts.EMPTY): RoastCheck = RoastCheck(
         FIELD,
@@ -23,7 +24,12 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
             heroRepeatProblem(brief, evidence),
             heroFitProblem(brief),
             rules.punchClashIn(verdictLine, finalLine)?.let { mark -> "$FINAL_LINE: 판정 한 줄과 같은 펀치($mark)를 되풀이했다" },
+            signatureProblem(brief, evidence),
         ) +
+            TextProblems.repeatedStem(title, evidence.labels(), rules).labeled(TITLE) +
+            TextProblems.copiedExample(title, brief).labeled(TITLE) + TextProblems.copiedExample(finalLine, brief).labeled(FINAL_LINE) +
+            TextProblems.timeClaims(finalLine, rules, heroChipKey?.let(brief::chipTimeTextsOf).orEmpty(), heroLineId?.let(brief::quoteOf))
+                .labeled(FINAL_LINE) +
             TextProblems.of(title, RoastTextKind.TITLE, brief, rules).labeled(TITLE) +
             TextProblems.of(finalLine, RoastTextKind.FINAL_LINE, brief, rules).labeled(FINAL_LINE) +
             TextProblems.grounding(finalLine, heroLineId?.let(brief::quoteOf), heroChipKey?.let(brief::chipTextsOf).orEmpty())
@@ -63,6 +69,13 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
         val lineIds = evidence.lineIds()
         val short = brief.slots.total() <= RoastEvidences.MIN_CARDS && brief.usableLineCount() > lineIds.size
         return "다섯 장 덱이라 hero_line_id($heroLineId)는 근거 카드와 다른 줄로 고른다".takeIf { short && heroLineId != null && heroLineId in lineIds }
+    }
+
+    /** 대표 사실 칩을 근거 카드 [evidence]에도 대표 칩에도 쓰지 않은 사유. 대표 사실이 없으면 보지 않는다. */
+    private fun signatureProblem(brief: RoastBrief, evidence: EvidenceDrafts): String? {
+        val signature = brief.signatureKey() ?: return null
+        if (signature == heroChipKey || signature in evidence.chipKeys()) return null
+        return "대표 사실 칩($signature)을 근거 카드나 hero_chip_key 가운데 한 곳에 쓴다"
     }
 
     private fun heroChipProblem(brief: RoastBrief): String? = when {

@@ -22,6 +22,14 @@ class RoastCatalog(
         facts.violations() + phrase.violations() + thanks.violations() + fallback.violations(chipKeys()) + rules.slang.violations() +
             punch.violations(rules)
 
+    /** 작가가 그대로 베끼면 안 되는 예시 문장: 프롬프트 예시, 유행어 예문, 대체 문장, 펀치 틀 대체 문장. */
+    val examples: ExampleLines by lazy {
+        ExampleLines(
+            rules.promptExamples + rules.slang.allowed.examples() + fallback.allTexts() +
+                punch.bands.fallbacks() + punch.skins.fallbacks() + punch.verdicts.fallbacks(),
+        )
+    }
+
     /** 칩 후보가 될 수 있는 칩 key. 지표 칩, 고마워 칩, 입버릇 칩(머리말), 항목 점수 칩이다. */
     private fun chipKeys(): List<String> =
         facts.keys() + ThanksFactSpec.KEY + PhraseFactSpec.KEY_PREFIX + RoastEvidences.dimensionKeys()

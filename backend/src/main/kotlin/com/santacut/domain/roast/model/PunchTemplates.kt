@@ -2,7 +2,6 @@ package com.santacut.domain.roast.model
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
-import kotlin.random.Random
 
 /**
  * 펀치 틀 목록(roast/punch.json의 구간·판정별 풀), 또는 한 사람에게 시드 순서로 줄 세운 후보. JSON에서는 배열 하나로 읽고 쓴다.
@@ -31,20 +30,27 @@ class PunchTemplates @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
     operator fun plus(other: PunchTemplates): PunchTemplates = PunchTemplates(values + other.values)
 
-    /** [random]으로 섞고 표지가 겹치는 틀을 뺀 후보 순서. 같은 시드면 늘 같은 순서다. */
-    fun shuffledBy(random: Random): PunchTemplates = PunchTemplates(values.shuffled(random).distinctBy(PunchTemplate::marker))
+    /** 표지가 겹치는 틀을 뺀 목록. 앞에 나온 틀을 남긴다. */
+    fun distinctMarkers(): PunchTemplates = PunchTemplates(values.distinctBy(PunchTemplate::marker))
+
+    /** [other] 틀과 펀치 표지(유행어·틀 표지)가 겹치는 틀을 뺀 목록. [other]가 null이면 그대로다. 판정 한 줄과 마지막 한 줄이 같은 펀치를 쓰지 않게 한다. */
+    fun without(other: PunchTemplate?, rules: RoastRules): PunchTemplates {
+        if (other == null) return this
+        return PunchTemplates(values.filter { punch -> rules.punchClashIn(other.fallback, punch.fallback) == null && punch.marker != other.marker })
+    }
 
     /**
-     * 앞 [count]개 안에 유행어 없는 틀이 하나는 들도록 고친 순서. 이미 있으면 그대로이고, 없으면 첫 유행어 없는 틀을 [count]번째 자리로 당긴다.
-     * 덱 전체 유행어 상한을 다른 필드가 다 쓴 작가도 추천 틀 하나는 쓸 수 있게 한다.
+     * 시드 [seed] 자리([at])부터 한 바퀴 돌린 순서. 같은 시드면 늘 같은 순서이고, 시드가 하나 다르면 맨 앞 틀이 다르다.
+     * 맨 앞이 그 사람에게 정해 주는 틀이고 뒤는 대체 문장 예비다.
      */
-    fun withPlainWithin(count: Int, rules: RoastRules): PunchTemplates {
-        val head = values.take(count)
-        if (count <= 0 || head.any { punch -> punch.isPlain(rules) }) return this
-        val plain = values.drop(count).firstOrNull { punch -> punch.isPlain(rules) } ?: return this
-        val rest = values - plain
-        return PunchTemplates(rest.take(count - 1) + plain + rest.drop(count - 1))
+    fun rotatedBy(seed: Int): PunchTemplates {
+        if (values.isEmpty()) return this
+        val start = seed.mod(values.size)
+        return PunchTemplates(values.drop(start) + values.take(start))
     }
+
+    /** 시드 [seed]가 받는 틀(풀을 시드로 돌린 자리). 비었으면 null이다. */
+    fun at(seed: Int): PunchTemplate? = values.takeIf(List<PunchTemplate>::isNotEmpty)?.let { list -> list[seed.mod(list.size)] }
 
     /** 앞 [count]개(작가에게 보내는 추천 틀). */
     fun take(count: Int): PunchTemplates = PunchTemplates(values.take(count))

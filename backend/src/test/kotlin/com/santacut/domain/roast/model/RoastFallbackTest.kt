@@ -77,7 +77,7 @@ class RoastFallbackTest {
 
     @Test
     fun `칩마다 상 이름 라벨이 다르다`() {
-        assertEquals("연타발사상", labelOf(EvidenceKind.CUT, "burst_avg", "연달아 보내기"))
+        assertEquals("연타폭주상", labelOf(EvidenceKind.CUT, "burst_avg", "연달아 보내기"))
         assertEquals("야간출몰상", labelOf(EvidenceKind.CUT, "night_ratio", "새벽 출몰률"))
         assertEquals("물음표살포상", labelOf(EvidenceKind.CUT, "question_ratio", "물음표 살포율"))
         assertEquals("주말잠수상", labelOf(EvidenceKind.CUT, "weekend_ratio", "주말 출몰률"))

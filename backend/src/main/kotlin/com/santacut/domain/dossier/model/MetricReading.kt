@@ -32,6 +32,12 @@ class MetricReading(
     /** 값을 metrics.json의 unit에 맞춰 단위까지 붙인 글. 팩폭 카드 칩에 쓴다. */
     fun formattedValue(): String = spec.format(value)
 
+    /** 단위를 붙이지 않은 값. 칩으로 쓰기에 너무 작은 값(연달아 보내기 한 개 등)을 거를 때 쓴다. */
+    fun rawValue(): Double = value
+
+    /** 팩폭 카드 칩 값. 100개당 값은 'N번에 1번'처럼 읽기 쉽게 바꾸고([MetricSpec.chipFormat]), 나머지는 [formattedValue]와 같다. */
+    fun chipValue(): String = spec.chipFormat(value)
+
     /** 느린 답장과 삐 처리는 카드에 싣지 않는다. 나머지는 공유할 수 있다. */
     fun isShareable(): Boolean = metric.isCardSafe(isHigh())
 

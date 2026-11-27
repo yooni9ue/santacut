@@ -13,6 +13,9 @@ class SlangWords @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructor(
     /** 작가 입력용 표기 → 뜻. 예문은 문장에 그대로 새지 않게 보내지 않는다. */
     fun hints(): Map<String, String> = values.associate { word -> word.word to word.meaning }
 
+    /** 사람용 예문. 작가에게 보내지 않지만 베끼면 안 되는 예시 문장([ExampleLines])에 넣는다. */
+    fun examples(): List<String> = values.map(SlangWord::example)
+
     /** 세는 줄기. 긴 것부터라 '개야르'가 '야르'로 한 번 더 세지지 않는다. */
     fun stems(): List<String> = values.map(SlangWord::stem).sortedByDescending(String::length)
 

@@ -101,7 +101,8 @@ class RoastEvidences @JsonCreator(mode = JsonCreator.Mode.DELEGATING) constructo
 
         private fun dimensionFact(dimension: ScoreDimension, dimensions: ScoreComponents): RoastChipFact {
             val points = dimensions.scoreOf(dimension).setScale(0, RoundingMode.HALF_UP).toDouble()
-            return RoastChipFact(DIMENSION_KEY_PREFIX + dimension.key, RoastChip(dimension.label + DIMENSION_CHIP_SUFFIX, DossierFormat.amount(points, POINT_UNIT)))
+            val chip = RoastChip(dimension.label + DIMENSION_CHIP_SUFFIX, DossierFormat.amount(points, POINT_UNIT))
+            return RoastChipFact(DIMENSION_KEY_PREFIX + dimension.key, chip, dimension = dimension.key)
         }
     }
 }

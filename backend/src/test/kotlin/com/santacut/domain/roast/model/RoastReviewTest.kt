@@ -86,7 +86,7 @@ class RoastReviewTest {
 
         val reason = review(gift, validJson(gift, evidence = asReason)).checks
         assertEquals(listOf("evidence[0]"), reason.failedFields())
-        assertTrue(reason.reasonsFor(listOf("evidence")).any { text -> text.contains("고마워 칩") })
+        assertTrue(reason.reasonsFor(listOf("evidence")).any { text -> text.contains("이 칩(${ThanksFactSpec.KEY})은 reason에 쓰지 않는다") })
         assertEquals(emptyList(), review(gift, validJson(gift, evidence = asCut)).checks.failedFields())
         assertTrue(review(coal, validJson(coal, evidence = keep)).checks.failedFields().any { field -> field.startsWith("evidence[") })
         val hero = review(gift, validJson(gift, heroChipKey = ThanksFactSpec.KEY)).checks
@@ -94,12 +94,16 @@ class RoastReviewTest {
     }
 
     @Test
-    fun `작가 입력의 고마워 칩 후보는 cut 전용으로 표시한다`() {
+    fun `작가 입력의 칩 후보는 방향대로 쓸 수 있는 kind를 싣고 고마워 칩은 cut 전용이다`() {
         val chips = TestRoasts.mapper.readTree(gift.inputText(TestRoasts.mapper)).path("chips").values()
         val thanks = chips.single { chip -> chip.path("chip_key").asString() == ThanksFactSpec.KEY }
 
         assertEquals(listOf("cut"), thanks.path("kinds").values().map { kind -> kind.asString() })
-        assertTrue(chips.filterNot { chip -> chip === thanks }.all { chip -> chip.path("kinds").isMissingNode })
+        chips.forEach { chip ->
+            val expected = gift.directionOf(chip.path("chip_key").asString())?.kindKeys()
+            val sent = chip.path("kinds").takeUnless { node -> node.isMissingNode }?.values()?.map { kind -> kind.asString() }
+            assertEquals(expected, sent, chip.toString())
+        }
     }
 
     @Test

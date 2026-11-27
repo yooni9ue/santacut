@@ -28,6 +28,9 @@ data class ChipCopy(
         EvidenceKind.KEEP -> keep
     }
 
+    /** 모든 종류의 고정 라벨과 한 줄. */
+    fun plainTexts(): List<String> = listOfNotNull(reason, cut, keep, mildCut).flatMap(EvidenceCopy::plainTexts)
+
     fun isMalformed(): Boolean =
         (keys.isEmpty() && prefix.isNullOrBlank()) || reason.isMalformed() || cut.isMalformed() || keep.isMalformed() || mildCut?.isMalformed() == true
 }

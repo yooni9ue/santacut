@@ -43,6 +43,9 @@ data class RoastSlots(val reason: Int, val cut: Int, val keep: Int) {
         return RoastSlots(0, cuts, minOf(keepByLines, chipCount - cuts))
     }
 
+    /** 종류마다 [supply]의 수(그 종류에 방향이 맞는 칩 수)를 넘지 않게 줄인 수. 방향이 맞지 않는 칩으로 빈자리를 채우지 않으려는 것이다. */
+    fun cappedBy(supply: RoastSlots): RoastSlots = RoastSlots(minOf(reason, supply.reason), minOf(cut, supply.cut), minOf(keep, supply.keep))
+
     companion object {
         val NONE = RoastSlots(0, 0, 0)
 

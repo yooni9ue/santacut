@@ -35,7 +35,11 @@ class RoastChecks(private val values: List<RoastCheck>) {
          */
         fun of(output: RoastOutput, brief: RoastBrief, rules: RoastRules): RoastChecks = RoastChecks(
             listOf(
-                RoastCheck(VERDICT_LINE_FIELD, TextProblems.of(output.verdictLine, RoastTextKind.VERDICT_LINE, brief, rules).toList()),
+                RoastCheck(
+                    VERDICT_LINE_FIELD,
+                    TextProblems.of(output.verdictLine, RoastTextKind.VERDICT_LINE, brief, rules).toList() +
+                        TextProblems.copiedExample(output.verdictLine, brief).toList(),
+                ),
                 output.evidence.countCheck(brief.slots),
                 output.conclusion.check(brief, rules, output.verdictLine, output.evidence),
                 deckCheck(output, rules),
