@@ -39,6 +39,9 @@ class RoastSheet(
 
     fun isComplete(): Boolean = missingFields().isEmpty()
 
+    /** 지금까지 받아 둔 근거 카드. 다시 쓰기 응답의 결론 검사가 대표 사실 칩을 이미 쓴 카드로 볼 때 쓴다. */
+    fun keptEvidence(): EvidenceDrafts = evidence
+
     /**
      * 빠진 묶음과 직전 응답 [review]의 사유로 다시 쓰기 요청을 만든다. 검증은 통과했지만 받아 둔 문장과 겹쳐 받지 않은 사유([rejections])도 싣고,
      * 받아 둔 판정 한 줄·근거 카드·마지막 한 줄([RoastKept])을 함께 보내 작가가 그것과 겹치지 않게 쓰게 한다.

@@ -34,6 +34,31 @@ class RecapJudgeBandTest {
     }
 
     @Test
+    fun `판정 틀은 빈칸에 6자 이상 여유를 남기고 판정·마지막 한 줄 대체 문장은 모두 글자 수 범위 안이다`() {
+        GiftGrade.entries.forEach { grade ->
+            punch.verdicts.of(grade.name).toList().forEach { template ->
+                val bare = BLANK.replace(template.template, "")
+                val room = RoastTextKind.VERDICT_LINE.maxLength - bare.codePointCount(0, bare.length)
+                assertTrue(room >= MIN_VERDICT_ROOM, "${grade.name} ${template.template} 여유 $room")
+                assertNull(RoastTextKind.VERDICT_LINE.lengthProblemOf(template.fallback), template.fallback)
+            }
+            punch.poolOf(GiftVerdict(scoreOf(grade))).fallbacks().forEach { line ->
+                assertNull(RoastTextKind.FINAL_LINE.lengthProblemOf(line), line)
+            }
+        }
+    }
+
+    @Test
+    fun `작가 입력에 이 사람 구간이 쓸 수 없는 표현을 banned_marks로 싣고 명단에 없다는 말은 막지 않는다`() {
+        val banned = briefOf(DEPARTED).input().bannedMarks
+
+        assertTrue("프리패스" in banned, banned.toString())
+        assertTrue("체포하겠" in banned, banned.toString())
+        assertFalse("넌 남아" in banned, banned.toString())
+        GiftGrade.entries.forEach { grade -> assertNull(punch.foreignMarksFor(grade).foundIn("이름이 명단에 없다고요? 예?"), grade.name) }
+    }
+
+    @Test
     fun `회귀 - 65점대 덱의 출발 줴줴이야는 다른 구간 밈이고 판정 자리를 입버릇 하나로 채워 떨어진다`() {
         val brief = briefOf(SCRAPED, phrase("chulbal", "출발"))
 
@@ -186,6 +211,8 @@ class RecapJudgeBandTest {
         private const val NEIGHBOURS = 5
         private const val MAX_HUNDREDTHS = 10_000
         private const val SCORE_STEP = 100
+        private const val MIN_VERDICT_ROOM = 6
+        private val BLANK = Regex("'?[(][^)]*[)]'?")
         private val PUNCH_WORDS = mapOf(
             "체포하겠" to "체포하겠어.", "넌 나가" to "넌 나가라.", "넌 남아" to "넌 남아라.", "영원할 건가" to "영원할 건가 보다.", "L을 가져가" to "L을 가져가.",
         )

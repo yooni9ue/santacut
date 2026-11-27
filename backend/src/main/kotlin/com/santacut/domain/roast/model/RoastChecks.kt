@@ -31,9 +31,9 @@ class RoastChecks(private val values: List<RoastCheck>) {
         /**
          * 응답 [output]의 모든 필드를 입력 [brief] 기준으로 검사한다. 근거 카드는 kind별 개수가 서버 슬롯 수와 같아야 하고,
          * 덱 전체 허용 유행어는 [RoastSlang.maxPerDeck]개까지다(필드 deck). 결론은 판정 한 줄·근거 카드와 함께 본다(펀치 되풀이, 다섯 장 덱의 대표 말 되풀이),
-         * 근거 카드 라벨은 판정 한 줄을 옮기면 떨어진다.
+         * 근거 카드 라벨은 판정 한 줄을 옮기면 떨어진다. 대표 사실 칩은 앞 응답에서 받아 둔 근거 카드 [kept]에 있어도 쓴 것으로 본다.
          */
-        fun of(output: RoastOutput, brief: RoastBrief, rules: RoastRules): RoastChecks = RoastChecks(
+        fun of(output: RoastOutput, brief: RoastBrief, rules: RoastRules, kept: EvidenceDrafts = EvidenceDrafts.EMPTY): RoastChecks = RoastChecks(
             listOf(
                 RoastCheck(
                     VERDICT_LINE_FIELD,
@@ -41,7 +41,7 @@ class RoastChecks(private val values: List<RoastCheck>) {
                         TextProblems.copiedExample(output.verdictLine, brief).toList(),
                 ),
                 output.evidence.countCheck(brief.slots),
-                output.conclusion.check(brief, rules, output.verdictLine, output.evidence),
+                output.conclusion.check(brief, rules, output.verdictLine, output.evidence, kept),
                 deckCheck(output, rules),
             ) + output.evidence.checks(brief, rules, output.verdictLine),
         )

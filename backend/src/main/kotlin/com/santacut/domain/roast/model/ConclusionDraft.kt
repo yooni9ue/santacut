@@ -16,7 +16,13 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
      * 짧은 덱에서 같은 말풍선이 두 번 뜨지 않게 한다. 대표 사실 칩([RoastBrief.signatureKey])은 근거 카드나 대표 칩 가운데 한 곳에 써야 하고,
      * 칭호는 근거 카드 라벨과 덱 되풀이 금지 줄기를 함께 쓰지 않으며, 마지막 한 줄은 대표 칩·대표 말풍선에 없는 시간대를 말하지 않는다.
      */
-    fun check(brief: RoastBrief, rules: RoastRules, verdictLine: String = "", evidence: EvidenceDrafts = EvidenceDrafts.EMPTY): RoastCheck = RoastCheck(
+    fun check(
+        brief: RoastBrief,
+        rules: RoastRules,
+        verdictLine: String = "",
+        evidence: EvidenceDrafts = EvidenceDrafts.EMPTY,
+        kept: EvidenceDrafts = EvidenceDrafts.EMPTY,
+    ): RoastCheck = RoastCheck(
         FIELD,
         listOfNotNull(
             heroLineProblem(brief),
@@ -24,7 +30,7 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
             heroRepeatProblem(brief, evidence),
             heroFitProblem(brief),
             rules.punchClashIn(verdictLine, finalLine)?.let { mark -> "$FINAL_LINE: 판정 한 줄과 같은 펀치($mark)를 되풀이했다" },
-            signatureProblem(brief, evidence),
+            signatureProblem(brief, evidence, kept),
         ) +
             TextProblems.repeatedStem(title, evidence.labels(), rules).labeled(TITLE) +
             TextProblems.copiedExample(title, brief).labeled(TITLE) + TextProblems.copiedExample(finalLine, brief).labeled(FINAL_LINE) +
@@ -71,10 +77,13 @@ data class ConclusionDraft(val title: String, val heroLineId: Int?, val heroChip
         return "다섯 장 덱이라 hero_line_id($heroLineId)는 근거 카드와 다른 줄로 고른다".takeIf { short && heroLineId != null && heroLineId in lineIds }
     }
 
-    /** 대표 사실 칩을 근거 카드 [evidence]에도 대표 칩에도 쓰지 않은 사유. 대표 사실이 없으면 보지 않는다. */
-    private fun signatureProblem(brief: RoastBrief, evidence: EvidenceDrafts): String? {
+    /**
+     * 대표 사실 칩을 이 응답의 근거 카드 [evidence], 앞 응답에서 받아 둔 근거 카드 [kept], 대표 칩 어디에도 쓰지 않은 사유. 대표 사실이 없으면 보지 않는다.
+     * 다시 쓰기 응답이 결론만 고쳐 낼 때 받아 둔 카드가 대표 사실을 이미 썼으면 통과한다.
+     */
+    private fun signatureProblem(brief: RoastBrief, evidence: EvidenceDrafts, kept: EvidenceDrafts): String? {
         val signature = brief.signatureKey() ?: return null
-        if (signature == heroChipKey || signature in evidence.chipKeys()) return null
+        if (signature == heroChipKey || signature in evidence.chipKeys() || signature in kept.chipKeys()) return null
         return "대표 사실 칩($signature)을 근거 카드나 hero_chip_key 가운데 한 곳에 쓴다"
     }
 

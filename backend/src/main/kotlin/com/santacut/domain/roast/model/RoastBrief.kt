@@ -52,7 +52,7 @@ class RoastBrief(
         RoastInput(
             verdict.key(), verdict.margin().word, verdict.grade().name, verdict.grade().temperature, facts, facts.chipHints(peakHour), slots,
             quotes, topics, lines.toActs(), slang.hints(), rewrite, suggestedPunches.hints(), verdictPunch?.template, nearMiss(),
-            facts.signature()?.key,
+            signatureKey(), foreignMarks.toList(),
         )
 
     /**
@@ -87,8 +87,18 @@ class RoastBrief(
     /** [key] 칩 후보의 영역 태그용 항목 점수 key. 없으면 null이다. */
     fun dimensionOf(key: String): String? = facts.find(key)?.dimension
 
-    /** 대표 사실 칩 key. 근거 카드나 결론 대표 칩 가운데 한 곳에 써야 한다. 없으면 null이다. */
-    fun signatureKey(): String? = facts.signature()?.key
+    /**
+     * 대표 사실 칩 key. 근거 카드나 결론 대표 칩 가운데 한 곳에 써야 한다. 가장 튀는 근거용 사실([RoastFacts.signature])이 작가가 실제로 놓을 수 있는
+     * 칩일 때만 대표로 정한다: 말풍선 없이 쓰는 칩이거나, 그 칩의 말풍선 조건에 맞는 본인 줄이 있거나, 깎인 말 자리가 있고 깎인 말에 쓸 수 있는 칩이다.
+     * 놓을 수 없으면 작가가 통과할 길이 없어 null이다.
+     */
+    fun signatureKey(): String? {
+        val fact = facts.signature() ?: return null
+        val quoteless = quoteRuleOf(fact.key) == QuoteRule.NONE
+        val fitting = lineQuotes.usableIds().any { lineId -> quoteFits(fact.key, lineId) }
+        val cuttable = fact.direction.allows(EvidenceKind.CUT) && slots.cut > 0
+        return fact.key.takeIf { quoteless || fitting || cuttable }
+    }
 
     /** 작가 사용자 메시지 본문(JSON 한 줄). 테스트·실측 도구에서도 이 함수로 입력을 만든다. */
     fun inputText(objectMapper: ObjectMapper, rewrite: RoastRewrite? = null): String = objectMapper.writeValueAsString(input(rewrite))
@@ -197,8 +207,8 @@ class RoastBrief(
          * 본인 줄만 쓰고, 사람 이름·사는 곳 이름·숫자·영문·링크는 가린다. 지명·가게·행사 이름은 그대로 둔다. [stats]가 없으면(조서 집계 실패) 사실·인용·화제 없이 보낸다.
          * 입버릇은 지금 사전으로 다시 읽은 집계를 쓴다. 테스트·실측 도구에서도 이 함수로 입력을 만든다.
          * 대화 참여자 이름 [participants](원본 파일 제출만 있음)는 모든 줄에서 가리고 차단 목록에 넣는다.
-         * 근거 카드 슬롯 수는 항목 점수로 정하고, 말풍선 표시가 남는 본인 줄 수와 근거로 쓸 수 있는(중립이 아닌) 칩 수로 줄인 뒤([RoastSlots.limitedTo]),
-         * 종류마다 방향이 맞는 칩 수로 다시 줄인다([RoastSlots.cappedBy]). 판정 한 줄 틀과 마지막 한 줄 틀은 [seed]로 하나씩 정해 준다([RoastPunch]).
+         * 근거 카드 슬롯 수는 항목 점수로 정하고, 말풍선 표시가 남는 본인 줄 수와 방향별 칩 수로 줄인다([RoastSlots.limitedTo]).
+         * 판정 한 줄 틀과 마지막 한 줄 틀은 [seed]로 하나씩 정해 준다([RoastPunch]).
          * [seed]는 사실 고르기와 펀치 틀 추천의 시드다([RoastFacts.of], [RoastPunch.candidatesFor]). 같은 참가자·같은 해면 같은 값을 넘겨
          * 재시도에도 같은 사실·같은 추천 펀치가 나오게 하고, 다른 사람에게는 다른 펀치를 추천한다.
          */
@@ -219,8 +229,7 @@ class RoastBrief(
             val facts = refreshed?.let { counted -> RoastFacts.of(counted, dossier, catalog, seed) } ?: RoastFacts.EMPTY
             val slots = RoastSlots.of(verdict, dimensions)
             val punches = catalog.punch.candidatesFor(verdict, seed)
-            val chips = facts.evidenceCount()
-            val supply = RoastSlots(facts.countFor(EvidenceKind.REASON), facts.countFor(EvidenceKind.CUT), facts.countFor(EvidenceKind.KEEP))
+            val supply = facts.supply()
             return RoastBrief(
                 verdict,
                 facts,
@@ -229,9 +238,9 @@ class RoastBrief(
                 sent,
                 all.blockedWords().plus(participants.toList()),
                 catalog.rules.slang.allowed,
-                slots.limitedTo(lineQuotes.usableCount(), chips).cappedBy(supply),
+                slots.limitedTo(lineQuotes.usableCount(), supply),
                 lineQuotes,
-                slots.limitedTo(Int.MAX_VALUE, chips).cappedBy(supply),
+                slots.limitedTo(Int.MAX_VALUE, supply),
                 dossier.phrases,
                 dossier.kinds,
                 refreshed?.let { counted -> counted.clock.peakHour },

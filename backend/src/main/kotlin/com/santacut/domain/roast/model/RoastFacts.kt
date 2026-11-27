@@ -13,7 +13,7 @@ import kotlin.random.Random
  * 작가에게 보내는 사실 목록(8~10개 목표). 앞자리일수록 세게 튀는 사실이고, 앞의 세 사실은 계열이 모두 다르다. JSON에서는 배열 하나로 나간다.
  *
  * 고르는 법: 사실마다 점수 S = 튀는 정도(백분위가 50에서 먼 정도, 0~1) × 편집 무게(facts.json의 weight)를 매긴다.
- * 맨 앞은 S가 가장 큰 사실이고(같으면 시드로 정한다), 나머지는 아직 안 나온 계열의 사실 가운데 softmax(S / [TEMPERATURE]) 무게로
+ * 맨 앞은 근거용 사실 가운데 S가 가장 큰 사실이고(같으면 시드로 정한다), 나머지는 아직 안 나온 계열의 근거용 사실(없으면 중립 사실) 가운데 softmax(S / [TEMPERATURE]) 무게로
  * 시드 뽑기를 되풀이한다. 같은 시드면 늘 같은 사실이 같은 순서로 나온다.
  */
 class RoastFacts(private val values: List<RoastFact>) {
@@ -46,11 +46,12 @@ class RoastFacts(private val values: List<RoastFact>) {
      */
     fun signature(): RoastFact? = values.firstOrNull { fact -> fact.direction.isEvidence() && fact.key != ThanksFactSpec.KEY }
 
-    /** [kind] 근거 카드에 쓸 수 있는 칩 수. 근거 카드 슬롯 수를 재료로 줄일 때 쓴다. */
-    fun countFor(kind: EvidenceKind): Int = values.count { fact -> fact.direction.allows(kind) }
-
-    /** 근거 카드에 쓸 수 있는(중립이 아닌) 칩 수. */
-    fun evidenceCount(): Int = values.count { fact -> fact.direction.isEvidence() }
+    /** 근거 카드에 쓸 수 있는 칩 수를 방향별로 센 값. 근거 카드 슬롯 수를 재료로 줄일 때 쓴다([RoastSlots.limitedTo]). */
+    fun supply(): ChipSupply = ChipSupply(
+        values.count { fact -> fact.direction == ChipDirection.GOOD },
+        values.count { fact -> fact.direction == ChipDirection.BAD },
+        values.count { fact -> fact.direction == ChipDirection.EITHER },
+    )
 
     /** 칩 후보 가운데 입버릇 칩의 입버릇 표기. 판정 한 줄이 입버릇 하나만으로 판정 자리를 채웠는지 볼 때 쓴다. */
     fun phrases(): List<String> = values.mapNotNull { fact -> fact.chip.quotedPhrase()?.takeIf { fact.key.startsWith(PhraseFactSpec.KEY_PREFIX) } }
@@ -82,11 +83,16 @@ class RoastFacts(private val values: List<RoastFact>) {
     /** 맨 앞을 뺀 나머지. */
     fun tail(): RoastFacts = RoastFacts(values.drop(1))
 
+    /**
+     * 남은 계열에서 하나씩 더 뽑는다. 근거 카드에 쓸 수 있는 사실을 먼저 뽑고, 그런 사실이 남은 계열에 없을 때만 중립 사실(대표 칩 후보)을 뽑는다.
+     * [limit]는 근거용 사실 수로만 센다. 중립 사실이 뽑기 몫과 계열을 먼저 차지해 새벽 출몰률 같은 근거용 사실이 빠지지 않게 한다.
+     */
     private tailrec fun drawRest(picked: List<RoastFact>, random: Random, limit: Int): List<RoastFact> {
         val usedGroups = picked.map(RoastFact::group).toSet()
         val open = values.filterNot { fact -> fact.group in usedGroups }
-        if (picked.size >= limit || open.isEmpty()) return picked
-        return drawRest(picked + weightedPick(open, random), random, limit)
+        if (picked.count { fact -> fact.direction.isEvidence() } >= limit || open.isEmpty()) return picked
+        val evidence = open.filter { fact -> fact.direction.isEvidence() }
+        return drawRest(picked + weightedPick(evidence.ifEmpty { open }, random), random, limit)
     }
 
     private tailrec fun sampleFrom(open: List<RoastFact>, picked: List<RoastFact>, random: Random, count: Int): List<RoastFact> {
@@ -106,7 +112,7 @@ class RoastFacts(private val values: List<RoastFact>) {
     companion object {
         val EMPTY = RoastFacts(emptyList())
 
-        /** 계열이 겹치지 않게 뽑는 사실 수 상한(입버릇 하나 포함). 덧붙는 입버릇까지 최대 [MAX_DRAWN_FACTS] + 1개다. */
+        /** 계열이 겹치지 않게 뽑는 근거용 사실 수 상한(입버릇 하나 포함, 중립 사실은 세지 않는다). 덧붙는 입버릇까지 근거용 사실은 최대 [MAX_DRAWN_FACTS] + 1개다. */
         const val MAX_DRAWN_FACTS = 8
 
         /** softmax 온도. 작을수록 점수 큰 사실만 나오고, 클수록 고르게 섞인다. */

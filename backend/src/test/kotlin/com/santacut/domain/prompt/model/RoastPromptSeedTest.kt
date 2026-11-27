@@ -240,7 +240,7 @@ class RoastPromptSeedTest {
         RoastTextKind.entries.forEach { kind -> assertTrue(eighth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
         listOf(
             "verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips",
-            "punch_templates", "verdict_template", "near_miss", "signature_chip_key", "kinds", "topics",
+            "punch_templates", "verdict_template", "near_miss", "signature_chip_key", "kinds", "topics", "banned_marks",
         ).forEach { field -> assertTrue(eighth.contains(field), field) }
     }
 

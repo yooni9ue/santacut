@@ -140,6 +140,52 @@ class RecapJudgeChipTest {
     }
 
     @Test
+    fun `대표 사실은 작가가 놓을 수 있는 칩일 때만 정하고 못 놓으면 비운다`() {
+        val question = metric("question_ratio", 0.3, VERY_HIGH)
+        val ask = LineQuote(ASK, "내일 저녁 가능??")
+        val plain = LineQuote(SHARE, "맛집 리스트 공유함")
+
+        assertNull(briefOf(GIFT, question, quotes = listOf(plain)).signatureKey())
+        assertEquals("question_ratio", briefOf(GIFT, question, quotes = listOf(plain, ask)).signatureKey())
+        assertEquals("night_ratio", briefOf(GIFT, metric("night_ratio", 0.4, VERY_HIGH)).signatureKey())
+        val start = phrase("chulbal", "출발")
+        assertNull(briefOf(GIFT, start, quotes = listOf(plain)).signatureKey())
+        assertEquals(start.key, briefOf(GIFT, start, quotes = listOf(plain), slots = RoastSlots(1, 1, 0)).signatureKey())
+        assertNull(briefOf(GIFT, question, quotes = listOf(plain)).input().signatureChipKey)
+    }
+
+    @Test
+    fun `다시 쓰기에서 받아 둔 근거 카드가 대표 사실 칩을 썼으면 결론만 고친 응답도 통과한다`() {
+        val night = metric("night_ratio", 0.4, VERY_HIGH)
+        val brief = briefOf(COAL, night, metric("question_ratio", 0.3, VERY_HIGH))
+        val conclusion = ConclusionDraft("물음표반장", null, "question_ratio", "물음표 결산. 넌 나가라.")
+        val kept = EvidenceDrafts(listOf(EvidenceDraft("cut", null, night.key, "새벽출몰상", "새벽마다 방을 깨운다.")))
+        val reason = "대표 사실 칩(night_ratio)을 근거 카드나 hero_chip_key 가운데 한 곳에 쓴다"
+
+        assertTrue(reason in conclusion.check(brief, rules).reasons)
+        assertFalse(reason in conclusion.check(brief, rules, kept = kept).reasons)
+    }
+
+    @Test
+    fun `중립 사실은 뽑기 몫과 계열을 먼저 차지하지 않는다`() {
+        val neutral = metric("peak_hour_share", 0.15, VERY_HIGH).copy(score = 1.0)
+        val night = metric("night_ratio", 0.4, VERY_HIGH).copy(score = 0.5)
+        val question = metric("question_ratio", 0.3, VERY_HIGH).copy(score = 0.4)
+
+        val drawn = RoastFacts(listOf(neutral, night, question)).drawn(Random(0), 2)
+
+        assertEquals(setOf("night_ratio", "question_ratio"), drawn.keys().toSet())
+    }
+
+    @Test
+    fun `회귀 - ㅋ 밀도 67은 1번에 1번이 아니라 한 번에 0점7개로 찍는다`() {
+        assertEquals("한 번에 0.7개", metric("laugh_density", 67.0, VERY_HIGH).chip.value)
+        assertEquals("한 번에 0.5개", metric("laugh_density", 50.0, VERY_HIGH).chip.value)
+        assertEquals("2번에 1번", metric("kind_words_density", 49.0, VERY_HIGH).chip.value)
+        assertEquals("한 번에 1개", metric("laugh_density", 99.0, VERY_HIGH).chip.value)
+    }
+
+    @Test
     fun `회귀 - 고마워 0번은 다른 나쁜 쪽 칩 뒤에 서서 깎인 말 한 장까지만 채운다`() {
         val facts = RoastFacts(listOf(metric("night_ratio", 0.4, VERY_HIGH), metric("short_ratio", 0.6, VERY_HIGH), thanks()))
 
@@ -192,11 +238,17 @@ class RecapJudgeChipTest {
         direction = ChipDirection.BAD, dimension = catalog.thanks.dimension,
     )
 
-    private fun briefOf(hundredths: Int, vararg facts: RoastFact, quotes: List<LineQuote> = emptyList(), kinds: Boolean = false): RoastBrief {
+    private fun briefOf(
+        hundredths: Int,
+        vararg facts: RoastFact,
+        quotes: List<LineQuote> = emptyList(),
+        kinds: Boolean = false,
+        slots: RoastSlots = RoastSlots.NONE,
+    ): RoastBrief {
         val verdict = GiftVerdict(hundredths)
         return RoastBrief(
             verdict, RoastFacts(facts.toList()), RoastQuotes.EMPTY, RoastTopics.EMPTY, RoastLines.EMPTY, BlockedWords.EMPTY,
-            slang = rules.slang.allowed, lineQuotes = LineQuotes(quotes), phrases = TestRoasts.dossier.phrases,
+            slang = rules.slang.allowed, slots = slots, lineQuotes = LineQuotes(quotes), phrases = TestRoasts.dossier.phrases,
             kinds = TestRoasts.dossier.kinds.takeIf { kinds }, foreignMarks = catalog.punch.foreignMarksFor(verdict.grade()), examples = catalog.examples,
             thanksWords = catalog.thanks.words,
         )
