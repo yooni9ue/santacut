@@ -33,7 +33,7 @@ export async function getMyResult(signal?: AbortSignal) {
 export interface ShareResponse { token: string; url: string; imageUrl: string }
 export interface RecapBand { code: string; label: string; range: string; current: boolean }
 export type RecapEvidenceKind = "REASON" | "CUT" | "KEEP";
-export type RecapCard = ({ index: number; score_text: string; width: number; height: number; rank: number | null; top_percent: number | null } & (
+export type RecapCard = ({ index: number; score_text: string; width: number; height: number; rank: number | null; top_percent?: number | null } & (
   | { kind: "VERDICT"; verdict: string; passed: boolean; score: number; cut: number; cut_distance: string; cut_distance_value: number; grade: string; grade_code: string; verdict_line: string; delivery_eta: string | null }
   | { kind: "CUTLINE"; total: number | null; grade: string; grade_code: string; band_detail: string; band_position: number; bands: RecapBand[] }
   | { kind: RecapEvidenceKind; ordinal: number; quote: string | null; chip_text: string; label: string; line: string; dim_tag: string | null }

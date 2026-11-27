@@ -47,6 +47,14 @@ test("every v9 card shows the rank bar, its kicker and server text without a mil
   expect(screen.getByText("서버 공유 문구")).toBeInTheDocument();
 });
 
+test("a small ranked population without top_percent shows only the national rank", async () => {
+  const small = { ...recap, top_percent: null, cards: cards.map(({ top_percent: _omit, ...card }) => card) } as RecapResponse;
+  renderDeck(small);
+  const deck = await screen.findByRole("region", { name: "팩폭 산타 카드" });
+  expect(within(deck).getByText("전국 48213등")).toBeInTheDocument();
+  expect(within(deck).queryByText(/상위 undefined/)).not.toBeInTheDocument();
+});
+
 test("the cutline lights only the current band and evidence without a quote shows a giant chip", async () => {
   renderDeck(recap);
   await screen.findByRole("region", { name: "팩폭 산타 카드" });

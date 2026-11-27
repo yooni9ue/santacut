@@ -239,7 +239,7 @@ function DossierContent({ scene }: { scene: DossierScene }) {
 function RecapFace({ card, skin }: { card: RecapCard; skin: string }) {
   const withArt = card.kind !== "CUTLINE" && card.kind !== "CONCLUSION";
   return <>
-    <div className="flow-recap-card-top"><span>산타컷</span><span className={card.rank == null ? "is-pending" : undefined}>{card.rank == null ? "순위 계산 중" : `전국 ${card.rank}등 · 상위 ${card.top_percent}%`}</span></div>
+    <div className="flow-recap-card-top"><span>산타컷</span><span className={card.rank == null ? "is-pending" : undefined}>{card.rank == null ? "순위 계산 중" : card.top_percent == null ? `전국 ${card.rank}등` : `전국 ${card.rank}등 · 상위 ${card.top_percent}%`}</span></div>
     <p className="flow-recap-kicker">{recapCardName(card)}</p>
     <div className="flow-recap-copy"><RecapContent card={card} /></div>
     {withArt && <div className="flow-recap-art" aria-hidden="true"><StuckSanta freed={skin === "GIFT"} /></div>}
