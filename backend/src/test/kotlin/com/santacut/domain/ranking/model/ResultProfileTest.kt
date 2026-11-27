@@ -22,6 +22,17 @@ class ResultProfileTest {
     }
 
     @Test
+    fun `리캡 상단 바의 상위 비율은 참가자가 셋이어도 순위와 참가자 수로 낸다`() {
+        val mine = assessment("me", "[90,70,70,70]", 70)
+        val profile = ResultProfile.of(mine, snapshot(2), ResultPopulation.of(Assessments(listOf(mine))), 3)
+
+        assertNull(profile.topPercent)
+        assertEquals(67, profile.rankedTopPercent)
+        assertEquals(3, profile.participantCount)
+        assertNull(ResultProfile.of(mine, null, ResultPopulation.of(Assessments(listOf(mine))), 0).rankedTopPercent)
+    }
+
+    @Test
     fun `순위가 남은 참가자 수보다 커도 상위 비율은 100을 넘지 않는다`() {
         val mine = assessment("me", "[90,70,70,70]", 70)
 

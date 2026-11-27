@@ -10,6 +10,7 @@ package com.santacut.infrastructure.share.render
  * @property stamp 판정 카드의 도장 문구. 다른 카드는 null이다.
  * @property rows 제목 아래 글줄
  * @property bars 항목 막대 카드의 막대. 다른 카드는 비어 있다.
+ * @property topBar 카드 상단 순위 바(예: `전국 3등 · 상위 50%`). 저장 형식 1판 덱이나 순위가 없으면 null이다.
  */
 data class ShareSlide(
     val kind: String,
@@ -19,6 +20,7 @@ data class ShareSlide(
     val stamp: String? = null,
     val rows: ShareSlideRows = ShareSlideRows.NONE,
     val bars: ShareSlideBars = ShareSlideBars.NONE,
+    val topBar: String? = null,
 ) {
     /** 목차 항목. [index]는 0부터다. */
     fun tocHtml(index: Int): String =
@@ -31,6 +33,7 @@ data class ShareSlide(
         return "<article class=\"card $KIND_CLASS_PREFIX${HtmlText.escape(kind.lowercase())}\" id=\"${cardId(index)}\" data-card tabindex=\"-1\" " +
             "aria-label=\"$position$LABEL_SEPARATOR$escapedLabel\">" +
             "<p class=\"card-top\"><span class=\"card-index\">$position</span>" +
+            topBar?.let { "<span class=\"card-rank\">${HtmlText.escape(it)}</span>" }.orEmpty() +
             "<span class=\"card-score\">${HtmlText.escape(scoreText)}$SCORE_SUFFIX</span></p>" +
             "<p class=\"card-kind\">$escapedLabel</p>" +
             stamp?.let { "<span class=\"seal\">${HtmlText.escape(it)}</span>" }.orEmpty() +

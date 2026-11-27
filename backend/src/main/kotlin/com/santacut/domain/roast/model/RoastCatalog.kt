@@ -6,13 +6,15 @@ package com.santacut.domain.roast.model
  *
  * @property facts 조서 지표를 작가 사실로 옮기는 규칙
  * @property phrase 입버릇을 작가 사실로 옮기는 규칙
+ * @property thanks 고맙다는 말 횟수를 작가 사실로 옮기는 규칙
  */
 class RoastCatalog(
     val rules: RoastRules,
     val facts: RoastFactSpecs,
     val phrase: PhraseFactSpec,
+    val thanks: ThanksFactSpec,
     val fallback: RoastFallback,
 ) {
     /** 모든 리소스의 규칙 위반 설명. 비어 있어야 앱을 띄운다. */
-    fun violations(): List<String> = facts.violations() + phrase.violations() + fallback.violations() + rules.slang.violations()
+    fun violations(): List<String> = facts.violations() + phrase.violations() + thanks.violations() + fallback.violations() + rules.slang.violations()
 }

@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * 사는 곳 이름([residenceSuffixes])은 (집)으로 바꾼다. 지명·가게·행사 이름은 가리지 않는다(사람 이름만 가린다는 결정).
  * 접미사 패턴은 오탐이 잦은 낱말([suffixExceptions])을 건너뛴다.
  * 출력: 숫자·셈말 표현([numberPatterns], 허용 [allowedNumberPhrases]), 금지어([bannedWords]), 옛말투·유행어·이모지·느낌표·ㅋㅋ([tonePatterns]),
- * 판정 방향([coalForbidden], [giftForbidden]), 담백 판결의 석탄·탈락([mildForbidden])을 막고, 뒤집기는 [flipStart]("근데 ")로 열게 한다.
+ * 판정 방향([coalForbidden], [giftForbidden])과 칭찬 뒤집기 말([flipWords])을 막는다.
  *
  * @property residenceSuffixes 줄기 한 글자 이상에 붙으면 사는 곳(주소에 가까운 단지) 이름으로 보는 접미사(아파트, 빌라 등)
  * @property honorificSuffixes 붙으면 사람 이름으로 보는 호칭(누나, 언니 등). 호칭만 있어도 가린다.
@@ -25,9 +25,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
  * @property allowedNumberPhrases 숫자 검사 전에 빼는 관용 표현. 붙여 쓴 "한마디"(짧은 말이라는 한 낱말)는 허용하고, 띄어 쓴 "한 마디"는 셈말로 본다.
  * @property tonePatterns 쓰면 안 되는 말투 정규식(옛말투 어미, 훈화 낱말, 유행어, 이모지, 느낌표, ㅋㅋ). 따옴표 인용 안은 보지 않는다.
  * 옛 명령형은 줄여 쓰는 꼴이 있는 것(두어라→둬라, 보아라→봐라, 하여라→해라)과 ~거라·오너라만 막고, 봐라·해라·먹어라 같은 반말 명령은 둔다.
- * @property titleBannedWords 칭호에만 막는 말(요정, 천사, 분위기 메이커). 누구에게나 붙는 칭호라 이 사람의 자리를 말하지 못한다.
- * @property letterClosingEndings 쪽지 마지막 문장 끝에만 허용하는 산타 어미(~거라). 이 어미로 끝난 맨 끝은 말투 검사에서 뺀다. ~마는 막지 않으므로 넣지 않는다.
- * @property flipStart 뒤집기가 반드시 시작해야 하는 말("근데 "). 글자 수에 들어간다.
+ * @property titleBannedWords 결론 칭호에만 막는 말(요정, 천사, 분위기 메이커). 누구에게나 붙는 칭호라 이 사람의 자리를 말하지 못한다.
+ * @property flipWords 칭찬 뒤집기로 읽히는 말(근데, 덕분에, 그래도). 리캡 덱은 칭찬 뒤집기를 쓰지 않는다.
+ * @property labelSuffix 근거 카드 라벨이 끝나야 하는 글자("상"). 답장독촉상처럼 상 이름 꼴로만 쓴다.
  * @property slang 유행어 목록(roast/slang.json). 금지 목록은 [bannedWords]와 함께 막고, 허용 목록은 필드마다 [RoastSlang.maxPerField]개까지만 쓰게 한다.
  * 허용 유행어 안의 알파벳('L을 가져가')은 알파벳 검사에서 뺀다. 느낌표는 허용 목록에 필요한 말이 없어 그대로 막는다.
  */
@@ -48,11 +48,10 @@ data class RoastRules(
     @JsonProperty("allowed_number_phrases") val allowedNumberPhrases: List<String>,
     @JsonProperty("coal_forbidden") val coalForbidden: List<String>,
     @JsonProperty("gift_forbidden") val giftForbidden: List<String>,
-    @JsonProperty("mild_forbidden") val mildForbidden: List<String>,
     @JsonProperty("tone_patterns") val tonePatterns: List<String>,
     @JsonProperty("title_banned_words") val titleBannedWords: List<String>,
-    @JsonProperty("letter_closing_endings") val letterClosingEndings: List<String>,
-    @JsonProperty("flip_start") val flipStart: String,
+    @JsonProperty("flip_words") val flipWords: List<String>,
+    @JsonProperty("label_suffix") val labelSuffix: String,
     val slang: RoastSlang = RoastSlang.EMPTY,
 ) {
     private val particleGroup = alternation(particles)
@@ -67,10 +66,9 @@ data class RoastRules(
     private val slangStems = Regex(alternation(slang.allowed.stems()))
     private val coalWrong = Regex(alternation(coalForbidden))
     private val giftWrong = Regex(alternation(giftForbidden))
-    private val mildWrong = Regex(alternation(mildForbidden))
     private val tone = Regex(alternationOfPatterns(tonePatterns))
     private val titleBanned = Regex(alternation(titleBannedWords))
-    private val letterClosing = Regex("(?:${alternation(letterClosingEndings)})[.]?\\s*$")
+    private val flips = Regex(alternation(flipWords))
 
     /**
      * 작가 입력용으로 가린 본문. 호칭·부르는 말에서 떼어 낸 이름 줄기('현규형'의 '현규')는
@@ -92,6 +90,13 @@ data class RoastRules(
         if (names.isEmpty()) return null
         val words = names.distinct().sortedByDescending(String::length).joinToString(ALTERNATION) { name -> Regex.escape(name) }
         return MaskPattern(Regex("(?<![가-힣])(?:$words)"), NAME_LABEL)
+    }
+
+    /** 근거 카드 말풍선 표시에서 [names]를 ○○([QuoteText.NAME_MASK])로 바꾸는 패턴. 낱말 앞 경계에서만 맞춘다. 낱말이 없으면 null이다. */
+    fun quotePattern(names: Collection<String>): MaskPattern? {
+        val words = names.filter(String::isNotBlank).distinct().sortedByDescending(String::length)
+        if (words.isEmpty()) return null
+        return MaskPattern(Regex("(?<![가-힣])(?:${words.joinToString(ALTERNATION) { name -> Regex.escape(name) }})"), QuoteText.NAME_MASK)
     }
 
     /** 참여자 표시 이름 [speakers]로 만든 가릴 이름. 붙여 쓴 호칭·직함([honorificSuffixes], [honorificShortSuffixes], [nameTitles])은 떼고 이름 예외 목록으로 거른다. */
@@ -123,21 +128,28 @@ data class RoastRules(
     /** 판정과 어긋난 말. 석탄인데 선물을 받는다거나, 선물인데 석탄이라는 말이다. 없으면 null이다. */
     fun wrongDirectionIn(text: String, passed: Boolean): String? = (if (passed) giftWrong else coalWrong).find(text)?.value
 
-    /** 담백 판결에 들어가면 안 되는 말(석탄, 탈락). 없으면 null이다. */
-    fun mildWrongIn(text: String): String? = mildWrong.find(text)?.value
-
-    /**
-     * 처음 나온 금지 말투(옛말투 어미, 훈화 낱말, 유행어, 이모지, 느낌표, ㅋㅋ). 없으면 null이다.
-     * [closingAllowed]면(쪽지) 맨 끝 산타 어미([letterClosingEndings])는 빼고 본다. 쪽지 마지막 문장만 "~거라"로 맺어도 된다.
-     */
-    fun toneIn(text: String, closingAllowed: Boolean): String? =
-        tone.find(if (closingAllowed) letterClosing.replace(text, "") else text)?.value
+    /** 처음 나온 금지 말투(옛말투 어미, 훈화 낱말, 유행어, 이모지, 느낌표, ㅋㅋ). 없으면 null이다. */
+    fun toneIn(text: String): String? = tone.find(text)?.value
 
     /** 칭호에 처음 나온 칭호 금지어([titleBannedWords]). 없으면 null이다. */
     fun titleBannedIn(text: String): String? = titleBanned.find(text)?.value
 
-    /** 뒤집기가 [flipStart]("근데 ")로 시작하는지. */
-    fun startsFlipRightly(text: String): Boolean = text.startsWith(flipStart)
+    /** 처음 나온 칭찬 뒤집기 말([flipWords]). 없으면 null이다. */
+    fun flipIn(text: String): String? = flips.find(text)?.value
+
+    /**
+     * 근거 카드 라벨이 상 이름 꼴인지. [MIN_AWARD_LABEL]자 이상이고 [labelSuffix]로 끝나야 한다.
+     * 마지막 낱말이 일상·영상처럼 상으로 끝나는 흔한 낱말([COMMON_SANG_WORDS])이면 상 이름이 아니다.
+     * 낱말 안에서 끝 두 글자만 견주지는 않는다(산타인정상은 정상이 아니다).
+     */
+    fun isAwardLabel(text: String): Boolean {
+        val label = text.trim()
+        return label.codePointCount(0, label.length) >= MIN_AWARD_LABEL && label.endsWith(labelSuffix) &&
+            label.split(WHITESPACE).last() !in COMMON_SANG_WORDS
+    }
+
+    /** [text]에 쓴 허용 유행어 수. 덱 전체 상한([RoastSlang.maxPerDeck])을 셀 때 쓴다. */
+    fun slangCountIn(text: String): Int = slangStems.findAll(text).count()
 
     /** 영문 낱말이 있는지. 허용 유행어 안의 알파벳은 보지 않는다. */
     fun hasLatin(text: String): Boolean = LATIN.containsMatchIn(slangStems.replace(text, ""))
@@ -171,6 +183,12 @@ data class RoastRules(
         Regex("(($stem)(?:${alternation(suffixes)}))((?:$particleGroup)?)")
 
     companion object {
+        /** 상 이름 라벨의 최소 글자 수. */
+        const val MIN_AWARD_LABEL = 3
+
+        /** 상으로 끝나지만 상 이름이 아닌 흔한 낱말. 라벨이 이것으로 끝나면 떨어진다. */
+        private val WHITESPACE = Regex("\\s+")
+        private val COMMON_SANG_WORDS = setOf("일상", "밥상", "이상", "정상", "세상", "화상", "영상", "인상", "대상", "현상")
         private const val ALTERNATION = "|"
         private const val NOTHING = "(?!)"
         private const val CORE = 1

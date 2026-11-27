@@ -1,6 +1,7 @@
 package com.santacut.domain.prompt.model
 
 import com.santacut.domain.roast.model.RoastTextKind
+import com.santacut.infrastructure.roast.client.RoastResponseSchema
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
@@ -12,6 +13,7 @@ import kotlin.test.assertTrue
  * 팩폭 작가 프롬프트 시드. 1판은 사람 이름만 가리는 입력 규칙과 연말 장부·다양성 지시를 담는다.
  * 2판은 1판을 그대로 두고 첫 응답이 떨어지던 까닭(글자 수, 수 세는 말, 목록 밖 인용)과 문장부호·사건 단정·오타 지시를 더한다.
  * 3판은 2판에 v3 말투 규칙(짧은 반말, "근데 "로 여는 뒤집기, 등급 온도)을 더하고, 서버 검증과 같은 글자 수 범위를 준다.
+ * 5판은 리캡 덱 스키마(판정 한 줄, 근거 카드, 결론)로 새로 쓰고, 지금 서버 검증과 같은 글자 수 범위를 준다.
  */
 class RoastPromptSeedTest {
     private val sql: String by lazy { Files.readString(Path.of("src/main/resources/prompts.sql")) }
@@ -19,6 +21,7 @@ class RoastPromptSeedTest {
     private val second: String by lazy { contentOf(SECOND_HEAD) }
     private val third: String by lazy { contentOf(THIRD_HEAD) }
     private val fourth: String by lazy { contentOf(FOURTH_HEAD) }
+    private val fifth: String by lazy { contentOf(FIFTH_HEAD) }
 
     private fun contentOf(head: String): String {
         val start = sql.indexOf(head).also { index -> check(index >= 0) { "시드 없음: $head" } } + head.length
@@ -97,8 +100,7 @@ class RoastPromptSeedTest {
     fun `3판의 뒤집기는 근데로 시작하고 글자 수 범위가 서버 검증과 같다`() {
         assertTrue(third.contains("반드시 \"근데 \"로 시작한다"))
         assertTrue(third.contains("화면은 \"근데\"를 따로 붙이지 않으니"))
-        listOf(RoastTextKind.ROAST, RoastTextKind.FLIP, RoastTextKind.TITLE, RoastTextKind.VERDICT, RoastTextKind.LETTER, RoastTextKind.STORY)
-            .forEach { kind -> assertTrue(third.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        V3_RANGES.forEach { range -> assertTrue(third.contains(range), range) }
         val ruler = Regex("""- (\d+)자: 「([^」]+)」""").findAll(third).toList()
         ruler.forEach { match -> assertEquals(match.groupValues[1].toInt(), match.groupValues[2].length) }
     }
@@ -128,11 +130,43 @@ class RoastPromptSeedTest {
     fun `4판은 밈 틀과 앞의 세 짝 계열 규칙을 주고 글자 수 범위는 서버 검증과 같다`() {
         listOf("- 대조형:", "- 헤드라인형:", "- 번복형:", "- 칭호형:", "- 선언형:").forEach { frame -> assertTrue(fourth.contains(frame), frame) }
         assertTrue(fourth.contains("앞의 세 짝은 group이 모두 다른 사실로 쓰고"))
-        listOf(RoastTextKind.ROAST, RoastTextKind.FLIP, RoastTextKind.TITLE, RoastTextKind.VERDICT, RoastTextKind.LETTER, RoastTextKind.STORY)
-            .forEach { kind -> assertTrue(fourth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        V3_RANGES.forEach { range -> assertTrue(fourth.contains(range), range) }
+    }
+
+    @Test
+    fun `5판은 리캡 덱 필드만 쓰게 하고 글자 수 범위가 지금 서버 검증과 같다`() {
+        RoastTextKind.entries.forEach { kind -> assertTrue(fifth.contains("${kind.minLength}자 이상 ${kind.maxLength}자 이하"), kind.name) }
+        listOf("verdict_line", "evidence", "conclusion", "line_id", "chip_key", "hero_line_id", "hero_chip_key", "final_line", "slots", "chips")
+            .forEach { field -> assertTrue(fifth.contains(field), field) }
+        assertFalse(fifth.contains("verdict_mild"))
+        assertFalse(fifth.contains("letter"))
+        assertTrue(RoastResponseSchema.JSON.contains("\"verdict_line\""))
+    }
+
+    @Test
+    fun `5판은 상 이름 라벨, 칭찬 뒤집기 금지, 덱 전체 유행어 상한, 본인 줄만 고르기를 지시한다`() {
+        assertTrue(fifth.contains("반드시 '상'으로 끝낸다"))
+        assertTrue(fifth.contains("'근데', '덕분에', '그래도'는 어떤 글에도 쓰지 않는다"))
+        assertTrue(fifth.contains("결과 전체에서 세 개까지만 쓴다"))
+        assertTrue(fifth.contains("다른 사람의 말풍선은 들어 있지 않다"))
+        assertTrue(fifth.contains("숫자와 셈말을 쓰지 않는다"))
+    }
+
+    @Test
+    fun `5판의 판정 틀은 모두 빈칸을 두고 고마워 칩은 cut 전용이며 일반론은 떨어진다고 알린다`() {
+        assertFalse(fifth.contains("\"나쁜 아이냐고? 아뇨아뇨아뇨.\""))
+        assertFalse(fifth.contains("\"착한 아이 명단에서 퇴사할게여.\""))
+        assertTrue(fifth.contains("\"(버릇)이 나쁘냐고? 아뇨아뇨아뇨.\""))
+        assertTrue(fifth.contains("\"(버릇) 때문에 명단 퇴사할게여.\""))
+        assertTrue(fifth.contains("kinds가 있는 칩은 그 kind 카드에만 쓰고"))
+        assertTrue(fifth.contains("겹치는 낱말이 없으면 일반론으로 보고 서버 검사에서 떨어진다"))
     }
 
     companion object {
+        private const val FIFTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0005','roast',5,'"
+
+        /** 3·4판이 준 글자 수 범위(칭호, 판결, 놀림, 뒤집기, 쪽지, 줄거리). 그때 서버 검증과 같았다. */
+        private val V3_RANGES = listOf("8자 이상 18자 이하", "18자 이상 42자 이하", "18자 이상 40자 이하", "18자 이상 43자 이하", "60자 이상 120자 이하", "16자 이상 34자 이하")
         private const val FOURTH_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0004','roast',4,'"
         private const val HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0001','roast',1,'"
         private const val SECOND_HEAD = "VALUES ('7f3c2a10-0d4e-4c55-9b61-5c0f2e8b0002','roast',2,'"

@@ -34,10 +34,10 @@ class HeldJobRunnerSeasonTest {
     )
 
     @Test
-    fun `시즌이 마감됐으면 지난 결과를 찾지 않고 작가를 새로 부를 총점도 없다`() {
+    fun `시즌이 마감됐으면 지난 결과를 찾지 않고 작가를 새로 부를 평가도 없다`() {
         given(analysisJobService.isSeasonClosedAt(NOW)).willReturn(true)
 
-        assertNull(runner.scoreNeedingRoast(mock(ScoringAttempt::class.java)))
+        assertNull(runner.assessmentNeedingRoast(mock(ScoringAttempt::class.java)))
         verify(analysisJobService).isSeasonClosedAt(NOW)
         verifyNoMoreInteractions(analysisJobService)
         verifyNoInteractions(roastService)

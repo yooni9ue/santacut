@@ -19,6 +19,7 @@ import com.santacut.infrastructure.share.render.SharePageRenderer
 import com.santacut.infrastructure.share.repository.ShareRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import tools.jackson.core.JacksonException
 import tools.jackson.databind.ObjectMapper
 import java.time.Instant
 import java.util.UUID
@@ -97,17 +98,15 @@ class ShareService(
         share.displayArchetype(), share.displayBars(), share.displayHighlights(), share.quote,
     )
 
-    /** 저장한 카드 덱. 없거나, 읽을 수 없거나, 지금 코드가 모르는 판이면 null이다. */
+    /** 저장한 카드 덱. 없거나, 읽을 수 없거나, 지금 코드가 모르는 판이면 null이다. 1판과 2판 덱을 모두 읽는다([ShareDeckReader]). */
     private fun deckOf(share: Share): ShareDeck? {
         val json = share.recapJson ?: return null
-        val deck = try {
-            objectMapper.readValue(json, RecapDeck::class.java)
-        } catch (exception: RuntimeException) {
+        return try {
+            ShareDeckReader.read(json, objectMapper)
+        } catch (exception: JacksonException) {
             logger.warn("공유 리캡 카드 덱을 읽지 못해 요약 화면으로 보여 준다: {}", exception.javaClass.simpleName)
-            return null
+            null
         }
-        if (!deck.hasCurrentVersion()) return null
-        return ShareDeckConverter.of(deck)
     }
 
     private fun findPublic(token: ShareToken): Share =

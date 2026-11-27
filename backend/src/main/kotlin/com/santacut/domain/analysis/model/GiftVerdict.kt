@@ -47,8 +47,11 @@ data class GiftVerdict(val hundredths: Int) {
     /** 서버가 고정한 공유 문구. 등급마다 다르고 총점 표시를 넣는다([GiftGrade.shareTextWith]). */
     fun shareText(): String = grade().shareTextWith(scoreText())
 
-    /** 농담을 끈 사람의 공유 문구. 점수와 놀림 없이 통과면 선물 받은 문구, 탈락이면 내년으로 미룬 문구 하나다. */
-    fun shareTextMild(): String = if (passed) MILD_GIFT_SHARE_TEXT else MILD_COAL_SHARE_TEXT
+    /** 리캡 판정 카드의 큰 글자. 선물이면 "착한 아이", 석탄이면 "나쁜 아이"다. */
+    fun childLabel(): String = if (passed) GOOD_CHILD else BAD_CHILD
+
+    /** 결론 카드의 친구 소환 고정문. */
+    fun friendCall(): String = if (passed) GIFT_FRIEND_CALL else COAL_FRIEND_CALL
 
     private fun pointsText(absoluteHundredths: Int): String =
         (absoluteHundredths / HUNDRED).toString() + DECIMAL_POINT + (absoluteHundredths % HUNDRED).toString().padStart(2, ZERO)
@@ -68,7 +71,9 @@ data class GiftVerdict(val hundredths: Int) {
         private const val DECIMAL_POINT = "."
         private const val SEPARATOR = " · "
         private const val MILD_COAL_STAMP = "내년 명단 예약"
-        private const val MILD_GIFT_SHARE_TEXT = "산타가 내 단톡방 다 읽음. 올해 선물 받음. 너도 까봐."
-        private const val MILD_COAL_SHARE_TEXT = "올해 선물은 내년으로 미뤄짐. 너는 받았는지 까봐."
+        private const val GOOD_CHILD = "착한 아이"
+        private const val BAD_CHILD = "나쁜 아이"
+        private const val GIFT_FRIEND_CALL = "우리 방에서 나보다 착한 애 나와"
+        private const val COAL_FRIEND_CALL = "우리 방 석탄 동기 구함"
     }
 }

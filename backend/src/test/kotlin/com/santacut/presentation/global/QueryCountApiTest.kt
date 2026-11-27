@@ -125,7 +125,7 @@ class QueryCountApiTest @Autowired constructor(
             job.startAttempt(LEASE, now, LEASE_DURATION)
             val assessment = assessmentService.record(job, ScoredAssessment(score, 1, null, EarnedBadges(emptyList())), now)
             dossierService.record(assessment, TestDossiers.draft(TestDossiers.selves(listOf("고마워", "진짜"))), now)
-            roastService.record(assessment, roastService.fallbackDraft(score.hundredths, null, 0), now)
+            roastService.record(assessment, roastService.fallbackDraft(score.hundredths, score.components, null, 0), now)
             job.succeed(assessment.id, now)
             analysisJobRepository.save(job)
         }

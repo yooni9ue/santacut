@@ -160,49 +160,60 @@ class RoastRulesTest {
             "먼저 하거라" to "하거라", "물어보아라" to "보아라", "다 읽었구나." to "구나", "잘 읽었습니다" to "습니다", "성미가 급하다" to "성미",
             "근사한 버릇이다" to "근사한", "새날을 연다" to "새날", "추진력 갑" to "갑", "답장 갑이다" to "갑이", "레전드다" to "레전드", "찐이다" to "찐",
             "무지성 출발" to "무지성", "빠르다!" to "!", "ㅋㅋ 친다" to "ㅋㅋ", "선물이다\u2744" to "\u2744",
-        ).forEach { (text, found) -> assertEquals(found, rules.toneIn(text, false), text) }
+        ).forEach { (text, found) -> assertEquals(found, rules.toneIn(text), text) }
     }
 
     @Test
-    fun `말투 검사는 꼴만 같은 흔한 말을 잡지 않고, 쪽지는 맨 끝 거라만 허용한다`() {
+    fun `말투 검사는 꼴만 같은 흔한 말을 잡지 않고 맨 끝 거라도 잡는다`() {
         listOf("갑자기 조용해졌다", "지갑을 열었다", "반갑더라", "찐빵을 샀다", "도구나 장비", "더구나 물음표다", "ㅋ 하나는 친다").forEach { text ->
-            assertNull(rules.toneIn(text, false), text)
+            assertNull(rules.toneIn(text), text)
         }
-        assertNull(rules.toneIn("내년에도 먼저 말을 꺼내거라.", true))
-        assertNull(rules.toneIn("썰매는 내가 몰마.", true))
-        assertEquals("하거라", rules.toneIn("먼저 하거라. 내년에 보자.", true))
-        assertEquals("하거라", rules.toneIn("내년에도 먼저 하거라.", false))
+        assertEquals("하거라", rules.toneIn("내년에도 먼저 하거라."))
     }
 
     @Test
     fun `옛 명령형(거라, 오너라, 두어라, 보아라)과 ㅂ니다체 어미는 문장 끝에서 잡고 봐라·해라 같은 반말 명령은 둔다`() {
         listOf("오거라.", "말해 보거라.", "그대로 두어라.", "다 주어라", "썰매에 오너라.", "두고 갑니다.", "문 앞에 둡니다", "이제 보아라.", "먼저 하여라.")
-            .forEach { text -> assertNotNull(rules.toneIn(text, false), text) }
+            .forEach { text -> assertNotNull(rules.toneIn(text), text) }
         listOf("그만 봐라.", "빨리 해라.", "많이 먹어라.", "좀 참아라.", "그대로 둬라.", "갈 거라 믿는다.", "몇 시에 갑니까 묻는다", "올해 선물 갑니다만 아니다", "그건 아니다.", "학원 다니다", "끝까지 지니다")
-            .forEach { text -> assertNull(rules.toneIn(text, false), text) }
-        assertNull(rules.toneIn("내년에도 먼저 오거라.", true))
-        assertEquals("두어라", rules.toneIn("그대로 두어라. 내년에 보자.", true))
+            .forEach { text -> assertNull(rules.toneIn(text), text) }
     }
 
     @Test
     fun `구나는 문장 끝 어미만 잡고 누구나·축구나·야구나·아구나 같은 낱말은 두지 않는다`() {
-        listOf("누구나 아는 버릇이다", "축구나 보자고 졸랐다", "야구나 농구나", "아구나 먹자고").forEach { text -> assertNull(rules.toneIn(text, false), text) }
-        listOf("다 읽었구나.", "그랬구나", "빠르구나, 손이").forEach { text -> assertEquals("구나", rules.toneIn(text, false), text) }
+        listOf("누구나 아는 버릇이다", "축구나 보자고 졸랐다", "야구나 농구나", "아구나 먹자고").forEach { text -> assertNull(rules.toneIn(text), text) }
+        listOf("다 읽었구나.", "그랬구나", "빠르구나, 손이").forEach { text -> assertEquals("구나", rules.toneIn(text), text) }
     }
 
     @Test
     fun `갑은 조사가 붙어도 잡되 담배 한 갑은 두고, 찐득·성미산은 두며 별·알람 이모지도 잡는다`() {
-        listOf("추진력 갑이라", "답장 갑인 사람", "속도는 갑은 갑", "갑을 넘는다").forEach { text -> assertNotNull(rules.toneIn(text, false), text) }
-        listOf("담배 한 갑 샀다", "찐득한 손", "찐덕찐덕하다", "성미산 산책").forEach { text -> assertNull(rules.toneIn(text, false), text) }
-        assertEquals("\u2B50", rules.toneIn("선물이다\u2B50", false))
-        assertEquals("\u23F0", rules.toneIn("알람\u23F0 맞췄다", false))
+        listOf("추진력 갑이라", "답장 갑인 사람", "속도는 갑은 갑", "갑을 넘는다").forEach { text -> assertNotNull(rules.toneIn(text), text) }
+        listOf("담배 한 갑 샀다", "찐득한 손", "찐덕찐덕하다", "성미산 산책").forEach { text -> assertNull(rules.toneIn(text), text) }
+        assertEquals("\u2B50", rules.toneIn("선물이다\u2B50"))
+        assertEquals("\u23F0", rules.toneIn("알람\u23F0 맞췄다"))
     }
 
     @Test
-    fun `뒤집기는 근데와 한 칸 띄움으로 시작해야 한다`() {
-        assertTrue(rules.startsFlipRightly("근데 그 물음표 없었으면 이 방은 진작 눈 덮였다."))
-        assertFalse(rules.startsFlipRightly("그 물음표 없었으면 이 방은 진작 눈 덮였다."))
-        assertFalse(rules.startsFlipRightly("근데그 물음표 없었으면 이 방은 진작 눈 덮였다."))
+    fun `칭찬 뒤집기 말(근데, 덕분에, 그래도)을 찾는다`() {
+        assertEquals("근데", rules.flipIn("근데 그 물음표가 방을 살렸다."))
+        assertEquals("덕분에", rules.flipIn("그 물음표 덕분에 판이 섰다."))
+        assertEquals("그래도", rules.flipIn("그래도 산타는 봤다."))
+        assertNull(rules.flipIn("물음표로 판을 깔았다."))
+    }
+
+    @Test
+    fun `근거 라벨은 상으로 끝나는 상 이름이어야 한다`() {
+        assertTrue(rules.isAwardLabel("답장독촉상"))
+        assertFalse(rules.isAwardLabel("약속 발사대"))
+    }
+
+    @Test
+    fun `상으로 끝나도 두 글자이거나 마지막 낱말이 흔한 낱말이면 상 이름이 아니다`() {
+        listOf("대상", "일상", "새벽 일상", "카톡 영상", "아침 밥상", "답장 이상", "말풍선 세상", "연말 정상", "첫 인상").forEach { label ->
+            assertFalse(rules.isAwardLabel(label), label)
+        }
+        assertTrue(rules.isAwardLabel("감사품절상"))
+        assertTrue(rules.isAwardLabel("산타인정상"))
     }
 
     @Test

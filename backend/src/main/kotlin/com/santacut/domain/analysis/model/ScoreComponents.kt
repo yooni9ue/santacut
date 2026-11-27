@@ -36,6 +36,9 @@ class ScoreComponents(private val values: List<BigDecimal>) {
     fun rankedDimensions(): List<ScoreDimension> =
         ScoreDimension.entries.sortedWith(compareByDescending<ScoreDimension> { scoreOf(it) }.thenBy { it.ordinal })
 
+    /** 점수가 [points] 이상인 항목 수. */
+    fun countAtLeast(points: BigDecimal): Int = ScoreDimension.entries.count { dimension -> scoreOf(dimension) >= points }
+
     /** 가장 높은 항목과 두 번째 항목의 점수 차이. */
     fun leadGap(): BigDecimal {
         val (top, runnerUp) = rankedDimensions()

@@ -524,7 +524,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     fun `채점을 마치면 작가 문장을 검증해 통과한 문장을 팩폭 결과로 평가와 함께 저장한다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()
-        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        answerRoastWith(VALID_TITLE)
         val job = submitAnalysis()
 
         analysisWorkerFacade.processNextJob()
@@ -541,7 +541,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     fun `작가 호출 사용량은 채점 사용량과 따로 작가 단가 칸에 더한다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()
-        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        answerRoastWith(VALID_TITLE)
         doReturn(null).`when`(dossierService).draft(anyJob())
         submitAnalysis()
 
@@ -555,13 +555,13 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     }
 
     @Test
-    fun `검증에 떨어진 필드는 사유를 붙여 최대 두 번 다시 부르고 끝까지 떨어지면 대체 문장으로 채운다`() {
+    fun `검증에 떨어진 묶음은 사유를 붙여 두 번까지 다시 부르고 끝까지 떨어지면 대체 문장으로 채운다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()
         val inputs = mutableListOf<String>()
         given(roastClient.request(anyString(), anyString())).willAnswer { invocation ->
             inputs += invocation.getArgument<String>(1)
-            RoastAnswer(roastJson("물음표 세 번 요정"), ROAST_USAGE)
+            RoastAnswer(roastJson(invocation.getArgument(1), "물음표 세 번 요정"), ROAST_USAGE)
         }
         val job = submitAnalysis()
 
@@ -569,17 +569,17 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
         assertEquals(3, inputs.size)
         assertFalse(inputs[0].contains("\"rewrite\""))
-        assertTrue(inputs[1].contains("\"rewrite\"") && inputs[1].contains("title 숫자 표현(세 번)"))
+        assertTrue(inputs[1].contains("\"rewrite\"") && inputs[1].contains("conclusion title: 숫자 표현(세 번)"))
         val roast = assertNotNull(roastRepository.findByAssessmentId(assertNotNull(rankedStatus(job).assessmentId)))
         assertFalse(roast.contentJson.contains("물음표 세 번 요정"))
         assertEquals("SUCCEEDED", rankedStatus(job).status)
     }
 
     @Test
-    fun `조서 집계가 없어 사실이 없으면 짝을 기다리지 않아 작가를 한 번만 부른다`() {
+    fun `조서 집계가 없어 칩 후보가 없으면 근거 카드 슬롯이 없어 작가를 한 번만 부른다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()
-        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        answerRoastWith(VALID_TITLE)
         doReturn(null).`when`(dossierService).draft(anyJob())
         val job = submitAnalysis()
 
@@ -650,7 +650,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
     fun `같은 채점 입력으로 다시 내면 지난 팩폭 결과를 새 평가에 복사하고 작가를 다시 부르지 않는다`() {
         given(scoreClient.requestAnswer(anyChunk(), anyString())).willReturn(fullAnswer())
         enableRoast()
-        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        answerRoastWith(VALID_TITLE)
         val first = submitAnalysis()
         analysisWorkerFacade.processNextJob()
         val calls = requestCount()
@@ -686,7 +686,7 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         val first = submitAnalysis()
         analysisWorkerFacade.processNextJob()
         enableRoast()
-        given(roastClient.request(anyString(), anyString())).willReturn(RoastAnswer(roastJson(VALID_TITLE), ROAST_USAGE))
+        answerRoastWith(VALID_TITLE)
         val second = submitAnalysis(first.participantId)
 
         analysisWorkerFacade.processNextJob()
@@ -708,18 +708,34 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
 
     private fun requestCount(): Int = mockingDetails(roastClient).invocations.count { invocation -> invocation.method.name == "request" }
 
-    /** 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답. 짝이 없으므로 짝은 대체 문장으로 채워진다. */
-    private fun roastJson(title: String): String = objectMapper.writeValueAsString(
-        mapOf(
-            "title" to title,
-            "verdict" to "말풍선마다 고맙다는 말을 얹었다. 선물 명단에 이름 적어 둔다.",
-            "verdict_mild" to "올해 말풍선 잘 읽었다. 선물은 문 앞에 잘 챙겨 두고 간다.",
-            "letter" to "올해 네 말풍선을 끝까지 읽었다. 할 말이 생기면 미루지 않고 먼저 꺼내던 버릇이 좋았다. 내년에도 그대로 둬라.",
-            "pairs" to emptyList<Any>(),
-            "story" to listOf(1, 2, 3).map { act -> mapOf("act" to act, "line" to "그 막에는 고맙다는 말을 먼저 꺼냈다.") },
-        ),
-    )
+    /** 작가가 받은 입력에 맞춰 [title] 칭호의 응답을 돌려주게 한다. */
+    private fun answerRoastWith(title: String) {
+        given(roastClient.request(anyString(), anyString())).willAnswer { invocation ->
+            RoastAnswer(roastJson(invocation.getArgument(1), title), ROAST_USAGE)
+        }
+    }
 
+    /**
+     * 작가 입력 [input]의 슬롯 수·본인 줄 번호·칩 후보로 채운, 결론 칭호가 [title]이고 나머지는 규칙을 지킨 작가 응답(프롬프트 5판).
+     * 근거 카드는 서로 다른 본인 줄과 칩을 쓴다.
+     */
+    private fun roastJson(input: String, title: String): String {
+        val root = objectMapper.readTree(input)
+        val lineIds = root.path("transcript").values().flatMap { act -> act.path("lines").values().map { line -> line.asString().substringBefore("|").toInt() } }
+        val chips = root.path("chips").values().map { chip -> chip.path("chip_key").asString() }
+        val slots = root.path("slots")
+        val kinds = listOf("reason", "cut", "keep").flatMap { kind -> List(slots.path(kind).asInt()) { kind } }
+        val evidence = kinds.mapIndexed { index, kind ->
+            mapOf("kind" to kind, "line_id" to lineIds[index], "chip_key" to chips[index], "label" to EVIDENCE_LABELS[index], "line" to EVIDENCE_LINES[index])
+        }
+        return objectMapper.writeValueAsString(
+            mapOf(
+                "verdict_line" to "올해 감사 연타, 딸깍.",
+                "evidence" to evidence,
+                "conclusion" to mapOf("title" to title, "hero_line_id" to lineIds.lastOrNull(), "hero_chip_key" to chips.firstOrNull().orEmpty(), "final_line" to "고마운 말은 올해도 이어졌다."),
+            ),
+        )
+    }
 
     private fun submitAnalysis(
         participantId: UUID = registerParticipant(),
@@ -801,7 +817,10 @@ class AnalysisWorkerFacadeTest @Autowired constructor(
         private const val FIRST_PROMPT = "채점 프롬프트 1판"
         private const val ROAST_PROMPT = "작가 프롬프트 1판"
         private const val ROAST_MODEL = "gemini-3.5-flash"
-        private const val VALID_TITLE = "고맙다 연타 담당자"
+        private const val VALID_TITLE = "감사 연타왕"
+        private val EVIDENCE_LABELS = listOf("감사연타상", "힘보탬상", "인사발사상", "고마움상", "말풍선상")
+        /** 본인 말풍선(SAMPLE_TEXT)과 낱말을 나눠 일반론 검사를 통과하는 근거 한 줄. */
+        private val EVIDENCE_LINES = listOf("고마움이 늘 먼저 나왔다.", "힘이 나는 말을 아끼지 않았다.", "인사는 오늘도 빨랐다.", "정말 산타 장부에 적혔다.", "오늘도 산타가 봤다.")
         private val ROAST_USAGE = ModelUsage(5_000, 400, "STOP")
         private val FAILED_ROAST_USAGE = ModelUsage(0, 0, "FAILED")
         private const val LATEST_PROMPT = "채점 프롬프트 2판"
