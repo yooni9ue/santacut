@@ -137,8 +137,15 @@ data class RoastRules(
     /** 처음 나온 칭찬 뒤집기 말([flipWords]). 없으면 null이다. */
     fun flipIn(text: String): String? = flips.find(text)?.value
 
-    /** 근거 카드 라벨이 상 이름 꼴([labelSuffix]로 끝남)인지. */
-    fun isAwardLabel(text: String): Boolean = text.trim().endsWith(labelSuffix)
+    /**
+     * 근거 카드 라벨이 상 이름 꼴인지. [MIN_AWARD_LABEL]자 이상이고 [labelSuffix]로 끝나야 한다.
+     * 일상·영상처럼 상으로 끝나는 흔한 낱말([COMMON_SANG_WORDS])로 끝나면 상 이름이 아니다.
+     */
+    fun isAwardLabel(text: String): Boolean {
+        val label = text.trim()
+        return label.codePointCount(0, label.length) >= MIN_AWARD_LABEL && label.endsWith(labelSuffix) &&
+            COMMON_SANG_WORDS.none(label::endsWith)
+    }
 
     /** [text]에 쓴 허용 유행어 수. 덱 전체 상한([RoastSlang.maxPerDeck])을 셀 때 쓴다. */
     fun slangCountIn(text: String): Int = slangStems.findAll(text).count()
@@ -175,6 +182,11 @@ data class RoastRules(
         Regex("(($stem)(?:${alternation(suffixes)}))((?:$particleGroup)?)")
 
     companion object {
+        /** 상 이름 라벨의 최소 글자 수. */
+        const val MIN_AWARD_LABEL = 3
+
+        /** 상으로 끝나지만 상 이름이 아닌 흔한 낱말. 라벨이 이것으로 끝나면 떨어진다. */
+        private val COMMON_SANG_WORDS = listOf("일상", "밥상", "이상", "정상", "세상", "화상", "영상", "인상", "대상", "현상")
         private const val ALTERNATION = "|"
         private const val NOTHING = "(?!)"
         private const val CORE = 1

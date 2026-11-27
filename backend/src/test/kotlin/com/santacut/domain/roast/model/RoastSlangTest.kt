@@ -28,6 +28,7 @@ class RoastSlangTest {
             "엄… 물음표만 보내 놓고 기다린다.",
             "답장 속도 대결은 L을 가져가.",
             "답 안 할 거면 넌 나가라.",
+            "약속은 늘 네가 잡았다. 넌 남아라.",
             "새벽 말풍선 현행범, 체포하겠어.",
         ).forEach { text -> assertEquals(emptyList(), TextProblems.of(text, RoastTextKind.FINAL_LINE, gift, rules).toList(), text) }
     }

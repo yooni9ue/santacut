@@ -208,6 +208,14 @@ class RoastRulesTest {
     }
 
     @Test
+    fun `상으로 끝나도 두 글자이거나 흔한 낱말로 끝나면 상 이름이 아니다`() {
+        listOf("대상", "새벽일상", "카톡영상", "아침밥상", "답장이상", "말풍선세상", "연말정상", "첫인상").forEach { label ->
+            assertFalse(rules.isAwardLabel(label), label)
+        }
+        assertTrue(rules.isAwardLabel("감사품절상"))
+    }
+
+    @Test
     fun `비속어와 사람 부르는 입버릇, 긴 말은 인용 후보로 넘기지 않는다`() {
         assertTrue(rules.isQuotable("giyeok_q", "ㄱ?"))
         assertTrue(!rules.isQuotable("jojija", "조지자"))
