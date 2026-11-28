@@ -140,7 +140,7 @@ export function ResultExtras({ recapAvailable, dossierAvailable, refreshKey, ran
         </article>
         <div className="flow-recap-nav"><button type="button" disabled={busy || activeIndex === 0} onClick={() => setActiveIndex(index => index - 1)}>← 이전</button><span>{recapCardName(activeCard)}</span><button type="button" disabled={busy || activeIndex === recap.cards.length - 1} onClick={() => setActiveIndex(index => index + 1)}>다음 →</button></div>
         <div className="flow-extra-actions"><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, recap.share_text, true)}>이 카드 공유</button><button disabled={busy} onClick={() => void exportCard(`recap-${activeCard.index}`, `santacut-recap-${activeCard.index + 1}.png`, "", false)}>현재 카드 저장</button></div>
-        <div className="flow-extra-actions flow-recap-save-all"><button disabled={busy} onClick={() => void exportAll()}>전체 {recap.cards.length}장 저장 (ZIP)</button></div>
+        <div className="flow-extra-actions flow-recap-save-all"><button disabled={busy} onClick={() => void exportAll()}>전체 {recap.cards.length}장 개별 저장</button></div>
       </>}
       <ResultLinkShare key={recap.assessment_id} ranked={ranked || recap.rank != null} />
       <p className="flow-extra-share-text">{recap.share_text}</p>

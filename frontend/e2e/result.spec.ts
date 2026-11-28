@@ -159,7 +159,7 @@ test("여덟 장 리캡의 마지막 카드까지 이동할 수 있다", async (
   await expect(page.getByRole("button", { name: "다음 →" })).toBeDisabled();
   await page.getByRole("button", { name: "← 이전" }).click();
   await expect(page.getByText("7 / 8", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "전체 8장 저장 (ZIP)", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "전체 8장 개별 저장", exact: true })).toBeEnabled();
 });
 
 test("좁은 화면에서도 결론과 근거 카드가 카드 안에 들어간다", async ({ page }) => {
