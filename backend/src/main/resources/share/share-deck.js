@@ -16,6 +16,19 @@
     next.disabled = current === cards.length - 1;
     if (focus) cards[current].focus();
   }
+  var touchStart = null;
+  deck.addEventListener('touchstart', function (event) {
+    var touch = event.changedTouches[0];
+    touchStart = { x: touch.clientX, y: touch.clientY };
+  }, { passive: true });
+  deck.addEventListener('touchend', function (event) {
+    if (!touchStart) return;
+    var touch = event.changedTouches[0];
+    var dx = touch.clientX - touchStart.x;
+    var dy = touch.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy)) show(current + (dx < 0 ? 1 : -1), false);
+  }, { passive: true });
   prev.addEventListener('click', function () { show(current - 1, false); });
   next.addEventListener('click', function () { show(current + 1, false); });
   document.addEventListener('keydown', function (event) {
